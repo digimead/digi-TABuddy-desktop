@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.paint.*?>
+
+<VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" spacing="5.0" xmlns:fx="http://javafx.com/fxml" fx:controller="org.digimead.tabuddy.desktop.dialog.ElementTemplates$Controller">
+  <GridPane hgap="5.0" minHeight="-1.0" minWidth="20.0" vgap="5.0" VBox.vgrow="ALWAYS">
+    <children>
+      <ListView fx:id="templates" maxHeight="-1.0" minHeight="-1.0" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+      <ListView fx:id="predefined" maxWidth="-1.0" minHeight="-1.0" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+      <Label minHeight="-Infinity" minWidth="-Infinity" text="Predefined elements" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+      <Label minHeight="-Infinity" minWidth="-Infinity" text="Template elements" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+    </children>
+    <columnConstraints>
+      <ColumnConstraints halignment="CENTER" hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+      <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="-1.0" />
+      <ColumnConstraints halignment="CENTER" hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+    </columnConstraints>
+    <padding>
+      <Insets />
+    </padding>
+    <rowConstraints>
+      <RowConstraints fillHeight="false" maxHeight="-Infinity" minHeight="10.0" prefHeight="-1.0" vgrow="NEVER" />
+      <RowConstraints fillHeight="true" minHeight="10.0" prefHeight="-1.0" vgrow="ALWAYS" />
+    </rowConstraints>
+  </GridPane>
+  <padding>
+    <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+  </padding>
+  <HBox prefHeight="-1.0" prefWidth="-1.0">
+    <children>
+      <HBox minHeight="-Infinity" minWidth="-Infinity" prefHeight="-1.0" prefWidth="-1.0" spacing="5.0" HBox.hgrow="ALWAYS">
+        <children>
+          <Button fx:id="add" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Add template" />
+        </children>
+        <HBox.margin>
+          <Insets right="10.0" />
+        </HBox.margin>
+      </HBox>
+      <HBox alignment="TOP_RIGHT" minHeight="-Infinity" minWidth="-Infinity" prefHeight="-1.0" prefWidth="-1.0" spacing="5.0" HBox.hgrow="ALWAYS">
+        <children>
+          <Button fx:id="edit" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefWidth="-1.0" text="Edit" />
+          <Button fx:id="remove" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Remove" />
+        </children>
+        <HBox.margin>
+          <Insets left="10.0" />
+        </HBox.margin>
+      </HBox>
+    </children>
+    <VBox.margin>
+      <Insets />
+    </VBox.margin>
+  </HBox>
+  <HBox alignment="BOTTOM_RIGHT" minHeight="-1.0" minWidth="-1.0" prefHeight="-1.0" prefWidth="-1.0" spacing="5.0">
+    <children>
+      <Button fx:id="ok" disable="true" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Ok" />
+      <Button fx:id="cancel" cancelButton="true" defaultButton="true" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" text="Cancel" />
+    </children>
+  </HBox>
+</VBox>
