@@ -51,15 +51,20 @@ import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Data
+import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.dsl.DSLType.dsltype2implementation
 import org.digimead.tabuddy.model.element.Context
+import org.digimead.tabuddy.model.element.Coordinate
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
 import org.digimead.tabuddy.model.element.Value
 import org.digimead.tabuddy.model.element.Value.bool2value
 import org.digimead.tabuddy.model.element.Value.string2value
+import org.digimead.tabuddy.model.predef.Note
+import org.digimead.tabuddy.model.predef.Task
 
 import org.digimead.tabuddy.desktop.payload.DSL._
 
@@ -67,17 +72,17 @@ class ElementTemplate(
   /** The template element */
   val element: Element.Generic,
   /** The factory for the element that contains template data */
-  val factory: (Element.Generic, Symbol) => Element.Generic,
+  val factory: (Element.Generic, Symbol, Symbol) => Element.Generic,
   /** Fn thats do something before the instance initialization */
   preinitialization: ElementTemplate => Unit = tpl => {}) extends ElementTemplate.Interface with Loggable {
-  def this(element: Element.Generic, factory: (Element.Generic, Symbol) => Element.Generic,
+  def this(element: Element.Generic, factory: (Element.Generic, Symbol, Symbol) => Element.Generic,
     initialDescription: String, initialAvailability: Boolean, initialProperties: ElementTemplate.propertyMap) = {
     this(element, factory, (template) => {
-      // This code is invoked before availability, description and properties fields initialization
+      // This code is invoked before availability, label and properties fields initialization
       if (template.element.eGet[java.lang.Boolean](template.getFieldIDAvailability).map(_.get) != Some(initialAvailability))
         template.element.eSet(template.getFieldIDAvailability, initialAvailability)
-      if (template.element.eGet[String](template.getFieldIDDescription).map(_.get) != Some(initialDescription))
-        template.element.eSet(template.getFieldIDDescription, initialDescription, "")
+      if (template.element.eGet[String](template.getFieldIDLabel).map(_.get) != Some(initialDescription))
+        template.element.eSet(template.getFieldIDLabel, initialDescription, "")
       if (template.getProperties() != initialProperties)
         initialProperties.foreach {
           case (group, properties) => properties.foreach(property => template.setProperty(property.id, property.ptype.typeSymbol, group, Some(property)))
@@ -90,8 +95,8 @@ class ElementTemplate(
     case Some(value) => value.get
     case _ => true
   }
-  /** The template description */
-  val description: String = element.eGet[String](getFieldIDDescription) match {
+  /** The template label */
+  val label: String = element.eGet[String](getFieldIDLabel) match {
     case Some(value) => value.get
     case _ => ""
   }
@@ -102,16 +107,16 @@ class ElementTemplate(
 
   /** The copy constructor */
   def copy(availability: Boolean = this.availability,
-    description: String = this.description,
+    label: String = this.label,
     element: Element.Generic = this.element,
-    factory: (Element.Generic, Symbol) => Element.Generic = this.factory,
+    factory: (Element.Generic, Symbol, Symbol) => Element.Generic = this.factory,
     id: Symbol = this.id,
     properties: ElementTemplate.propertyMap = this.properties) =
     if (id == this.id)
-      new ElementTemplate(element, factory, description, availability, properties).asInstanceOf[this.type]
+      new ElementTemplate(element, factory, label, availability, properties).asInstanceOf[this.type]
     else {
       element.asInstanceOf[Element[Stash]].eStash = element.eStash.copy(id = id)
-      new ElementTemplate(element, factory, description, availability, properties).asInstanceOf[this.type]
+      new ElementTemplate(element, factory, label, availability, properties).asInstanceOf[this.type]
     }
 
   protected def getProperties(): ElementTemplate.propertyMap =
@@ -119,12 +124,14 @@ class ElementTemplate(
       case (id, ptypeID) =>
         PropertyType.container.get(ptypeID) match {
           case Some(ptype) =>
-            getProperty(id, ptype)(Manifest.classType(ptype.typeClass))
+            Some(getProperty(id, ptype)(Manifest.classType(ptype.typeClass))).
+              // as common TemplateProperty
+              asInstanceOf[Option[(TemplatePropertyGroup, TemplateProperty[_ <: AnyRef with java.io.Serializable])]]
           case None =>
             log.fatal("unable to get property %s with unknown type wrapper id %s".format(id, ptypeID))
-            null
+            None
         }
-    }.filter(_ != null).toSeq.
+    }.flatten.toSeq.
       // group by TemplatePropertyGroup
       groupBy(_._1).map(t => (t._1,
         // transform the value from Seq((group,property), ...) to Seq(property) sorted by id
@@ -143,10 +150,15 @@ class ElementTemplate(
     val requiredVal = requiredField.map(_.get).getOrElse(Boolean.box(false))
     val elementPropertyEnumeration = enumerationField.flatMap { idRaw =>
       val id = Symbol(idRaw)
-      Data.enumerations.find(enum => enum.id == id && enum.ptype == ptype).asInstanceOf[Option[Enumeration.Interface[T]]]
+      Main.execNGet {
+        val enumeration = Data.enumerations.find(enum => enum.id == id && enum.ptype == ptype).asInstanceOf[Option[Enumeration.Interface[T]]]
+        if (enumeration.isEmpty)
+          log.error(s"Unable to load an unknown enumeration $idRaw")
+        enumeration
+      }
     }
     val elementPropertyGroup = TemplatePropertyGroup.default
-    val elementProperty = new TemplateProperty[T](id, requiredVal, elementPropertyEnumeration, ptype, defaultField.map(_.get))
+    val elementProperty = new TemplateProperty[T](id, requiredVal, elementPropertyEnumeration.map(_.id), ptype, defaultField.map(_.get))
     (elementPropertyGroup, elementProperty)
   }
   /** Build array[id, type] of properties from getFieldProperties() field */
@@ -184,7 +196,7 @@ class ElementTemplate(
         // update the enumeration field
         elementProperty.enumeration match {
           case Some(enumeration) =>
-            element.eSet(getFieldIDPropertyEnumeration(id), 'String, enumeration.id.name)
+            element.eSet(getFieldIDPropertyEnumeration(id), 'String, enumeration.name)
           case None =>
             element.eSet(getFieldIDPropertyEnumeration(id), 'String, None)
         }
@@ -219,7 +231,7 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
   @volatile private var predefinedTemplates: Seq[ElementTemplate.Interface] = Seq()
 
   /** Predefined element templates container */
-  def container() = inject[Element[_ <: Stash]]("ElementTemplate")
+  def container() = inject[Record.Interface[_ <: Record.Stash]]("eElementTemplate")
   /** This function is invoked at every model initialization */
   def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) =
     predefinedTemplates = inject[Seq[ElementTemplate.Interface]]
@@ -228,14 +240,16 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
    * 'lazy' modifier prohibited, modify current model while construction
    */
   def initPredefinedCustom = {
-    val factory = (container: Element.Generic, id: Symbol) => container | RecordLocation(id)
-    if ((container & RecordLocation('Custom)).isEmpty) {
+    val id = Record.scope.modificator
+    val factory = (container: Element.Generic, id: Symbol, scopeModificator: Symbol) =>
+      Record(container, id, new Record.Scope(scopeModificator), Coordinate.root.coordinate)
+    if ((container & RecordLocation(id)).isEmpty) {
       log.debug("initialize new predefined Record template")
-      new ElementTemplate(factory(ElementTemplate.container, 'Custom), factory, "Predefined custom element", true,
-        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('description, false, None, PropertyType.get('String)))))
+      new ElementTemplate(factory(ElementTemplate.container, id, id), factory, "predefined custom element", true,
+        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('label, false, None, PropertyType.get('String)))))
     } else {
       log.debug("initialize exists predefined Record template")
-      new ElementTemplate(factory(ElementTemplate.container, 'Custom), factory)
+      new ElementTemplate(factory(ElementTemplate.container, id, id), factory)
     }
   }
   /**
@@ -243,14 +257,16 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
    * 'lazy' modifier prohibited, modify current model while construction
    */
   def initPredefinedNote = {
-    val factory = (container: Element.Generic, id: Symbol) => container | NoteLocation(id)
-    if ((container & NoteLocation('Note)).isEmpty) {
+    val id = Note.scope.modificator
+    val factory = (container: Element.Generic, id: Symbol, scopeModificator: Symbol) =>
+      Note(container, id, new Note.Scope(scopeModificator), Coordinate.root.coordinate)
+    if ((container & NoteLocation(id)).isEmpty) {
       log.debug("initialize new predefined Note template")
-      new ElementTemplate(factory(ElementTemplate.container, 'Note), factory, "Predefined note element", true,
-        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('description, false, None, PropertyType.get('String)))))
+      new ElementTemplate(factory(ElementTemplate.container, id, id), factory, "predefined note element", true,
+        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('label, false, None, PropertyType.get('String)))))
     } else {
       log.debug("initialize exists predefined Note template")
-      new ElementTemplate(factory(ElementTemplate.container, 'Note), factory)
+      new ElementTemplate(factory(ElementTemplate.container, id, id), factory)
     }
   }
   /**
@@ -258,14 +274,16 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
    * 'lazy' modifier prohibited, modify current model while construction
    */
   def initPredefinedTask = {
-    val factory = (container: Element.Generic, id: Symbol) => container | TaskLocation(id)
-    if ((container & TaskLocation('Task)).isEmpty) {
+    val id = Task.scope.modificator
+    val factory = (container: Element.Generic, id: Symbol, scopeModificator: Symbol) =>
+      Task(container, id, new Task.Scope(scopeModificator), Coordinate.root.coordinate)
+    if ((container & TaskLocation(id)).isEmpty) {
       log.debug("initialize new predefined Task template")
-      new ElementTemplate(factory(ElementTemplate.container, 'Task), factory, "Predefined task element", true,
-        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('description, false, None, PropertyType.get('String)))))
+      new ElementTemplate(factory(ElementTemplate.container, id, id), factory, "predefined task element", true,
+        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('label, false, None, PropertyType.get('String)))))
     } else {
       log.debug("initialize exists predefined Task template")
-      new ElementTemplate(factory(ElementTemplate.container, 'Task), factory)
+      new ElementTemplate(factory(ElementTemplate.container, id, id), factory)
     }
   }
   def predefined() = predefinedTemplates
@@ -279,13 +297,13 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
   trait Interface {
     /** Availability flag for user (some template may exists, but not involved in new element creation) */
     val availability: Boolean
-    /** The template description */
-    val description: String
+    /** The template label */
+    val label: String
     /** The template element */
     val element: Element.Generic
     /** The factory for the element that contains template data */
-    val factory: (Element.Generic, Symbol) => Element.Generic
-    /** The template id/name */
+    val factory: (Element.Generic, Symbol, Symbol) => Element.Generic
+    /** The template id/name/element scope */
     val id: Symbol
     /**
      * Map of element properties from the model point of view
@@ -296,17 +314,17 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
 
     /** The copy constructor */
     def copy(availability: Boolean = this.availability,
-      description: String = this.description,
+      label: String = this.label,
       element: Element.Generic = this.element,
-      factory: (Element.Generic, Symbol) => Element.Generic = this.factory,
+      factory: (Element.Generic, Symbol, Symbol) => Element.Generic = this.factory,
       id: Symbol = this.id,
       properties: ElementTemplate.propertyMap = this.properties): this.type
     /** Returns an ID for the availability field */
-    def getFieldIDAvailability() = 'Tavailability
-    /** Returns an ID for the description field */
-    def getFieldIDDescription() = 'Tdescription
+    def getFieldIDAvailability() = 'availability
+    /** Returns an ID for the label field */
+    def getFieldIDLabel() = 'label
     /** Returns an ID for the sequence of id/type tuples field */
-    def getFieldIDProperties() = 'Tproperties
+    def getFieldIDProperties() = 'properties
     /** Returns an ID for the property default value field */
     def getFieldIDPropertyDefault(id: Symbol) = Symbol(id.name + "_default")
     /** Returns an ID for the property enumeration field */
@@ -317,8 +335,8 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
     def getFieldIDPropertyGroup(id: Symbol) = Symbol(id.name + "_group")
     /** Returns a new ElementTemplate with the updated availability */
     def updated(availability: Boolean): this.type = copy(availability = availability)
-    /** Returns a new ElementTemplate with the updated description */
-    def updated(description: String): this.type = copy(description = description)
+    /** Returns a new ElementTemplate with the updated label */
+    def updated(label: String): this.type = copy(label = label)
     /** Returns a new ElementTemplate with the updated id */
     def updated(id: Symbol): this.type = copy(id = id)
 
@@ -329,7 +347,7 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
         (this eq that) || {
           that.canEqual(this) &&
             availability == that.availability &&
-            description == that.description &&
+            label == that.label &&
             id == that.id &&
             properties == that.properties
         }
@@ -338,7 +356,7 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
     override def hashCode() = {
       val prime = 41
       prime * (prime * (prime * (prime + availability.hashCode) +
-        description.hashCode) + id.hashCode) + properties.hashCode
+        label.hashCode) + id.hashCode) + properties.hashCode
     }
     override def toString() = "ElementTemplate(%s based on %s)".format(element.eId, element.eStash.scope)
   }

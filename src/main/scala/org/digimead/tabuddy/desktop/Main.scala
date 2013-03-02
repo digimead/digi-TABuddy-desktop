@@ -67,6 +67,7 @@ import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.payload.TypeSchema
 import org.digimead.tabuddy.desktop.ui.Window
+import org.digimead.tabuddy.desktop.ui.view
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
@@ -228,11 +229,14 @@ object Main extends App with Loggable {
     Job.start()
     // Initialize the job approver
     Approver.start()
+    // Initialize other subsystems
+    view.tree.Tree.start()
   }
   /** This function is invoked at the application stop */
   def stop() {
     log.info("stop application")
     Element.Event.removeSubscription(elementEventsSubscriber)
+    view.tree.Tree.stop()
     Approver.stop()
     Job.stop()
     Transport.stop()

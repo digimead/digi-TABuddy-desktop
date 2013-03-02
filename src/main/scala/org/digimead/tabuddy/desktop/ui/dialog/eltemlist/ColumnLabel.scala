@@ -41,11 +41,10 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.ui.dialog.typelist
+package org.digimead.tabuddy.desktop.ui.dialog.eltemlist
 
 import org.digimead.digi.lib.log.Loggable
-import org.digimead.tabuddy.desktop.payload.TypeSchema
-import org.digimead.tabuddy.desktop.res.Messages
+import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.EditingSupport
@@ -54,19 +53,19 @@ import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.graphics.Point
 
-object ColumnDescription extends Loggable {
+object ColumnLabel extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: TypeSchema =>
-        cell.setText(item.description)
+      case item: ElementTemplate.Interface =>
+        cell.setText(item.label)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: TypeSchema =>
-        Messages.typeSchemaTooltip_text.format(item.name, item.id, item.entity.size)
+      case item: ElementTemplate.Interface =>
+        "o!"
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         null
@@ -79,22 +78,21 @@ object ColumnDescription extends Loggable {
     override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
     override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
   }
-  class TEditingSupport(viewer: TableViewer, container: TypeList) extends EditingSupport(viewer) {
+  class TEditingSupport(viewer: TableViewer, container: ElementTemplateList) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: TypeSchema =>
-        item.description
+      case item: ElementTemplate.Interface =>
+        item.label
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: TypeSchema if before.description != value.asInstanceOf[String] =>
-        val description = value.asInstanceOf[String].trim
-        if (!container.actual.exists(_.description == description))
-          container.updateActualSchema(before, before.copy(description = description))
-      case before: TypeSchema =>
+      case before: ElementTemplate.Interface =>
+        val label = value.asInstanceOf[String].trim()
+        if (before.label != label)
+          container.updateActualTemplate(before, before.updated(label))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }

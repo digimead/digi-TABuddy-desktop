@@ -50,8 +50,19 @@ import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.support.Validator
 import org.digimead.tabuddy.desktop.support.WritableValue
+import org.digimead.tabuddy.desktop.ui.dialog.Dialog
 import org.digimead.tabuddy.model.dsl.DSLType
+import org.eclipse.jface.viewers.CellEditor
+import org.eclipse.jface.viewers.CellLabelProvider
+import org.eclipse.jface.viewers.ComboViewer
+import org.eclipse.jface.viewers.LabelProvider
+import org.eclipse.jface.viewers.ViewerCell
+import org.eclipse.swt.SWT
 import org.eclipse.swt.events.VerifyEvent
+import org.eclipse.swt.graphics.Color
+import org.eclipse.swt.graphics.Font
+import org.eclipse.swt.graphics.Image
+import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.ui.forms.widgets.FormToolkit
@@ -61,21 +72,29 @@ import org.eclipse.ui.forms.widgets.FormToolkit
  * The equality is based on id: Symbol
  */
 trait PropertyType[T <: AnyRef with java.io.Serializable] {
-  /** The type wrapper name */
+  /** The property that determines that enumeration is supported */
+  val enumerationSupported: Boolean
+  /** The property type name */
   val id: Symbol
   /** The type class */
   val typeClass: Class[T]
   /** The type symbol */
   lazy val typeSymbol: Symbol = DSLType.classSymbolMap(typeClass)
+  /** The property that contains an adapter for the given type */
+  def adapter(): PropertyType.Adapter[T]
 
   /** Create an editor for the given type */
   def createEditor(initial: Option[T]): PropertyType.Editor[T]
-  /** Create a provider for the given type */
-  def createProvider(): PropertyType.Provider[T]
-  /** Create a viewer for the given type */
-  def createViewer(initial: Option[T]): PropertyType.Viewer[T]
+  /** Returns the new value */
+  def createValue: T
   /** Returns an iterator for the new value generation */
   def createValues: Iterator[T]
+  /** Create a viewer for the given type */
+  def createViewer(initial: Option[T]): PropertyType.Viewer[T]
+  /** Convert value to string */
+  def valueToString(value: T): String
+  /** Convert string to value */
+  def valueFromString(value: String): T
 
   def canEqual(other: Any) =
     other.isInstanceOf[org.digimead.tabuddy.desktop.payload.PropertyType[_]]
@@ -115,16 +134,44 @@ object PropertyType extends DependencyInjection.PersistentInjectable with Loggab
   }
 
   /**
-   * Element property provider
+   * Element property adapter
    */
-  trait Provider[T <: AnyRef with java.io.Serializable] extends Viewer[T] {
+  trait Adapter[T <: AnyRef with java.io.Serializable] {
+    /** Cell label provider singleton with limited API for proxy use case */
+    val cellLabelProvider: CellLabelProviderAdapter[T]
+    /** Label provider singleton with limited API for proxy use case */
+    val labelProvider: LabelProviderAdapter[T]
+
+    /** Get a cell editor */
+    def createCellEditor(parent: Composite): CellEditor = createCellEditor(parent, SWT.NONE)
+    /** Get a cell editor */
+    def createCellEditor(parent: Composite, style: Int): CellEditor
+    /** Get a LabelProveder */
+    def createLabelProvider(): LabelProvider
+    /** Get an enumeration LabelProveder */
+    def createEnumerationLabelProvider(): LabelProvider = new EnumerationLabelProvider
   }
   /**
    * Element property editor
    */
   trait Editor[T <: AnyRef with java.io.Serializable] extends Viewer[T] {
+    /** An actual value */
+    val data: WritableValue[T]
+
     /** Add the validator */
     def addValidator(control: Control, showOnlyOnFocus: Boolean = true): Option[Validator]
+    /** Get a combo viewer UI control */
+    def createCControl(parent: Composite): ComboViewer = createCControl(parent, SWT.NONE)
+    /** Get a combo viewer UI control */
+    def createCControl(parent: Composite, style: Int): ComboViewer = createCControl(parent, style, 50)
+    /** Get a combo viewer UI control */
+    def createCControl(parent: Composite, style: Int, updateDelay: Int): ComboViewer
+    /** Get a combo viewer UI control */
+    def createCControl(toolkit: FormToolkit, parent: Composite): ComboViewer = createCControl(toolkit, parent, SWT.NONE)
+    /** Get a combo viewer UI control */
+    def createCControl(toolkit: FormToolkit, parent: Composite, style: Int): ComboViewer = createCControl(toolkit, parent, style, 50)
+    /** Get a combo viewer UI control */
+    def createCControl(toolkit: FormToolkit, parent: Composite, style: Int, updateDelay: Int): ComboViewer
     /** The validator function */
     def validate(validator: Validator, event: VerifyEvent): Unit
   }
@@ -135,14 +182,86 @@ object PropertyType extends DependencyInjection.PersistentInjectable with Loggab
     /** The property representing the UI control value */
     val data: WritableValue[T]
     /** Get an UI control */
+    def createControl(parent: Composite): Control = createControl(parent, SWT.NONE)
+    /** Get an UI control */
     def createControl(parent: Composite, style: Int): Control = createControl(parent, style, 50)
     /** Get an UI control */
     def createControl(parent: Composite, style: Int, updateDelay: Int): Control
+    /** Get an UI control */
+    def createControl(toolkit: FormToolkit, parent: Composite): Control = createControl(toolkit, parent, SWT.NONE)
     /** Get an UI control */
     def createControl(toolkit: FormToolkit, parent: Composite, style: Int): Control = createControl(toolkit, parent, style, 50)
     /** Get an UI control */
     def createControl(toolkit: FormToolkit, parent: Composite, style: Int, updateDelay: Int): Control
     /** Returns true if the data is empty, false otherwise. */
     def isEmpty: Boolean
+  }
+  /*
+   * Support classes
+   */
+  /** The base interface of CellLabelProvider adapter */
+  trait CellLabelProviderAdapter[T] {
+    /** Return the background color used for the tool tip */
+    def getToolTipBackgroundColor(element: AnyRef): Color = null
+    /** The time in milliseconds until the tool tip is displayed. */
+    def getToolTipDisplayDelayTime(element: AnyRef): Int = Dialog.ToolTipDisplayDelayTime
+    /** Get the {@link Font} used to display the tool tip */
+    def getToolTipFont(element: AnyRef): Font = null
+    /** The foreground color used to display the the text in the tool tip */
+    def getToolTipForegroundColor(element: AnyRef): Color = null
+    /** Get the image displayed in the tool tip for object. */
+    def getToolTipImage(element: AnyRef): Image = null
+    /**
+     * Return the amount of pixels in x and y direction you want the tool tip to
+     * pop up from the mouse pointer. The default shift is 10px right and 0px
+     * below your mouse cursor. Be aware of the fact that you should at least
+     * position the tool tip 1px right to your mouse cursor else click events
+     * may not get propagated properly.
+     */
+    def getToolTipShift(element: AnyRef): Point = Dialog.ToolTipShift
+    /** Get the text displayed in the tool tip for object. */
+    def getToolTipText(element: AnyRef): String = null
+    /** The time in milliseconds the tool tip is shown for. */
+    def getToolTipTimeDisplayed(element: AnyRef): Int = Dialog.ToolTipTimeDisplayed
+    /**
+     * The {@link SWT} style used to create the {@link CLabel} (see there for
+     * supported styles). By default {@link SWT#SHADOW_NONE} is used.
+     */
+    def getToolTipStyle(element: AnyRef): Int = SWT.SHADOW_NONE
+    /** Update the label for cell. */
+    def update(cell: ViewerCell, value: Option[T]): Unit
+    /**
+     * Return whether or not to use the native tool tip. If you switch to native
+     * tool tips only the value from {@link #getToolTipText(Object)} is used all
+     * other features from custom tool tips are not supported.
+     */
+    def useNativeToolTip(element: AnyRef): Boolean = false
+  }
+  /** The default enumeration label provider */
+  class EnumerationLabelProvider extends LabelProvider {
+    override def getText(element: AnyRef): String = element match {
+      case constant: Enumeration.Constant[_] =>
+        constant.view
+      case unknown =>
+        log.fatal("Unknown item " + unknown.getClass())
+        unknown.toString()
+    }
+  }
+  /** The base interface of LabelProvider adapter */
+  trait LabelProviderAdapter[T] {
+    /**
+     * The <code>LabelProvider</code> implementation of this
+     * <code>ILabelProvider</code> method returns <code>null</code>.
+     */
+    def getImage(element: Option[T]): Image = null
+    /**
+     * The <code>LabelProvider</code> implementation of this
+     * <code>ILabelProvider</code> method returns the element's
+     * <code>toString</code> string.
+     */
+    def getText(value: Option[T]): String = value match {
+      case Some(value) if value != null => value.toString()
+      case _ => ""
+    }
   }
 }

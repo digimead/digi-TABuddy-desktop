@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.ui.dialog.eltemed
 
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.tabuddy.desktop.ui.dialog.Dialog
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.EditingSupport
@@ -54,28 +55,26 @@ import org.eclipse.swt.graphics.Point
 
 object ColumnGroup extends Loggable {
   class TLabelProvider extends CellLabelProvider {
-    /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item =>
         cell.setText(item.group)
+        item.groupError.foreach(err => cell.setImage(err._2))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
-    /** Get the text displayed in the tool tip for object. */
-    override def getToolTipText(element: Object): String = element match {
+    override def getToolTipText(element: AnyRef): String = element match {
       case item: ElementTemplateEditor.Item =>
-        "o!"
+        item.groupError match {
+          case Some(error) => error._1
+          case None => null
+        }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
-    /**
-     * Return the amount of pixels in x and y direction that the tool tip to
-     * pop up from the mouse pointer.
-     */
-    override def getToolTipShift(obj: Object): Point = new Point(5, 5)
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
-    override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
+    override def getToolTipShift(obj: Object): Point = Dialog.ToolTipShift
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Dialog.ToolTipDisplayDelayTime
+    override def getToolTipTimeDisplayed(obj: Object): Int = Dialog.ToolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: ElementTemplateEditor) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())
@@ -92,7 +91,7 @@ object ColumnGroup extends Loggable {
         val group = value.asInstanceOf[String].trim
         if (before.group != group) {
           val after = before.copy(group = group)
-          container.updateActualProperty(before, after)
+          container.updateActualProperty(before, container.validateItem(after))
         }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

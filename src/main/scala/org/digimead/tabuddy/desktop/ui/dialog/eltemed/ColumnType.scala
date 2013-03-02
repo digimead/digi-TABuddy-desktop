@@ -44,7 +44,6 @@
 package org.digimead.tabuddy.desktop.ui.dialog.eltemed
 
 import scala.Array.canBuildFrom
-
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.payload.Enumeration
 import org.digimead.tabuddy.desktop.payload.PropertyType
@@ -57,10 +56,10 @@ import org.eclipse.jface.viewers.TableViewer
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
+import org.digimead.tabuddy.desktop.ui.dialog.Dialog
 
 object ColumnType extends Loggable {
   class TLabelProvider extends CellLabelProvider {
-    /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item =>
         item.enumeration match {
@@ -69,24 +68,23 @@ object ColumnType extends Loggable {
           case None =>
             cell.setText(TypeSchema.getTypeName(item.ptype.id))
         }
+        item.typeError.foreach(err => cell.setImage(err._2))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
-    /** Get the text displayed in the tool tip for object. */
-    override def getToolTipText(element: Object): String = element match {
+    override def getToolTipText(element: AnyRef): String = element match {
       case item: ElementTemplateEditor.Item =>
-        "o! type"
+        item.typeError match {
+          case Some(error) => error._1
+          case None => null
+        }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
-    /**
-     * Return the amount of pixels in x and y direction that the tool tip to
-     * pop up from the mouse pointer.
-     */
-    override def getToolTipShift(obj: Object): Point = new Point(5, 5)
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
-    override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
+    override def getToolTipShift(obj: Object): Point = Dialog.ToolTipShift
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Dialog.ToolTipDisplayDelayTime
+    override def getToolTipTimeDisplayed(obj: Object): Int = Dialog.ToolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: ElementTemplateEditor) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor =
@@ -113,7 +111,7 @@ object ColumnType extends Loggable {
         if (before.ptype != container.types(typeIdx) || before.enumeration.nonEmpty) {
           val after = before.copy(enumeration = None,
             ptype = container.types(typeIdx).asInstanceOf[PropertyType[AnyRef with java.io.Serializable]])
-          container.updateActualProperty(before, after)
+          container.updateActualProperty(before, container.validateItem(after))
         }
       case before: ElementTemplateEditor.Item =>
         // update as enumeration
@@ -121,7 +119,7 @@ object ColumnType extends Loggable {
         if (before.enumeration != container.enumerations(enumIdx)) {
           val after = before.copy(enumeration = Some(container.enumerations(enumIdx).asInstanceOf[Enumeration.Interface[AnyRef with java.io.Serializable]]),
             ptype = container.enumerations(enumIdx).ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]])
-          container.updateActualProperty(before, after)
+          container.updateActualProperty(before, container.validateItem(after))
         }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

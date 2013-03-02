@@ -81,8 +81,8 @@ class ElementTemplateSpec_j1 extends FunSpec with ShouldMatchers with TestHelper
         val task = ElementTemplate.predefined.find(_.id == 'Task).get
         note should not be (task)
         note should be(note)
-        note.element.eGet[String](note.getFieldIDDescription).get.get should be("Predefined note element")
-        note.description should be("Predefined note element")
+        note.element.eGet[String](note.getFieldIDLabel).get.get should be("Predefined note element")
+        note.label should be("Predefined note element")
         assert(note.element.eGet[java.lang.Boolean](note.getFieldIDAvailability).get.get === true)
         note.availability should be(true)
         note.id.name should be(note.element.eId.name)
@@ -93,12 +93,12 @@ class ElementTemplateSpec_j1 extends FunSpec with ShouldMatchers with TestHelper
         note.properties should have size (1)
         note.properties should contain key (TemplatePropertyGroup.default)
         note.properties(TemplatePropertyGroup.default) should have size (1)
-        note.properties(TemplatePropertyGroup.default).head.id.name should be("description")
+        note.properties(TemplatePropertyGroup.default).head.id.name should be("label")
         //note.properties = note.properties
         note.properties should have size (1)
         note.properties should contain key (TemplatePropertyGroup.default)
         note.properties(TemplatePropertyGroup.default) should have size (1)
-        note.properties(TemplatePropertyGroup.default).head.id.name should be("description")
+        note.properties(TemplatePropertyGroup.default).head.id.name should be("label")
         val task = ElementTemplate.predefined.find(_.id == 'Task).get
     }
     it("should have proper copy constructor") {
@@ -107,15 +107,15 @@ class ElementTemplateSpec_j1 extends FunSpec with ShouldMatchers with TestHelper
         val note1 = note.copy(element = note.element.eCopy)
         note.element.eq(note1.element) should be(false)
         note.availability should be(note1.availability)
-        note.description should be(note1.description)
+        note.label should be(note1.label)
         note.id.name should be(note1.id.name)
         note.properties should be(note1.properties)
         assert(note === note1)
-        val note2 = note1.copy(description = "123")
-        note2.element.eGet[String](note.getFieldIDDescription).get.get should be("123")
-        note1.element.eGet[String](note.getFieldIDDescription).get.get should be("123")
-        note1.description should be(note.description)
-        note2.description should be("123")
+        val note2 = note1.copy(label = "123")
+        note2.element.eGet[String](note.getFieldIDLabel).get.get should be("123")
+        note1.element.eGet[String](note.getFieldIDLabel).get.get should be("123")
+        note1.label should be(note.label)
+        note2.label should be("123")
     }
   }
 }

@@ -135,7 +135,7 @@ object Transport extends DependencyInjection.PersistentInjectable with Loggable 
             None
         }
       } catch {
-        case e =>
+        case e: Throwable =>
           log.warn("unable to register core: " + e.getMessage(), e)
           None
       }

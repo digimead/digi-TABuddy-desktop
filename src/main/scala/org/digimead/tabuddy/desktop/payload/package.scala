@@ -43,12 +43,10 @@
 
 package org.digimead.tabuddy.desktop
 
-import scala.collection.immutable
-
 import java.io.File
 import java.util.UUID
 
-import com.escalatesoft.subcut.inject.NewBindingModule
+import scala.collection.immutable
 
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Payload
@@ -56,12 +54,13 @@ import org.digimead.tabuddy.desktop.payload.template.StringType
 import org.digimead.tabuddy.desktop.payload.template.TextType
 import org.digimead.tabuddy.desktop.res.Messages
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
 import org.digimead.tabuddy.model.serialization.BuiltinSerialization
 import org.digimead.tabuddy.model.serialization.ProtobufSerialization
 import org.digimead.tabuddy.model.serialization.Serialization
+
+import com.escalatesoft.subcut.inject.NewBindingModule
 
 import org.digimead.tabuddy.desktop.payload.DSL._
 
@@ -95,15 +94,6 @@ package object payload {
         ElementTemplate.initPredefinedNote,
         ElementTemplate.initPredefinedTask)
     }
-    /** A model settings container */
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    module.bind[Element[_ <: Stash]] identifiedBy "Settings" toProvider { Model | RecordLocation('TABuddy) | RecordLocation('Settings) }
-    /** A model element templates container */
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    module.bind[Element[_ <: Stash]] identifiedBy "ElementTemplate" toProvider { module => module.inject[Element[_ <: Stash]](Some("Settings")) | RecordLocation('Templates) }
-    /** A model enumerations container */
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    module.bind[Element[_ <: Stash]] identifiedBy "Enumeration" toProvider { module => module.inject[Element[_ <: Stash]](Some("Settings")) | RecordLocation('Enumerations) }
     /** List of predefined type schemas */
     module.bind[Seq[TypeSchema.Interface]] toProvider {
       Seq[TypeSchema.Interface]({
@@ -116,5 +106,26 @@ package object payload {
     }
     /** Default type schema */
     module.bind[UUID] identifiedBy "TypeSchema.Default" toSingle { UUID.fromString("4ce08a80-6f10-11e2-bcfd-0800200c9a66") }
+    /*
+     * Model elements
+     */
+    /** The TABuddy desktop container */
+    // Record.Interface[_ <: Record.Stash]] == Record.Generic: avoid 'erroneous or inaccessible type' error
+    module.bind[Record.Interface[_ <: Record.Stash]] identifiedBy "eTABuddy" toProvider { Model | RecordLocation('TABuddy) | RecordLocation('Desktop) }
+    /** A model settings container */
+    // Record.Interface[_ <: Record.Stash]] == Record.Generic: avoid 'erroneous or inaccessible type' error
+    module.bind[Record.Interface[_ <: Record.Stash]] identifiedBy "eSettings" toProvider { module =>
+      module.inject[Record.Interface[_ <: Record.Stash]](Some("eTABuddy")) | RecordLocation('Settings)
+    }
+    /** A model element templates container */
+    // Record.Interface[_ <: Record.Stash]] == Record.Generic: avoid 'erroneous or inaccessible type' error
+    module.bind[Record.Interface[_ <: Record.Stash]] identifiedBy "eElementTemplate" toProvider { module =>
+      module.inject[Record.Interface[_ <: Record.Stash]](Some("eSettings")) | RecordLocation('Templates)
+    }
+    /** A model enumerations container */
+    // Record.Interface[_ <: Record.Stash]] == Record.Generic: avoid 'erroneous or inaccessible type' error
+    module.bind[Record.Interface[_ <: Record.Stash]] identifiedBy "eEnumeration" toProvider { module =>
+      module.inject[Record.Interface[_ <: Record.Stash]](Some("eSettings")) | RecordLocation('Enumerations)
+    }
   })
 }

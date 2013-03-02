@@ -44,65 +44,92 @@
 package org.digimead.tabuddy.desktop.ui.dialog
 
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
+import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
+import org.digimead.tabuddy.desktop.payload.Enumeration
+import org.digimead.tabuddy.desktop.payload.PropertyType
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.desktop.payload.TemplatePropertyGroup
-import org.digimead.tabuddy.desktop.payload.PropertyType
 import org.digimead.tabuddy.desktop.res.Messages
 import org.digimead.tabuddy.desktop.res.SWTResourceManager
+import org.digimead.tabuddy.desktop.support.SymbolValidator
+import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.element.Stash
+import org.digimead.tabuddy.model.element.Value
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.jface.databinding.swt.WidgetProperties
+import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.dialogs.IDialogConstants
+import org.eclipse.jface.viewers.StructuredSelection
 import org.eclipse.swt.SWT
+import org.eclipse.swt.events.DisposeEvent
+import org.eclipse.swt.events.DisposeListener
+import org.eclipse.swt.events.PaintEvent
+import org.eclipse.swt.events.PaintListener
+import org.eclipse.swt.graphics.GC
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.widgets.Label
 import org.eclipse.swt.widgets.Shell
+import org.eclipse.ui.forms.events.ExpansionAdapter
+import org.eclipse.ui.forms.events.ExpansionEvent
 import org.eclipse.ui.forms.widgets.ExpandableComposite
+import org.eclipse.ui.forms.widgets.Section
 
-class ElementEditor(val parentShell: Shell, element: Element.Generic, template: ElementTemplate.Interface)
+class ElementEditor(val parentShell: Shell, element: Element.Generic, template: ElementTemplate.Interface, newElement: Boolean)
   extends org.digimead.tabuddy.desktop.res.dialog.ElementEditor(parentShell) with Dialog with Loggable {
   /** The property representing the current element id */
   protected lazy val idField = WritableValue("")
-  /** Element properties (Option[initialValue], editor). Available only from the UI thread */
-  var properties = Seq[(Option[AnyRef with java.io.Serializable], PropertyType.Editor[_ <: AnyRef with java.io.Serializable])]()
+  /** Element properties (property, control, editor). Available only from the UI thread */
+  var properties = Seq[ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]()
   /** Element properties listener */
-  val propertiesListener = new IChangeListener() {
-    override def handleChange(event: ChangeEvent) = Option(getButton(IDialogConstants.OK_ID)).foreach(_.
-      setEnabled(!properties.forall { case (initial, editor) => initial == Option(editor.data.value) || (initial.isEmpty && editor.isEmpty) }))
-  }
+  val propertiesListener = new IChangeListener() { override def handleChange(event: ChangeEvent) = updateOK() }
   assert(ElementEditor.dialog.isEmpty, "ElementCreate dialog is already active")
 
   /** Add the group title to creation form */
-  def addGroupTitle(group: TemplatePropertyGroup) {
+  def addGroupTitle(group: TemplatePropertyGroup): Section = {
     val title = getToolkit.createSection(getForm.getBody(), ExpandableComposite.TWISTIE | ExpandableComposite.TITLE_BAR)
     val layoutData = new GridData(SWT.FILL, SWT.CENTER, true, false)
     layoutData.horizontalSpan = 3
     title.setText(group.id.name)
     title.setExpanded(true)
-    title.setToolTipText(group.description)
+    title.setToolTipText(group.label)
     title.setLayoutData(layoutData)
     getToolkit().paintBordersFor(title)
+    title
   }
   /** Add the property group marker */
-  def addGroupMarker(group: TemplatePropertyGroup, size: Int) {
-    val marker = getToolkit.createLabel(getForm.getBody(), "  ", SWT.NONE)
-    val markerLayoutData = new GridData()
+  def addGroupMarker(group: TemplatePropertyGroup, size: Int): Composite = {
+    val marker = getToolkit.createComposite(getForm.getBody(), SWT.NONE)
+    val gc = new GC(marker)
+    val fm = gc.getFontMetrics()
+    val charWidth = fm.getAverageCharWidth()
+    val markerLayoutData = new GridData(SWT.FILL, SWT.FILL, false, false)
     markerLayoutData.verticalSpan = size
-    marker.setToolTipText(group.id.name + " - " + group.description)
+    markerLayoutData.widthHint = charWidth * 2
+    marker.setToolTipText(group.id.name + " - " + group.label)
     marker.setLayoutData(markerLayoutData)
-    marker.setBackground(SWTResourceManager.getColor(SWT.COLOR_BLUE))
+    marker.addPaintListener(new PaintListener() {
+      def paintControl(e: PaintEvent) {
+        val clientArea = marker.getClientArea()
+        e.gc.setForeground(SWTResourceManager.getColor(SWT.COLOR_BLUE))
+        e.gc.fillGradientRectangle(0, 0, clientArea.width, clientArea.height, false)
+      }
+    })
+    marker
   }
   /** Add the property id label*/
-  def addLabel(property: TemplateProperty[_]) {
+  def addLabel(property: TemplateProperty[_]): Label = {
     val label = getToolkit.createLabel(getForm.getBody(), property.id.name, SWT.NONE)
     val tooltip = if (property.required)
       Messages.acquire_text.format(property.ptype.typeSymbol)
@@ -111,16 +138,50 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     //      property.typeSymbol + " " + Messages.
     label.setToolTipText(tooltip)
     label.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false))
+    label
   }
   /** Add the property value field */
-  def addCellEditor[T <: AnyRef with java.io.Serializable: Manifest](property: TemplateProperty[T]): (Option[T], PropertyType.Editor[T]) = {
+  def addCellEditor[T <: AnyRef with java.io.Serializable: Manifest](property: TemplateProperty[T]): ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable] = {
     val initial = element.eGet[T](property.id).map(_.get) orElse property.defaultValue
     val editor = property.ptype.createEditor(initial)
-    val control = editor.createControl(getToolkit, getForm.getBody(), SWT.BORDER)
-    editor.addValidator(control)
-    control.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
-    control.setBackground(getForm.getBackground())
-    (initial, editor)
+    val control = property.enumeration.flatMap(id => Data.enumerations.find(enum =>
+      enum.id == id && (if (enum.ptype == property.ptype) true else {
+        log.error("enumeration %s has incompatible type %s vs %s".format(id, enum.ptype, property.ptype))
+        false
+      })).asInstanceOf[Option[Enumeration[T]]]) match {
+      case Some(enumeration) =>
+        val comboViewer = editor.createCControl(getToolkit, getForm.getBody(), SWT.READ_ONLY)
+        comboViewer.getCombo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
+        comboViewer.setLabelProvider(property.ptype.adapter.createEnumerationLabelProvider)
+        comboViewer.setContentProvider(new ObservableListContentProvider())
+        comboViewer.setInput(WritableList(enumeration.constants.toList.sortBy(_.view)).underlying)
+        comboViewer.setSelection(new StructuredSelection(enumeration.getConstantSafe(property)), true)
+        comboViewer.getCombo()
+      case None =>
+        val control = editor.createControl(getToolkit, getForm.getBody(), SWT.BORDER)
+        control.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
+        control.setBackground(getForm.getBackground())
+        editor.addValidator(control)
+        control
+    }
+    // manually convert all fields to the common one
+    ElementEditor.PropertyItem[AnyRef with java.io.Serializable](
+      initial,
+      property.asInstanceOf[TemplateProperty[AnyRef with java.io.Serializable]],
+      control,
+      editor.asInstanceOf[PropertyType.Editor[AnyRef with java.io.Serializable]])
+  }
+  /** Adjust the form height to content if possible */
+  protected def adjustFormHeight() {
+    val formPredderedSize = getForm.computeSize(SWT.DEFAULT, SWT.DEFAULT, true)
+    val formActualSize = getForm.getSize()
+    if (formPredderedSize.y != formActualSize.y) {
+      val currentShellSize = getShell.getSize
+      val parentShellSize = parentShell.getSize()
+      val newHeight = math.min(currentShellSize.y + (formPredderedSize.y - formActualSize.y), parentShellSize.y)
+      if (currentShellSize.y <= parentShellSize.y && newHeight != currentShellSize.y)
+        getShell.setSize(currentShellSize.x, newHeight)
+    }
   }
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
@@ -131,19 +192,78 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     val ancestors = element.eAncestors.map(_.eId.name).reverse
     val formTitle = if (ancestors.size > 3) "%s .../" + ancestors.takeRight(3).mkString("/") + "/%s" else "%s /" + ancestors.mkString("/") + "/%s"
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTxtElementName), idField)
-    idField.addChangeListener { event => form.setText(formTitle.format(template.id.name, idField.value)) }
+    val idFieldValidator = SymbolValidator(getTxtElementName, true) { (validator, event) =>
+      if (!event.doit)
+        validator.withDecoration(validator.showDecorationError(_))
+      else
+        validator.withDecoration(_.hide)
+    }
+    idField.addChangeListener { event =>
+      val newId = idField.value.trim
+      if (newId.isEmpty())
+        idFieldValidator.withDecoration(idFieldValidator.showDecorationRequired(_))
+      else if (element.eParent.map(_.eChildren.exists(_.eId.name == newId)).getOrElse(false) && newId != element.eId.name)
+        idFieldValidator.withDecoration(idFieldValidator.showDecorationError(_, Messages.identificatorIsAlreadyInUse_text.format(newId)))
+      else
+        idFieldValidator.withDecoration(_.hide)
+      form.setText(formTitle.format(template.id.name, idField.value))
+      updateOK()
+    }
     idField.value = element.eId.name
     // Sort by group priority
     properties = template.properties.toSeq.sortBy(_._1.priority).map {
       case (group, properties) =>
-        addGroupTitle(group)
-        addGroupMarker(group, properties.size)
-        properties.map { property =>
-          addLabel(property)
-          addCellEditor(property)
+        val section = addGroupTitle(group)
+        val marker = addGroupMarker(group, properties.size)
+        val propertySeq = properties.map { property =>
+          val label = addLabel(property)
+          val editor = addCellEditor(property)
+          (label, editor)
         }
+        section.addExpansionListener(new ExpansionAdapter() {
+          val expanded = true
+          override def expansionStateChanged(e: ExpansionEvent) = {
+            if (e.getState() == expanded) {
+              marker.setVisible(true)
+              marker.getLayoutData().asInstanceOf[GridData].exclude = false
+              propertySeq.foreach {
+                case (label, ElementEditor.PropertyItem(initial, property, control, editor)) =>
+                  label.setVisible(true)
+                  label.getLayoutData().asInstanceOf[GridData].exclude = false
+                  control.setVisible(true)
+                  control.getLayoutData().asInstanceOf[GridData].exclude = false
+              }
+            } else {
+              marker.setVisible(false)
+              marker.getLayoutData().asInstanceOf[GridData].exclude = true
+              propertySeq.foreach {
+                case ((label, ElementEditor.PropertyItem(initial, property, control, editor))) =>
+                  label.setVisible(false)
+                  label.getLayoutData().asInstanceOf[GridData].exclude = true
+                  control.setVisible(false)
+                  control.getLayoutData().asInstanceOf[GridData].exclude = true
+              }
+            }
+            form.reflow(true)
+            adjustFormHeight()
+          }
+        })
+        propertySeq.map(_._2)
     }.flatten
-    properties.foreach { case (initial, editor) => editor.data.underlying.addChangeListener(propertiesListener) }
+    properties.foreach {
+      case ElementEditor.PropertyItem(initial, property, control, editor) =>
+        editor.data.underlying.addChangeListener(propertiesListener)
+    }
+    // Add the dispose listener
+    getShell().addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) {
+        properties.foreach {
+          case ElementEditor.PropertyItem(initial, property, control, editor) =>
+            editor.data.underlying.removeChangeListener(propertiesListener)
+        }
+        ElementEditor.dialog = None
+      }
+    })
     // set dialog message
     setMessage(Messages.elementEditorDescription_text.format(Model.eId.name))
     // set dialog window title
@@ -154,13 +274,64 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
   /** Return the initial size of the dialog. */
   override protected def getInitialSize(): Point = {
     val default = super.getInitialSize
-    val packedShellSize = getShell.computeSize(SWT.DEFAULT, SWT.DEFAULT, false)
+    val packedShellSize = getShell.computeSize(SWT.DEFAULT, SWT.DEFAULT, true)
     val adjustedHeight = math.min(default.y, packedShellSize.y)
     new Point(default.x, adjustedHeight)
   }
+  /** Notifies that the OK button of this dialog has been pressed.	 */
+  override protected def okPressed() {
+    val newId = idField.value.trim
+    if (newId != this.element.eId.name) {
+      val stash = this.element.eStash.copy(id = Symbol(newId))
+      this.element.asInstanceOf[Element[Stash]].eStash = stash
+    }
+    properties.foreach {
+      case ElementEditor.PropertyItem(initialValue, property, control, editor) =>
+        if (editor.isEmpty) {
+          if (element.eGet(property.id, property.ptype.typeSymbol).nonEmpty)
+            element.eRemove(property.id, property.ptype.typeSymbol)
+        } else {
+          val newValue = element.eGet(property.id, property.ptype.typeSymbol)
+          if (newValue.map(_.get) != Option(editor.data.value)) {
+            val value = Value.static(editor.data.value)(element, Manifest.classType(property.ptype.typeClass))
+            element.eSet(property.id, property.ptype.typeSymbol, Some(value))
+          }
+        }
+    }
+    super.okPressed()
+  }
+  /** On dialog active */
+  override protected def onActive = {
+    // persist the 1st column width
+    getLblElementName.getLayoutData.asInstanceOf[GridData].widthHint = getLblElementName.getSize.x
+    getForm.getBody.layout()
+    // adjust height
+    adjustFormHeight()
+  }
+  /** Update OK button */
+  protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled({
+    val newId = idField.value.trim
+    newId.nonEmpty && {
+      // Not exists and id is the same
+      (newElement && newId == element.eId.name) ||
+        // Id is modified
+        (!element.eParent.map(_.eChildren.exists(_.eId.name == newId)).getOrElse(false)) ||
+        // The content is modified
+        !properties.forall {
+          case ElementEditor.PropertyItem(initial, property, control, editor) =>
+            initial == Option(editor.data.value) || (initial.isEmpty && editor.isEmpty)
+        }
+    }
+  }))
 }
 
 object ElementEditor {
   /** There is may be only one dialog instance at time */
   @volatile private var dialog: Option[ElementEditor] = None
+
+  case class PropertyItem[T <: AnyRef with java.io.Serializable](
+    val initial: Option[T],
+    val property: TemplateProperty[T],
+    val control: Control,
+    val editor: PropertyType.Editor[T])
 }

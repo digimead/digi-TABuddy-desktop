@@ -48,26 +48,31 @@ import java.util.UUID
 import scala.Option.option2Iterable
 import scala.collection.immutable
 
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Enumeration
 import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.desktop.payload.PropertyType
+import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.desktop.payload.TypeSchema
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableSet
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
 import org.eclipse.core.commands.operations.DefaultOperationHistory
 import org.eclipse.core.commands.operations.IOperationHistory
 
-object Data extends Loggable {
+import org.digimead.tabuddy.desktop.payload.DSL._
+
+object Data extends DependencyInjection.PersistentInjectable with Loggable {
+  implicit def bindingModule = DependencyInjection()
   /** The property representing available model list */
   lazy val availableModels = WritableList(List[String]())
   /** The property representing all available element templates for user, contains at least one predefined element */
@@ -127,8 +132,7 @@ object Data extends Loggable {
           element.canEqual(predefined.element.getClass(), predefined.element.eStash.getClass())) match {
           case Some(predefined) =>
             log.debug("load template %s based on %s".format(element, predefined))
-            //Some(new ElementTemplate(element.eId, predefined.factory))
-            None
+            Some(new ElementTemplate(element, predefined.factory))
           case None =>
             log.warn("unable to find apropriate element wrapper for " + element)
             None
@@ -152,12 +156,13 @@ object Data extends Loggable {
         case Some(ptype) =>
           log.debug("load enumeration %s with type %s".format(element.eId.name, ptype.id))
           // provide type information at runtime
-          new Enumeration(element, ptype)(Manifest.classType(ptype.typeClass))
+          Some(new Enumeration(element, ptype)(Manifest.classType(ptype.typeClass))).
+            asInstanceOf[Option[Enumeration[_ <: AnyRef with java.io.Serializable]]]
         case None =>
           log.warn("unable to find apropriate type wrapper for enumeration " + element)
-          null
+          None
       }
-    }.filter(_ != null).toSet
+    }.flatten.toSet
   }
   /** Get all schemas from the current settings. */
   def getTypeSchemas(): Set[TypeSchema.Interface] = {
@@ -195,29 +200,30 @@ object Data extends Loggable {
     val modelSet2 = immutable.SortedSet(Payload.listModels.map(_.name): _*)
     val modelsRemoved = modelSet1 &~ modelSet2
     val modelsAdded = modelSet2 &~ modelSet1
-    val elementTemplateList = getElementTemplates()
-    val enumerationSet = getEnumerations()
+    // The load order is important
+    // Type schemas
     val typeSchemaSet = getTypeSchemas()
     Main.exec {
-      // update model name
-      log.debug("set actial model name to " + newModel.eId.name)
-      modelName.value = newModel.eId.name
-      // update available models
-      log.debug("update an available model list")
-      modelsRemoved.foreach(name => availableModels -= name)
-      modelsAdded.foreach(name => availableModels += name)
-      // reload element templates
-      log.debug("update element templates")
-      elementTemplates.clear
-      elementTemplates ++= elementTemplateList
-      // reload enumerations
-      log.debug("update enumerations")
-      enumerations.clear
-      enumerations ++= enumerationSet
       // reload type schemas
       log.debug("update type schemas")
       typeSchemas.clear
       typeSchemas ++= typeSchemaSet
+    }
+    // Enumerations
+    val enumerationSet = getEnumerations()
+    Main.exec {
+      // reload enumerations
+      log.debug("update enumerations")
+      enumerations.clear
+      enumerations ++= enumerationSet
+    }
+    // Templates
+    val elementTemplateList = getElementTemplates()
+    Main.exec {
+      // reload element templates
+      log.debug("update element templates")
+      elementTemplates.clear
+      elementTemplates ++= elementTemplateList
       // set active type schema
       Payload.settings.eGet[String]('Data_typeSchema) match {
         case Some(schemaValue) =>
@@ -229,12 +235,41 @@ object Data extends Loggable {
         case None =>
           typeSchema.value = TypeSchema.predefined.head
       }
-      /*
-       * fields
-       */
+    }
+    // Model
+    Main.exec {
+      // update model name
+      log.debug("set actial model name to " + newModel.eId.name)
+      modelName.value = newModel.eId.name
+      // update available models
+      log.debug("update an available model list")
+      modelsRemoved.foreach(name => availableModels -= name)
+      modelsAdded.foreach(name => availableModels += name)
+    }
+    /*
+     * fields
+     */
+    Main.exec {
       fieldElement.value = Model
       // skip fieldModelName
     }
+    updateModelElements()
+  }
+  /** Update model elements */
+  def updateModelElements() {
+    // Record.Interface[_ <: Record.Stash]] == Record.Generic: avoid 'erroneous or inaccessible type' error
+    val eTABuddy = inject[Record.Interface[_ <: Record.Stash]]("eTABuddy")
+    if (eTABuddy.label.trim.isEmpty())
+      eTABuddy.label = "TABuddy Desktop internal treespace"
+    val eSettings = inject[Record.Interface[_ <: Record.Stash]]("eSettings")
+    if (eSettings.label.trim.isEmpty())
+      eSettings.label = "TABuddy Desktop settings"
+    val eEnumerations = inject[Record.Interface[_ <: Record.Stash]]("eEnumeration")
+    if (eEnumerations.label.trim.isEmpty())
+      eEnumerations.label = "enumeration definitions"
+    val eTemplates = inject[Record.Interface[_ <: Record.Stash]]("eElementTemplate")
+    if (eTemplates.label.trim.isEmpty())
+      eTemplates.label = "element template definitions"
   }
   /**
    * This function is invoked at application start
@@ -246,4 +281,7 @@ object Data extends Loggable {
   def stop() {
     history.dispose(IOperationHistory.GLOBAL_UNDO_CONTEXT, true, true, true)
   }
+
+  def commitInjection() {}
+  def updateInjection() {}
 }

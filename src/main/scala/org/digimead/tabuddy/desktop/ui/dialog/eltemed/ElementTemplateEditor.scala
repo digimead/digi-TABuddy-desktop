@@ -48,13 +48,16 @@ import java.util.concurrent.locks.ReentrantLock
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
+import scala.collection.immutable
 
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
+import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Enumeration
+import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.payload.PropertyType
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.desktop.payload.TemplatePropertyGroup
@@ -88,6 +91,7 @@ import org.eclipse.swt.events.DisposeEvent
 import org.eclipse.swt.events.DisposeListener
 import org.eclipse.swt.events.SelectionAdapter
 import org.eclipse.swt.events.SelectionEvent
+import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Shell
@@ -98,19 +102,21 @@ class ElementTemplateEditor(val parentShell: Shell,
   /** The list of element template identifier */
   val templateList: Set[ElementTemplate.Interface])
   extends org.digimead.tabuddy.desktop.res.dialog.ElementTemplateEditor(parentShell) with Dialog with Loggable {
+  /** The actual template properties */
+  protected[eltemed] val actualProperties = WritableList(initialProperties)
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
-  /** The actual template properties */
-  protected[eltemed] val actualProperties = WritableList(getTemplateProperties(initial).sortBy(_.id))
   /** The property representing current template availability */
   protected val availabilityField = WritableValue[java.lang.Boolean]
-  /** The property representing current template description */
-  protected val descriptionField = WritableValue[String]
+  /** The property representing current template label */
+  protected val labelField = WritableValue[String]
   /** List of available enumerations */
   protected[eltemed] val enumerations: Array[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]] =
     Data.getAvailableEnumerations.sortBy(_.id.name).toArray
   /** The property representing current template id */
   protected val idField = WritableValue[String]
+  /** The initial template properties */
+  protected lazy val initialProperties = getTemplateProperties(initial).sortBy(_.id)
   /** Used to create new propery */
   protected val newPropertySample = newProperty()
   /** The property representing a selected template property */
@@ -120,8 +126,15 @@ class ElementTemplateEditor(val parentShell: Shell,
     Data.getAvailableTypes().sortBy(_.id.name).toArray
   assert(ElementTemplateEditor.dialog.isEmpty, "ElementTemplateEditor dialog is already active")
 
+  /** Get the modified type schema */
+  def getModifiedTemplate(): ElementTemplate.Interface = initial.copy(
+    availability = availabilityField.value,
+    label = labelField.value.trim,
+    id = Symbol(idField.value.trim),
+    properties = getTemplateProperties(actualProperties.toList))
+
   /** Auto resize tableviewer columns */
-  def autoresize() = if (autoResizeLock.tryLock()) try {
+  protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     Main.execNGet {
       if (!getTableViewerTemplateProperties.getTable.isDisposed()) {
@@ -142,6 +155,8 @@ class ElementTemplateEditor(val parentShell: Shell,
     initTableTemplateProperties
     new ActionContributionItem(ElementTemplateEditor.ActionAdd).fill(getCompositeActions())
     new ActionContributionItem(ElementTemplateEditor.ActionDelete).fill(getCompositeActions())
+    ElementTemplateEditor.ActionAdd.setEnabled(true)
+    ElementTemplateEditor.ActionDelete.setEnabled(false)
     // Bind the template info: an id
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observe(getTextTemplateID()), idField)
     val idFieldListener = idField.addChangeListener { event =>
@@ -149,10 +164,10 @@ class ElementTemplateEditor(val parentShell: Shell,
       updateOK()
     }
     idField.value = initial.id.name
-    // Bind the template info: a description
-    Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observe(getTextTemplateDescription()), descriptionField)
-    val descriptionFieldListener = descriptionField.addChangeListener { event => updateOK() }
-    descriptionField.value = initial.description
+    // Bind the template info: a label
+    Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observe(getTextTemplateDescription()), labelField)
+    val labelFieldListener = labelField.addChangeListener { event => updateOK() }
+    labelField.value = initial.label
     // Bind the template info: an availability
     Main.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckAvailability()), availabilityField)
     val availabilityFieldListener = availabilityField.addChangeListener { event => updateOK() }
@@ -161,12 +176,13 @@ class ElementTemplateEditor(val parentShell: Shell,
     val actualPropertiesListener = actualProperties.addChangeListener { event =>
       if (ElementTemplateEditor.ActionAutoResize.isChecked())
         future { autoresize() }
+      updateOK()
     }
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         idField.removeChangeListener(idFieldListener)
-        descriptionField.removeChangeListener(descriptionFieldListener)
+        labelField.removeChangeListener(labelFieldListener)
         availabilityField.removeChangeListener(availabilityFieldListener)
         actualProperties.removeChangeListener(actualPropertiesListener)
         ElementTemplateEditor.dialog = None
@@ -179,18 +195,32 @@ class ElementTemplateEditor(val parentShell: Shell,
     ElementTemplateEditor.dialog = Some(this)
     result
   }
-  /** Get the template property list for the ElementTemplateEditor.Template item */
-  def getTemplateProperties(template: ElementTemplate.Interface): List[ElementTemplateEditor.Item] = {
+  /** Convert ElementTemplate.Interface.property map to ElementTemplateEditor.Item list */
+  protected def getTemplateProperties(template: ElementTemplate.Interface): List[ElementTemplateEditor.Item] = {
     val nested = template.properties.map {
       case (group, properties) =>
         properties.map(property =>
-          ElementTemplateEditor.Item(property.id.name,
-            property.required,
+          ElementTemplateEditor.Item(property.id.name, None, // id column
+            property.required, None, // required column
             property.enumeration.asInstanceOf[Option[Enumeration.Interface[AnyRef with java.io.Serializable]]],
-            property.ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]],
-            property.defaultValue.map(_.toString).getOrElse(""), group.id.name))
+            property.ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]], None, // type column
+            property.defaultValue, None, // default column
+            group.id.name, None)) // group column
     }
-    nested.flatten.toList.sortBy(_.id)
+    nested.flatten.toList
+  }
+  /** Convert ElementTemplate.Interface.property map to ElementTemplateEditor.Item list */
+  protected def getTemplateProperties(items: List[ElementTemplateEditor.Item]): ElementTemplate.propertyMap = {
+    var properties = immutable.HashMap[TemplatePropertyGroup, Seq[TemplateProperty[_ <: AnyRef with java.io.Serializable]]]()
+    actualProperties.foreach { item =>
+      val group = TemplatePropertyGroup.default // TODO
+      if (!properties.isDefinedAt(group))
+        properties = properties.updated(group, Seq())
+      properties = properties.updated(group, properties(group) :+
+        new TemplateProperty(Symbol(item.id.trim), item.required, item.enumeration.map(_.id), item.ptype,
+          item.default)(Manifest.classType(item.ptype.typeClass)))
+    }
+    properties
   }
   /** Initialize table */
   protected def initTableTemplateProperties() {
@@ -240,14 +270,16 @@ class ElementTemplateEditor(val parentShell: Shell,
     Main.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selected)
   }
   /** Return the stub for the new property */
-  // TemplateProperty.defaultType contains value that exists for sure in DSLType.types
-  protected def newProperty() =
-    ElementTemplateEditor.Item("new", false, None, PropertyType.defaultType.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]], "", TemplatePropertyGroup.default.id.name)
-  /** Update an Add button */
-  protected def updateAdd() = ElementTemplateEditor.ActionAdd.setEnabled(!actualProperties.contains(newPropertySample))
+  protected def newProperty() = {
+    val newPropertyID = Payload.generateNew("property", "", newId => actualProperties.exists(_.id == newId))
+    ElementTemplateEditor.Item(newPropertyID, None, // id column
+      false, None, // required column
+      None, PropertyType.defaultType.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]], None, // type column
+      None, None, // default column
+      TemplatePropertyGroup.default.id.name, None) // group column
+  }
   /** On dialog active */
   override protected def onActive = {
-    updateAdd()
     updateOK()
     autoresize()
   }
@@ -260,26 +292,55 @@ class ElementTemplateEditor(val parentShell: Shell,
     getTableViewerTemplateProperties.setSelection(new StructuredSelection(after), true)
   }
   /**
-   * Update an OK button
+   * Update OK button
    * Disable button if there are duplicate names
    * Disable button if initialContent == actualContent
    */
-  protected def updateOK() =
+  protected def updateOK() = {
+    val newId = idField.value.trim
     Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(
-      // and there are no duplicates
-      actualProperties.size == actualProperties.map(_.id).distinct.size &&
-        // newly created
-        (false ||
-          // actualContent changed
-          //!actual.value.properties.sameElements(actualProperties.sortBy(_.id)) ||
-          // id changed
-          (idField.value.trim.nonEmpty && // prevent empty
-            !ElementTemplate.container.eChildren.exists(_.eId.name == idField.value.trim) && // prevent exists
-            idField.value != initial.id) ||
-            // description changed
-            descriptionField.value != initial.description ||
-            // availability changed
-            availabilityField.value != initial.availability)))
+      // prevent the empty id
+      newId.nonEmpty &&
+        // and there are no duplicate ids
+        actualProperties.size == actualProperties.map(_.id).distinct.size &&
+        // and there are no errors
+        !actualProperties.exists(item =>
+          item.idError.nonEmpty ||
+            item.requiredError.nonEmpty ||
+            item.typeError.nonEmpty ||
+            item.defaultError.nonEmpty ||
+            item.groupError.nonEmpty) &&
+        // the id not exists or template modified
+        (!templateList.exists(_.id.name == newId) ||
+          (newId == initial.id.name && !{
+            initialProperties.sameElements(actualProperties.sortBy(_.id)) &&
+              availabilityField.value == initial.availability &&
+              labelField.value.trim == initial.label
+          }))))
+  }
+  /** Validate ElementTemplateEditor item */
+  protected[eltemed] def validateItem(item: ElementTemplateEditor.Item): ElementTemplateEditor.Item = {
+    var idError: Option[(String, Image)] = None
+    var requiredError: Option[(String, Image)] = None
+    var typeError: Option[(String, Image)] = None
+    var defaultError: Option[(String, Image)] = None
+    var groupError: Option[(String, Image)] = None
+    item.enumeration.foreach { enumeration =>
+      item.default match {
+        case Some(default) =>
+          if (!enumeration.constants.exists(_.value == default))
+            defaultError = Some(("The incorrect value", Resources.imageError))
+        case None =>
+          defaultError = Some(("The value is required", Resources.imageRequired))
+      }
+    }
+    item.default.foreach { default =>
+      if (default.getClass != item.ptype.typeClass)
+        if (defaultError.nonEmpty)
+          defaultError = Some(("Incorrect the default value", Resources.imageError))
+    }
+    item.copy(idError = idError, requiredError = requiredError, typeError = typeError, defaultError = defaultError, groupError = groupError)
+  }
 }
 
 object ElementTemplateEditor extends Loggable {
@@ -297,11 +358,16 @@ object ElementTemplateEditor extends Loggable {
     dialog.flatMap(d => Option(d.selected.value).map(f(d, _)))
 
   case class Item(val id: String,
+    val idError: Option[(String, Image)],
     val required: Boolean,
+    val requiredError: Option[(String, Image)],
     val enumeration: Option[Enumeration.Interface[AnyRef with java.io.Serializable]],
     val ptype: PropertyType[AnyRef with java.io.Serializable],
-    val default: String,
-    val group: String)
+    val typeError: Option[(String, Image)],
+    val default: Option[AnyRef with java.io.Serializable],
+    val defaultError: Option[(String, Image)],
+    val group: String,
+    val groupError: Option[(String, Image)])
   class TemplateComparator extends ViewerComparator {
     private var _column = ElementTemplateEditor.sortColumn
     private var _direction = ElementTemplateEditor.sortDirection
@@ -329,7 +395,12 @@ object ElementTemplateEditor extends Loggable {
         case 0 => entity1.id.compareTo(entity2.id)
         case 1 => entity1.required.compareTo(entity2.required)
         case 2 => entity1.ptype.id.name.compareTo(entity2.ptype.id.name)
-        case 3 => entity1.default.compareTo(entity2.default)
+        case 3 => (entity1.default, entity2.default) match {
+          case (Some(value1), Some(value2)) => entity1.ptype.valueToString(value1).compareTo(entity2.ptype.valueToString(value2))
+          case (Some(value1), None) => 1
+          case (None, Some(value2)) => -1
+          case _ => 0
+        }
         case 4 => entity1.group.compareTo(entity2.group)
         case index =>
           log.fatal(s"unknown column with index $index"); 0

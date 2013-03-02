@@ -177,8 +177,8 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema.Interface], 
     getTableViewerColumnName.setLabelProvider(new ColumnName.TLabelProvider)
     getTableViewerColumnName.setEditingSupport(new ColumnName.TEditingSupport(viewer, this))
     getTableViewerColumnName.getColumn.addSelectionListener(new TypeList.SchemaSelectionAdapter(WeakReference(viewer), 0))
-    getTableViewerColumnDescription.setLabelProvider(new ColumnDescription.TLabelProvider)
-    getTableViewerColumnDescription.setEditingSupport(new ColumnDescription.TEditingSupport(viewer, this))
+    getTableViewerColumnDescription.setLabelProvider(new ColumnLabel.TLabelProvider)
+    getTableViewerColumnDescription.setEditingSupport(new ColumnLabel.TEditingSupport(viewer, this))
     getTableViewerColumnDescription.getColumn.addSelectionListener(new TypeList.SchemaSelectionAdapter(WeakReference(viewer), 1))
     // Activate the tooltip support for the viewer
     ColumnViewerToolTipSupport.enableFor(viewer)
@@ -242,7 +242,7 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema.Interface], 
         (initial eq actual) || (
           initial.id == actual.id &&
           initial.name == actual.name &&
-          initial.description == actual.description &&
+          initial.label == actual.label &&
           initial.entity.size == actual.entity.size &&
           (initial.entity, actual.entity).zipped.forall((a, b) => TypeSchema.compareDeep(a._2, b._2)))
       }))
@@ -298,7 +298,7 @@ object TypeList extends Loggable {
       val schema2 = e2.asInstanceOf[TypeSchema]
       val rc = column match {
         case 0 => schema1.name.compareTo(schema2.name)
-        case 1 => schema1.description.compareTo(schema2.description)
+        case 1 => schema1.label.compareTo(schema2.label)
         case index =>
           log.fatal(s"unknown column with index $index"); 0
       }
@@ -359,7 +359,7 @@ object TypeList extends Loggable {
       val toName = getNewTypeSchemaCopyName(from.name, dialog)
       assert(!dialog.actual.exists(_.name == toName),
         s"Unable to create the type schema copy. The schema $toName is already exists")
-      val to = TypeSchema(UUID.randomUUID(), toName, from.description, from.entity.map(e => (e._1, e._2.copy())))
+      val to = TypeSchema(UUID.randomUUID(), toName, from.label, from.entity.map(e => (e._1, e._2.copy())))
       JobShowTypeEditor(to, dialog.actual.toList, to == dialog.actualActiveSchema.value).
         foreach(_.setOnSucceeded { job =>
           job.getValue.foreach {

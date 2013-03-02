@@ -44,8 +44,6 @@
 package org.digimead.tabuddy.desktop.res.view;
 
 import org.eclipse.jface.action.CoolBarManager;
-import org.eclipse.jface.viewers.TreeViewer;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.CoolBar;
 
@@ -61,7 +59,6 @@ public class Tree extends Composite {
 	 * Cool bar manager.
 	 */
 	private CoolBarManager coolBarManager;
-	private TreeViewer treeViewer;
 
 	/**
 	 * Create the composite.
@@ -76,9 +73,6 @@ public class Tree extends Composite {
 		coolBarManager = new CoolBarManager();
 		CoolBar coolBar = coolBarManager.createControl(this);
 
-		treeViewer = new TreeViewer(this, SWT.BORDER);
-		org.eclipse.swt.widgets.Tree tree = treeViewer.getTree();
-		tree.setLayoutData(BorderLayout.CENTER);
 		coolBar.setLayoutData(BorderLayout.NORTH);
 
 	}
@@ -92,7 +86,4 @@ public class Tree extends Composite {
 		return coolBarManager;
 	}
 
-	protected TreeViewer getTreeViewer() {
-		return treeViewer;
-	}
 }

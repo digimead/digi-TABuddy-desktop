@@ -49,14 +49,14 @@ class TemplateProperty[T <: AnyRef with java.io.Serializable](
   /** Is property required */
   val required: Boolean,
   /** The property that representing an attached enumeration if any */
-  val enumeration: Option[_ <: Enumeration.Interface[T]],
+  val enumeration: Option[Symbol],
   /** The property that representing a type from the UI point of view */
   val ptype: PropertyType[T],
   /** The default value */
   val defaultValue: Option[T] = None)(implicit m: Manifest[T]) extends TemplateProperty.Interface[T] {
   /** The copy constructor */
   def copy(defaultValue: Option[T] = this.defaultValue,
-    enumeration: Option[_ <: Enumeration.Interface[T]] = this.enumeration,
+    enumeration: Option[Symbol] = this.enumeration,
     ptype: PropertyType[T] = this.ptype,
     id: Symbol = this.id,
     required: Boolean = this.required) =
@@ -74,7 +74,7 @@ object TemplateProperty {
     /** The default value */
     val defaultValue: Option[T]
     /** The property that representing an attached enumeration if any */
-    val enumeration: Option[_ <: Enumeration.Interface[T]]
+    val enumeration: Option[Symbol]
     /** The property that representing a type from the UI point of view */
     val ptype: PropertyType[T]
     /** The property name */
@@ -84,7 +84,7 @@ object TemplateProperty {
 
     /** The copy constructor */
     def copy(defaultValue: Option[T] = this.defaultValue,
-      enumeration: Option[_ <: Enumeration.Interface[T]] = this.enumeration,
+      enumeration: Option[Symbol] = this.enumeration,
       ptype: PropertyType[T] = this.ptype,
       id: Symbol = this.id,
       required: Boolean = this.required): this.type

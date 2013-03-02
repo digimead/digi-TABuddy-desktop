@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.payload
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 
-case class TemplatePropertyGroup(val id: Symbol, val description: String, val priority: Int) extends Loggable {
+case class TemplatePropertyGroup(val id: Symbol, val label: String, val priority: Int) extends Loggable {
   log.debug("property group '{}' alive", id.name)
   override def toString() = id.name
 }

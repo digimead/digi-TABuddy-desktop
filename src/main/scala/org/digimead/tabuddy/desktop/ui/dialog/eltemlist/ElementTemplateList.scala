@@ -106,7 +106,7 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[ElementTempla
   assert(ElementTemplateList.dialog.isEmpty, "ElementTemplateList dialog is already active")
 
   /** Get modified type templates */
-  def getTemplateSet(): Set[ElementTemplate.Interface] = actual.toSet
+  def getModifiedTemplates(): Set[ElementTemplate.Interface] = actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
@@ -127,6 +127,9 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[ElementTempla
     new ActionContributionItem(ElementTemplateList.ActionCreateFrom).fill(getCompositeTemplates())
     new ActionContributionItem(ElementTemplateList.ActionEdit).fill(getCompositeTemplates())
     new ActionContributionItem(ElementTemplateList.ActionRemove).fill(getCompositeTemplates())
+    ElementTemplateList.ActionCreateFrom.setEnabled(false)
+    ElementTemplateList.ActionEdit.setEnabled(false)
+    ElementTemplateList.ActionRemove.setEnabled(false)
     initTableElementTemplates()
     val actualListener = actual.addChangeListener { event =>
       if (ElementTemplateList.ActionAutoResize.isChecked())
@@ -168,8 +171,8 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[ElementTempla
     getTableViewerColumnId.setLabelProvider(new ColumnId.TLabelProvider)
     getTableViewerColumnId.setEditingSupport(new ColumnId.TEditingSupport(viewer, this))
     getTableViewerColumnId.getColumn.addSelectionListener(new ElementTemplateList.TemplateSelectionAdapter(WeakReference(viewer), 1))
-    getTableViewerColumnDescription.setLabelProvider(new ColumnDescription.TLabelProvider)
-    getTableViewerColumnDescription.setEditingSupport(new ColumnDescription.TEditingSupport(viewer, this))
+    getTableViewerColumnDescription.setLabelProvider(new ColumnLabel.TLabelProvider)
+    getTableViewerColumnDescription.setEditingSupport(new ColumnLabel.TEditingSupport(viewer, this))
     getTableViewerColumnDescription.getColumn.addSelectionListener(new ElementTemplateList.TemplateSelectionAdapter(WeakReference(viewer), 2))
     // Add a SWT.CHECK support
     viewer.getTable.addListener(SWT.Selection, new Listener() {
@@ -224,7 +227,8 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[ElementTempla
   /** On dialog active */
   override protected def onActive = {
     updateOK()
-    autoresize()
+    if (ElementTemplateList.ActionAutoResize.isChecked())
+      future { autoresize() }
   }
   /** Updates an actual element template */
   protected[eltemlist] def updateActualTemplate(before: ElementTemplate.Interface, after: ElementTemplate.Interface) {
@@ -252,7 +256,6 @@ object ElementTemplateList extends Loggable {
   def template[T](f: (ElementTemplateList, ElementTemplate.Interface) => T): Option[T] =
     dialog.flatMap(d => Option(d.selected.value).map(f(d, _)))
 
-  //case class Template(val id: String, val description: String, val availability: Boolean)
   class TemplateComparator extends ViewerComparator {
     private var _column = ElementTemplateList.sortColumn
     private var _direction = ElementTemplateList.sortDirection
@@ -279,7 +282,7 @@ object ElementTemplateList extends Loggable {
       val rc = column match {
         case 0 => entity1.availability.compareTo(entity2.availability)
         case 1 => entity1.id.name.compareTo(entity2.id.name)
-        case 2 => entity1.description.compareTo(entity2.description)
+        case 2 => entity1.label.compareTo(entity2.label)
         case index =>
           log.fatal(s"unknown column with index $index"); 0
       }
@@ -305,28 +308,6 @@ object ElementTemplateList extends Loggable {
     }
   }
   /*
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
-    override def run = TypeList.schema { (dialog, selected) =>
-      val from = selected
-      // create new ID
-      val toName = getNewTypeSchemaCopyName(from.name, dialog)
-      assert(!dialog.actualContent.exists(_.name == toName),
-        s"Unable to create the type schema copy. The schema $toName is already exists")
-      val to = TypeSchema(UUID.randomUUID(), toName, from.description, from.entities.map(_.copy()))
-      JobShowTypeEditor(to, dialog.actualContent.toList, Some(to) == dialog.actualActiveSchema.value).
-        foreach(_.setOnSucceeded { job =>
-          job.getValue.foreach {
-            case (schema, active) => Main.exec {
-              dialog.actualContent += schema
-              if (active)
-                dialog.actualActiveSchema.value = Some(schema)
-            }
-          }
-        }.execute)
-    }
-  }
-*/
-  /*
    * Actions
    */
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
@@ -344,7 +325,12 @@ object ElementTemplateList extends Loggable {
       val newTemplate = new ElementTemplate(to, before.factory)
       // start job
       JobShowElementTemplateEditor(newTemplate, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach { case (after) => Main.exec { dialog.updateActualTemplate(before, after) } }
+        job.getValue.foreach {
+          case (after) => Main.exec {
+            assert(!dialog.actual.exists(_.id == after.id), "Element template %s already exists".format(after))
+            dialog.actual += after
+          }
+        }
       }.execute())
     }
   }

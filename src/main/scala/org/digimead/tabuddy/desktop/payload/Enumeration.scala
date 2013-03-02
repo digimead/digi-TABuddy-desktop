@@ -47,6 +47,7 @@ import scala.collection.immutable
 
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
@@ -75,11 +76,11 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
     initialDescription: String, initialConstants: Set[Enumeration.Constant[T]]) = {
     this(element, ptype, (enumerationWithoutErasure) => {
       val enumeration = enumerationWithoutErasure.asInstanceOf[Enumeration[T]]
-      // This code is invoked before availability, description and properties fields initialization
+      // This code is invoked before availability, label and properties fields initialization
       if (enumeration.element.eGet[java.lang.Boolean](enumeration.getFieldIDAvailability).map(_.get) != Some(initialAvailability))
         enumeration.element.eSet(enumeration.getFieldIDAvailability, initialAvailability)
-      if (enumeration.element.eGet[String](enumeration.getFieldIDDescription).map(_.get) != Some(initialDescription))
-        enumeration.element.eSet(enumeration.getFieldIDDescription, initialDescription, "")
+      if (enumeration.element.eGet[String](enumeration.getFieldIDLabel).map(_.get) != Some(initialDescription))
+        enumeration.element.eSet(enumeration.getFieldIDLabel, initialDescription, "")
       val existsConstants = enumeration.getConstants.toList.sortBy(_.hashCode).toSet
       val added = initialConstants.toList.sortBy(_.hashCode).toSet
       if (existsConstants.size != added.size || !(existsConstants, added).zipped.forall(Enumeration.compareDeep(_, _)))
@@ -94,8 +95,8 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
     case Some(value) => value.get
     case _ => true
   }
-  /** An enumeration description */
-  val description: String = element.eGet[String](getFieldIDDescription) match {
+  /** An enumeration label */
+  val label: String = element.eGet[String](getFieldIDLabel) match {
     case Some(value) => value.get
     case _ => ""
   }
@@ -106,18 +107,28 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
 
   /** The copy constructor */
   def copy(availability: Boolean = this.availability,
-    description: String = this.description,
+    label: String = this.label,
     element: Element.Generic = this.element,
     ptype: PropertyType[T] = this.ptype,
     id: Symbol = this.id,
     constants: Set[Enumeration.Constant[T]] = this.constants) =
     if (id == this.id)
-      new Enumeration(element, ptype, availability, description, constants).asInstanceOf[this.type]
+      new Enumeration(element, ptype, availability, label, constants).asInstanceOf[this.type]
     else {
       element.asInstanceOf[Element[Stash]].eStash = element.eStash.copy(id = id)
-      new Enumeration(element, ptype, availability, description, constants).asInstanceOf[this.type]
+      new Enumeration(element, ptype, availability, label, constants).asInstanceOf[this.type]
     }
-
+  /** Get the specific constant for the property or the first entry */
+  def getConstantSafe(property: TemplateProperty[T]): Enumeration.Constant[T] = property.defaultValue match {
+    case Some(default) => getConstantSafe(default)
+    case None => constants.toList.sortBy(_.view).head
+  }
+  /** Get the specific constant for the value or the first entry */
+  def getConstantSafe(value: T): Enumeration.Constant[T] =
+    constants.find(_.value == value) match {
+      case Some(constant) => constant
+      case None => constants.toList.sortBy(_.view).head
+    }
   /** Get enumeration constants */
   protected def getConstants(): Set[Enumeration.Constant[T]] = {
     var next = true
@@ -125,8 +136,8 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
       element.eGet[T](getFieldIDConstantValue(i)) match {
         case Some(value) =>
           val alias: String = element.eGet[String](getFieldIDConstantAlias(i)).map(_.get).getOrElse("")
-          val description = element.eGet[String](getFieldIDConstantDescription(i)).map(_.get).getOrElse("")
-          Some(Enumeration.Constant(value.get, alias, description))
+          val label = element.eGet[String](getFieldIDConstantDescription(i)).map(_.get).getOrElse("")
+          Some(Enumeration.Constant(value.get, alias, label)(ptype, Manifest.classType(ptype.typeClass)))
         case None =>
           next = false
           None
@@ -139,7 +150,7 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
     // remove all element properties except Availability, Description, Type
     val toDelete = element.eStash.property.toSeq.map {
       case (key, valueMap) => valueMap.keys.filter(_ match {
-        case 'String if key == getFieldIDDescription => false
+        case 'String if key == getFieldIDLabel => false
         case 'Boolean if key == getFieldIDAvailability => false
         case 'String if key == getFieldIDType => false
         case _ => true
@@ -159,8 +170,8 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
       element.eSet(getFieldIDConstantValue(i), Value.static(constant.value))
       if (constant.alias.trim.nonEmpty)
         element.eSet(getFieldIDConstantAlias(i), constant.alias)
-      if (constant.description.trim.nonEmpty)
-        element.eSet(getFieldIDConstantDescription(i), constant.description)
+      if (constant.label.trim.nonEmpty)
+        element.eSet(getFieldIDConstantDescription(i), constant.label)
     }
   }
 
@@ -173,28 +184,35 @@ object Enumeration extends DependencyInjection.PersistentInjectable with Loggabl
   val collectionMaximum = 99
 
   /** Predefined element templates container */
-  def container(): Element.Generic = inject[Element[_ <: Stash]]("Enumeration")
+  def container(): Element.Generic = inject[Record.Interface[_ <: Record.Stash]]("eEnumeration")
   /** The deep comparison of two enumerations */
   def compareDeep(a: Interface[_ <: AnyRef with java.io.Serializable], b: Interface[_ <: AnyRef with java.io.Serializable]): Boolean =
-    (a eq b) || (a == b && a.ptype == b.ptype && a.availability == b.availability && a.description == b.description &&
+    (a eq b) || (a == b && a.ptype == b.ptype && a.availability == b.availability && a.label == b.label &&
       a.id == b.id && (a.constants, b.constants).zipped.forall(compareDeep(_, _)))
   /** The deep comparison of two constants */
   def compareDeep(a: Constant[_ <: AnyRef with java.io.Serializable], b: Constant[_ <: AnyRef with java.io.Serializable]): Boolean =
-    (a eq b) || (a.value == b.value && a.alias == b.alias && a.description == b.description)
-  /** Convert sequence of string to constants */
-  // throws exception if something wrong
-  def constantsFromString[T <: AnyRef with java.io.Serializable: Manifest](arg: Set[(String, String, String)]): Set[Constant[T]] =
-    arg.map(t => Constant(DSLType.convertFromString[T](t._1).get, t._2, t._3))
-  /** Convert constants to sequence of string */
-  // throws exception if something wrong
-  def constantsAsString[T <: AnyRef with java.io.Serializable: Manifest](entities: Set[Constant[T]]): Set[(String, String, String)] =
-    entities.map(entity => (DSLType.convertToString[T](entity.value).get, entity.alias, entity.description))
+    (a eq b) || (a.value == b.value && a.alias == b.alias && a.label == b.label)
   /** The factory for the element that contains enumeration data */
   def factory(container: Element.Generic, elementId: Symbol): Element.Generic = container | RecordLocation(elementId)
   /** The factory for the element that contains enumeration data */
   def factory(elementId: Symbol): Element.Generic = Record(elementId, Coordinate.root.coordinate)
   /** Return enumeration element type wrapper id */
-  def getElementTypeWrapperId(e: Element.Generic): Option[Symbol] = e.eGet[String]('Etype).map(t => Symbol(t.get))
+  def getElementTypeWrapperId(e: Element.Generic): Option[Symbol] = e.eGet[String]('type).map(t => Symbol(t.get))
+  /** Get translation by alias */
+  def getConstantTranslation(constant: Constant[_ <: AnyRef with java.io.Serializable]): String =
+    if (constant.alias.startsWith("*"))
+      Resources.messages.get(constant.alias.substring(1)).getOrElse {
+        val result = constant.alias.substring(1)
+        val trimmed = if (result.endsWith("_text"))
+          result.substring(0, result.length - 5)
+        else
+          result
+        trimmed(0).toString.toUpperCase + trimmed.substring(1)
+      }
+    else if (constant.alias.isEmpty())
+      constant.ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]].valueToString(constant.value)
+    else
+      constant.alias
 
   def commitInjection() {}
   def updateInjection() {}
@@ -203,7 +221,11 @@ object Enumeration extends DependencyInjection.PersistentInjectable with Loggabl
    * The enumeration constant class
    * The equality is based on constant value
    */
-  case class Constant[T <: AnyRef with java.io.Serializable](val value: T, val alias: String, val description: String) {
+  case class Constant[T <: AnyRef with java.io.Serializable](val value: T,
+    val alias: String, val label: String)(val ptype: PropertyType[T], implicit val m: Manifest[T]) {
+    /** The enumeration constant user's representation */
+    lazy val view: String = Enumeration.getConstantTranslation(this)
+
     def canEqual(other: Any) =
       other.isInstanceOf[org.digimead.tabuddy.desktop.payload.Enumeration.Constant[_]]
     override def equals(other: Any) = other match {
@@ -223,8 +245,8 @@ object Enumeration extends DependencyInjection.PersistentInjectable with Loggabl
   trait Interface[T <: AnyRef with java.io.Serializable] {
     /** Availability flag for user (some enumeration may exists, but not involved in new element creation) */
     val availability: Boolean
-    /** The enumeration description */
-    val description: String
+    /** The enumeration label */
+    val label: String
     /** The template element */
     val element: Element.Generic
     /** The enumeration id/name */
@@ -236,25 +258,31 @@ object Enumeration extends DependencyInjection.PersistentInjectable with Loggabl
      */
     val constants: Set[Constant[T]]
 
+    /** Convert enumeration to generic with AnyRef type */
+    def generic = this.asInstanceOf[Interface[AnyRef with java.io.Serializable]]
     /** The copy constructor */
     def copy(availability: Boolean = this.availability,
-      description: String = this.description,
+      label: String = this.label,
       element: Element.Generic = this.element,
       ptype: PropertyType[T] = this.ptype,
       id: Symbol = this.id,
       constants: Set[Constant[T]] = this.constants): this.type
+    /** Get the specific constant for the property or the first entry */
+    def getConstantSafe(property: TemplateProperty[T]): Enumeration.Constant[T]
+    /** Get the specific constant for the value or the first entry */
+    def getConstantSafe(value: T): Enumeration.Constant[T]
     /** Return an ID for the availability field */
-    def getFieldIDAvailability() = 'Eavailability
-    /** Return an ID for the description field */
-    def getFieldIDDescription() = 'Edescription
+    def getFieldIDAvailability() = 'availability
+    /** Return an ID for the label field */
+    def getFieldIDLabel() = 'label
     /** Return an ID for the type wrapper field */
-    def getFieldIDType() = 'Etype
+    def getFieldIDType() = 'type // hardcoded in getElementTypeWrapperId
     /** Return an IF for the value field of the enumeration */
     def getFieldIDConstantValue(n: Int) = Symbol(n + "_enumeration")
-    /** Return an ID for the description field of the enumeration */
+    /** Return an ID for the label field of the enumeration */
     def getFieldIDConstantAlias(n: Int) = Symbol(n + "_alias")
-    /** Return an ID for the description field of the enumeration */
-    def getFieldIDConstantDescription(n: Int) = Symbol(n + "_description")
+    /** Return an ID for the label field of the enumeration */
+    def getFieldIDConstantDescription(n: Int) = Symbol(n + "_label")
 
     def canEqual(other: Any) =
       other.isInstanceOf[org.digimead.tabuddy.desktop.payload.Enumeration.Interface[_]]

@@ -65,8 +65,10 @@ import org.eclipse.swt.widgets.Shell
 
 trait Dialog extends org.eclipse.jface.dialogs.Dialog with Loggable {
   protected val parentShell: Shell
+  /** On active listener flag */
   protected val onActiveFlag = new AtomicBoolean(true)
-  protected val onActiveListener = new Dialog.DialogPaintListener(this)
+  /** On active listener */
+  protected val onActiveListener = new Dialog.OnActiveListener(this)
 
   /** Adjust column width */
   def adjustColumnWidth(viewerColumn: TableViewerColumn, padding: Int) {
@@ -119,6 +121,7 @@ trait Dialog extends org.eclipse.jface.dialogs.Dialog with Loggable {
       val paddingY = parent.y + ((parent.height - initialSize.y) / 2).toInt
       new Point(paddingX, paddingY)
     }
+  /** onActive callback */
   protected def onActive() {}
 }
 
@@ -131,8 +134,20 @@ object Dialog {
   val columnPadding = 10
   /** Dialog persistence prefix */
   val configPrefix = "persistence.dialogs"
+  /**
+   * Return the amount of pixels in x and y direction you want the tool tip to
+   * pop up from the mouse pointer. The default shift is 10px right and 0px
+   * below your mouse cursor. Be aware of the fact that you should at least
+   * position the tool tip 1px right to your mouse cursor else click events
+   * may not get propagated properly.
+   */
+  val ToolTipShift = new Point(5, 5)
+  /** The time in milliseconds until the tool tip is displayed. */
+  val ToolTipDisplayDelayTime = 100 //msec
+  /** The time in milliseconds the tool tip is shown for. */
+  val ToolTipTimeDisplayed = 5000 //msec
 
-  class DialogPaintListener(dialog: Dialog) extends Listener() {
+  class OnActiveListener(dialog: Dialog) extends Listener() {
     def handleEvent(event: Event) = event.widget match {
       case control: Control if control.getShell.eq(dialog.getShell) =>
         if (dialog.onActiveFlag.compareAndSet(true, false)) {

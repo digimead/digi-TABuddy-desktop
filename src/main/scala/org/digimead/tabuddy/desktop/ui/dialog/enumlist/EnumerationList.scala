@@ -2,10 +2,12 @@ package org.digimead.tabuddy.desktop.ui.dialog.enumlist
 
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
+
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
@@ -19,6 +21,7 @@ import org.digimead.tabuddy.desktop.res.Messages
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.ui.dialog.Dialog
+import org.digimead.tabuddy.desktop.ui.dialog.enumed.EnumerationEditor
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
@@ -54,12 +57,12 @@ import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.TableItem
-import org.digimead.tabuddy.desktop.ui.dialog.enumed.EnumerationEditor
 
 class EnumerationList(val parentShell: Shell, val initial: List[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]])
   extends org.digimead.tabuddy.desktop.res.dialog.EnumerationList(parentShell) with Dialog with Loggable {
   /** The actual enumeration list */
-  protected[enumlist] val actual = WritableList(initial)
+  protected[enumlist] val actual = WritableList[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]](initial.map(enumeration =>
+    enumeration.generic.copy(element = enumeration.element.eCopy)))
   /** The auto resize lock */
   protected lazy val autoResizeLock = new ReentrantLock()
   /** The property representing enumeration in current UI field(s) that available for user */
@@ -123,8 +126,8 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration.Inte
     getTableViewerColumnIdentificator.setLabelProvider(new ColumnIdentificator.TLabelProvider)
     getTableViewerColumnIdentificator.setEditingSupport(new ColumnIdentificator.TEditingSupport(viewer, this))
     getTableViewerColumnIdentificator.getColumn.addSelectionListener(new EnumerationList.EnumerationSelectionAdapter(WeakReference(viewer), 1))
-    getTableViewerColumnDescription.setLabelProvider(new ColumnDescription.TLabelProvider)
-    getTableViewerColumnDescription.setEditingSupport(new ColumnDescription.TEditingSupport(viewer, this))
+    getTableViewerColumnDescription.setLabelProvider(new ColumnLabel.TLabelProvider)
+    getTableViewerColumnDescription.setEditingSupport(new ColumnLabel.TEditingSupport(viewer, this))
     getTableViewerColumnDescription.getColumn.addSelectionListener(new EnumerationList.EnumerationSelectionAdapter(WeakReference(viewer), 2))
     // Add a SWT.CHECK support
     viewer.getTable.addListener(SWT.Selection, new Listener() {
@@ -195,7 +198,7 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration.Inte
       !(initial, actual).zipped.forall { (initial, actual) =>
         (initial eq actual) || (
           initial.availability == actual.availability &&
-          initial.description == actual.description &&
+          initial.label == actual.label &&
           initial.element.eq(actual.element) &&
           initial.id == actual.id &&
           initial.ptype == actual.ptype &&
@@ -261,7 +264,7 @@ object EnumerationList extends Loggable {
       val rc = column match {
         case 0 => enum1.availability.compareTo(enum2.availability)
         case 1 => enum1.id.name.compareTo(enum2.id.name)
-        case 2 => enum1.description.compareTo(enum2.description)
+        case 2 => enum1.label.compareTo(enum2.label)
         case index =>
           log.fatal(s"unknown column with index $index"); 0
       }

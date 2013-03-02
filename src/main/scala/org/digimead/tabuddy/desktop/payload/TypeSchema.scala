@@ -76,8 +76,8 @@ class TypeSchema(
   val id: UUID,
   /** The type schema name */
   val name: String,
-  /** The type schema description */
-  val description: String,
+  /** The type schema label */
+  val label: String,
   /** Type schema entities */
   val entity: immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]) extends TypeSchema.Interface with Equals {
   assert(entity.nonEmpty, "Type schema contain no entities")
@@ -85,9 +85,9 @@ class TypeSchema(
   /** The copy constructor */
   def copy(id: UUID = this.id,
     name: String = this.name,
-    description: String = this.description,
+    label: String = this.label,
     entity: immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]] = this.entity) =
-    new TypeSchema(id, name, description, entity).asInstanceOf[this.type]
+    new TypeSchema(id, name, label, entity).asInstanceOf[this.type]
 }
 
 /**
@@ -103,14 +103,14 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
   assert(default() != null, "Default schema not found") // throw an error at startup
 
   /** TypeSchema apply */
-  def apply(id: UUID, name: String, description: String, entities: immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]) =
-    new TypeSchema(id, name, description, entities)
+  def apply(id: UUID, name: String, label: String, entities: immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]) =
+    new TypeSchema(id, name, label, entities)
   /** The deep comparison of two schemas */
   def compareDeep(a: Interface, b: Interface): Boolean =
-    (a eq b) || (a.id == b.id && a.name == b.name && a.description == b.description && (a.entity, b.entity).zipped.forall((a, b) => compareDeep(a._2, b._2)))
+    (a eq b) || (a.id == b.id && a.name == b.name && a.label == b.label && (a.entity, b.entity).zipped.forall((a, b) => compareDeep(a._2, b._2)))
   /** The deep comparison of two entities */
   def compareDeep(a: Entity[_ <: AnyRef with java.io.Serializable], b: Entity[_ <: AnyRef with java.io.Serializable]): Boolean =
-    (a eq b) || (a.ptypeId == b.ptypeId && a.alias == b.alias && a.availability == b.availability && a.description == b.description)
+    (a eq b) || (a.ptypeId == b.ptypeId && a.alias == b.alias && a.availability == b.availability && a.label == b.label)
   /** Get default type schema */
   def default() = predefinedSchemas.find(_.id == inject[UUID]("TypeSchema.Default")).get
   /** Get entities set */
@@ -146,7 +146,7 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
   def predefined() = predefinedSchemas
   /** TypeSchema unapply */
   def unapply(schema: TypeSchema.Interface): Option[(UUID, immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]], String, String)] =
-    Some(schema.id, schema.entity, schema.name, schema.description)
+    Some(schema.id, schema.entity, schema.name, schema.label)
 
   def commitInjection() {}
   def updateInjection() {
@@ -165,8 +165,8 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
     val alias: String,
     /** Availability flag for user (some types may exists, but not involved in new element template creation) */
     val availability: Boolean,
-    /** The entity description */
-    val description: String) {
+    /** The entity label */
+    val label: String) {
     /** The type schema entity user's representation */
     lazy val view: String = TypeSchema.getEntityTranslation(ptypeId, alias)
 
@@ -191,15 +191,15 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
     val id: UUID
     /** The type schema name */
     val name: String
-    /** The type schema description */
-    val description: String
+    /** The type schema label */
+    val label: String
     /** Type schema entities */
     val entity: immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
 
     /** The copy constructor */
     def copy(id: UUID = this.id,
       name: String = this.name,
-      description: String = this.description,
+      label: String = this.label,
       entity: immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]] = this.entity): this.type
 
     def canEqual(other: Any) =
@@ -247,20 +247,20 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
           case node: MappingNode =>
             var id: Option[String] = None
             var name: Option[String] = None
-            var description: Option[String] = None
+            var label: Option[String] = None
             var entities: scala.collection.mutable.Buffer[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]] = new scala.collection.mutable.ArrayBuffer
             for (value <- node.getValue())
               constructObject(value.getKeyNode()) match {
                 case "id" => id = safeConstruct[String](value)
                 case "name" => name = safeConstruct[String](value)
-                case "description" => description = safeConstruct[String](value)
+                case "label" => label = safeConstruct[String](value)
                 case "entities" =>
                   val node = value.getValueNode() match {
                     case seq: SequenceNode =>
-                      entities = for (value <- seq.getValue()) yield {
+                      entities = (for (value <- seq.getValue()) yield {
                         value.setTag(entityTag)
-                        constructObject(value).asInstanceOf[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
-                      }
+                        Option(constructObject(value)).asInstanceOf[Option[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]]
+                      }).flatten
                     case unknown => throw new YAMLException("Unexpected TypeSchema.Interface 'entities' type " + unknown.getClass())
                   }
                 case other => log.warn(s"unknown TypeSchema.Interface key: $other")
@@ -268,10 +268,10 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
             val schema = for {
               id <- id
               name <- name
-              description <- description
-            } yield new TypeSchema(UUID.fromString(id), name, description, immutable.HashMap(entities.filter(_ != null).map(e => (e.ptypeId, e)): _*))
+              label <- label
+            } yield new TypeSchema(UUID.fromString(id), name, label, immutable.HashMap(entities.map(e => (e.ptypeId, e)): _*))
             schema getOrElse {
-              log.error(s"Unable to load TypeSchema.Interface id:$id, name:$name, description:$description, entities:" + entities.mkString)
+              log.error(s"Unable to load TypeSchema.Interface id:$id, name:$name, label:$label, entities:" + entities.mkString)
               null
             }
           case unknown =>
@@ -286,23 +286,23 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
             var ptypeId: Option[String] = None
             var alias: Option[String] = None
             var availability: Option[Boolean] = None
-            var description: Option[String] = None
+            var label: Option[String] = None
             for (value <- node.getValue())
               constructObject(value.getKeyNode()) match {
                 case "type" => ptypeId = safeConstruct[String](value)
                 case "alias" => alias = safeConstruct[String](value)
                 case "availability" => availability = safeConstruct[java.lang.Boolean](value).map(Boolean.box(_))
-                case "description" => description = safeConstruct[String](value)
+                case "label" => label = safeConstruct[String](value)
                 case other => log.warn(s"unknown TypeSchema.Entity key: $other")
               }
             val entity = for {
               ptypeId <- ptypeId
               alias <- alias
               availability <- availability
-              description <- description
-            } yield TypeSchema.Entity(Symbol(ptypeId), alias, availability, description)
+              label <- label
+            } yield TypeSchema.Entity(Symbol(ptypeId), alias, availability, label)
             entity.getOrElse {
-              log.error(s"Unable to load TypeSchema.Entity ptype:$ptypeId, alias:$alias, availability:$availability, description:$description")
+              log.error(s"Unable to load TypeSchema.Entity ptype:$ptypeId, alias:$alias, availability:$availability, label:$label")
               null
             }
           case unknown =>
@@ -321,7 +321,7 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
           val map = new java.util.HashMap[String, AnyRef]()
           map.put("id", schema.id.toString())
           map.put("name", schema.name)
-          map.put("description", schema.description)
+          map.put("label", schema.label)
           map.put("entities", seqAsJavaList(schema.entity.values.toSeq))
           representMapping(Tag.MAP, map, null)
         }
@@ -333,7 +333,7 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
           map.put("type", entity.ptypeId.name)
           map.put("alias", entity.alias)
           map.put("availability", Boolean.box(entity.availability))
-          map.put("description", entity.description)
+          map.put("label", entity.label)
           representMapping(Tag.MAP, map, null)
         }
       }

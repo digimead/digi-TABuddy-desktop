@@ -68,6 +68,7 @@ import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.Stash
 import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.serialization.Serialization
 
@@ -190,7 +191,7 @@ class Payload(implicit val bindingModule: BindingModule) extends Payload.Interfa
   }
   /** Get a model settings container */
   // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-  def settings(): Element.Generic = inject[Element[_ <: org.digimead.tabuddy.model.element.Stash]]("Settings")
+  def settings(): Record.Generic = inject[Record.Interface[_ <: Record.Stash]]("eSettings")
 
   /**
    * Acquire model storage

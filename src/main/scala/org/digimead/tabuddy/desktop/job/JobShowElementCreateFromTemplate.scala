@@ -75,13 +75,17 @@ class JobShowElementCreateFromTemplate private (val template: ElementTemplate.In
       // TODO save modification history
       Main.execNGet {
         val newElementID = Payload.generateNew("New" + template.element.eScope, "_", newId => container.eChildren.exists(_.eId.name == newId))
-        newElement = Some(template.factory(container, Symbol(newElementID)))
-        val dialog = new ElementEditor(Window.currentShell(), newElement.get, template)
+        val element = template.factory(container, Symbol(newElementID), template.id)
+        val dialog = new ElementEditor(Window.currentShell(), element, template, true)
         Window.currentShell.withValue(Some(dialog.getShell)) {
           dialog.open() == org.eclipse.jface.window.Window.OK
         } match {
-          case true => Job.Result.OK()
-          case false => Job.Result.Cancel()
+          case true =>
+            newElement = Some(element)
+            Job.Result.OK()
+          case false =>
+            element.eParent.foreach(_.eChildren -= element)
+            Job.Result.Cancel()
         }
       }
     } else

@@ -44,41 +44,52 @@
 package org.digimead.tabuddy.desktop.ui.dialog.eltemed
 
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.tabuddy.desktop.res.Messages
+import org.digimead.tabuddy.desktop.support.SymbolValidator
+import org.digimead.tabuddy.desktop.support.Validator
+import org.digimead.tabuddy.desktop.ui.dialog.Dialog
+import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.core.databinding.observable.IChangeListener
+import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.EditingSupport
 import org.eclipse.jface.viewers.TableViewer
 import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
+import org.eclipse.swt.SWT
+import org.eclipse.swt.events.VerifyEvent
 import org.eclipse.swt.graphics.Point
+import org.eclipse.swt.widgets.Composite
+import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.widgets.Text
 
 object ColumnId extends Loggable {
   class TLabelProvider extends CellLabelProvider {
-    /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item =>
         cell.setText(item.id)
+        item.idError.foreach(err => cell.setImage(err._2))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
-    /** Get the text displayed in the tool tip for object. */
-    override def getToolTipText(element: Object): String = element match {
+    override def getToolTipText(element: AnyRef): String = element match {
       case item: ElementTemplateEditor.Item =>
-        "o!"
+        item.idError match {
+          case Some(error) => error._1
+          case None => null
+        }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
-    /**
-     * Return the amount of pixels in x and y direction that the tool tip to
-     * pop up from the mouse pointer.
-     */
-    override def getToolTipShift(obj: Object): Point = new Point(5, 5)
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
-    override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
+    override def getToolTipShift(obj: Object): Point = Dialog.ToolTipShift
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Dialog.ToolTipDisplayDelayTime
+    override def getToolTipTimeDisplayed(obj: Object): Int = Dialog.ToolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: ElementTemplateEditor) extends EditingSupport(viewer) {
-    override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())
+    override protected def getCellEditor(element: AnyRef): CellEditor =
+      new IdTextCellEditor(viewer.getTable(), element.asInstanceOf[ElementTemplateEditor.Item], container)
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
       case item: ElementTemplateEditor.Item =>
@@ -92,10 +103,34 @@ object ColumnId extends Loggable {
         val id = value.asInstanceOf[String].trim
         if (id.nonEmpty && before.id != id && !container.actualProperties.exists(_.id == id)) {
           val after = before.copy(id = id)
-          container.updateActualProperty(before, after)
+          container.updateActualProperty(before, container.validateItem(after))
         }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
+  }
+  class IdTextCellEditor(parent: Composite, item: ElementTemplateEditor.Item, container: ElementTemplateEditor) extends TextCellEditor(parent) {
+    /** Creates the control for this cell editor under the given parent control. */
+    override def createControl(parent: Composite): Control = {
+      val text = super.createControl(parent).asInstanceOf[Text]
+      val validator = SymbolValidator(text, true)(validate)
+      WidgetProperties.text(SWT.Modify).observe(text).addChangeListener(new IChangeListener() {
+        override def handleChange(event: ChangeEvent) = {
+          val newId = text.getText().trim
+          if (newId.isEmpty())
+            validator.withDecoration(validator.showDecorationRequired(_))
+          else if (container.actualProperties.exists(_.id == newId) && newId != item.id)
+            validator.withDecoration(validator.showDecorationError(_, Messages.identificatorIsAlreadyInUse_text.format(newId)))
+          else
+            validator.withDecoration(_.hide)
+        }
+      })
+      text
+    }
+    /** Validates an input */
+    def validate(validator: Validator, event: VerifyEvent) = if (!event.doit)
+      validator.withDecoration(validator.showDecorationError(_))
+    else
+      validator.withDecoration(_.hide)
   }
 }

@@ -43,6 +43,9 @@
 
 package org.digimead.tabuddy.desktop.job
 
+import scala.annotation.elidable
+import scala.annotation.elidable.ASSERTION
+
 import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.ui.Window
@@ -83,7 +86,13 @@ class JobShowElementTemplateEditor private (
         Window.currentShell.withValue(Some(dialog.getShell)) {
           dialog.open() == org.eclipse.jface.window.Window.OK
         } match {
-          case true => Job.Result.OK()
+          case true => Job.Result.OK({
+            val template = dialog.getModifiedTemplate
+            if (templateSet.contains(template))
+              None // nothing changes, and template is already exists
+            else
+              Some(template)
+          })
           case false => Job.Result.Cancel()
         }
       }

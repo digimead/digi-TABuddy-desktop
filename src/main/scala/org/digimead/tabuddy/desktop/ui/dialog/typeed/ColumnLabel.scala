@@ -41,9 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.ui.dialog.enumed
+package org.digimead.tabuddy.desktop.ui.dialog.typeed
 
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.tabuddy.desktop.payload.PropertyType
+import org.digimead.tabuddy.desktop.payload.TypeSchema
+import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.EditingSupport
@@ -52,19 +55,21 @@ import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.graphics.Point
 
-object ColumnDescription extends Loggable {
+object ColumnLabel extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: EnumerationEditor.Item =>
-        cell.setText(item.description)
+      case item: TypeSchema.Entity[_] =>
+        cell.setText(item.label)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: EnumerationEditor.Item =>
-        "o!"
+      case item: TypeSchema.Entity[_] if PropertyType.container.contains(item.ptypeId) =>
+        Messages.typeInternalRepresentaion_text.format(PropertyType.container(item.ptypeId).typeClass.getName())
+      case item: TypeSchema.Entity[_] =>
+        Messages.typeIsUnknown_text
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         null
@@ -77,21 +82,21 @@ object ColumnDescription extends Loggable {
     override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
     override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
   }
-  class TEditingSupport(viewer: TableViewer, container: EnumerationEditor) extends EditingSupport(viewer) {
+  class TEditingSupport(viewer: TableViewer, container: TypeEditor) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: EnumerationEditor.Item =>
-        item.description
+      case item: TypeSchema.Entity[_] =>
+        item.label
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: EnumerationEditor.Item =>
-        val description = value.asInstanceOf[String].trim
-        if (before.description != description)
-          container.updateActualConstant(before, before.copy(description = description))
+      case before: TypeSchema.Entity[_] =>
+        val label = value.asInstanceOf[String].trim
+        if (before.label != label)
+          container.updateActualEntity(before, before.copy(label = label))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }

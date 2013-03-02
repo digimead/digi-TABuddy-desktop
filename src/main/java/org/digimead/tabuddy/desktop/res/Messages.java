@@ -98,6 +98,7 @@ public class Messages extends NLS {
 	public static String enumerationListDescription_text;
 	public static String enumerationListDialog_text;
 	public static String enumerationListTitle_text;
+	public static String enumerationTooltip_text;
 	public static String enumerationUnableToCreateNoTypes_text;
 	public static String enumerationUnableToCreate_text;
 	public static String enumerations_text;
@@ -110,6 +111,7 @@ public class Messages extends NLS {
 	public static String identificatorIsNotDefined_text;
 	public static String identificator_text;
 	public static String key_text;
+	public static String lastModification_text;
 	public static String left_text;
 	public static String link_text;
 	public static String loadFile_text;
@@ -167,7 +169,6 @@ public class Messages extends NLS {
 	public static String view_text;
 	public static String view_tooltip_text;
 	public static String yes_text;
-	public static String enumerationTooltip_text;
 
 	// //////////////////////////////////////////////////////////////////////////
 	//

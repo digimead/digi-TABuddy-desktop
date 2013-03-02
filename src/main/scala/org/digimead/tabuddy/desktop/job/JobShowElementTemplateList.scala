@@ -79,7 +79,7 @@ class JobShowElementTemplateList private (val elementTemplates: Set[ElementTempl
         Window.currentShell.withValue(Some(dialog.getShell)) {
           dialog.open() == org.eclipse.jface.window.Window.OK
         } match {
-          case true => Job.Result.OK()
+          case true => Job.Result.OK(Some(dialog.getModifiedTemplates()))
           case false => Job.Result.Cancel()
         }
       }

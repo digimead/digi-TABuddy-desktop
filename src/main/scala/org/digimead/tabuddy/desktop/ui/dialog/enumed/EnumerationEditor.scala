@@ -105,8 +105,8 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing current enumeration availability */
   protected val availabilityField = WritableValue[java.lang.Boolean]
-  /** The property representing current enumeration description */
-  protected val descriptionField = WritableValue[String]
+  /** The property representing current enumeration label */
+  protected val labelField = WritableValue[String]
   /** The property representing current enumeration id */
   protected val idField = WritableValue[String]
   /** Actual enumeration constants */
@@ -115,11 +115,9 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
   protected val typeField = WritableValue[java.lang.Integer]
   /** List of available types */
   protected val types: Array[PropertyType[_ <: AnyRef with java.io.Serializable]] = {
-    val userTypes = Data.getAvailableTypes()
-    if (userTypes.contains(initial.ptype))
-      userTypes.sortBy(_.id.name).toArray
-    else
-      (userTypes :+ initial.ptype).sortBy(_.id.name).toArray // add an initial enumeration if absent
+    val userTypes = Data.getAvailableTypes().filter(_.enumerationSupported)
+    // add an initial enumeration if absent
+    (if (userTypes.contains(initial.ptype)) userTypes else (userTypes :+ initial.ptype)).sortBy(_.id.name).toArray
   }
   assert(EnumerationEditor.dialog.isEmpty, "EnumerationEditor dialog is already active")
 
@@ -131,10 +129,11 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
     else
       initial.element.asInstanceOf[Element[Stash]].eCopy(initial.element.eStash.copy(id = newId)).asInstanceOf[Element.Generic]
     val newType = types(typeField.value).asInstanceOf[PropertyType[AnyRef with java.io.Serializable]]
-    val newConstants = Enumeration.constantsFromString(actualConstants.map {
-      case EnumerationEditor.Item(value, alias, description) => (value, alias, description)
-    }.toSet)(Manifest.classType(newType.typeClass)): Set[Enumeration.Constant[AnyRef with java.io.Serializable]]
-    new Enumeration(newElement, newType, availabilityField.value, descriptionField.value.trim, newConstants)(Manifest.classType(newType.typeClass))
+    val newConstants = actualConstants.map {
+      case EnumerationEditor.Item(value, alias, label) =>
+        Enumeration.Constant(newType.valueFromString(value), alias, label)(newType, Manifest.classType(newType.typeClass))
+    }.toSet: Set[Enumeration.Constant[AnyRef with java.io.Serializable]]
+    new Enumeration(newElement, newType, availabilityField.value, labelField.value.trim, newConstants)(Manifest.classType(newType.typeClass))
   }
 
   /** Auto resize tableviewer columns */
@@ -176,10 +175,10 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
       updateOK()
     }
     idField.value = initial.id.name
-    // bind the enumeration info: a description
-    Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextTemplateDescription()), descriptionField)
-    val descriptionFieldListener = descriptionField.addChangeListener { event => updateOK() }
-    descriptionField.value = initial.description
+    // bind the enumeration info: a label
+    Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextTemplateDescription()), labelField)
+    val labelFieldListener = labelField.addChangeListener { event => updateOK() }
+    labelField.value = initial.label
     // bind the enumeration info: an availability
     Main.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckAvailability()), availabilityField)
     val availabilityFieldListener = availabilityField.addChangeListener { event => updateOK() }
@@ -202,7 +201,7 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
       def widgetDisposed(e: DisposeEvent) {
         actualConstants.removeChangeListener(actualConstantsListener)
         availabilityField.removeChangeListener(availabilityFieldListener)
-        descriptionField.removeChangeListener(descriptionFieldListener)
+        labelField.removeChangeListener(labelFieldListener)
         idField.removeChangeListener(idFieldListener)
         typeField.removeChangeListener(typeFieldListener)
         EnumerationEditor.dialog = None
@@ -216,9 +215,7 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
   }
   /** Get table content */
   protected def getInitialContent(enumeration: Enumeration.Interface[_ <: AnyRef with java.io.Serializable]): List[EnumerationEditor.Item] =
-    // provide an explicit type for constantsAsString
-    Enumeration.constantsAsString(enumeration.constants)(Manifest.classType(enumeration.ptype.typeClass)).
-      map({ case (value, alias, description) => EnumerationEditor.Item(value, alias, description) }).toList
+    enumeration.constants.map(constant => EnumerationEditor.Item(constant.ptype.valueToString(constant.value), constant.alias, constant.label)).toList
   /** Allow external access for scala classes */
   override protected def getTableViewer() = super.getTableViewer
   /** Initialize table */
@@ -231,8 +228,8 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
     getTableViewerColumnAlias.setLabelProvider(new ColumnAlias.TLabelProvider)
     getTableViewerColumnAlias.setEditingSupport(new ColumnAlias.TEditingSupport(viewer, this))
     getTableViewerColumnAlias.getColumn.addSelectionListener(new EnumerationEditor.EnumerationSelectionAdapter(WeakReference(viewer), 1))
-    getTableViewerColumnDescription.setLabelProvider(new ColumnDescription.TLabelProvider)
-    getTableViewerColumnDescription.setEditingSupport(new ColumnDescription.TEditingSupport(viewer, this))
+    getTableViewerColumnDescription.setLabelProvider(new ColumnLabel.TLabelProvider)
+    getTableViewerColumnDescription.setEditingSupport(new ColumnLabel.TEditingSupport(viewer, this))
     getTableViewerColumnDescription.getColumn.addSelectionListener(new EnumerationEditor.EnumerationSelectionAdapter(WeakReference(viewer), 2))
     viewer.getTable.setLinesVisible(true)
     // Activate the tooltip support for the viewer
@@ -304,7 +301,7 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
           !{
             initialConstants.sameElements(actualConstants) &&
               availabilityField.value == initial.availability &&
-              descriptionField.value.trim == initial.description &&
+              labelField.value.trim == initial.label &&
               idField.value.trim == initial.id.name &&
               types(typeField.value) == initial.ptype
           }
@@ -321,7 +318,7 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
       return Some(Messages.thereIsNoData_text)
     if (actualConstants.size != actualConstants.map(_.value.trim).distinct.size)
       return Some(Messages.thereAreDuplicatedValuesInField_text.format(Messages.value_text))
-    if (actualConstants.size != (actualConstants.map(_.alias.trim).distinct.size + actualConstants.filter(_.alias.trim.isEmpty).size - 1))
+    if (actualConstants.size != (actualConstants.map(_.alias.trim).filter(_.nonEmpty).distinct.size + actualConstants.filter(_.alias.trim.isEmpty).size))
       return Some(Messages.thereAreDuplicatedValuesInField_text.format(Messages.alias_text))
     None
   }
@@ -370,7 +367,7 @@ object EnumerationEditor extends Loggable {
       val rc = column match {
         case 0 => entity1.value.compareTo(entity2.value)
         case 1 => entity1.alias.compareTo(entity2.alias)
-        case 2 => entity1.description.compareTo(entity2.description)
+        case 2 => entity1.label.compareTo(entity2.label)
         case index =>
           log.fatal(s"unknown column with index $index"); 0
       }
@@ -395,7 +392,7 @@ object EnumerationEditor extends Loggable {
       })
     }
   }
-  case class Item(val value: String, val alias: String, val description: String)
+  case class Item(val value: String, val alias: String, val label: String)
   class TypeLabelProvider extends LabelProvider {
     /** Returns the type name */
     override def getText(element: AnyRef): String = element match {

@@ -54,12 +54,12 @@ import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.graphics.Point
 
-object ColumnDescription extends Loggable {
+object ColumnLabel extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: Enumeration[_] =>
-        cell.setText(item.description)
+        cell.setText(item.label)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
@@ -84,16 +84,16 @@ object ColumnDescription extends Loggable {
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
       case item: Enumeration[_] =>
-        item.description
+        item.label
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
       case before: Enumeration[_] =>
-        val description = value.asInstanceOf[String].trim
-        if (before.description != description)
-          container.updateActualEnumeration(before, before.copy(description = description))
+        val label = value.asInstanceOf[String].trim
+        if (before.label != label)
+          container.updateActualEnumeration(before, before.copy(label = label))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }

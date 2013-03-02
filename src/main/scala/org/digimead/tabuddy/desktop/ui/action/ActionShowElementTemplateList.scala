@@ -43,15 +43,37 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.log.Loggable
+import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Data
+import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.job.JobShowElementTemplateList
+import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
-object ActionShowElementTemplateList extends Action(Messages.elementTemplates_text) {
+object ActionShowElementTemplateList extends Action(Messages.elementTemplates_text) with Loggable {
   Data.modelName.addChangeListener { event => setEnabled(Data.modelName.value != Payload.defaultModel.name) }
   setEnabled(Data.modelName.value != Payload.defaultModel.name)
 
-  override def run = JobShowElementTemplateList(Data.elementTemplates.toSet).foreach(_.execute)
+  override def run = JobShowElementTemplateList(Data.elementTemplates.toSet).foreach(_.setOnSucceeded { job =>
+    job.getValue.foreach {
+      case (newTemplates) => Main.exec {
+        val oldTemplates = Data.elementTemplates
+        val deleted = oldTemplates.filterNot(oldTemplate => newTemplates.exists(_ == oldTemplate))
+        val added = newTemplates.filterNot(newTemplate => oldTemplates.exists(_ == newTemplate))
+        if (deleted.nonEmpty) {
+          log.debug("delete Set(%s)".format(deleted.mkString(", ")))
+          Data.elementTemplates --= deleted
+          deleted.foreach(template => ElementTemplate.container.eChildren -= template.element)
+        }
+        if (added.nonEmpty) {
+          log.debug("add Set(%s)".format(added.mkString(", ")))
+          Data.elementTemplates ++= added
+          added.foreach(template => ElementTemplate.container.eChildren += template.element)
+        }
+      }
+    }
+  }.execute)
 }

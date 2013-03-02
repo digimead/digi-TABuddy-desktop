@@ -107,7 +107,7 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
   def createButton(template: ElementTemplate.Interface, container: Composite): Button = {
     val button = new Button(container, SWT.PUSH)
     button.setText(template.id.name)
-    button.setToolTipText(template.description)
+    button.setToolTipText(template.label)
     button.setBackground(SWTResourceManager.getColor(SWT.COLOR_WHITE))
     button.setLayoutData(new GridData(GridData.FILL_BOTH))
     button.addListener(SWT.Selection, new ElementCreate.ButtonListener(this, template, this.container))
@@ -158,8 +158,8 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
     })
     // Update the templates size
     val length = templates.getChildren().foldLeft(0) { (acc, child) =>
-      val size = child.getSize()
-      math.max(size.x, size.y)
+      val size = child.computeSize(SWT.DEFAULT, SWT.DEFAULT)
+      math.max(math.max(size.x, size.y), acc)
     }
     templates.getChildren().foreach { child =>
       val data = child.getLayoutData.asInstanceOf[GridData]

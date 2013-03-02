@@ -44,50 +44,81 @@
 package org.digimead.tabuddy.desktop.ui.dialog.eltemed
 
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
+import org.digimead.tabuddy.desktop.payload.Enumeration
+import org.digimead.tabuddy.desktop.payload.PropertyType
+import org.digimead.tabuddy.desktop.support.WritableList
+import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
+import org.eclipse.jface.viewers.ComboBoxViewerCellEditor
 import org.eclipse.jface.viewers.EditingSupport
+import org.eclipse.jface.viewers.LabelProvider
 import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
+import org.eclipse.swt.SWT
+import org.eclipse.swt.graphics.Color
+import org.eclipse.swt.graphics.Font
+import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.graphics.Point
+import org.eclipse.swt.widgets.Composite
 
 object ColumnDefault extends Loggable {
   class TLabelProvider extends CellLabelProvider {
-    /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item =>
-        cell.setText(item.default)
+        item.ptype.adapter.cellLabelProvider.update(cell, item.default)
+        item.defaultError.foreach(err => cell.setImage(err._2))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
-    /** Get the text displayed in the tool tip for object. */
-    override def getToolTipText(element: Object): String = element match {
+    override def getToolTipBackgroundColor(element: AnyRef): Color =
+      withElement(element)((adapter, element, error) => adapter.getToolTipBackgroundColor(element)).getOrElse(super.getToolTipBackgroundColor(element))
+    override def getToolTipDisplayDelayTime(element: AnyRef): Int =
+      withElement(element)((adapter, element, error) => adapter.getToolTipDisplayDelayTime(element)).getOrElse(super.getToolTipDisplayDelayTime(element))
+    override def getToolTipFont(element: AnyRef): Font =
+      withElement(element)((adapter, element, error) => adapter.getToolTipFont(element)).getOrElse(super.getToolTipFont(element))
+    override def getToolTipForegroundColor(element: AnyRef): Color =
+      withElement(element)((adapter, element, error) => adapter.getToolTipForegroundColor(element)).getOrElse(super.getToolTipForegroundColor(element))
+    override def getToolTipImage(element: AnyRef): Image =
+      withElement(element)((adapter, element, error) => adapter.getToolTipImage(element)).getOrElse(super.getToolTipImage(element))
+    override def getToolTipShift(element: AnyRef): Point =
+      withElement(element)((adapter, element, error) => adapter.getToolTipShift(element)).getOrElse(super.getToolTipShift(element))
+    override def getToolTipText(element: AnyRef): String =
+      withElement(element)((adapter, element, error) => error match {
+        case Some(error) => error._1
+        case None => adapter.getToolTipText(element)
+      }).getOrElse(super.getToolTipText(element))
+    override def getToolTipTimeDisplayed(element: AnyRef): Int =
+      withElement(element)((adapter, element, error) => adapter.getToolTipTimeDisplayed(element)).getOrElse(super.getToolTipTimeDisplayed(element))
+    override def getToolTipStyle(element: AnyRef): Int =
+      withElement(element)((adapter, element, error) => adapter.getToolTipStyle(element)).getOrElse(super.getToolTipStyle(element))
+
+    /** Call the specific CellLabelProviderAdapter Fn with element argument */
+    protected def withElement[T](element: AnyRef)(f: (PropertyType.CellLabelProviderAdapter[_], AnyRef, Option[(String, Image)]) => T): Option[T] = element match {
       case item: ElementTemplateEditor.Item =>
-        "o! default"
+        item.default match {
+          case Some(value) if value.getClass() == item.ptype.typeClass => Some(f(item.ptype.adapter.cellLabelProvider, value, item.defaultError))
+          case _ => Some(f(item.ptype.adapter.cellLabelProvider, null, item.defaultError))
+        }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
-        null
+        None
     }
-    /**
-     * Return the amount of pixels in x and y direction that the tool tip to
-     * pop up from the mouse pointer.
-     */
-    override def getToolTipShift(obj: Object): Point = new Point(5, 5)
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
-    override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
   }
   class TEditingSupport(viewer: TableViewer, container: ElementTemplateEditor) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = element match {
       case item: ElementTemplateEditor.Item =>
-/*        item.enumeration match {
+        item.enumeration match {
           case Some(enumeration) =>
-            val editor = item.ptype.createEditor(None)
+            val cellEditor = new ComboBoxViewerCellEditor(viewer.getControl().asInstanceOf[Composite], SWT.READ_ONLY)
+            cellEditor.setLabelProvider(item.ptype.adapter.createEnumerationLabelProvider)
+            cellEditor.setContentProvider(new ObservableListContentProvider())
+            cellEditor.setInput(WritableList(enumeration.constants.toList.sortBy(_.view)).underlying)
+            cellEditor
           case None =>
-            val editor = item.ptype.createEditor(None)
-            editor.
-        }*/
-        null
+            item.ptype.adapter.createCellEditor(viewer.getControl().asInstanceOf[Composite])
+        }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         null
@@ -95,17 +126,42 @@ object ColumnDefault extends Loggable {
     override protected def canEdit(element: AnyRef): Boolean = element.isInstanceOf[ElementTemplateEditor.Item]
     override protected def getValue(element: AnyRef): AnyRef = element match {
       case item: ElementTemplateEditor.Item =>
-        item.default
+        item.enumeration match {
+          case Some(enumeration) =>
+            enumeration.constants.find(c => Some(c.value) == item.default) getOrElse (enumeration.constants.toList.sortBy(_.view).head)
+          case None =>
+            item.default match {
+              case Some(default) =>
+                default
+              case None =>
+                null
+            }
+        }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
       case before: ElementTemplateEditor.Item =>
-        val default = value.asInstanceOf[String].trim
+        val default = value match {
+          case constant: Enumeration.Constant[_] =>
+            Some(constant.value)
+          case other: String =>
+            val defaultAsString = value.asInstanceOf[String].trim
+            try {
+              if (defaultAsString.nonEmpty)
+                Some(before.ptype.valueFromString(defaultAsString))
+              else
+                None
+            } catch {
+              case e: Throwable =>
+                log.info("Unable to convert string '%s' to value: %s".format(defaultAsString, e.getMessage()))
+                None
+            }
+        }
         if (before.default != default) {
           val after = before.copy(default = default)
-          container.updateActualProperty(before, after)
+          container.updateActualProperty(before, container.validateItem(after))
         }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

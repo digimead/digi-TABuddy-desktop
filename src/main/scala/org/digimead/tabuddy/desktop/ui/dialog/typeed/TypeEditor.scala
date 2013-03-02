@@ -101,8 +101,8 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
   protected val activeField = WritableValue(Boolean.box(isSchemaActive))
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
-  /** The property representing the current schema description */
-  protected val descriptionField = WritableValue("")
+  /** The property representing the current schema label */
+  protected val labelField = WritableValue("")
   /** The property representing a selected entity */
   protected val entityField = WritableValue[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
   /** Initial schema entities */
@@ -116,10 +116,10 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
   /** Get the modified type schema */
   def getModifiedSchema(): TypeSchema.Interface = initial.copy(
     name = nameField.value.trim,
-    description = descriptionField.value.trim,
+    label = labelField.value.trim,
     entity = immutable.HashMap(actualEntities.map(entity => (entity.ptypeId,
       entity.copy(alias = entity.alias.trim,
-        description = entity.description.trim))): _*))
+        label = entity.label.trim))): _*))
   /** Get the modified type schema */
   def getModifiedSchemaActiveFlag(): Boolean = activeField.value
 
@@ -163,9 +163,9 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
         }
       }
     })
-    // Bind the schema info: a description
-    descriptionField.value = initial.description
-    Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextSchemaDescription()), descriptionField)
+    // Bind the schema info: a label
+    labelField.value = initial.label
+    Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextSchemaDescription()), labelField)
     // Bind the schema info: an active flag
     Main.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckActive()), activeField)
     // Initialize the table
@@ -178,7 +178,7 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
     }
     val entityListener = entityField.addChangeListener { event => TypeEditor.ActionAliasLookup.setEnabled(entityField.value != null) }
     val nameListener = nameField.addChangeListener { event => updateOK }
-    val descriptionListener = descriptionField.addChangeListener { event => updateOK }
+    val labelListener = labelField.addChangeListener { event => updateOK }
     val activeFlagListener = activeField.addChangeListener { event => updateOK() }
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
@@ -186,7 +186,7 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
         actualEntities.removeChangeListener(actualEntitiesListener)
         entityField.removeChangeListener(entityListener)
         nameField.removeChangeListener(nameListener)
-        descriptionField.removeChangeListener(descriptionListener)
+        labelField.removeChangeListener(labelListener)
         activeField.removeChangeListener(activeFlagListener)
         TypeEditor.dialog = None
       }
@@ -212,8 +212,8 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
     getTableViewerColumnAlias.getColumn.addSelectionListener(new TypeEditor.SchemaSelectionAdapter(WeakReference(viewer), 2))
     getTableViewerColumnView.setLabelProvider(new ColumnView.TLabelProvider)
     getTableViewerColumnView.getColumn.addSelectionListener(new TypeEditor.SchemaSelectionAdapter(WeakReference(viewer), 3))
-    getTableViewerColumnDescription.setLabelProvider(new ColumnDescription.TLabelProvider)
-    getTableViewerColumnDescription.setEditingSupport(new ColumnDescription.TEditingSupport(viewer, this))
+    getTableViewerColumnDescription.setLabelProvider(new ColumnLabel.TLabelProvider)
+    getTableViewerColumnDescription.setEditingSupport(new ColumnLabel.TEditingSupport(viewer, this))
     getTableViewerColumnDescription.getColumn.addSelectionListener(new TypeEditor.SchemaSelectionAdapter(WeakReference(viewer), 4))
     // Add SWT.CHECK support
     viewer.getTable.addListener(SWT.Selection, new Listener() {
@@ -271,7 +271,7 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
     typeSchemas.contains(initial) &&
       activeField.value == isSchemaActive &&
       initial.name == nameField.value.trim &&
-      initial.description == descriptionField.value.trim &&
+      initial.label == labelField.value.trim &&
       initialEntities.size == actualEntities.size &&
       (initialEntities, actualEntities).zipped.forall(TypeSchema.compareDeep(_, _))
   } && actualEntities.filter(e => PropertyType.container.contains(e.ptypeId)).exists(_.availability)))
@@ -322,7 +322,7 @@ object TypeEditor extends Loggable {
         case 1 => entity1.ptypeId.name.compareTo(entity2.ptypeId.name)
         case 2 => entity1.alias.compareTo(entity2.alias)
         case 3 => entity1.view.compareTo(entity2.view)
-        case 4 => entity1.description.compareTo(entity2.description)
+        case 4 => entity1.label.compareTo(entity2.label)
         case index =>
           log.fatal(s"unknown column with index $index"); 0
       }
