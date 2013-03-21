@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.collections.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.paint.*?>
+
+<ToolBar fx:id="toolbar" xmlns:fx="http://javafx.com/fxml" fx:controller="org.digimead.tabuddy.desktop.toolbar.CoreSelector$Controller">
+  <items>
+    <Label fx:id="label" text="Core">
+      <tooltip>
+        <Tooltip text="Active core" />
+      </tooltip>
+    </Label>
+    <ChoiceBox fx:id="select">
+      <tooltip>
+        <Tooltip text="Select core to interact" />
+      </tooltip>
+    </ChoiceBox>
+    <Button fx:id="discover" mnemonicParsing="false" onAction="#onToolbarDiscover" text="Discover">
+      <tooltip>
+        <Tooltip text="Discover available cores" />
+      </tooltip>
+    </Button>
+  </items>
+</ToolBar>
