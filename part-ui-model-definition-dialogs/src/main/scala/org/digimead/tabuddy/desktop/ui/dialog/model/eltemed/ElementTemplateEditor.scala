@@ -179,20 +179,20 @@ class ElementTemplateEditor(val parentShell: Shell,
     ElementTemplateEditor.ActionReset.setEnabled(false)
     // Bind the template info: an id
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observe(getTextTemplateId()), idField)
-    val idFieldListener = idField.addChangeListener { event =>
-      val id = idField.value.trim
-      setMessage(Messages.elementTemplateEditorDescription_text.format(id))
-      getTextTemplateName.setMessage(id)
+    val idFieldListener = idField.addChangeListener { (id, event) =>
+      val newId = id.trim
+      setMessage(Messages.elementTemplateEditorDescription_text.format(newId))
+      getTextTemplateName.setMessage(newId)
       updateButtons()
     }
     idField.value = initial.id.name
     // Bind the template info: a name
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observe(getTextTemplateName()), nameField)
-    val nameFieldListener = nameField.addChangeListener { event => updateButtons() }
+    val nameFieldListener = nameField.addChangeListener { (name, event) => updateButtons() }
     nameField.value = initial.name
     // Bind the template info: an availability
     Main.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckAvailability()), availabilityField)
-    val availabilityFieldListener = availabilityField.addChangeListener { event => updateButtons() }
+    val availabilityFieldListener = availabilityField.addChangeListener { (availability, event) => updateButtons() }
     availabilityField.value = initial.availability
     // The complex content listener
     val actualPropertiesListener = actualProperties.addChangeListener { event =>

@@ -177,10 +177,10 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
         future { autoresize() }
       updateOK()
     }
-    val entityListener = entityField.addChangeListener { event => TypeEditor.ActionAliasLookup.setEnabled(entityField.value != null) }
-    val nameListener = nameField.addChangeListener { event => updateOK }
-    val descriptionListener = descriptionField.addChangeListener { event => updateOK }
-    val activeFlagListener = activeField.addChangeListener { event => updateOK() }
+    val entityListener = entityField.addChangeListener { (entity, _) => TypeEditor.ActionAliasLookup.setEnabled(entity != null) }
+    val nameListener = nameField.addChangeListener { (_, _) => updateOK }
+    val descriptionListener = descriptionField.addChangeListener { (_, _) => updateOK }
+    val activeFlagListener = activeField.addChangeListener { (_, _) => updateOK() }
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {

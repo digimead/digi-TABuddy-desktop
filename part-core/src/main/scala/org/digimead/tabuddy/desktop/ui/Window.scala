@@ -108,7 +108,7 @@ class Window extends org.digimead.tabuddy.desktop.res.Window with Loggable {
   }
   protected def updateTitle() {
     val modelName = Data.modelName.value match {
-      case name if name.trim.nonEmpty && name != Payload.defaultModel.name => name
+      case name if name.trim.nonEmpty && name != Payload.defaultModelIdentifier.name => name
       case name => Messages.untitled_text
     }
     Window.shell.setText(Messages.shell_detailed_text.format(modelName, Messages.shell_text))

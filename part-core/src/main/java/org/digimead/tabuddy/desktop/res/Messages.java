@@ -57,6 +57,7 @@ public class Messages extends NLS {
 
 	public static String acquire_text;
 	public static String activate_text;
+	public static String activeElement_text;
 	public static String activeSchema_text;
 	public static String active_text;
 	public static String add_text;
@@ -70,6 +71,7 @@ public class Messages extends NLS {
 	public static String blocked_text;
 	public static String closeFile_text;
 	public static String collapseAll_text;
+	public static String collapseRecursively_text;
 	public static String console_text;
 	public static String copy_item_text;
 	public static String copy_text;
@@ -113,6 +115,7 @@ public class Messages extends NLS {
 	public static String exit_text;
 	public static String expandAll_text;
 	public static String expandNew_text;
+	public static String expandRecursively_text;
 	public static String expand_text;
 	public static String field_text;
 	public static String fields_text;
@@ -121,10 +124,12 @@ public class Messages extends NLS {
 	public static String freeze_text;
 	public static String group_text;
 	public static String hidden_text;
+	public static String hide_text;
 	public static String identificatorCharacterIsNotValid_text;
 	public static String identificatorIsAlreadyInUse_text;
 	public static String identificatorIsNotDefined_text;
 	public static String identificator_text;
+	public static String identificators_text;
 	public static String inversion_text;
 	public static String key_text;
 	public static String lastModification_text;
@@ -138,6 +143,7 @@ public class Messages extends NLS {
 	public static String lock_text;
 	public static String lookupAliasInTranslations_text;
 	public static String lookupFilter_text;
+	public static String markAsRoot_text;
 	public static String menuFile_text;
 	public static String menuModel_text;
 	public static String nameIsAlreadyInUse_text;
@@ -151,6 +157,7 @@ public class Messages extends NLS {
 	public static String new_text;
 	public static String no_text;
 	public static String openFile_text;
+	public static String path_text;
 	public static String properties_text;
 	public static String property_text;
 	public static String redo_text;
@@ -160,7 +167,9 @@ public class Messages extends NLS {
 	public static String resetSorting_text;
 	public static String reset_text;
 	public static String right_text;
+	public static String rootElement_text;
 	public static String saveFile_text;
+	public static String select_text;
 	public static String shell_detailed_text;
 	public static String shell_text;
 	public static String sorting_text;
@@ -169,10 +178,12 @@ public class Messages extends NLS {
 	public static String synchronize_text;
 	public static String systemElements_text;
 	public static String tableView_text;
+	public static String table_text;
 	public static String thereAreDuplicatedValuesInField_text;
 	public static String thereAreNoSelectedProperties_text;
 	public static String thereIsNoData_text;
 	public static String translationDialog_text;
+	public static String tree_text;
 	public static String typeEditorDescription_text;
 	public static String typeEditorDialog_text;
 	public static String typeEditorTitle_text;
@@ -199,7 +210,6 @@ public class Messages extends NLS {
 	public static String view_tooltip_text;
 	public static String views_text;
 	public static String yes_text;
-	public static String identificators_text;
 
 	// //////////////////////////////////////////////////////////////////////////
 	//

@@ -52,8 +52,8 @@ import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
 object ActionModifyTypeSchemaList extends Action(Messages.types_text) {
-  Data.modelName.addChangeListener { event => setEnabled(Data.modelName.value != Payload.defaultModel.name) }
-  setEnabled(Data.modelName.value != Payload.defaultModel.name)
+  Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
+  setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
   override def run = JobModifyTypeSchemaList(Data.typeSchemas.values.toSet, Data.typeSchema.value).foreach(_.setOnSucceeded { job =>
     job.getValue.foreach {

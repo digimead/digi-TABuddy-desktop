@@ -435,9 +435,14 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
       case _ => false
     }
     override def hashCode() = {
-      val prime = 41
-      prime * (prime * (prime * (prime + availability.hashCode) +
-        name.hashCode) + id.hashCode) + properties.hashCode
+      /*
+       * Of the remaining four, I'd probably select P(31), as it's the cheapest to calculate on a
+       * RISC machine (because 31 is the difference of two powers of two). P(33) is
+       * similarly cheap to calculate, but it's performance is marginally worse, and
+       * 33 is composite, which makes me a bit nervous.
+       */
+      val p = 31
+      p * (p * (p * (p + availability.hashCode) + name.hashCode) + id.hashCode) + properties.hashCode
     }
     override def toString() = "ElementTemplate(%s based on %s)".format(element.eId, element.eStash.scope)
   }

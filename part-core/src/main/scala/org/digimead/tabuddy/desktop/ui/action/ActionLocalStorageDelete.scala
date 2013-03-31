@@ -50,8 +50,8 @@ import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
 object ActionLocalStorageDelete extends Action(Messages.delete_text) {
-  Data.modelName.addChangeListener { event => setEnabled(Data.modelName.value != Payload.defaultModel.name) }
-  setEnabled(Data.modelName.value != Payload.defaultModel.name)
+  Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
+  setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
   override def run() = JobModelDelete(Symbol(Data.modelName.value)).foreach(_.execute)
 }

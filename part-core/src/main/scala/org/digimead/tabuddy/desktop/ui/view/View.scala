@@ -57,7 +57,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StackLayout
 import org.eclipse.swt.widgets.Composite
 import language.implicitConversions
-import org.digimead.tabuddy.desktop.ui.view.table.Table
+import org.digimead.tabuddy.desktop.ui.view.table.TableView
 
 /**
  * View trait from the perspective of singletons
@@ -138,11 +138,14 @@ object View extends Loggable {
   @log
   def load() = synchronized {
     log.info("loading application views...")
+    val s = Window.getContainer
+    s.setRedraw(false)
     val view = availableViews
     val saved = Configgy.getString("view.selected", classOf[Default].getName())
     viewList = view.filter(_.onLoad())
     val selected = if (saved.nonEmpty) viewList.find(_.getClass().getName() == saved) else None
     selected.orElse(viewList.headOption).foreach(v => show(v))
+    s.setRedraw(true)
     Event.publish(Event.ViewListChanged)
   }
   def previous() = previousView
@@ -194,7 +197,7 @@ object View extends Loggable {
     result
   }
   /** list of available views */
-  private def availableViews = Seq[View](new Default(Window.getContainer, SWT.NONE), Table(Window.getContainer, SWT.NONE))
+  private def availableViews = Seq[View](new Default(Window.getContainer, SWT.NONE), TableView(Window.getContainer, SWT.NONE))
 
   sealed trait Event
   object Event extends Publisher[Event] {

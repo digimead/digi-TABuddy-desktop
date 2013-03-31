@@ -63,8 +63,11 @@ case class WritableValue[T <: AnyRef] private (val underlying: OriginalWritableV
   def value: T = getValue()
   def value_=(newValue: T) = setValue(newValue)
 
-  def addChangeListener[T](listenerCallback: (ChangeEvent) => T): IChangeListener = {
-    val listener = new IChangeListener() { override def handleChange(event: ChangeEvent) = listenerCallback(event) }
+  def addChangeListener[TT](listenerCallback: (T, ChangeEvent) => TT): IChangeListener = {
+    val listener = new IChangeListener() {
+      override def handleChange(event: ChangeEvent) =
+        listenerCallback(event.getObservable.asInstanceOf[OriginalWritableValue].getValue().asInstanceOf[T], event)
+    }
     underlying.addChangeListener(listener)
     listener
   }

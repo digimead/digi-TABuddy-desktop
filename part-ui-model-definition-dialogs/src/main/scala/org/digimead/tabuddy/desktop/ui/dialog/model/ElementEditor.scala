@@ -200,8 +200,8 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
       else
         validator.withDecoration(_.hide)
     }
-    idField.addChangeListener { event =>
-      val newId = idField.value.trim
+    idField.addChangeListener { (id, event) =>
+      val newId = id.trim
       if (newId.isEmpty())
         idFieldValidator.withDecoration(idFieldValidator.showDecorationRequired(_))
       else if (element.eParent.map(_.eChildren.exists(_.eId.name == newId)).getOrElse(false) && newId != element.eId.name)

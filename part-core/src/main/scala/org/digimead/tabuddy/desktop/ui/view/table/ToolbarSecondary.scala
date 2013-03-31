@@ -46,11 +46,11 @@ package org.digimead.tabuddy.desktop.ui.view.table
 import org.eclipse.jface.action.ToolBarManager
 import org.digimead.digi.lib.log.Loggable
 
-object TableToolbarSecondary extends ToolBarManager with Loggable {
+object ToolbarSecondary extends ToolBarManager with Loggable {
   log.debug("alive")
 
-  add(Table.ActionToggleIdentificators)
-  add(Table.ActionToggleEmpty)
-  add(Table.ActionExpandAll)
-  add(Table.ActionCollapseAll)
+  add(TableView.ActionToggleIdentificators)
+  add(TableView.ActionToggleEmpty)
+  add(TableView.ActionExpandAll)
+  add(TableView.ActionCollapseAll)
 }

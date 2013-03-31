@@ -54,8 +54,8 @@ import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
 object ActionModifyElementTemplateList extends Action(Messages.elementTemplates_text) with Loggable {
-  Data.modelName.addChangeListener { event => setEnabled(Data.modelName.value != Payload.defaultModel.name) }
-  setEnabled(Data.modelName.value != Payload.defaultModel.name)
+  Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
+  setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
   override def run = JobModifyElementTemplateList(Data.elementTemplates.values.toSet).foreach(_.setOnSucceeded { job =>
     job.getValue.foreach { case (templates) => ElementTemplate.save(templates) }

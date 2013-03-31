@@ -45,6 +45,8 @@ package org.digimead.tabuddy.desktop.payload.view
 
 import java.util.UUID
 
+import scala.collection.mutable
+
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.Data
@@ -67,7 +69,7 @@ case class Sorting(
   /** Availability flag for user (some sortings may exists, but not involved in element representation) */
   val availability: Boolean,
   /** Sorting definitions */
-  val definitions: Set[Sorting.Definition]) {
+  val definitions: mutable.LinkedHashSet[Sorting.Definition]) {
   /** Element id symbol */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
@@ -88,7 +90,8 @@ case class Sorting(
 object Sorting extends DependencyInjection.PersistentInjectable with Loggable {
   implicit def bindingModule = DependencyInjection()
   /** Predefined default sort */
-  val default = Sorting(UUID.fromString("5993bb90-8553-11e2-9e96-0800200c9a66"), Messages.default_text, "default sort order", true, Set())
+  val default = Sorting(UUID.fromString("da7303d6-d432-49bd-9634-48d1638c2775"), Messages.default_text,
+    "default sort order", true, mutable.LinkedHashSet())
   /** Fields limit per sort */
   val collectionMaximum = 100
 
@@ -129,12 +132,12 @@ object Sorting extends DependencyInjection.PersistentInjectable with Loggable {
           None
       }
     }
-    val definitions = definitionsRaw.flatten
+    val definitions = mutable.LinkedHashSet(definitionsRaw.flatten: _*)
     for {
       uuid <- uuid if definitions.nonEmpty
       availability <- availability
       name <- name
-    } yield Sorting(uuid, name, description.getOrElse(""), availability, definitions.toSet)
+    } yield Sorting(uuid, name, description.getOrElse(""), availability, definitions)
   }
   /** Returns an ID for the availability field */
   def getFieldIDAvailability() = 'availability

@@ -45,6 +45,8 @@ package org.digimead.tabuddy.desktop.payload.view
 
 import java.util.UUID
 
+import scala.collection.mutable
+
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.Data
@@ -66,7 +68,7 @@ case class Filter(
   /** Availability flag for user (some filters may exists, but not involved in element representation) */
   val availability: Boolean,
   /** Filter rules, sorted by hash code */
-  val rules: Set[Filter.Rule]) {
+  val rules: mutable.LinkedHashSet[Filter.Rule]) {
   /** Element id symbol */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
@@ -87,7 +89,7 @@ case class Filter(
 object Filter extends DependencyInjection.PersistentInjectable with Loggable {
   implicit def bindingModule = DependencyInjection()
   /** Predefined default sort */
-  val default = Filter(UUID.fromString("5993bb90-8553-11e2-9e96-0800200c9a66"), Messages.default_text, "", true, Set())
+  val default = Filter(UUID.fromString("d9baaf38-fb98-4de5-9085-12156e668b0c"), Messages.default_text, "", true, mutable.LinkedHashSet())
   /** Fields limit per sort */
   val collectionMaximum = 100
 
@@ -127,12 +129,12 @@ object Filter extends DependencyInjection.PersistentInjectable with Loggable {
           None
       }
     }
-    val rules = rulesRaw.flatten
+    val rules = mutable.LinkedHashSet(rulesRaw.flatten: _*)
     for {
       uuid <- uuid if rules.nonEmpty
       availability <- availability
       name <- name
-    } yield Filter(uuid, name, description.getOrElse(""), availability, rules.toSet)
+    } yield Filter(uuid, name, description.getOrElse(""), availability, rules)
   }
   /** Returns an ID for the availability field */
   def getFieldIDAvailability() = 'availability

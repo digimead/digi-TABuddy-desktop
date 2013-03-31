@@ -67,7 +67,7 @@ class JobModelDelete private (val modelID: Symbol)
 
 object JobModelDelete extends Loggable {
   def apply(modelID: Symbol) =
-    if (modelID != Payload.defaultModel && modelID != Symbol(""))
+    if (modelID != Payload.defaultModelIdentifier && modelID != Symbol(""))
       Some(new JobBuilder(JobModelDelete, () => new JobModelDelete(modelID)))
     else {
       log.warn("unable to delete model with the default name")

@@ -41,26 +41,42 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.ui.view.table
+package org.digimead.tabuddy.desktop.ui
 
-import org.digimead.digi.lib.log.Loggable
-import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
-import org.digimead.tabuddy.desktop.ui.action.ActionElementNew
-import org.eclipse.jface.action.ToolBarManager
+import scala.collection.mutable
+import scala.ref.WeakReference
 
-object TableToolbarPrimary extends ToolBarManager with Loggable {
-  log.debug("alive")
+import org.eclipse.swt.widgets.Shell
 
-  add(ActionElementNew)
-  add(Table.ActionElementEdit)
-  add(Table.ActionElementDelete)
-  add(Table.ActionElementLink)
-  add(Table.ActionElementLeft)
-  add(Table.ActionElementRight)
-  add(Table.ActionElementUp)
-  add(Table.ActionElementDown)
+import language.reflectiveCalls
 
-  case class Item(val item: String) {
-    override def toString() = item
+trait ShellContext[P <: { def getShell(): Shell }, Q <: ShellContext.PerShellContext[P]] {
+  /** Shell -> PerShellContext map */
+  private val contextMap = new mutable.WeakHashMap[Shell, Q] with mutable.SynchronizedMap[Shell, Q]
+
+  /** Create new instance of PerShellContext */
+  protected def perShellContextNewInstance(dialogOrViewOrOtherControl: WeakReference[P]): Q
+  /** Create new or retrieve an exists context */
+  def perShellContextInitialize(dialogOrViewOrOtherControl: P): Q =
+    contextMap.get(dialogOrViewOrOtherControl.getShell()) match {
+      case Some(contextMap) =>
+        contextMap
+      case None =>
+        val perShellContext = perShellContextNewInstance(new WeakReference(dialogOrViewOrOtherControl))
+        contextMap(dialogOrViewOrOtherControl.getShell()) = perShellContext
+        perShellContext
+    }
+  /** Execute f(x) with per shell context */
+  def withContext[T](shell: Shell)(context: (Q, P) => T): Option[T] =
+    contextMap.get(shell).flatMap(ctx => ctx.view.get.map(context(ctx, _)))
+  /** Execute f(x) with per shell context */
+  def withContext[T](view: P)(context: (Q, P) => T): Option[T] =
+    contextMap.get(view.getShell).flatMap(ctx => ctx.view.get.map(context(ctx, _)))
+
+}
+
+object ShellContext {
+  trait PerShellContext[T <: AnyRef] {
+    val view: WeakReference[T]
   }
 }

@@ -141,8 +141,8 @@ object MainLocalStorage extends ToolBarManager with Loggable {
           case selection =>
         }
       })
-      Data.modelName.addChangeListener { event => viewer.getCombo.setEnabled(Data.modelName.value == Payload.defaultModel.name) }
-      viewer.getCombo.setEnabled(Data.modelName.value == Payload.defaultModel.name)
+      Data.modelName.addChangeListener { (name, event) => viewer.getCombo.setEnabled(name == Payload.defaultModelIdentifier.name) }
+      viewer.getCombo.setEnabled(Data.modelName.value == Payload.defaultModelIdentifier.name)
       modelCombo = Some(viewer)
       validateComboText(validator, viewer.getCombo.getText, true)
       viewer.getCombo

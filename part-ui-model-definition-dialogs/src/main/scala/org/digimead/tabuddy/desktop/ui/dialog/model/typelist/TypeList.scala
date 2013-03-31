@@ -144,13 +144,13 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema.Interface], 
         future { autoresize() }
       updateOK()
     }
-    val actualActiveSchemaListener = actualActiveSchema.addChangeListener { event =>
-      getTextActiveSchema.setText(actual.find(_.id == actualActiveSchema.value).getOrElse(initialActiveSchema).name)
-      getTextActiveSchema.setToolTipText("id: " + actualActiveSchema.value.toString)
+    val actualActiveSchemaListener = actualActiveSchema.addChangeListener { (activeSchema, event) =>
+      getTextActiveSchema.setText(actual.find(_.id == activeSchema).getOrElse(initialActiveSchema).name)
+      getTextActiveSchema.setToolTipText("id: " + activeSchema.toString)
       getbtnResetSchema().setEnabled(true)
       getTableViewer.getSelection match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          TypeList.ActionActivate.setEnabled(!selection.getFirstElement().eq(actualActiveSchema.value))
+          TypeList.ActionActivate.setEnabled(!selection.getFirstElement().eq(activeSchema))
         case selection =>
       }
       updateOK()

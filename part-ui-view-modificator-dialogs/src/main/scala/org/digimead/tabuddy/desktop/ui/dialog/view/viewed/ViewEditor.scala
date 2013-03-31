@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 
@@ -135,7 +136,8 @@ class ViewEditor(val parentShell: Shell, val view: View, val viewList: List[View
   def getModifiedViews(): View = {
     val name = nameField.value.trim
     val description = descriptionField.value.trim
-    View(view.id, name, description, availabilityField.value, actualFields.toSet, actualFilters.toSet, actualSortings.toSet)
+    View(view.id, name, description, availabilityField.value, mutable.LinkedHashSet(actualFields:_*),
+        mutable.LinkedHashSet(actualFilters:_*), mutable.LinkedHashSet(actualSortings:_*))
   }
 
   /** Auto resize tableviewer columns */
@@ -167,18 +169,18 @@ class ViewEditor(val parentShell: Shell, val view: View, val viewList: List[View
     initTableViewerSortings()
     // bind the view info: an availability
     Main.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckAvailability()), availabilityField)
-    val availabilityFieldListener = availabilityField.addChangeListener { event => updateOK() }
+    val availabilityFieldListener = availabilityField.addChangeListener { (_, _) => updateOK() }
     availabilityField.value = view.availability
     // bind the view info: a description
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextDescription()), descriptionField)
-    val descriptionFieldListener = descriptionField.addChangeListener { event => updateOK() }
+    val descriptionFieldListener = descriptionField.addChangeListener { (_, _) => updateOK() }
     descriptionField.value = view.description
     // bind the view info: a name
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextName()), nameField)
     val nameFieldValidator = Validator(getTextName(), true)((validator, event) =>
       if (event.keyCode != 0) validateName(validator, event.getSource.asInstanceOf[Text].getText, event.doit))
-    val nameFieldListener = nameField.addChangeListener { event =>
-      validateName(nameFieldValidator, nameField.value.trim(), true)
+    val nameFieldListener = nameField.addChangeListener { (name, _) =>
+      validateName(nameFieldValidator, name.trim(), true)
       updateOK()
     }
     nameField.value = view.name

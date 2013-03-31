@@ -49,6 +49,7 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 
 import scala.collection.immutable
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
@@ -343,7 +344,7 @@ object SortingList extends Loggable {
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = SortingList.dialog.foreach { dialog =>
       val newSortingName = Payload.generateNew(Messages.newSortingName_text, " ", newName => dialog.actual.exists(_.name == newName))
-      val newSorting = Sorting(UUID.randomUUID(), newSortingName, "", true, Set())
+      val newSorting = Sorting(UUID.randomUUID(), newSortingName, "", true, mutable.LinkedHashSet())
       JobModifySorting(newSorting, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
         job.getValue.foreach { case (sorting) => Main.exec { dialog.actual += sorting } }
       }.execute)

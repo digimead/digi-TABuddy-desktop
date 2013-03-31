@@ -131,7 +131,7 @@ object Data extends DependencyInjection.PersistentInjectable with Loggable {
   lazy val viewSortings = WritableMap[UUID, Sorting]
 
   // save type schema value to the current model at every change
-  typeSchema.addChangeListener { event => Payload.settings.eSet[String]('Data_typeSchema, typeSchema.value.id.toString, "") }
+  typeSchema.addChangeListener { (schema, event) => Payload.settings.eSet[String]('Data_typeSchema, schema.id.toString, "") }
 
   /** Get user enumerations */
   def getAvailableElementTemplates(): List[ElementTemplate.Interface] =

@@ -45,6 +45,8 @@ package org.digimead.tabuddy.desktop.payload.view
 
 import java.util.UUID
 
+import scala.collection.mutable
+
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.Data
@@ -65,11 +67,11 @@ case class View(
   /** Availability flag for user (some views may exists, but not involved in element representation) */
   val availability: Boolean,
   /** View fields (visible properties) */
-  val fields: Set[Symbol],
+  val fields: mutable.LinkedHashSet[Symbol],
   /** View filters (visible filters) */
-  val filters: Set[UUID],
+  val filters: mutable.LinkedHashSet[UUID],
   /** View sortings (visible sortings) */
-  val sortings: Set[UUID]) {
+  val sortings: mutable.LinkedHashSet[UUID]) {
   /** Element id symbol */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
@@ -90,7 +92,7 @@ object View extends DependencyInjection.PersistentInjectable with Loggable {
   implicit def bindingModule = DependencyInjection()
   /** Predefined default view */
   val default = View(UUID.fromString("033ca060-8493-11e2-9e96-0800200c9a66"), Messages.default_text,
-    "The default minimal view with 'name' column", true, Set('name), Set(), Set())
+    "The default minimal view with 'name' column", true, mutable.LinkedHashSet('name), mutable.LinkedHashSet(), mutable.LinkedHashSet())
   /** Columns limit per view */
   val collectionMaximum = 10000
 
@@ -125,7 +127,7 @@ object View extends DependencyInjection.PersistentInjectable with Loggable {
           None
       }
     }
-    val fields = fieldsRaw.flatten.map((id: String) => Symbol(id)).toSet
+    val fields = mutable.LinkedHashSet(fieldsRaw.flatten.map((id: String) => Symbol(id)): _*)
     // filters
     next = true
     val filtersRaw = for (i <- 0 until View.collectionMaximum if next) yield {
@@ -142,7 +144,7 @@ object View extends DependencyInjection.PersistentInjectable with Loggable {
           None
       }
     }
-    val filters = filtersRaw.flatten.toSet
+    val filters = mutable.LinkedHashSet(filtersRaw.flatten: _*)
     // sortings
     next = true
     val sortingsRaw = for (i <- 0 until View.collectionMaximum if next) yield {
@@ -159,7 +161,7 @@ object View extends DependencyInjection.PersistentInjectable with Loggable {
           None
       }
     }
-    val sortings = sortingsRaw.flatten.toSet
+    val sortings = mutable.LinkedHashSet(sortingsRaw.flatten: _*)
     for {
       uuid <- uuid if fields.nonEmpty
       availability <- availability

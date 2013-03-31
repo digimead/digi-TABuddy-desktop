@@ -52,10 +52,10 @@ import org.digimead.tabuddy.model.Model
 class PayloadModel[A <: Model.Stash](s: A) extends Model(s) with Loggable
 
 object PayloadModel {
-  Data.modelName.addChangeListener { event =>
-    if (Data.modelName.value == Payload.defaultModel.name)
+  Data.modelName.addChangeListener { (name, event) =>
+    if (name == Payload.defaultModelIdentifier.name)
       Configgy("payload.model") = ""
     else
-      Configgy("payload.model") = Data.modelName.value
+      Configgy("payload.model") = name
   }
 }

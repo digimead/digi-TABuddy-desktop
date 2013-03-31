@@ -54,8 +54,8 @@ import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
 object ActionModifyEnumerationList extends Action(Messages.enumerations_text) with Loggable {
-  Data.modelName.addChangeListener { event => setEnabled(Data.modelName.value != Payload.defaultModel.name) }
-  setEnabled(Data.modelName.value != Payload.defaultModel.name)
+  Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
+  setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
   setText(Messages.enumerations_text + "@" + "Ctrl+W")
 
   override def run = JobModifyEnumerationList(Data.enumerations.values.toSet).foreach(_.setOnSucceeded { job =>

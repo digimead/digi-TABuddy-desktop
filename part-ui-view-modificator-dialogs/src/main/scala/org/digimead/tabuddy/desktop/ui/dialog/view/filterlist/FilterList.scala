@@ -49,6 +49,7 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 
 import scala.collection.immutable
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
@@ -345,7 +346,7 @@ object FilterList extends Loggable {
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = FilterList.dialog.foreach { dialog =>
       val newFilterName = Payload.generateNew(Messages.newFilterName_text, " ", newName => dialog.actual.exists(_.name == newName))
-      val newFilter = Filter(UUID.randomUUID(), newFilterName, "", true, Set())
+      val newFilter = Filter(UUID.randomUUID(), newFilterName, "", true, mutable.LinkedHashSet())
       JobModifyFilter(newFilter, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
         job.getValue.foreach { case (filter) => Main.exec { dialog.actual += filter } }
       }.execute)

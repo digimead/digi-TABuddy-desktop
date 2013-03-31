@@ -49,6 +49,7 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 
 import scala.collection.immutable
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
@@ -344,7 +345,7 @@ object ViewList extends Loggable {
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = dialog.foreach { dialog =>
       val newViewName = Payload.generateNew(Messages.newViewName_text, " ", newName => dialog.actual.exists(_.name == newName))
-      val newView = View(UUID.randomUUID(), newViewName, "", true, Set(), Set(), Set())
+      val newView = View(UUID.randomUUID(), newViewName, "", true, mutable.LinkedHashSet(), mutable.LinkedHashSet(), mutable.LinkedHashSet())
       JobModifyView(newView, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
         job.getValue.foreach {
           case (view) => Main.exec {

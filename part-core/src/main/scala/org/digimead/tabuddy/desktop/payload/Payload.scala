@@ -343,11 +343,11 @@ object Payload extends DependencyInjection.PersistentInjectable with Loggable {
   implicit def payload2implementation(p: Payload.type): Interface = p.implementation
   implicit def bindingModule = DependencyInjection()
   @volatile private var implementation = inject[Interface]
-  @volatile private var defaultModelIdentifier = inject[Symbol]("Payload.DefaultModel")
+  @volatile private var defaultModel = inject[Symbol]("Payload.defaultModelIdentifier")
   @volatile private var serialization = inject[Serialization[Array[Byte]]]("Payload.Serialization")
   PayloadModel // initialize
 
-  def defaultModel() = defaultModelIdentifier
+  def defaultModelIdentifier() = defaultModel
   def inner() = implementation
 
   def commitInjection() {}
@@ -358,7 +358,7 @@ object Payload extends DependencyInjection.PersistentInjectable with Loggable {
       implementation.start()
     } else
       implementation = inject[Interface]
-    defaultModelIdentifier = inject[Symbol]("Payload.DefaultModel")
+    defaultModel= inject[Symbol]("Payload.defaultModelIdentifier")
     serialization = inject[Serialization[Array[Byte]]]("Payload.Serialization")
   }
 

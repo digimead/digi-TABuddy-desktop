@@ -81,7 +81,7 @@ class JobModelFreeze private (val modelID: Symbol)
 
 object JobModelFreeze extends Loggable {
   def apply(modelID: Symbol): Option[JobBuilder[JobModelFreeze]] =
-    if (modelID != Payload.defaultModel && modelID != Symbol(""))
+    if (modelID != Payload.defaultModelIdentifier && modelID != Symbol(""))
       Some(new JobBuilder(JobModelFreeze, () => new JobModelFreeze(modelID)))
     else {
       log.warn("unable to freeze model with default name")

@@ -171,25 +171,25 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
     // bind the enumeration info: an id
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextEnumerationId()), idField)
     val idFieldValidator = SymbolValidator(getTextEnumerationId, true)((validator, event) => validateID(validator, event.getSource.asInstanceOf[Text].getText, event.doit))
-    val idFieldListener = idField.addChangeListener { event =>
-      val id = idField.value.trim
-      setMessage(Messages.elementTemplateEditorDescription_text.format(id))
-      validateID(idFieldValidator, id, true)
-      getTextEnumerationName.setMessage(id)
+    val idFieldListener = idField.addChangeListener { (id, event) =>
+      val newId = id.trim
+      setMessage(Messages.elementTemplateEditorDescription_text.format(newId))
+      validateID(idFieldValidator, newId, true)
+      getTextEnumerationName.setMessage(newId)
       updateOK()
     }
     idField.value = initial.id.name
     // bind the enumeration info: a name
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextEnumerationName()), nameField)
-    val nameFieldListener = nameField.addChangeListener { event => updateOK() }
+    val nameFieldListener = nameField.addChangeListener { (name, event) => updateOK() }
     nameField.value = initial.name
     // bind the enumeration info: an availability
     Main.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckAvailability()), availabilityField)
-    val availabilityFieldListener = availabilityField.addChangeListener { event => updateOK() }
+    val availabilityFieldListener = availabilityField.addChangeListener { (availability, event) => updateOK() }
     availabilityField.value = initial.availability
     // bind the enumeration info: a type
     Main.bindingContext.bindValue(WidgetProperties.singleSelectionIndex().observeDelayed(50, getComboType.getCombo), typeField)
-    val typeFieldListener = typeField.addChangeListener { event => updateOK() }
+    val typeFieldListener = typeField.addChangeListener { (_, _) => updateOK() }
     getComboType.setContentProvider(ArrayContentProvider.getInstance())
     getComboType.setLabelProvider(new EnumerationEditor.TypeLabelProvider())
     getComboType.setInput(types)

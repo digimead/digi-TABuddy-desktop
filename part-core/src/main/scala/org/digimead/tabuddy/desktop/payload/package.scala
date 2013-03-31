@@ -67,9 +67,9 @@ import org.digimead.tabuddy.desktop.payload.DSL._
 package object payload {
   lazy val default = new NewBindingModule(module => {
     // The illegal leading '_' prevent the symbol duplication against user models
-    module.bind[Symbol] identifiedBy "Payload.DefaultModel" toSingle (Symbol("_Default_"))
+    module.bind[Symbol] identifiedBy "Payload.defaultModelIdentifier" toSingle (Symbol("_Default_"))
     module.bind[Model.Interface[Model.Stash]] toModuleSingle { implicit module =>
-      new PayloadModel(new Model.Stash(module.inject[Symbol](Some("Payload.DefaultModel")), UUID.randomUUID()))
+      new PayloadModel(new Model.Stash(module.inject[Symbol](Some("Payload.defaultModelIdentifier")), UUID.randomUUID()))
     }
     module.bind[File] identifiedBy "Payload" toModuleSingle { module =>
       module.inject[File](Some("Config")).getParentFile()

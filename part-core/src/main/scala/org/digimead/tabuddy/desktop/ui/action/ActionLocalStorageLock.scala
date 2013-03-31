@@ -56,15 +56,15 @@ import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.IAction
 
 object ActionLocalStorageLock extends Action(Messages.lock_text, IAction.AS_CHECK_BOX) with Loggable {
-  Data.fieldModelName.addChangeListener { event => setEnabled(Option(Data.fieldModelName.value).getOrElse("").trim.nonEmpty) }
-  Data.modelName.addChangeListener { event => setChecked(Data.modelName.value != Payload.defaultModel.name) }
+  Data.fieldModelName.addChangeListener { (fieldName, event) => setEnabled(Option(fieldName).getOrElse("").trim.nonEmpty) }
+  Data.modelName.addChangeListener { (name, event) => setChecked(name != Payload.defaultModelIdentifier.name) }
 
   override def run() = if (isChecked()) {
     // if model == default return None else Some
     // see module.bind[Model.Interface[Model.Stash]] at org.digimead.tabuddy.desktop.payload.default)
-    val oldModelName = if (Model.eId == Payload.defaultModel) None else Some(Model.eId)
+    val oldModelName = if (Model.eId == Payload.defaultModelIdentifier) None else Some(Model.eId)
     val newModelName = Symbol(Data.fieldModelName.value.trim)
-    if (newModelName == Payload.defaultModel || newModelName == Symbol("")) {
+    if (newModelName == Payload.defaultModelIdentifier || newModelName == Symbol("")) {
       log.warn("unable to create model with the default name")
       setChecked(false)
     } else

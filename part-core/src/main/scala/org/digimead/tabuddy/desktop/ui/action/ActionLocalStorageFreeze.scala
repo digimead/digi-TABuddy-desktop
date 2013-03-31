@@ -50,8 +50,8 @@ import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
 object ActionLocalStorageFreeze extends Action(Messages.freeze_text) {
-  Data.modelName.addChangeListener { event => setEnabled(Data.modelName.value != Payload.defaultModel.name) }
-  setEnabled(Data.modelName.value != Payload.defaultModel.name)
+  Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
+  setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
   override def run() = JobModelFreeze(Symbol(Data.fieldModelName.value)).foreach(_.execute)
 }

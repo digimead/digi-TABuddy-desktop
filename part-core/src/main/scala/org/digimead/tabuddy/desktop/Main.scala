@@ -75,7 +75,29 @@ import org.eclipse.core.databinding.DataBindingContext
 import org.eclipse.core.databinding.observable.Realm
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.jface.util.Policy
+import org.eclipse.swt.custom.CTabItem
+import org.eclipse.swt.custom.TableTreeItem
+import org.eclipse.swt.dnd.DragSource
+import org.eclipse.swt.dnd.DropTarget
+import org.eclipse.swt.widgets.Caret
+import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.widgets.CoolItem
 import org.eclipse.swt.widgets.Display
+import org.eclipse.swt.widgets.ExpandItem
+import org.eclipse.swt.widgets.Menu
+import org.eclipse.swt.widgets.MenuItem
+import org.eclipse.swt.widgets.ScrollBar
+import org.eclipse.swt.widgets.Shell
+import org.eclipse.swt.widgets.TabItem
+import org.eclipse.swt.widgets.TableColumn
+import org.eclipse.swt.widgets.TableItem
+import org.eclipse.swt.widgets.TaskBar
+import org.eclipse.swt.widgets.TaskItem
+import org.eclipse.swt.widgets.ToolItem
+import org.eclipse.swt.widgets.ToolTip
+import org.eclipse.swt.widgets.TreeColumn
+import org.eclipse.swt.widgets.TreeItem
+import org.eclipse.swt.widgets.Widget
 
 import akka.actor.ActorSystem
 
@@ -185,6 +207,37 @@ object Main extends App with Loggable {
         r
     }
   }
+  /** Find SWT widget shell */
+  def findShell(widget: Widget): Option[Shell] = {
+    if (widget == null)
+      return None
+    widget match {
+      case caret: Caret => Option(caret.getParent().getShell())
+      case control: Control => Option(control.getShell())
+      case dragSource: DragSource => Option(dragSource.getControl().getShell())
+      case dropTarget: DropTarget => Option(dropTarget.getControl().getShell())
+      case item: CoolItem => Option(item.getControl()) orElse Option(item.getParent) map (_.getShell())
+      case item: CTabItem => Option(item.getControl()) orElse Option(item.getParent) map (_.getShell())
+      case item: ExpandItem => Option(item.getControl()) orElse Option(item.getParent) map (_.getShell())
+      case item: MenuItem => Option(item.getParent().getShell())
+      case item: TabItem => Option(item.getControl()) orElse Option(item.getParent) map (_.getShell())
+      case item: TableColumn => Option(item.getParent().getShell())
+      case item: TableItem => Option(item.getParent().getShell())
+      case item: TableTreeItem => Option(item.getParent().getShell())
+      case item: TaskItem => Option(item.getMenu().getShell())
+      case item: ToolItem => Option(item.getControl()) orElse Option(item.getParent) map (_.getShell())
+      case item: TreeColumn => Option(item.getParent().getShell())
+      case item: TreeItem => Option(item.getParent().getShell())
+      case menu: Menu => Option(menu.getShell())
+      case scrollbar: ScrollBar => Option(scrollbar.getParent().getShell())
+      case taskbar: TaskBar => taskbar.getItems().find(item => Option(item.getMenu).nonEmpty).map(_.getMenu().getShell())
+      case tooltip: ToolTip => Option(tooltip.getParent())
+      case widget: Widget =>
+        log.warn("Unable to find shell for unexpected SWT widget %s(%s)".format(widget, widget.getClass))
+        None
+    }
+  }
+
   /** This callback is invoked when UI initialization complete */
   def onApplicationStartup() {
     // load last active model at startup
@@ -231,13 +284,13 @@ object Main extends App with Loggable {
     // Initialize the job approver
     Approver.start()
     // Initialize other subsystems
-    view.table.Table.start()
+    view.table.TableView.start()
   }
   /** This function is invoked at the application stop */
   def stop() {
     log.info("stop application")
     Element.Event.removeSubscription(elementEventsSubscriber)
-    view.table.Table.stop()
+    view.table.TableView.stop()
     Approver.stop()
     Job.stop()
     Transport.stop()

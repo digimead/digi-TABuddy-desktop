@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
@@ -133,7 +134,7 @@ class SortingEditor(val parentShell: Shell, val sorting: Sorting, val sortingLis
   def getModifiedSorting(): Sorting = {
     val name = nameField.value.trim
     val description = descriptionField.value.trim
-    Sorting(sorting.id, name, description, availabilityField.value, actual.toSet)
+    Sorting(sorting.id, name, description, availabilityField.value, mutable.LinkedHashSet(actual: _*))
   }
 
   /** Auto resize tableviewer columns */
@@ -169,18 +170,18 @@ class SortingEditor(val parentShell: Shell, val sorting: Sorting, val sortingLis
     initTableViewerSortings()
     // bind the sorting info: an availability
     Main.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckAvailability()), availabilityField)
-    val availabilityFieldListener = availabilityField.addChangeListener { event => updateOK() }
+    val availabilityFieldListener = availabilityField.addChangeListener { (_, _) => updateOK() }
     availabilityField.value = sorting.availability
     // bind the sorting info: a description
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextDescription()), descriptionField)
-    val descriptionFieldListener = descriptionField.addChangeListener { event => updateOK() }
+    val descriptionFieldListener = descriptionField.addChangeListener { (_, _) => updateOK() }
     descriptionField.value = sorting.description
     // bind the sorting info: a name
     Main.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextName()), nameField)
     val nameFieldValidator = Validator(getTextName(), true)((validator, event) =>
       if (event.keyCode != 0) validateName(validator, event.getSource.asInstanceOf[Text].getText, event.doit))
-    val nameFieldListener = nameField.addChangeListener { event =>
-      validateName(nameFieldValidator, nameField.value.trim(), true)
+    val nameFieldListener = nameField.addChangeListener { (name, event) =>
+      validateName(nameFieldValidator, name.trim(), true)
       updateOK()
     }
     nameField.value = sorting.name
