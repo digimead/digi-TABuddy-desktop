@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.ui.view.table
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 import scala.collection.immutable
@@ -53,6 +54,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
+
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
@@ -60,6 +62,7 @@ import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.desktop.res.Messages
+import org.digimead.tabuddy.desktop.res.SWTResourceManager
 import org.digimead.tabuddy.desktop.support.TreeProxy
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.ui.Default
@@ -80,19 +83,18 @@ import org.eclipse.jface.action.CoolBarManager
 import org.eclipse.jface.action.IAction
 import org.eclipse.jface.action.MenuManager
 import org.eclipse.jface.action.Separator
+import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.TreeViewer
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.jface.viewers.ViewerFilter
 import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.StyleRange
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Event
-import org.eclipse.swt.widgets.Shell
-import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.swt.widgets.Listener
-import org.eclipse.swt.custom.StyleRange
-import org.digimead.tabuddy.desktop.res.SWTResourceManager
+import org.eclipse.swt.widgets.Shell
 
 class TableView private (parent: Composite, style: Int)
   extends org.digimead.tabuddy.desktop.res.view.table.TableView(parent, style) with View {
@@ -349,6 +351,8 @@ class TableView private (parent: Composite, style: Int)
   }
   /** Recreate table columns with preserve table selected elements */
   protected def recreateSmart() {
+    if (Table.columnLabelProvider.isEmpty)
+      return // there are not column definitions yet
     val selection = table.tableViewer.getSelection()
     updateColumns
     table.tableViewer.refresh()
@@ -550,6 +554,12 @@ object TableView extends ShellContext[TableView, TableViewPerShellContext] with 
       withRedrawDelayed(view) {
         view.recreateSmart
         view.context.ActionAutoResize(true)
+      }
+    }
+    // handle sorting changes
+    ToolbarView.sorting.addChangeListener { (_, _) =>
+      withRedrawDelayed(view) {
+        view.table.onSortingChanged
       }
     }
     // initial update of tree state

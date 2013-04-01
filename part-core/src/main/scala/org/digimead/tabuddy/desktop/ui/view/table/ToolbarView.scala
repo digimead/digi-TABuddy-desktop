@@ -270,9 +270,9 @@ object ToolbarView extends ToolBarManager with Loggable {
     comboToolBarItem = getControl().getItem(2)
     view <- view.value
   } {
-    log.debug("reload sorting combo")
+    log.debug("reload filter combo")
     // dirty hack for combo resize
-    // sometime combo.getCombo.computeSize returns cached value under GTK
+    // sometimes combo.getCombo.computeSize returns cached value under GTK
     filter.value = None
     combo.getCombo.removeAll()
     combo.getCombo.add(" ")
@@ -300,7 +300,7 @@ object ToolbarView extends ToolBarManager with Loggable {
   } {
     log.debug("reload sorting combo")
     // dirty hack for combo resize
-    // sometime combo.getCombo.computeSize returns cached value under GTK
+    // sometimes combo.getCombo.computeSize returns cached value under GTK
     sorting.value = None
     combo.getCombo.removeAll()
     combo.getCombo.add(" ")
@@ -327,7 +327,7 @@ object ToolbarView extends ToolBarManager with Loggable {
   } {
     log.debug("reload view combo")
     // dirty hack for combo resize
-    // sometime combo.getCombo.computeSize returns cached value under GTK
+    // sometimes combo.getCombo.computeSize returns cached value under GTK
     view.value = None
     combo.getCombo.removeAll()
     combo.getCombo.add(" ")

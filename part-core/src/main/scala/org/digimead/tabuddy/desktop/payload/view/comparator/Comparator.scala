@@ -49,6 +49,7 @@ import scala.collection.immutable
 
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.tabuddy.desktop.payload.PropertyType
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.model.element.Element
 
@@ -87,7 +88,10 @@ object Comparator extends DependencyInjection.PersistentInjectable with Loggable
     /** Check whether comparation is available */
     def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean
     /** Compare two element's properties */
-    def compare[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e1: Element.Generic, e2: Element.Generic, argument: Option[Q]): Int
+    def compare[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e1: Element.Generic, e2: Element.Generic, argument: Option[Comparator.Argument]): Int =
+      compare(property.id, property.ptype, e1, e2, argument)
+    /** Compare two element's properties */
+    def compare[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[U], e1: Element.Generic, e2: Element.Generic, argument: Option[Comparator.Argument]): Int
     /** Convert the serialized argument to Argument instance */
     def stringToArgument(argument: String): Option[Argument]
   }

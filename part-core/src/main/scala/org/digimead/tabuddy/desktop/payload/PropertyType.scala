@@ -264,7 +264,7 @@ object PropertyType extends DependencyInjection.PersistentInjectable with Loggab
      * The <code>LabelProvider</code> implementation of this
      * <code>ILabelProvider</code> method returns <code>null</code>.
      */
-    def getImage(element: Option[T]): Image = null
+    def getImage(value: Option[T]): Image = null
     /**
      * The <code>LabelProvider</code> implementation of this
      * <code>ILabelProvider</code> method returns the element's

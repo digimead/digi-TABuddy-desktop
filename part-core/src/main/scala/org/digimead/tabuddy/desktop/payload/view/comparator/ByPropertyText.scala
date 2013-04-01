@@ -45,10 +45,11 @@ package org.digimead.tabuddy.desktop.payload.view.comparator
 
 import java.util.UUID
 
-import org.digimead.tabuddy.desktop.payload.TemplateProperty
+import org.digimead.digi.lib.log.Loggable
+import org.digimead.tabuddy.desktop.payload.PropertyType
 import org.digimead.tabuddy.model.element.Element
 
-class ByPropertyText extends Comparator.Interface[Comparator.Argument] {
+class ByPropertyText extends Comparator.Interface[Comparator.Argument] with Loggable {
   val id = UUID.fromString("84b24863-145a-40a7-aade-e25547c52b41")
   val name = "By property text"
   val description = "Compare two element's properties via text representation"
@@ -61,9 +62,9 @@ class ByPropertyText extends Comparator.Interface[Comparator.Argument] {
   /** Check whether comparation is available */
   def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
   /** Compare two element's properties */
-  def compare[T <: AnyRef with java.io.Serializable](property: TemplateProperty[T], e1: Element.Generic, e2: Element.Generic, argument: Option[Comparator.Argument]): Int = {
-    val text1 = e1.eGet(property.id, property.ptype.typeSymbol).map(value => property.ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
-    val text2 = e2.eGet(property.id, property.ptype.typeSymbol).map(value => property.ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
+  def compare[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e1: Element.Generic, e2: Element.Generic, argument: Option[Comparator.Argument]): Int = {
+    val text1 = e1.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
+    val text2 = e2.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
     text1.compareTo(text2)
   }
   /** Convert the serialized argument to Argument trait */

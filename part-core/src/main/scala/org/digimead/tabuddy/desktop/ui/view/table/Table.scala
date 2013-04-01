@@ -43,35 +43,33 @@
 
 package org.digimead.tabuddy.desktop.ui.view.table
 
+import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
-import java.util.Date
 
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.collection.immutable
 import scala.collection.mutable
+import scala.collection.parallel
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
-
-import com.ibm.icu.text.DateFormat
 
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.payload.PropertyType
+import org.digimead.tabuddy.desktop.payload.PropertyType.LabelProviderAdapter
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
-import org.digimead.tabuddy.desktop.payload.view.Sorting
+import org.digimead.tabuddy.desktop.payload.view.comparator.Comparator
 import org.digimead.tabuddy.desktop.res.Messages
 import org.digimead.tabuddy.desktop.support.TreeProxy
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.ui.Default
 import org.digimead.tabuddy.desktop.ui.ShellContext
 import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
-import org.eclipse.core.databinding.observable.list.{ WritableList => OriginalWritableList }
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.IAction
 import org.eclipse.jface.action.IMenuListener
@@ -81,6 +79,7 @@ import org.eclipse.jface.action.Separator
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.ColumnViewerToolTipSupport
+import org.eclipse.jface.viewers.ILabelProvider
 import org.eclipse.jface.viewers.ISelectionChangedListener
 import org.eclipse.jface.viewers.IStructuredSelection
 import org.eclipse.jface.viewers.SelectionChangedEvent
@@ -92,19 +91,23 @@ import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.jface.viewers.ViewerComparator
 import org.eclipse.jface.viewers.ViewerFilter
 import org.eclipse.swt.SWT
-import org.eclipse.swt.custom.SashForm
 import org.eclipse.swt.events.PaintEvent
 import org.eclipse.swt.events.PaintListener
+import org.eclipse.swt.events.SelectionAdapter
+import org.eclipse.swt.events.SelectionEvent
 import org.eclipse.swt.graphics.Color
 import org.eclipse.swt.graphics.Font
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Shell
+
+import com.ibm.icu.text.DateFormat
 
 class Table(view: TableView, style: Int) extends Loggable {
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
+  /** The actual table content. */
+  protected[table] lazy val content = WritableList[TreeProxy.Item]
   /** Per shell context */
   protected[table] val context = Table.perShellContextInitialize(view)
   /** The instance of filter that drops empty table rows */
@@ -113,8 +116,6 @@ class Table(view: TableView, style: Int) extends Loggable {
   protected val onActiveCalled = new AtomicBoolean(false)
   /** On active listener */
   protected val onActiveListener = new Table.OnActiveListener(new WeakReference(this))
-  /** The actual table content. */
-  protected[table] lazy val content = WritableList[TreeProxy.Item]
   /** The table viewer */
   val tableViewer = create()
   /** The table viewer update, scala bug SI-2991 */
@@ -188,6 +189,11 @@ class Table(view: TableView, style: Int) extends Loggable {
       table.getColumn(0).setWidth(0)
       table.getColumn(0).setResizable(false)
     }
+    tableViewer.setComparator(new Table.TableComparator(-1, Default.sortingDirection, new WeakReference(this)))
+    content.addChangeListener { (_) =>
+      // reset sorting results on content change
+      tableViewer.getComparator.asInstanceOf[Table.TableComparator].sorted = None
+    }
     tableViewer.setInput(content.underlying)
     tableViewer
   }
@@ -197,6 +203,7 @@ class Table(view: TableView, style: Int) extends Loggable {
     tableViewerColumn.setLabelProvider(labelProvider)
     val column = tableViewerColumn.getColumn
     column.setText(text)
+    column.setData(id)
     width match {
       case Some(width) => column.setWidth(width)
       case None => column.pack()
@@ -206,15 +213,22 @@ class Table(view: TableView, style: Int) extends Loggable {
   /** Create table viewer columns */
   protected[table] def createColumns(columns: mutable.LinkedHashSet[String], columnsWidth: Map[String, Int]) {
     log.debug("create columns " + columns.mkString(","))
+    var pos = 0
     context.tableViewerColumns = columns.map { columnId =>
       Table.columnLabelProvider.get(columnId) match {
         case Some(labelProvider: Table.TableLabelProviderID) =>
-          Some(createColumn(Messages.identificator_text, TableView.COLUMN_ID, columnsWidth.get(columnId), labelProvider))
+          val column = createColumn(Messages.identificator_text, TableView.COLUMN_ID, columnsWidth.get(columnId), labelProvider)
+          column.getColumn.addSelectionListener(new Table.TableSelectionAdapter(pos))
+          pos += 1
+          Some(column)
         case Some(labelProvider) =>
-          if (columnId == TableView.COLUMN_NAME)
-            Some(createColumn(Messages.name_text, columnId, columnsWidth.get(columnId), labelProvider))
+          val column = if (columnId == TableView.COLUMN_NAME)
+            createColumn(Messages.name_text, columnId, columnsWidth.get(columnId), labelProvider)
           else
-            Some(createColumn(columnId, columnId, columnsWidth.get(columnId), labelProvider))
+            createColumn(columnId, columnId, columnsWidth.get(columnId), labelProvider)
+          column.getColumn.addSelectionListener(new Table.TableSelectionAdapter(pos))
+          pos += 1
+          Some(column)
         case None =>
           log.fatal("unknown column " + columnId)
           None
@@ -223,27 +237,29 @@ class Table(view: TableView, style: Int) extends Loggable {
   }
   /** Create context menu for table element */
   protected def createMenu(manager: IMenuManager, selection: IStructuredSelection) {
-    Option(selection.getFirstElement().asInstanceOf[TreeProxy.Item]) match {
-      case Some(item) =>
-        // tree menu
-        if (view.context.ActionHideTree.isChecked()) {
-          manager.add(context.ActionShowTree)
+    val item = Option(selection.getFirstElement().asInstanceOf[TreeProxy.Item])
+    // tree menu
+    if (view.context.ActionHideTree.isChecked()) {
+      manager.add(context.ActionShowTree)
+    } else {
+      val treeMenu = new MenuManager(Messages.tree_text, null)
+      treeMenu.add({
+        val action = new context.ActionSelectInTree(item.map(_.element).getOrElse(null))
+        if (item.nonEmpty) {
+          val treeSelection = view.tree.treeViewer.getSelection().asInstanceOf[IStructuredSelection]
+          action.setEnabled(treeSelection.getFirstElement() != selection.getFirstElement())
         } else {
-          val treeMenu = new MenuManager(Messages.tree_text, null)
-          treeMenu.add({
-            val action = new context.ActionSelectInTree(item.element)
-            val treeSelection = view.tree.treeViewer.getSelection().asInstanceOf[IStructuredSelection]
-            action.setEnabled(treeSelection.getFirstElement() != selection.getFirstElement())
-            action
-          })
-          treeMenu.add(new Separator)
-          treeMenu.add(view.tree.context.ActionHideTree)
-          manager.add(treeMenu)
+          action.setEnabled(false)
         }
-        // main menu
-        manager.add(new Separator)
-      case None =>
+        action
+      })
+      treeMenu.add(new Separator)
+      treeMenu.add(view.tree.context.ActionHideTree)
+      manager.add(treeMenu)
     }
+    // main menu
+    manager.add(context.ActionResetSorting)
+    manager.add(new Separator)
     manager.add(context.ActionAutoResize)
   }
   /** Dispose table viewer columns */
@@ -256,6 +272,10 @@ class Table(view: TableView, style: Int) extends Loggable {
   }
   /** onActive callback */
   protected def onActive() {}
+  protected[table] def onSortingChanged() {
+    tableViewer.getComparator.asInstanceOf[Table.TableComparator].sorted = None
+    tableViewer.refresh()
+  }
 }
 
 class TablePerShellContext(val view: WeakReference[TableView]) extends Table.PerShellContext
@@ -323,72 +343,99 @@ object Table extends ShellContext[TableView, TablePerShellContext] with Loggable
       }
     }
   }
-  /*class TableComparator extends ViewerComparator {
-    private var _column = Table.sortingColumn
-    private var _direction = Table.sortingDirection
+  class TableComparator(initialColumn: Int, initialDirection: Boolean, table: WeakReference[Table]) extends ViewerComparator {
+    /** The sort column */
+    var columnVar = initialColumn
+    /** The sort direction */
+    var directionVar = initialDirection
+    /** Sorted content by user defined sorter */
+    protected[Table] var sorted: Option[parallel.immutable.ParVector[TreeProxy.Item]] = None
+    updateActionResetSorting
 
     /** Active column getter */
-    def column = _column
+    def column = columnVar
     /** Active column setter */
     def column_=(arg: Int) {
-      _column = arg
-      Table.sortingColumn = _column
-      _direction = Default.sortingDirection
-      Table.sortingDirection = _direction
+      columnVar = arg
+      directionVar = initialDirection
+      updateActionResetSorting
     }
     /** Sorting direction */
-    def direction = _direction
+    def direction = directionVar
     /**
      * Returns a negative, zero, or positive number depending on whether
      * the first element is less than, equal to, or greater than
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val element1 = e1.asInstanceOf[Element.Generic]
-      val element2 = e2.asInstanceOf[Element.Generic]
-      val rc = column match {
-        case 0 =>
-          /*
-           * 0 is always id column
-           * if there is user sorting - return unmodified order
-           * if there is default sorting - sort by column 1
-           */
-          Option(ToolbarView.sorting) match {
-            case Some(sorting) if sorting != Sorting.default =>
-              log.___glance("skip")
-              0
-            case _ =>
-              val iterator = Table.tableViewerColumns.iterator
-              iterator.next // skip id column
-              val column = iterator.next
-              val data = column.getColumn().getData()
-              log.___glance("!!!DATA " + data)
-
-              /*
-                    .forall { column =>
-        column.getColumn.getText() match {
-          case id if id == Messages.name_text =>
-            table.columnLabelProvider(table.COLUMN_NAME).isEmpty(element)
-          case columnId =>
-            table.columnLabelProvider(columnId).isEmpty(element)
-        }*/
-              1
+      val item1 = e1.asInstanceOf[TreeProxy.Item]
+      val item2 = e2.asInstanceOf[TreeProxy.Item]
+      val columnCount = viewer.asInstanceOf[TableViewer].getTable.getColumnCount()
+      val rc: Int = if (column < 0) {
+        sorted orElse {
+          // sorted is empty, update sorted
+          ToolbarView.sorting.value match {
+            case Some(sorting) =>
+              withContext(viewer.getControl.getShell()) { (context, view) =>
+                val sortBy = sorting.definitions.toSeq.flatMap { definition =>
+                  val comparator = Comparator.map.get(definition.comparator): Option[Comparator.Interface[_ <: Comparator.Argument]]
+                  val propertyType = PropertyType.container.get(definition.propertyType): Option[PropertyType[_ <: AnyRef with java.io.Serializable]]
+                  val argument = comparator.flatMap(c => c.stringToArgument(definition.argument))
+                  comparator.flatMap(c => propertyType.map(ptype => (definition, ptype, c, argument)))
+                }
+                if (sortBy.nonEmpty) {
+                  var iteration = view.proxy.getContent.seq
+                  sortBy.foreach {
+                    case ((definition, propertyType, comparator, argument)) =>
+                      // iterate over sorting definitions
+                      iteration = iteration.sortWith { (a, b) =>
+                        comparator.compare[AnyRef with java.io.Serializable](
+                          definition.property,
+                          propertyType.asInstanceOf[org.digimead.tabuddy.desktop.payload.PropertyType[AnyRef with java.io.Serializable]],
+                          a.element, b.element,
+                          argument.asInstanceOf[Option[org.digimead.tabuddy.desktop.payload.view.comparator.Comparator.Argument]]) < 0
+                      }
+                  }
+                  sorted = Some(iteration.par)
+                } else {
+                  // if there are no sortBy elements (default sorting) return empty vector
+                  // so comparation will always -1 vs -1
+                  sorted = Some(parallel.immutable.ParVector[TreeProxy.Item]())
+                }
+              }
+              sorted
+            case None =>
+              None
           }
-
-        case 1 => 0
-        //translation1.getValue().compareTo(translation2.getValue())
-        case index =>
-          log.fatal(s"unknown column with index $index"); 0
+        } map { sorted =>
+          sorted.indexOf(item1).compareTo(sorted.indexOf(item2))
+        } getOrElse 0
+      } else if (column < columnCount) {
+        val columnId = viewer.asInstanceOf[TableViewer].getTable.getColumn(column).getData().asInstanceOf[String]
+        if (columnId == TableView.COLUMN_ID) {
+          item1.element.eId.name.compareTo(item2.element.eId.name)
+        } else {
+          val lprovider = viewer.asInstanceOf[TableViewer].getLabelProvider(column).asInstanceOf[ILabelProvider]
+          lprovider.getText(item1).compareTo(lprovider.getText(item2))
+        }
+      } else {
+        log.fatal(s"unknown column with index $column"); 0
       }
-      if (_direction) -rc else rc
+      if (directionVar) -rc else rc
     }
+    /** get element label */
+    protected def getLabel(viewer: Viewer, e1: AnyRef, lprovider: ILabelProvider): String =
+      Option(lprovider.getText(e1)).getOrElse("")
     /** Switch comparator direction */
     def switchDirection() {
-      _direction = !_direction
-      Table.sortingDirection = _direction
+      directionVar = !directionVar
     }
-  }*/
-  class TableLabelProvider(propertyId: String, propertyMap: immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]) extends CellLabelProvider {
+    /** Update ActionResetSorting state */
+    def updateActionResetSorting() = table.get.foreach(table =>
+      table.context.ActionResetSorting.setEnabled(columnVar != -1 || directionVar != initialDirection))
+  }
+  class TableLabelProvider(val propertyId: String, val propertyMap: immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]])
+    extends CellLabelProvider with ILabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: TreeProxy.Item =>
         propertyMap.get(item.element.eScope.modificator).foreach { property =>
@@ -399,6 +446,44 @@ object Table extends ShellContext[TableView, TablePerShellContext] with Loggable
         }
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
+    }
+    /**
+     * Returns the image for the label of the given element.  The image
+     * is owned by the label provider and must not be disposed directly.
+     * Instead, dispose the label provider when no longer needed.
+     *
+     * @param element the element for which to provide the label image
+     * @return the image used to label the element, or <code>null</code>
+     *   if there is no image for the given object
+     */
+    def getImage(element: AnyRef): Image = element match {
+      case item: TreeProxy.Item =>
+        propertyMap.get(item.element.eScope.modificator).map { property =>
+          val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
+          // as common unknown type
+          property.ptype.adapter.labelProvider.asInstanceOf[LabelProviderAdapter[AnyRef with java.io.Serializable]].getImage(value)
+        } getOrElse null
+      case unknown =>
+        log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
+        null
+    }
+    /**
+     * Returns the text for the label of the given element.
+     *
+     * @param element the element for which to provide the label text
+     * @return the text string used to label the element, or <code>null</code>
+     *   if there is no text label for the given object
+     */
+    def getText(element: AnyRef): String = element match {
+      case item: TreeProxy.Item =>
+        propertyMap.get(item.element.eScope.modificator).map { property =>
+          val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
+          // as common unknown type
+          property.ptype.adapter.labelProvider.asInstanceOf[LabelProviderAdapter[AnyRef with java.io.Serializable]].getText(value)
+        } getOrElse ""
+      case unknown =>
+        log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
+        ""
     }
     override def getToolTipBackgroundColor(element: AnyRef): Color =
       withElement(element)((adapter, element) => adapter.getToolTipBackgroundColor(element)).getOrElse(super.getToolTipBackgroundColor(element))
@@ -458,6 +543,30 @@ object Table extends ShellContext[TableView, TablePerShellContext] with Loggable
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
     }
+    /**
+     * Returns the image for the label of the given element.  The image
+     * is owned by the label provider and must not be disposed directly.
+     * Instead, dispose the label provider when no longer needed.
+     *
+     * @param element the element for which to provide the label image
+     * @return the image used to label the element, or <code>null</code>
+     *   if there is no image for the given object
+     */
+    override def getImage(element: AnyRef): Image = null
+    /**
+     * Returns the text for the label of the given element.
+     *
+     * @param element the element for which to provide the label text
+     * @return the text string used to label the element, or <code>null</code>
+     *   if there is no text label for the given object
+     */
+    override def getText(element: AnyRef): String = element match {
+      case item: TreeProxy.Item =>
+        item.element.eId.name
+      case unknown =>
+        log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
+        null
+    }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(obj: Object): String = obj match {
       case item: TreeProxy.Item =>
@@ -477,6 +586,18 @@ object Table extends ShellContext[TableView, TablePerShellContext] with Loggable
     override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
     /** Returns whether property text is empty */
     override def isEmpty(element: Element.Generic) = false
+  }
+  class TableSelectionAdapter(column: Int) extends SelectionAdapter {
+    override def widgetSelected(e: SelectionEvent) = Main.findShell(e.widget).foreach(withContext(_) { (context, view) =>
+      val comparator = view.table.tableViewer.getComparator().asInstanceOf[TableComparator]
+      if (comparator.column == column) {
+        comparator.switchDirection()
+        view.table.tableViewer.refresh()
+      } else {
+        comparator.column = column
+        view.table.tableViewer.refresh()
+      }
+    })
   }
   /** Per shell context for with Table routines */
   sealed trait PerShellContext extends ShellContext.PerShellContext[TableView] {
@@ -499,6 +620,15 @@ object Table extends ShellContext[TableView, TablePerShellContext] with Loggable
       else
         future { try { view.table.autoresize(false) } catch { case e: Throwable => log.error(e.getMessage, e) } })
       override def run = if (isChecked()) apply()
+    }
+    object ActionResetSorting extends Action(Messages.resetSorting_text) {
+      // column -1 is user defined sorting
+      def apply(immediately: Boolean = false) = view.get.foreach { view =>
+        val comparator = view.table.tableViewer.getComparator().asInstanceOf[TableComparator]
+        comparator.column = -1
+        view.table.tableViewer.refresh()
+      }
+      override def run = apply()
     }
     class ActionSelectInTree(val element: Element.Generic) extends Action(Messages.select_text) {
       def apply() = view.get.foreach(v => v.tree.treeViewer.setSelection(new StructuredSelection(TreeProxy.Item(element)), true))

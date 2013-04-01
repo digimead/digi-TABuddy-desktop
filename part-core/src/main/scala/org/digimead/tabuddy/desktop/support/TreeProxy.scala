@@ -54,9 +54,16 @@ import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.databinding.observable.list.{ WritableList => OriginalWritableList }
 import org.eclipse.jface.viewers.TreeViewer
 
+/**
+ * Tree proxy object that updates observables
+ * Observables is updated only after TreeProxy.content
+ */
 class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], expandedItems: mutable.HashSet[TreeProxy.Item]) extends Loggable {
+  /** Internal content that represents the actual flat projection of hierarchical structure */
   protected var content = parallel.immutable.ParVector[TreeProxy.Item]()
+  /** Set of filtered items in hierarchical structure */
   protected var filtered = mutable.HashSet[TreeProxy.Item]()
+  /** The last known root element */
   protected var root: Option[TreeProxy.Item] = None
   assert(observables.forall(_.getElementType() == classOf[TreeProxy.Item]), "Incorrect observable type")
 
@@ -326,14 +333,13 @@ class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], 
   /** Patch parallel array 'content' and update table */
   protected def patchContent(from: Int, that: Seq[TreeProxy.Item], replaced: Int) = {
     assert(replaced >= 0)
+    this.content = this.content.patch(from, that, replaced)
     observables.foreach { observable =>
-      assert(observable.size() == content.size)
       for (index <- from + replaced - 1 to from by -1)
         observable.remove(index)
       observable.addAll(from, that)
     }
-    content = content.patch(from, that, replaced)
-    content
+    this.content
   }
   /** Refresh sub items if needed */
   protected def refreshSubItems(toRefreshItems: Seq[TreeProxy.Item], traversal: Seq[TreeProxy.Item], toRefreshSubItems: Seq[TreeProxy.Item], refreshTree: Boolean) {
