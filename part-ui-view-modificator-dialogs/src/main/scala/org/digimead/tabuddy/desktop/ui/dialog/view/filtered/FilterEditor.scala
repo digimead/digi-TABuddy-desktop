@@ -435,8 +435,10 @@ object FilterEditor extends Loggable {
             case 3 => Filter.map.get(entity1.filter).map(_.name).getOrElse("").
               compareTo(Filter.map.get(entity2.filter).map(_.name).getOrElse(""))
             case 4 =>
-              val argument1 = Filter.map.get(entity1.filter).flatMap(c => c.stringToArgument(entity1.argument).map(c.argumentToText)).getOrElse(entity1.argument)
-              val argument2 = Filter.map.get(entity2.filter).flatMap(c => c.stringToArgument(entity2.argument).map(c.argumentToText)).getOrElse(entity2.argument)
+              val argument1 = Filter.map.get(entity1.filter).flatMap(filter =>
+                filter.stringToArgument(entity1.argument).map(filter.generic.argumentToText)).getOrElse(entity1.argument)
+              val argument2 = Filter.map.get(entity2.filter).flatMap(filter =>
+                filter.stringToArgument(entity2.argument).map(filter.generic.argumentToText)).getOrElse(entity2.argument)
               argument1.compareTo(argument2)
             case index =>
               log.fatal(s"unknown column with index $index"); 0
@@ -465,8 +467,8 @@ object FilterEditor extends Loggable {
       pattern.matcher(item.property.name.toLowerCase()).matches() ||
         pattern.matcher(PropertyType.get(item.propertyType).name.toLowerCase()).matches() ||
         pattern.matcher(Filter.map(item.filter).name.toLowerCase()).matches() ||
-        pattern.matcher(Filter.map.get(item.filter).flatMap(c =>
-          c.stringToArgument(item.argument).map(c.argumentToText)).getOrElse(item.argument).toLowerCase()).matches()
+        pattern.matcher(Filter.map.get(item.filter).flatMap(filter =>
+          filter.stringToArgument(item.argument).map(filter.generic.argumentToText)).getOrElse(item.argument).toLowerCase()).matches()
     }
   }
   class FilterSelectionAdapter(column: Int) extends SelectionAdapter {

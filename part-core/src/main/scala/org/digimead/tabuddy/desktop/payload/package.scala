@@ -48,6 +48,7 @@ import java.util.UUID
 
 import scala.collection.immutable
 
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.payload.template.StringType
@@ -135,4 +136,12 @@ package object payload {
       module.inject[Record.Interface[_ <: Record.Stash]](Some("eSettings")) | RecordLocation('Enumerations)
     }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.ElementTemplate$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.Enumeration$")
+  // skip DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.Payload$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.PropertyType$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.TypeSchema$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.view.Filter$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.view.Sorting$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.view.View$")
 }

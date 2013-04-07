@@ -287,7 +287,7 @@ class Tree(view: TableView, style: Int) extends Loggable {
     }
     Tree.FilterSystemElement.updateSystemElement()
     Option(Tree.FilterSystemElement.systemElement).map(TreeProxy.Item(_)).foreach { systemItem =>
-      if (TableView.ActionToggleSystem.isChecked())
+      if (view.context.ActionToggleSystem.isChecked())
         view.proxy.onUnfilter(systemItem)
       else
         view.proxy.onFilter(systemItem)

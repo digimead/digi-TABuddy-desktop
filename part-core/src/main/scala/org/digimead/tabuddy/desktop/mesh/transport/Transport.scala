@@ -121,9 +121,9 @@ class Transport(implicit val bindingModule: BindingModule) extends Transport.Int
 
 object Transport extends DependencyInjection.PersistentInjectable with Loggable {
   InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory())
-  implicit def transport2implementation(m: Transport.type): Interface = m.implementation
+  implicit def transport2implementation(m: Transport.type): Interface = m.inner
   implicit def bindingModule = DependencyInjection()
-  @volatile var implementation: Interface = inject[Interface]
+  @volatile private var active: Boolean = false
   lazy val coreList = Configgy.getConfigMap("core").map(table => {
     table.keys.flatMap { key =>
       try {
@@ -148,18 +148,22 @@ object Transport extends DependencyInjection.PersistentInjectable with Loggable 
     activeCore = core
   }
   def getCore() = activeCore
+
   /*
    * dependency injection
    */
-  def inner() = implementation
-  def commitInjection() {}
-  def updateInjection() {
-    if (implementation.active) {
-      implementation.stop()
-      implementation = inject[Interface]
-      implementation.start()
-    } else
-      implementation = inject[Interface]
+  def inner() = inject[Interface]
+  override def afterInjection(newModule: BindingModule) {
+    if (Transport.active)
+      inner.start()
+  }
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[Interface](None, newModule)
+  }
+  override def onClearInjection(oldModule: BindingModule) {
+    Transport.active = inner.active
+    if (inner.active)
+      inner.stop()
   }
 
   trait Interface extends Main.Interface

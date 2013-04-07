@@ -61,7 +61,6 @@ abstract class JobModifyElementTemplate(
 
 object JobModifyElementTemplate extends DependencyInjection.PersistentInjectable {
   implicit def bindingModule = DependencyInjection()
-  @volatile private var jobFactory = inject[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate]
 
   def apply(
     /** The initial element template */
@@ -72,6 +71,6 @@ object JobModifyElementTemplate extends DependencyInjection.PersistentInjectable
     Some(new JobBuilder(JobModifyElementTemplate, () => jobFactory(template, templateList, modelId)))
   }
 
-  def commitInjection() {}
-  def updateInjection() { jobFactory = inject[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate] }
+  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+  private def jobFactory = inject[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate]
 }

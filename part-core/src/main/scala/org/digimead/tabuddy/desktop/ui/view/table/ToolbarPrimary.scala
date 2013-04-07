@@ -43,24 +43,21 @@
 
 package org.digimead.tabuddy.desktop.ui.view.table
 
+import scala.ref.WeakReference
+
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
-import org.digimead.tabuddy.desktop.ui.action.ActionElementNew
 import org.eclipse.jface.action.ToolBarManager
 
-object ToolbarPrimary extends ToolBarManager with Loggable {
+class ToolbarPrimary(parent: WeakReference[TableView]) extends ToolBarManager with Loggable {
   log.debug("alive")
 
-  add(ActionElementNew)
-  add(TableView.ActionElementEdit)
-  add(TableView.ActionElementDelete)
-  add(TableView.ActionElementLink)
-  add(TableView.ActionElementLeft)
-  add(TableView.ActionElementRight)
-  add(TableView.ActionElementUp)
-  add(TableView.ActionElementDown)
-
-  case class Item(val item: String) {
-    override def toString() = item
+  parent.get match {
+    case Some(view) =>
+      add(view.context.ActionElementNew)
+      add(view.context.ActionElementEdit)
+      add(view.context.ActionElementDelete)
+    case None =>
+      log.fatal("lost parent view at initialization")
   }
 }

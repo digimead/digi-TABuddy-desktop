@@ -48,6 +48,7 @@ import java.lang.management.ManagementFactory
 import java.net.URL
 import java.util.Date
 
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.util.Util
 import org.digimead.tabuddy.desktop.Config
 import org.digimead.tabuddy.desktop.Main
@@ -125,4 +126,7 @@ package object desktop {
     val thread = new Thread(new Runnable { def run = Main.main(args) })
     thread.start
   }
+  // skip DependencyInjection.setPersistentInjectable for Config
+  // skip DependencyInjection.setPersistentInjectable for Data
+  // skip DependencyInjection.setPersistentInjectable for ExceptionHandler
 }

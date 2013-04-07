@@ -59,15 +59,23 @@ object ColumnArgument extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: FilterPayload.Rule =>
-        cell.setText(Filter.map.get(item.filter).flatMap(c => c.stringToArgument(item.argument).map(c.argumentToText)).getOrElse(item.argument))
+      case rule: FilterPayload.Rule =>
+        val text = Filter.map.get(rule.filter) match {
+          case Some(filter) =>
+            filter.stringToArgument(rule.argument).map(arg => {
+              filter.generic.argumentToText(arg)
+            }).getOrElse(rule.argument)
+          case None =>
+            rule.argument
+        }
+        cell.setText(text)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: FilterPayload.Rule =>
-        Filter.map.get(item.filter).map(c => "filter: " + c.description).getOrElse(null)
+      case rule: FilterPayload.Rule =>
+        Filter.map.get(rule.filter).map(c => "filter: " + c.description).getOrElse(null)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         null
@@ -83,20 +91,53 @@ object ColumnArgument extends Loggable {
     override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: FilterEditor) extends EditingSupport(viewer) {
-    override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())
-    override protected def canEdit(element: AnyRef): Boolean = true
-    override protected def getValue(element: AnyRef): AnyRef = element match {
+    override protected def getCellEditor(element: AnyRef): CellEditor = element match {
       case item: FilterPayload.Rule =>
-        ""
+        val cellEditor = None // TODO get the custom editor
+        cellEditor getOrElse new TextCellEditor(viewer.getTable())
+      case unknown =>
+        log.fatal("Unknown item " + unknown.getClass())
+        new TextCellEditor(viewer.getTable())
+    }
+    override protected def canEdit(element: AnyRef): Boolean = element match {
+      case rule: FilterPayload.Rule =>
+        Filter.map.get(rule.filter) match {
+          case Some(filter) =>
+            filter.isArgumentSupported
+          case None =>
+            log.warn("filter with id %d is not found".format(rule.filter))
+            false
+        }
+      case unknown =>
+        log.fatal("Unknown item " + unknown.getClass())
+        false
+    }
+    override protected def getValue(element: AnyRef): AnyRef = element match {
+      case rule: FilterPayload.Rule =>
+        rule.argument // pass argument as a string to the cell editor
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
       case before: FilterPayload.Rule =>
-      //        val description = value.asInstanceOf[String].trim
-      //        if (before.description != description)
-      //          container.updateActualDefinition(before, before.copy(description = description))
+        val argument = value.asInstanceOf[String].trim
+        Filter.map.get(before.filter) match {
+          case Some(filter) =>
+            // check argument
+            filter.stringToArgument(argument) match {
+              case Some(arg) =>
+                if (before.argument != argument)
+                  container.updateActualRule(before, before.copy(argument = argument))
+              case None =>
+                if (before.argument != "") {
+                  log.warn("reset argument for filter " + filter)
+                  container.updateActualRule(before, before.copy(argument = ""))
+                }
+            }
+          case None =>
+            log.warn("filter with id %d is not found".format(before.filter))
+        }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }

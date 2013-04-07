@@ -244,7 +244,4 @@ object View extends DependencyInjection.PersistentInjectable with Loggable {
   /** Remove view element */
   def remove(view: View, container: Element.Generic = container) =
     container.eChildren.find(_.eId == view.elementId).foreach(element => container.eChildren -= element)
-
-  def commitInjection() {}
-  def updateInjection() {}
 }

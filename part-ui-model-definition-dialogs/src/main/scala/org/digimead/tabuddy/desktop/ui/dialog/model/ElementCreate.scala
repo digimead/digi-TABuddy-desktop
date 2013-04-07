@@ -76,6 +76,8 @@ import swing2swt.layout.BorderLayout
 
 class ElementCreate(val parentShell: Shell, container: Element.Generic)
   extends org.digimead.tabuddy.desktop.res.dialog.model.ElementCreate(parentShell) with Dialog with Loggable {
+  /** Newly created element */
+  protected var element: Option[Element.Generic] = None
   /** Close dialog on mouse over */
   val guargThread = new Thread(new Runnable {
     def run = {
@@ -106,7 +108,9 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
   val templateList = Data.elementTemplates.values.filter(_.availability).toList.sortBy(_.id.name)
   assert(ElementCreate.dialog.isEmpty, "ElementCreate dialog is already active")
 
-  def createButton(template: ElementTemplate.Interface, container: Composite): Button = {
+  def getCreatedElement(): Option[Element.Generic] = element
+
+  protected def createButton(template: ElementTemplate.Interface, container: Composite): Button = {
     val button = new Button(container, SWT.PUSH)
     button.setText(template.id.name)
     button.setToolTipText(template.name)
@@ -207,7 +211,8 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
     ElementCreate.dialog = Some(this)
     container
   }
-  override def onActive {
+  /** onActive callback */
+  protected override def onActive {
     guargThread.setDaemon(true)
     guargThread.start()
   }
@@ -220,7 +225,14 @@ object ElementCreate {
   class ButtonListener(dialog: ElementCreate, template: ElementTemplate.Interface, container: Element.Generic) extends Listener {
     def handleEvent(event: Event) = {
       dialog.close()
-      JobCreateElementFromTemplate(template, container).foreach(_.execute)
+      JobCreateElementFromTemplate(template, container).foreach(_.setOnSucceeded { job =>
+        job.getValue.foreach {
+          case (element) => Main.exec {
+            assert(dialog.element.isEmpty)
+            dialog.element = Some(element)
+          }
+        }
+      }.execute)
     }
   }
 }

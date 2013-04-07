@@ -58,6 +58,8 @@ import scala.ref.WeakReference
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
+import org.digimead.tabuddy.desktop.job.JobCreateElement
+import org.digimead.tabuddy.desktop.job.JobModifyElement
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
@@ -75,6 +77,8 @@ import org.digimead.tabuddy.desktop.ui.view.View
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
+import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
@@ -101,9 +105,9 @@ class TableView private (parent: Composite, style: Int)
   TableView.viewMap(getShell) = this
   lazy val title = Messages.tableView_text
   lazy val description = "Tree View"
-  lazy val table = new Table(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
-  lazy val tree = new Tree(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
-  lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.content), tree.context.expandedItems)
+  protected[table] lazy val table = new Table(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
+  protected[table] lazy val tree = new Tree(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
+  protected[table] lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.content), tree.context.expandedItems)
   /** Per shell context */
   protected[table] val context = TableView.perShellContextInitialize(this)
   /** Limit of refresh elements quantity */
@@ -119,8 +123,8 @@ class TableView private (parent: Composite, style: Int)
     menu.add(ActionModifySortingList)
     menu.add(ActionModifyFilterList)
     menu.add(new Separator)
-    menu.add(TableView.ActionToggleSystem)
-    menu.add(TableView.ActionToggleExpand)
+    menu.add(context.ActionToggleSystem)
+    menu.add(context.ActionToggleExpand)
     menu
   }
   // Initialize table view
@@ -143,9 +147,9 @@ class TableView private (parent: Composite, style: Int)
     // initialize table
     table
     // initialize toolbars
-    getCoolBarManager.add(ToolbarView)
-    getCoolBarManager.add(ToolbarPrimary)
-    getCoolBarManager.add(ToolbarSecondary)
+    getCoolBarManager.add(context.toolbarView)
+    getCoolBarManager.add(context.toolbarPrimary)
+    getCoolBarManager.add(context.toolbarSecondary)
     getCoolBarManager.update(true)
     // initialize miscellaneous elements
     Data.fieldElement.addChangeListener { (element, event) => updateActiveElement(element) }
@@ -187,6 +191,7 @@ class TableView private (parent: Composite, style: Int)
   override protected def onShow() {
     Window.getMenuTopLevel().add(tableViewMenu)
     Window.getMenuTopLevel().update(false)
+    this.layout()
   }
   /**
    * Refreshes this viewer starting with the given element. Labels are updated
@@ -382,7 +387,7 @@ class TableView private (parent: Composite, style: Int)
   /** Recreate table columns */
   protected def updateColumns() {
     val disposedColumnsWidth = table.disposeColumns()
-    val columnList = ToolbarView.view.value.map(selected => mutable.LinkedHashSet(TableView.COLUMN_ID) ++
+    val columnList = context.toolbarView.view.value.map(selected => mutable.LinkedHashSet(TableView.COLUMN_ID) ++
       (selected.fields.map(_.name) - TableView.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(TableView.COLUMN_ID, TableView.COLUMN_NAME))
     table.createColumns(columnList, disposedColumnsWidth)
   }
@@ -411,9 +416,15 @@ class TableView private (parent: Composite, style: Int)
       style.foreground = SWTResourceManager.getColor(SWT.COLOR_DARK_YELLOW)
       getTextActiveElement.setText(prefix + suffix)
       getTextActiveElement.setStyleRanges(Array(prefix.length(), suffix.length()), Array(style))
-    } else if (proxy.getContent.exists(_ == item))
+      context.ActionElementNew.setEnabled(true)
+      context.ActionElementEdit.setEnabled(false)
+      context.ActionElementDelete.setEnabled(false)
+    } else if (proxy.getContent.exists(_ == item)) {
       getTextActiveElement.setText(element.toString)
-    else {
+      context.ActionElementNew.setEnabled(true)
+      context.ActionElementEdit.setEnabled(true)
+      context.ActionElementDelete.setEnabled(true)
+    } else {
       // hidden
       val prefix = element.toString + " "
       val suffix = "[hidden]"
@@ -422,6 +433,9 @@ class TableView private (parent: Composite, style: Int)
       style.foreground = SWTResourceManager.getColor(SWT.COLOR_DARK_RED)
       getTextActiveElement.setText(prefix + suffix)
       getTextActiveElement.setStyleRanges(Array(prefix.length(), suffix.length()), Array(style))
+      context.ActionElementNew.setEnabled(false)
+      context.ActionElementEdit.setEnabled(false)
+      context.ActionElementDelete.setEnabled(false)
     }
     getTextActiveElement.setToolTipText(tooltip)
     getBtnResetActiveElement.setEnabled(TreeProxy.Item(element) != tree.treeViewer.getInput())
@@ -480,16 +494,14 @@ object TableView extends ShellContext[TableView, TableViewPerShellContext] with 
       case Element.Event.ChildInclude(element, newElement, _) =>
         if (element.eStash.model.forall(_ eq Model.inner))
           Main.exec {
-            if (ActionToggleExpand.isChecked())
-              if (element.eChildren.size == 1) // if 1st child
-                viewMap.values.foreach { view =>
+            viewMap.values.foreach { view =>
+              if (view.context.ActionToggleExpand.isChecked())
+                if (element.eChildren.size == 1) // if 1st child
                   view.tree.context.expandedItems += TreeProxy.Item(element) // expand parent
-                }
-              else
-                viewMap.values.foreach { view =>
+                else
                   view.tree.context.expandedItems ++=
                     newElement.eChildren.iteratorRecursive().map(TreeProxy.Item(_)) // expand children
-                }
+            }
             refreshEventsAggregator.value = refreshEventsAggregator.value + element
           }
       case Element.Event.ChildRemove(element, _, _) =>
@@ -523,6 +535,7 @@ object TableView extends ShellContext[TableView, TableViewPerShellContext] with 
   def apply(parent: Composite, style: Int): TableView = {
     assert(viewMap.get(parent.getShell()).isEmpty, "Tree already initialized")
     val view = new TableView(parent, style)
+
     // handle data modification changes
     Data.modelName.addChangeListener { (_, _) => reloadEventsAggregator.value = System.currentTimeMillis() }
     Data.elementTemplates.addChangeListener { event => reloadEventsAggregator.value = System.currentTimeMillis() }
@@ -550,25 +563,31 @@ object TableView extends ShellContext[TableView, TableViewPerShellContext] with 
       })
     })
     // handle view changes
-    ToolbarView.view.addChangeListener { (_, _) =>
+    view.context.toolbarView.view.addChangeListener { (_, _) =>
       withRedrawDelayed(view) {
         view.recreateSmart
         view.context.ActionAutoResize(true)
       }
     }
     // handle sorting changes
-    ToolbarView.sorting.addChangeListener { (_, _) =>
+    view.context.toolbarView.sorting.addChangeListener { (_, _) =>
       withRedrawDelayed(view) {
         view.table.onSortingChanged
       }
     }
+    // handle filter changes
+    view.context.toolbarView.filter.addChangeListener { (f, _) =>
+      withRedrawDelayed(view) {
+        view.table.tableViewer.refresh()
+      }
+    }
     // initial update of tree state
     TableView.withRedrawDelayed(view) {
-      if (TableView.ActionToggleExpand.isChecked())
+      if (view.context.ActionToggleExpand.isChecked())
         Tree.expandAll(view.getShell())
-      TableView.ActionToggleEmpty(view.getShell())
-      TableView.ActionToggleSystem(view.getShell())
-      TableView.ActionToggleIdentificators(view.getShell())
+      view.context.ActionToggleEmpty(view.getShell())
+      view.context.ActionToggleSystem(view.getShell())
+      view.context.ActionToggleIdentificators(view.getShell())
       view.context.ActionAutoResize(true)
     }
     view
@@ -598,6 +617,10 @@ object TableView extends ShellContext[TableView, TableViewPerShellContext] with 
 
   /** Per shell context for with Table routines */
   sealed trait PerShellContext extends ShellContext.PerShellContext[TableView] {
+    lazy val toolbarView = new ToolbarView(view)
+    lazy val toolbarPrimary = new ToolbarPrimary(view)
+    lazy val toolbarSecondary = new ToolbarSecondary(view)
+
     /*
      * Actions
      */
@@ -611,6 +634,53 @@ object TableView extends ShellContext[TableView, TableViewPerShellContext] with 
           view.table.context.ActionAutoResize(immediately)
       }
     }
+    object ActionCollapseAll extends Action(Messages.collapseAll_text) {
+      def apply(shell: Shell) = TableView.withContext(shell) { (context, view) =>
+        TableView.withRedrawDelayed(view) {
+          Tree.collapseAll(shell)
+          view.context.ActionAutoResize(false)
+        }
+      }
+      override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
+    }
+    object ActionExpandAll extends Action(Messages.expandAll_text) {
+      def apply(shell: Shell) = TableView.withContext(shell) { (context, view) =>
+        TableView.withRedrawDelayed(view) {
+          Tree.expandAll(shell)
+          view.context.ActionAutoResize(false)
+        }
+      }
+      override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
+    }
+    object ActionElementNew extends Action(Messages.new_text) {
+      override def runWithEvent(event: Event) = JobCreateElement(Data.fieldElement.value).foreach(_.execute)
+    }
+    object ActionElementEdit extends Action(Messages.edit_text) {
+      override def runWithEvent(event: Event) = JobModifyElement(Data.fieldElement.value).foreach(_.execute)
+    }
+    object ActionElementDelete extends Action(Messages.delete_text) {
+      override def run = {}
+    }
+    object ActionToggleIdentificators extends Action(Messages.identificators_text, IAction.AS_CHECK_BOX) {
+      setChecked(true)
+
+      def apply(shell: Shell) = Table.toggleColumnId(isChecked(), shell)
+      override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
+    }
+    object ActionToggleEmpty extends Action(Messages.emptyRows_text, IAction.AS_CHECK_BOX) {
+      setChecked(true)
+
+      def apply(shell: Shell) = Table.toggleEmptyRows(!isChecked(), shell)
+      override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
+    }
+    object ActionToggleExpand extends Action(Messages.expandNew_text, IAction.AS_CHECK_BOX) {
+      setChecked(false)
+
+      def apply(shell: Shell) = TableView.withContext(shell) { (context, view) =>
+        Tree.toggleAutoExpand(isChecked(), shell)
+      }
+      override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
+    }
     object ActionHideTree extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
       setChecked(false)
 
@@ -620,80 +690,18 @@ object TableView extends ShellContext[TableView, TableViewPerShellContext] with 
         view.getSashForm.setMaximizedControl(null))
       override def run() = apply()
     }
+    object ActionToggleSystem extends Action(Messages.systemElements_text, IAction.AS_CHECK_BOX) {
+      setChecked(false)
+
+      def apply(shell: Shell) = TableView.withContext(shell) { (context, view) =>
+        TableView.withRedrawDelayed(view) {
+          Tree.toggleSystemElementsFilter(!isChecked(), shell)
+          view.context.ActionAutoResize(false)
+        }
+      }
+      override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
+    }
   }
   /** Range information about a link in the StyledTextRootElement */
   case class RootPathLinkRange[T <: Element.Generic](val element: T, val index: Int, val length: Int)
-  /*
-   * Actions
-   */
-  object ActionElementEdit extends Action(Messages.edit_text) {
-    override def run = {}
-  }
-  object ActionElementDelete extends Action(Messages.delete_text) {
-    override def run = {}
-  }
-  object ActionElementLink extends Action(Messages.link_text) {
-    override def run = {}
-  }
-  object ActionElementLeft extends Action(Messages.delete_text) {
-    override def run = {}
-  }
-  object ActionElementRight extends Action(Messages.delete_text) {
-    override def run = {}
-  }
-  object ActionElementUp extends Action(Messages.delete_text) {
-    override def run = {}
-  }
-  object ActionElementDown extends Action(Messages.delete_text) {
-    override def run = {}
-  }
-  object ActionToggleIdentificators extends Action(Messages.identificators_text, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-
-    def apply(shell: Shell) = Table.toggleColumnId(isChecked(), shell)
-    override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
-  }
-  object ActionToggleEmpty extends Action(Messages.emptyRows_text, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-
-    def apply(shell: Shell) = Table.toggleEmptyRows(!isChecked(), shell)
-    override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
-  }
-  object ActionToggleExpand extends Action(Messages.expandNew_text, IAction.AS_CHECK_BOX) {
-    setChecked(false)
-
-    def apply(shell: Shell) = TableView.withContext(shell) { (context, view) =>
-      Tree.toggleAutoExpand(isChecked(), shell)
-    }
-    override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
-  }
-  object ActionToggleSystem extends Action(Messages.systemElements_text, IAction.AS_CHECK_BOX) {
-    setChecked(false)
-
-    def apply(shell: Shell) = TableView.withContext(shell) { (context, view) =>
-      TableView.withRedrawDelayed(view) {
-        Tree.toggleSystemElementsFilter(!isChecked(), shell)
-        view.context.ActionAutoResize(false)
-      }
-    }
-    override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
-  }
-  object ActionExpandAll extends Action(Messages.expandAll_text) {
-    def apply(shell: Shell) = TableView.withContext(shell) { (context, view) =>
-      TableView.withRedrawDelayed(view) {
-        Tree.expandAll(shell)
-        view.context.ActionAutoResize(false)
-      }
-    }
-    override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
-  }
-  object ActionCollapseAll extends Action(Messages.collapseAll_text) {
-    def apply(shell: Shell) = TableView.withContext(shell) { (context, view) =>
-      TableView.withRedrawDelayed(view) {
-        Tree.collapseAll(shell)
-        view.context.ActionAutoResize(false)
-      }
-    }
-    override def runWithEvent(event: Event) = Main.findShell(event.widget).foreach(apply)
-  }
 }

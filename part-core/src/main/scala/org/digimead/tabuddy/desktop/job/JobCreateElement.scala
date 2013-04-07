@@ -50,18 +50,16 @@ import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
 
 abstract class JobCreateElement(val container: Element.Generic, val modelID: Symbol)
-  extends Job[Unit](s"Create new element for $container")
+  extends Job[Element.Generic](s"Create a new element for $container")
 
 object JobCreateElement extends DependencyInjection.PersistentInjectable {
   implicit def bindingModule = DependencyInjection()
-  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-  @volatile private var jobFactory = inject[(Element[_ <: Stash], Symbol) => JobCreateElement]
 
   def apply(container: Element.Generic): Option[JobBuilder[JobCreateElement]] = {
     val modelID = Model.eId
     Some(new JobBuilder(JobCreateElement, () => jobFactory(container, modelID)))
   }
 
-  def commitInjection() {}
-  def updateInjection() { jobFactory = inject[(Element[_ <: Stash], Symbol) => JobCreateElement] }
+  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+  private def jobFactory = inject[(Element[_ <: Stash], Symbol) => JobCreateElement]
 }

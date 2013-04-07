@@ -55,14 +55,12 @@ abstract class JobModifyView(val view: View, val viewList: Set[View], val modelI
 
 object JobModifyView extends DependencyInjection.PersistentInjectable {
   implicit def bindingModule = DependencyInjection()
-  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-  @volatile private var jobFactory = inject[(View, Set[View], Symbol) => JobModifyView]
 
   def apply(view: View, viewList: Set[View]): Option[JobBuilder[JobModifyView]] = {
     val modelID = Model.eId
     Some(new JobBuilder(JobModifyView, () => jobFactory(view, viewList, modelID)))
   }
 
-  def commitInjection() {}
-  def updateInjection() { jobFactory = inject[(View, Set[View], Symbol) => JobModifyView] }
+  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+  private def jobFactory = inject[(View, Set[View], Symbol) => JobModifyView]
 }

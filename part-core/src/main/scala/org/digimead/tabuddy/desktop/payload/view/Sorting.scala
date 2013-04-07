@@ -211,9 +211,6 @@ object Sorting extends DependencyInjection.PersistentInjectable with Loggable {
     container.eChildren.find(_.eId == sorting.elementId).foreach(element => container.eChildren -= element)
   }
 
-  def commitInjection() {}
-  def updateInjection() {}
-
   /**
    * The definition of an element property sorting
    */

@@ -53,21 +53,24 @@ import org.digimead.tabuddy.desktop.payload.PropertyType
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.model.element.Element
 
+import com.escalatesoft.subcut.inject.BindingModule
+
 object Comparator extends DependencyInjection.PersistentInjectable with Loggable {
   implicit def bindingModule = DependencyInjection()
-  /** Predefined comparators that are available for this application */
-  @volatile private var comparators: immutable.HashMap[UUID, Comparator.Interface[_ <: Comparator.Argument]] =
-    inject[immutable.HashMap[UUID, Comparator.Interface[_ <: Comparator.Argument]]]
-  @volatile private var defaultComparator: Comparator.Interface[_ <: Comparator.Argument] =
-    comparators(inject[UUID]("Comparator.Default"))
+  @volatile private var defaultComparator: Comparator.Interface[_ <: Comparator.Argument] = _
 
-  def map = comparators
   def default = defaultComparator
 
-  def commitInjection() {}
-  def updateInjection() {
-    comparators = inject[immutable.HashMap[UUID, Comparator.Interface[_ <: Comparator.Argument]]]
-    defaultComparator = comparators(inject[UUID]("Comparator.Default"))
+  /*
+   * dependency injection
+   */
+  /** Predefined comparators that are available for this application */
+  def map = inject[immutable.HashMap[UUID, Comparator.Interface[_ <: Comparator.Argument]]]
+  override def afterInjection(newModule: BindingModule) {
+    defaultComparator = map(inject[UUID]("Comparator.Default"))
+  }
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[immutable.HashMap[UUID, Comparator.Interface[_ <: Comparator.Argument]]](None, newModule)
   }
 
   /** The Base interface of the comparator */

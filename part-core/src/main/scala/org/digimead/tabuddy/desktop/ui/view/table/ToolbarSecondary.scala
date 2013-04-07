@@ -43,14 +43,22 @@
 
 package org.digimead.tabuddy.desktop.ui.view.table
 
-import org.eclipse.jface.action.ToolBarManager
-import org.digimead.digi.lib.log.Loggable
+import scala.ref.WeakReference
 
-object ToolbarSecondary extends ToolBarManager with Loggable {
+import org.digimead.digi.lib.log.Loggable
+import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
+import org.eclipse.jface.action.ToolBarManager
+
+class ToolbarSecondary(parentView: WeakReference[TableView]) extends ToolBarManager with Loggable {
   log.debug("alive")
 
-  add(TableView.ActionToggleIdentificators)
-  add(TableView.ActionToggleEmpty)
-  add(TableView.ActionExpandAll)
-  add(TableView.ActionCollapseAll)
+  parentView.get match {
+    case Some(view) =>
+      add(view.context.ActionToggleIdentificators)
+      add(view.context.ActionToggleEmpty)
+      add(view.context.ActionExpandAll)
+      add(view.context.ActionCollapseAll)
+    case None =>
+      log.fatal("lost parent view at initialization")
+  }
 }

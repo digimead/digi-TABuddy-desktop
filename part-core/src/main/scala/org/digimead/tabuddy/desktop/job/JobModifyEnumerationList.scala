@@ -56,13 +56,12 @@ abstract class JobModifyEnumerationList(val enumerationList: Set[Enumeration.Int
 
 object JobModifyEnumerationList extends DependencyInjection.PersistentInjectable {
   implicit def bindingModule = DependencyInjection()
-  @volatile private var jobFactory = inject[(Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => JobModifyEnumerationList]
 
   def apply(enumerationList: Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]]): Option[JobBuilder[JobModifyEnumerationList]] = {
     val modelID = Model.eId
     Some(new JobBuilder(JobModifyEnumerationList, () => jobFactory(enumerationList, modelID)))
   }
 
-  def commitInjection() {}
-  def updateInjection() { jobFactory = inject[(Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => JobModifyEnumerationList] }
+  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+  private def jobFactory = inject[(Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => JobModifyEnumerationList]
 }

@@ -286,7 +286,4 @@ object Data extends DependencyInjection.PersistentInjectable with Loggable {
   def stop() {
     history.dispose(IOperationHistory.GLOBAL_UNDO_CONTEXT, true, true, true)
   }
-
-  def commitInjection() {}
-  def updateInjection() {}
 }

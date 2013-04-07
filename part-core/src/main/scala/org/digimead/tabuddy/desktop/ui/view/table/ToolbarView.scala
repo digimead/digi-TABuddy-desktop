@@ -43,6 +43,10 @@
 
 package org.digimead.tabuddy.desktop.ui.view.table
 
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
+import scala.ref.WeakReference
+
 import org.digimead.configgy.Configgy
 import org.digimead.configgy.Configgy.getImplementation
 import org.digimead.digi.lib.log.Loggable
@@ -60,9 +64,9 @@ import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.databinding.observable.Observables
+import org.eclipse.core.databinding.observable.value.IObservableValue
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
-import org.eclipse.core.databinding.observable.value.{ WritableValue => OriginalWritableValue }
 import org.eclipse.jface.action.ControlContribution
 import org.eclipse.jface.action.ICoolBarManager
 import org.eclipse.jface.action.ToolBarContributionItem
@@ -75,10 +79,8 @@ import org.eclipse.jface.viewers.StructuredSelection
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
-import org.eclipse.core.databinding.observable.value.IObservableValue
 
-object ToolbarView extends ToolBarManager with Loggable {
-  log.debug("alive")
+class ToolbarView(parentView: WeakReference[TableView]) extends ToolBarManager with Loggable {
   /** Aggregation listener delay */
   private val aggregatorDelay = 250 // msec
   /** View entities changes aggregator */
@@ -98,119 +100,128 @@ object ToolbarView extends ToolBarManager with Loggable {
   /** The combo box with list of view definitions */
   @volatile protected var viewCombo: Option[ComboViewer] = None
   /** The view definition configuration key */
-  protected lazy val viewPersistenceKey = Config.persistenceKey(ToolbarView.getClass(), "view")
+  protected lazy val viewPersistenceKey = Config.persistenceKey(getClass(), "view")
   /** The view configuration key prefix */
-  protected lazy val viewPersistenceKeyPrefix = Config.persistenceKey(ToolbarView.getClass(), "view_")
+  protected lazy val viewPersistenceKeyPrefix = Config.persistenceKey(getClass(), "view_")
   /** The filter configuration key prefix */
   protected lazy val viewPersistenceKeyPrefixFilter = "filter_"
   /** The sorting configuration key prefix */
   protected lazy val viewPersistenceKeyPrefixSorting = "sorting_"
+  log.debug("alive")
 
-  // view definitions
-  add(new ControlContribution(null) {
-    protected def createControl(parent: Composite): Control = {
-      val viewer = new ComboViewer(parent, SWT.BORDER | SWT.H_SCROLL | SWT.READ_ONLY)
-      viewer.getCombo.setToolTipText(Messages.views_text)
-      viewer.setContentProvider(ArrayContentProvider.getInstance())
-      viewer.setLabelProvider(new LabelProvider() {
-        override def getText(element: Object): String = element match {
-          case view: View =>
-            view.name
-          case unknown =>
-            log.fatal("Unknown item " + unknown.getClass())
-            unknown.toString
+  parentView.get match {
+    case Some(view) =>
+      // view definitions
+      add(new ControlContribution(null) {
+        protected def createControl(parent: Composite): Control = {
+          val viewer = new ComboViewer(parent, SWT.BORDER | SWT.H_SCROLL | SWT.READ_ONLY)
+          viewer.getCombo.setToolTipText(Messages.views_text)
+          viewer.setContentProvider(ArrayContentProvider.getInstance())
+          viewer.setLabelProvider(new LabelProvider() {
+            override def getText(element: Object): String = element match {
+              case view: View =>
+                view.name
+              case unknown =>
+                log.fatal("Unknown item " + unknown.getClass())
+                unknown.toString
+            }
+          })
+          ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(viewer)).addChangeListener(new IChangeListener {
+            override def handleChange(event: ChangeEvent) = {
+              ToolbarView.this.view.value = Some(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[View])
+            }
+          })
+          ToolbarView.this.view.addChangeListener { (_, _) =>
+            reloadSortingItems
+            reloadFilterItems
+            setSelected
+          }
+          viewCombo = Some(viewer)
+          reloadViewItems()
+          viewer.getControl()
         }
       })
-      ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(viewer)).addChangeListener(new IChangeListener {
-        override def handleChange(event: ChangeEvent) = {
-          ToolbarView.this.view.value = Some(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[View])
+      // view sortings
+      add(new ControlContribution(null) {
+        protected def createControl(parent: Composite): Control = {
+          val viewer = new ComboViewer(parent, SWT.BORDER | SWT.H_SCROLL | SWT.READ_ONLY)
+          viewer.getCombo.setToolTipText(Messages.sortings_text)
+          viewer.setContentProvider(ArrayContentProvider.getInstance())
+          viewer.setLabelProvider(new LabelProvider() {
+            override def getText(element: Object): String = element match {
+              case sorting: Sorting =>
+                sorting.name
+              case unknown =>
+                log.fatal("Unknown item " + unknown.getClass())
+                unknown.toString
+            }
+          })
+          ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(viewer)).addChangeListener(new IChangeListener {
+            override def handleChange(event: ChangeEvent) =
+              ToolbarView.this.sorting.value = Some(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[Sorting])
+          })
+          ToolbarView.this.sorting.addChangeListener { (_, _) => setSelected }
+          sortingCombo = Some(viewer)
+          reloadSortingItems()
+          viewer.getControl()
         }
       })
-      ToolbarView.this.view.addChangeListener { (_, _) =>
-        reloadSortingItems
-        reloadFilterItems
-        setSelected
-      }
-      viewCombo = Some(viewer)
-      reloadViewItems()
-      viewer.getControl()
-    }
-  })
-  // view sortings
-  add(new ControlContribution(null) {
-    protected def createControl(parent: Composite): Control = {
-      val viewer = new ComboViewer(parent, SWT.BORDER | SWT.H_SCROLL | SWT.READ_ONLY)
-      viewer.getCombo.setToolTipText(Messages.sortings_text)
-      viewer.setContentProvider(ArrayContentProvider.getInstance())
-      viewer.setLabelProvider(new LabelProvider() {
-        override def getText(element: Object): String = element match {
-          case sorting: Sorting =>
-            sorting.name
-          case unknown =>
-            log.fatal("Unknown item " + unknown.getClass())
-            unknown.toString
+      // view filters
+      add(new ControlContribution(null) {
+        protected def createControl(parent: Composite): Control = {
+          val viewer = new ComboViewer(parent, SWT.BORDER | SWT.H_SCROLL | SWT.READ_ONLY)
+          viewer.getCombo.setToolTipText(Messages.filters_text)
+          viewer.setContentProvider(ArrayContentProvider.getInstance())
+          viewer.setLabelProvider(new LabelProvider() {
+            override def getText(element: Object): String = element match {
+              case filter: Filter =>
+                filter.name
+              case unknown =>
+                log.fatal("Unknown item " + unknown.getClass())
+                unknown.toString
+            }
+          })
+          ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(viewer)).addChangeListener(new IChangeListener {
+            override def handleChange(event: ChangeEvent) = {
+              ToolbarView.this.filter.value = Some(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[Filter])
+            }
+          })
+          ToolbarView.this.filter.addChangeListener { (_, ev) =>
+            setSelected
+          }
+          filterCombo = Some(viewer)
+          reloadFilterItems()
+          viewer.getControl()
         }
       })
-      ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(viewer)).addChangeListener(new IChangeListener {
-        override def handleChange(event: ChangeEvent) =
-          ToolbarView.this.sorting.value = Some(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[Sorting])
-      })
-      ToolbarView.this.sorting.addChangeListener { (_, _) => setSelected }
-      sortingCombo = Some(viewer)
-      reloadSortingItems()
-      viewer.getControl()
-    }
-  })
-  // view filters
-  add(new ControlContribution(null) {
-    protected def createControl(parent: Composite): Control = {
-      val viewer = new ComboViewer(parent, SWT.BORDER | SWT.H_SCROLL | SWT.READ_ONLY)
-      viewer.getCombo.setToolTipText(Messages.filters_text)
-      viewer.setContentProvider(ArrayContentProvider.getInstance())
-      viewer.setLabelProvider(new LabelProvider() {
-        override def getText(element: Object): String = element match {
-          case filter: Filter =>
-            filter.name
-          case unknown =>
-            log.fatal("Unknown item " + unknown.getClass())
-            unknown.toString
+      Data.viewDefinitions.addChangeListener { event => viewEventsAggregator.value = System.currentTimeMillis() }
+      Data.viewSortings.addChangeListener { event => viewEventsAggregator.value = System.currentTimeMillis() }
+      Data.viewFilters.addChangeListener { event => viewEventsAggregator.value = System.currentTimeMillis() }
+      Observables.observeDelayedValue(aggregatorDelay, viewEventsAggregator).addValueChangeListener(new IValueChangeListener {
+        def handleValueChange(event: ValueChangeEvent) {
+          reloadViewItems()
+          for {
+            comboView <- ToolbarView.this.view.value
+            actualView <- Data.viewDefinitions.get(comboView.id)
+          } if (!View.compareDeep(comboView, actualView))
+            ToolbarView.this.view.value = Some(actualView) // user modify current view
+          reloadSortingItems()
+          for {
+            comboSorting <- sorting.value
+            actualSorting <- Data.viewSortings.get(comboSorting.id)
+          } if (!Sorting.compareDeep(comboSorting, actualSorting))
+            sorting.value = Some(actualSorting) // user modify current sorting
+          reloadFilterItems()
+          for {
+            comboFilter <- filter.value
+            actualFilter <- Data.viewFilters.get(comboFilter.id)
+          } if (!Filter.compareDeep(comboFilter, actualFilter))
+            filter.value = Some(actualFilter) // user modify current filter
         }
       })
-      ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(viewer)).addChangeListener(new IChangeListener {
-        override def handleChange(event: ChangeEvent) =
-          ToolbarView.this.filter.value = Some(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[Filter])
-      })
-      ToolbarView.this.filter.addChangeListener { (_, _) => setSelected }
-      filterCombo = Some(viewer)
-      reloadFilterItems()
-      viewer.getControl()
-    }
-  })
-  Data.viewDefinitions.addChangeListener { event => viewEventsAggregator.value = System.currentTimeMillis() }
-  Data.viewSortings.addChangeListener { event => viewEventsAggregator.value = System.currentTimeMillis() }
-  Data.viewFilters.addChangeListener { event => viewEventsAggregator.value = System.currentTimeMillis() }
-  Observables.observeDelayedValue(aggregatorDelay, viewEventsAggregator).addValueChangeListener(new IValueChangeListener {
-    def handleValueChange(event: ValueChangeEvent) {
-      reloadViewItems()
-      for {
-        comboView <- view.value
-        actualView <- Data.viewDefinitions.get(comboView.id)
-      } if (!View.compareDeep(comboView, actualView))
-        view.value = Some(actualView) // user modify current view
-      reloadSortingItems()
-      for {
-        comboSorting <- sorting.value
-        actualSorting <- Data.viewSortings.get(comboSorting.id)
-      } if (!Sorting.compareDeep(comboSorting, actualSorting))
-        sorting.value = Some(actualSorting) // user modify current sorting
-      reloadFilterItems()
-      for {
-        comboFilter <- filter.value
-        actualFilter <- Data.viewFilters.get(comboFilter.id)
-      } if (!Filter.compareDeep(comboFilter, actualFilter))
-        filter.value = Some(actualFilter) // user modify current filter
-    }
-  })
+    case None =>
+      log.fatal("lost parent view at initialization")
+  }
 
   def getSelectedFilter(view: View, filters: Seq[Filter]): Filter = {
     val key = viewPersistenceKeyPrefix + view.id

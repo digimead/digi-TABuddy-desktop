@@ -56,13 +56,12 @@ abstract class JobModifyTypeSchemaList(val before: Set[TypeSchema.Interface], va
 
 object JobModifyTypeSchemaList extends DependencyInjection.PersistentInjectable {
   implicit def bindingModule = DependencyInjection()
-  @volatile private var jobFactory = inject[(Set[TypeSchema.Interface], TypeSchema.Interface, Symbol) => JobModifyTypeSchemaList]
 
   def apply(schemaList: Set[TypeSchema.Interface], activeSchema: TypeSchema.Interface): Option[JobBuilder[JobModifyTypeSchemaList]] = {
     val modelID = Model.eId
     Some(new JobBuilder(JobModifyTypeSchemaList, () => jobFactory(schemaList, activeSchema, modelID)))
   }
 
-  def commitInjection() {}
-  def updateInjection() { jobFactory = inject[(Set[TypeSchema.Interface], TypeSchema.Interface, Symbol) => JobModifyTypeSchemaList] }
+  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+  private def jobFactory = inject[(Set[TypeSchema.Interface], TypeSchema.Interface, Symbol) => JobModifyTypeSchemaList]
 }

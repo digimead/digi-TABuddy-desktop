@@ -71,6 +71,8 @@ import org.eclipse.core.runtime.IProgressMonitor
 import org.eclipse.core.runtime.IStatus
 import org.eclipse.core.runtime.Status
 
+import com.escalatesoft.subcut.inject.BindingModule
+
 import language.implicitConversions
 
 abstract class Job[A](
@@ -392,13 +394,16 @@ abstract class Job[A](
 }
 
 object Job extends DependencyInjection.PersistentInjectable with Loggable {
-  implicit def job2implementation(j: Job.type): Interface = j.implementation
+  implicit def job2implementation(j: Job.type): Interface = inner
   implicit def bindingModule = DependencyInjection()
-  @volatile var implementation: Interface = inject[Interface]
 
-  def inner() = implementation
-  def commitInjection() {}
-  def updateInjection() { implementation = inject[Interface] }
+  /*
+   * dependency injection
+   */
+  def inner(): Interface = inject[Interface]
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[Interface](None, newModule)
+  }
 
   abstract case class Callable[T](direction: Direction) extends java.util.concurrent.Callable[T]
   sealed trait Direction

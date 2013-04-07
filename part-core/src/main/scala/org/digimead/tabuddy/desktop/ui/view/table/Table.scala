@@ -64,6 +64,7 @@ import org.digimead.tabuddy.desktop.payload.PropertyType
 import org.digimead.tabuddy.desktop.payload.PropertyType.LabelProviderAdapter
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.desktop.payload.view.comparator.Comparator
+import org.digimead.tabuddy.desktop.payload.view.filter.Filter
 import org.digimead.tabuddy.desktop.res.Messages
 import org.digimead.tabuddy.desktop.support.TreeProxy
 import org.digimead.tabuddy.desktop.support.WritableList
@@ -91,6 +92,8 @@ import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.jface.viewers.ViewerComparator
 import org.eclipse.jface.viewers.ViewerFilter
 import org.eclipse.swt.SWT
+import org.eclipse.swt.events.DisposeEvent
+import org.eclipse.swt.events.DisposeListener
 import org.eclipse.swt.events.PaintEvent
 import org.eclipse.swt.events.PaintListener
 import org.eclipse.swt.events.SelectionAdapter
@@ -147,7 +150,7 @@ class Table(view: TableView, style: Int) extends Loggable {
     }
   /** Auto resize control updater */
   protected def autoresizeUpdateControls() {
-    if (TableView.ActionToggleIdentificators.isChecked())
+    if (view.context.ActionToggleIdentificators.isChecked())
       context.tableViewerColumns.dropRight(1).foreach(adjustColumnWidth(_, Default.columnPadding))
     else
       context.tableViewerColumns.tail.dropRight(1).foreach(adjustColumnWidth(_, Default.columnPadding))
@@ -161,6 +164,7 @@ class Table(view: TableView, style: Int) extends Loggable {
     tableViewer.getTable.setLinesVisible(true)
     tableViewer.setContentProvider(new ObservableListContentProvider())
     val table = tableViewer.getTable()
+    table.setData(view)
     // Activate the tooltip support for the viewer
     ColumnViewerToolTipSupport.enableFor(tableViewer)
     // Add the context menu
@@ -190,11 +194,18 @@ class Table(view: TableView, style: Int) extends Loggable {
       table.getColumn(0).setResizable(false)
     }
     tableViewer.setComparator(new Table.TableComparator(-1, Default.sortingDirection, new WeakReference(this)))
+    tableViewer.setFilters(Array(new Table.TableFilter(view)))
     content.addChangeListener { (_) =>
       // reset sorting results on content change
       tableViewer.getComparator.asInstanceOf[Table.TableComparator].sorted = None
     }
     tableViewer.setInput(content.underlying)
+    // Add the dispose listener
+    table.addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) {
+        table.setData(null)
+      }
+    })
     tableViewer
   }
   /** Create table viewer column */
@@ -370,38 +381,46 @@ object Table extends ShellContext[TableView, TablePerShellContext] with Loggable
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
       val item1 = e1.asInstanceOf[TreeProxy.Item]
       val item2 = e2.asInstanceOf[TreeProxy.Item]
+      val view = viewer.asInstanceOf[TableViewer].getTable().getData().asInstanceOf[TableView]
       val columnCount = viewer.asInstanceOf[TableViewer].getTable.getColumnCount()
       val rc: Int = if (column < 0) {
         sorted orElse {
           // sorted is empty, update sorted
-          ToolbarView.sorting.value match {
+          view.context.toolbarView.sorting.value match {
             case Some(sorting) =>
-              withContext(viewer.getControl.getShell()) { (context, view) =>
-                val sortBy = sorting.definitions.toSeq.flatMap { definition =>
-                  val comparator = Comparator.map.get(definition.comparator): Option[Comparator.Interface[_ <: Comparator.Argument]]
-                  val propertyType = PropertyType.container.get(definition.propertyType): Option[PropertyType[_ <: AnyRef with java.io.Serializable]]
-                  val argument = comparator.flatMap(c => c.stringToArgument(definition.argument))
-                  comparator.flatMap(c => propertyType.map(ptype => (definition, ptype, c, argument)))
-                }
-                if (sortBy.nonEmpty) {
-                  var iteration = view.proxy.getContent.seq
-                  sortBy.foreach {
-                    case ((definition, propertyType, comparator, argument)) =>
-                      // iterate over sorting definitions
+              val sortBy = sorting.definitions.toSeq.flatMap { definition =>
+                val comparator = Comparator.map.get(definition.comparator): Option[Comparator.Interface[_ <: Comparator.Argument]]
+                val propertyType = PropertyType.container.get(definition.propertyType): Option[PropertyType[_ <: AnyRef with java.io.Serializable]]
+                val argument = comparator.flatMap(c => c.stringToArgument(definition.argument))
+                comparator.flatMap(c => propertyType.map(ptype => (definition, ptype, c, argument)))
+              }
+              if (sortBy.nonEmpty) {
+                var iteration = view.proxy.getContent.seq
+                sortBy.foreach {
+                  case ((definition, propertyType, comparator, argument)) =>
+                    // iterate over sorting definitions
+                    if (definition.direction)
                       iteration = iteration.sortWith { (a, b) =>
                         comparator.compare[AnyRef with java.io.Serializable](
                           definition.property,
                           propertyType.asInstanceOf[org.digimead.tabuddy.desktop.payload.PropertyType[AnyRef with java.io.Serializable]],
                           a.element, b.element,
-                          argument.asInstanceOf[Option[org.digimead.tabuddy.desktop.payload.view.comparator.Comparator.Argument]]) < 0
+                          argument.asInstanceOf[Option[Comparator.Argument]]) < 0
                       }
-                  }
-                  sorted = Some(iteration.par)
-                } else {
-                  // if there are no sortBy elements (default sorting) return empty vector
-                  // so comparation will always -1 vs -1
-                  sorted = Some(parallel.immutable.ParVector[TreeProxy.Item]())
+                    else
+                      iteration = iteration.sortWith { (a, b) =>
+                        comparator.compare[AnyRef with java.io.Serializable](
+                          definition.property,
+                          propertyType.asInstanceOf[org.digimead.tabuddy.desktop.payload.PropertyType[AnyRef with java.io.Serializable]],
+                          a.element, b.element,
+                          argument.asInstanceOf[Option[Comparator.Argument]]) >= 0
+                      }
                 }
+                sorted = Some(iteration.par)
+              } else {
+                // if there are no sortBy elements (default sorting) return empty vector
+                // so comparation will always -1 vs -1
+                sorted = Some(parallel.immutable.ParVector[TreeProxy.Item]())
               }
               sorted
             case None =>
@@ -433,6 +452,31 @@ object Table extends ShellContext[TableView, TablePerShellContext] with Loggable
     /** Update ActionResetSorting state */
     def updateActionResetSorting() = table.get.foreach(table =>
       table.context.ActionResetSorting.setEnabled(columnVar != -1 || directionVar != initialDirection))
+  }
+  /** Filter that apply user rules */
+  class TableFilter(view: TableView) extends ViewerFilter {
+    override def select(viewer: Viewer, parentElement: Object, element: Object): Boolean = element match {
+      case item: TreeProxy.Item =>
+        val view = viewer.asInstanceOf[TableViewer].getTable.getData.asInstanceOf[TableView]
+        view.context.toolbarView.filter.value match {
+          case Some(filter) =>
+            val filterBy = filter.rules.toSeq.flatMap { rule =>
+              val filterInstance = Filter.map.get(rule.filter): Option[Filter.Interface[_ <: Filter.Argument]]
+              val propertyType = PropertyType.container.get(rule.propertyType): Option[PropertyType[_ <: AnyRef with java.io.Serializable]]
+              val argument = filterInstance.flatMap(f => f.stringToArgument(rule.argument))
+              filterInstance.flatMap(f => propertyType.map(ptype => (rule, ptype, f, argument)))
+            }
+            filterBy.isEmpty || filterBy.forall {
+              case ((rule, propertyType, filter, argument)) =>
+                filter.generic.filter(rule.property, propertyType, item.element, argument)
+            }
+          case None =>
+            true
+        }
+      case unknown =>
+        log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
+        true
+    }
   }
   class TableLabelProvider(val propertyId: String, val propertyMap: immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]])
     extends CellLabelProvider with ILabelProvider {

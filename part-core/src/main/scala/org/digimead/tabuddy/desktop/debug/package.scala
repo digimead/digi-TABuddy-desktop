@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop
 
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.debug.Console
 
 import com.escalatesoft.subcut.inject.NewBindingModule
@@ -52,4 +53,5 @@ package object debug {
     module.bind[Console.Interface] toSingle { new Console }
     module.bind[Class[_ <: Console.View]] toSingle { classOf[ViewPortSwing] }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.debug.Console$")
 }

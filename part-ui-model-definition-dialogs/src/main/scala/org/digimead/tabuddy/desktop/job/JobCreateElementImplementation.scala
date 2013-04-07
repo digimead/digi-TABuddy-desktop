@@ -63,10 +63,10 @@ class JobCreateElementImplementation(override val container: Element.Generic, ov
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Unit] = {
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Element.Generic] = {
     assert(Model.eId == modelID, "An unexpected model %s, expect %s".format(Model.eId, modelID))
     // process the job
-    val result: Job.Result[Unit] = if (canRedo) {
+    val result: Job.Result[Element.Generic] = if (canRedo) {
       // TODO replay history, modify elementTemplate: before -> after
       Job.Result.Error("Unimplemented")
     } else if (canExecute) {
@@ -75,7 +75,7 @@ class JobCreateElementImplementation(override val container: Element.Generic, ov
         val customShell = new Shell(Main.display, SWT.NO_TRIM | SWT.ON_TOP)
         val dialog = new ElementCreate(customShell, container)
         if (dialog.open() == org.eclipse.jface.window.Window.OK)
-          Job.Result.OK()
+          Job.Result.OK(dialog.getCreatedElement)
         else
           Job.Result.Cancel()
       }
@@ -99,7 +99,7 @@ class JobCreateElementImplementation(override val container: Element.Generic, ov
     // return the result
     result
   }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Unit] = {
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Element.Generic] = {
     // TODO revert history, modify elementTemplate: after -> before
     Job.Result.Error("Unimplemented")
   }

@@ -253,7 +253,7 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
   /** Get all element templates. */
   def load(): Set[ElementTemplate.Interface] = {
     log.debug("load element template list for model " + Model.eId)
-    val templates: scala.collection.mutable.HashSet[ElementTemplate.Interface] =
+    val templates: scala.collection.mutable.LinkedHashSet[ElementTemplate.Interface] =
       ElementTemplate.container.eChildren.map({ element =>
         ElementTemplate.predefined.find(predefined =>
           element.canEqual(predefined.element.getClass(), predefined.element.eStash.getClass())) match {
@@ -368,9 +368,6 @@ object ElementTemplate extends DependencyInjection.PersistentInjectable with Log
   }
   def original() = originalPredefinedTemplates
   def predefined() = userPredefinedTemplates
-
-  def commitInjection() {}
-  def updateInjection() {}
 
   /**
    * model.Element from the application point of view

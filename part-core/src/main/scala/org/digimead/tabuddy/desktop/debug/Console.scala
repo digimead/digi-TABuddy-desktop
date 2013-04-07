@@ -65,6 +65,8 @@ import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.desktop.Config
 
+import com.escalatesoft.subcut.inject.BindingModule
+
 import language.implicitConversions
 
 class Console extends Console.Interface with Loggable {
@@ -159,19 +161,21 @@ class Console extends Console.Interface with Loggable {
 }
 
 object Console extends DependencyInjection.PersistentInjectable with Loggable {
-  implicit def console2implementation(p: Console.type): Interface = p.implementation
+  implicit def console2implementation(p: Console.type): Interface = p.inner
   implicit def bindingModule = DependencyInjection()
-  @volatile private var implementation: Interface = inject[Interface]
-  @volatile private var viewPortClass: Class[_ <: View] = inject[Class[_ <: View]]
   @volatile private var viewPort: Option[View] = None
-  // Debug.font = new java.awt.Font("Verdana", java.awt.Font.BOLD, 12)
-  var font: Font = new java.awt.Font("Verdana", java.awt.Font.PLAIN, 18)
 
-  def inner() = implementation
-  def commitInjection() {}
-  def updateInjection() = synchronized {
-    implementation = inject[Interface]
-    viewPortClass = inject[Class[_ <: View]]
+  /*
+   * dependency injection
+   */
+  def font() = inject[Font]("Debug.Console")
+  def inner() = inject[Interface]
+  private def viewPortClass = inject[Class[_ <: View]]
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[Interface](None, newModule)
+    DependencyInjection.assertLazy[Class[_ <: View]](None, newModule)
+  }
+  override def onClearInjection(oldModule: BindingModule) {
     viewPort.map { view =>
       viewPort = None
       view.dispose

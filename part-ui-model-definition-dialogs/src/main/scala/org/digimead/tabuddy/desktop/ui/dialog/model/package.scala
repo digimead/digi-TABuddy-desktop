@@ -43,12 +43,12 @@
 
 package org.digimead.tabuddy.desktop.ui.dialog
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-
 import org.digimead.tabuddy.desktop.job.JobCreateElement
 import org.digimead.tabuddy.desktop.job.JobCreateElementFromTemplate
 import org.digimead.tabuddy.desktop.job.JobCreateElementFromTemplateImplementation
 import org.digimead.tabuddy.desktop.job.JobCreateElementImplementation
+import org.digimead.tabuddy.desktop.job.JobModifyElement
+import org.digimead.tabuddy.desktop.job.JobModifyElementImplementation
 import org.digimead.tabuddy.desktop.job.JobModifyElementTemplate
 import org.digimead.tabuddy.desktop.job.JobModifyElementTemplateImplementation
 import org.digimead.tabuddy.desktop.job.JobModifyElementTemplateList
@@ -67,6 +67,8 @@ import org.digimead.tabuddy.desktop.payload.TypeSchema
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
 
+import com.escalatesoft.subcut.inject.NewBindingModule
+
 package object model {
   lazy val default = new NewBindingModule(module => {
     // JobCreateElementImplementation
@@ -76,6 +78,10 @@ package object model {
     // JobCreateElementFromTemplateImplementation
     module.bind[(ElementTemplate.Interface, Element[_ <: Stash], Symbol) => JobCreateElementFromTemplate] toSingle {
       (template: ElementTemplate.Interface, container: Element.Generic, modelID: Symbol) => new JobCreateElementFromTemplateImplementation(template, container, modelID)
+    }
+    // JobModifyElementImplementation
+    module.bind[(Element[_ <: Stash], Symbol) => JobModifyElement] toSingle {
+      (element: Element.Generic, modelID: Symbol) => new JobModifyElementImplementation(element, modelID)
     }
     // JobModifyElementTemplateImplementation
     module.bind[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate] toSingle {

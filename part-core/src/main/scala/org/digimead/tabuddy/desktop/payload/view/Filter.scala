@@ -208,9 +208,6 @@ object Filter extends DependencyInjection.PersistentInjectable with Loggable {
     container.eChildren.find(_.eId == filter.elementId).foreach(element => container.eChildren -= element)
   }
 
-  def commitInjection() {}
-  def updateInjection() {}
-
   /**
    * The rule of an element property filter
    */

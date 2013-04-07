@@ -56,6 +56,8 @@ import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.digi.lib.util.Util
 
+import com.escalatesoft.subcut.inject.BindingModule
+
 class ExceptionHandler extends Loggable {
   ExceptionHandler // initiate lazy initialization
 
@@ -74,10 +76,6 @@ class ExceptionHandler extends Loggable {
 
 object ExceptionHandler extends DependencyInjection.PersistentInjectable with Loggable {
   implicit def bindingModule = DependencyInjection()
-  @volatile private var logPath: File = inject[File]("Log")
-  @volatile private var logFilePrefix = inject[String]("LogFilePrefix")
-  @volatile private var traceFileExtension = inject[String]("TraceFilePrefix")
-  @volatile private var allowGenerateStackTrace = inject[Boolean]("TraceFileEnabled")
 
   /** Generate the log report prefix */
   def logReportPrefix() = synchronized { inject[String]("LogReportPrefix") }
@@ -125,12 +123,19 @@ object ExceptionHandler extends DependencyInjection.PersistentInjectable with Lo
       case e: Throwable =>
     }
   }
-  def commitInjection() {}
-  def updateInjection() {
-    logPath = inject[File]("Log")
-    logFilePrefix = inject[String]("LogFilePrefix")
-    traceFileExtension = inject[String]("TraceFilePrefix")
-    allowGenerateStackTrace = inject[Boolean]("TraceFileEnabled")
+
+  /*
+   * dependency injection
+   */
+  def logPath = inject[File]("Log")
+  def logFilePrefix = inject[String]("LogFilePrefix")
+  def traceFileExtension = inject[String]("TraceFilePrefix")
+  def allowGenerateStackTrace = inject[Boolean]("TraceFileEnabled")
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[File](Some("Log"), newModule)
+    DependencyInjection.assertLazy[String](Some("LogFilePrefix"), newModule)
+    DependencyInjection.assertLazy[String](Some("TraceFilePrefix"), newModule)
+    DependencyInjection.assertLazy[Boolean](Some("TraceFileEnabled"), newModule)
   }
 
   class Default(val defaultExceptionHandler: UncaughtExceptionHandler) extends UncaughtExceptionHandler with Loggable {

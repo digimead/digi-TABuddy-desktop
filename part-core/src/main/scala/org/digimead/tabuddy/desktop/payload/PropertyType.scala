@@ -46,7 +46,6 @@ package org.digimead.tabuddy.desktop.payload
 import scala.collection.immutable
 
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.support.Validator
 import org.digimead.tabuddy.desktop.support.WritableValue
@@ -67,6 +66,8 @@ import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.ui.forms.widgets.FormToolkit
+
+import com.escalatesoft.subcut.inject.BindingModule
 
 /**
  * Base class of the handler for the property of the particular type
@@ -124,10 +125,7 @@ trait PropertyType[T <: AnyRef with java.io.Serializable] {
 object PropertyType extends DependencyInjection.PersistentInjectable with Loggable {
   implicit def bindingModule = DependencyInjection()
   /** Predefined element property types that are available for this application */
-  @volatile private var types: immutable.HashMap[Symbol, PropertyType[_ <: AnyRef with java.io.Serializable]] =
-    immutable.HashMap(inject[Seq[PropertyType[_ <: AnyRef with java.io.Serializable]]].map(n => (n.id, n)): _*)
-  assert(types.nonEmpty, "unable to start application with empty properyTypes map")
-  types.values.foreach(ptype => log.debug("register property handler %s -> %s".format(ptype.typeSymbol, ptype.id.name)))
+  @volatile private var types = injectTypes
 
   /** Get the default type class (for new element property, for example) */
   def defaultType(): PropertyType[_ <: AnyRef with java.io.Serializable] = types.get('String).getOrElse(types.head._2)
@@ -136,12 +134,21 @@ object PropertyType extends DependencyInjection.PersistentInjectable with Loggab
   /** Get type wrapper of the specific type */
   def get[T <: AnyRef with java.io.Serializable](id: Symbol) = types(id).asInstanceOf[PropertyType[T]]
 
-  def commitInjection() {}
-  def updateInjection() {
-    val result = inject[immutable.HashMap[Class[_ <: AnyRef with java.io.Serializable], PropertyType[_ <: AnyRef with java.io.Serializable]]]
-    types = immutable.HashMap(inject[Seq[PropertyType[_ <: AnyRef with java.io.Serializable]]].map(n => (n.id, n)): _*)
-    assert(types.nonEmpty, "unable to start application with empty properyTypes map")
-    types.values.foreach(ptype => log.debug("register property handler %s -> %s".format(ptype.typeSymbol, ptype.id.name)))
+  /*
+   * dependency injection
+   */
+  override def afterInjection(newModule: BindingModule) {
+    types = injectTypes
+  }
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[Seq[PropertyType[_ <: AnyRef with java.io.Serializable]]](None, newModule)
+  }
+  private def injectTypes(): immutable.HashMap[Symbol, PropertyType[_ <: AnyRef with java.io.Serializable]] = {
+    val types = inject[Seq[PropertyType[_ <: AnyRef with java.io.Serializable]]]
+    val result = immutable.HashMap[Symbol, PropertyType[_ <: AnyRef with java.io.Serializable]](types.map(n => (n.id, n)): _*)
+    assert(result.nonEmpty, "unable to start application with empty properyTypes map")
+    result.values.foreach(ptype => log.debug("register property handler %s -> %s".format(ptype.typeSymbol, ptype.id.name)))
+    result
   }
 
   /**

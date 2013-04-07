@@ -43,10 +43,9 @@
 
 package org.digimead.tabuddy.desktop.job
 
+import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
+import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
-import org.digimead.tabuddy.desktop.payload.ElementTemplate
-import org.digimead.tabuddy.desktop.payload.Payload
-import org.digimead.tabuddy.desktop.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.ui.Window
 import org.digimead.tabuddy.desktop.ui.dialog.model.ElementEditor
 import org.digimead.tabuddy.model.Model
@@ -55,8 +54,8 @@ import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
 
-class JobCreateElementFromTemplateImplementation(override val template: ElementTemplate.Interface, override val container: Element.Generic, override val modelID: Symbol)
-  extends JobCreateElementFromTemplate(template, container, modelID) {
+class JobModifyElementImplementation(override val element: Element.Generic, override val modelID: Symbol)
+  extends JobModifyElement(element, modelID) {
   @volatile protected var allowExecute = true
   @volatile protected var allowRedo = false
   @volatile protected var allowUndo = false
@@ -65,27 +64,35 @@ class JobCreateElementFromTemplateImplementation(override val template: ElementT
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Element.Generic] = {
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Boolean] = {
     assert(Model.eId == modelID, "An unexpected model %s, expect %s".format(Model.eId, modelID))
     var newElement: Option[Element.Generic] = None
     // process the job
-    val result: Job.Result[Element.Generic] = if (canRedo) {
+    val result: Job.Result[Boolean] = if (canRedo) {
       // TODO replay history, modify elementTemplate: before -> after
       Job.Result.Error("Unimplemented")
     } else if (canExecute) {
       // TODO save modification history
       Main.execNGet {
-        val newElementID = Payload.generateNew("New" + template.element.eScope, "_", newId => container.eChildren.exists(_.eId.name == newId))
-        val element = template.factory(container, Symbol(newElementID), template.id)
-        val dialog = new ElementEditor(Window.currentShell(), element, template, true)
-        Window.currentShell.withValue(Some(dialog.getShell)) {
-          dialog.open() == org.eclipse.jface.window.Window.OK
-        } match {
-          case true =>
-            newElement = Some(element)
-            Job.Result.OK(Some(element))
-          case false =>
-            element.eParent.foreach(_.eChildren -= element)
+        // search template
+        Data.elementTemplates.get(element.eScope.modificator) match {
+          case Some(template) =>
+            if (!template.element.canEqual(element.getClass(), element.eStash.getClass())) {
+              log.warn(s"unable to edit $element: incompatible template $template vs ${element.getClass()} ${element.eStash.getClass()}")
+              Job.Result.Cancel()
+            } else {
+              val dialog = new ElementEditor(Window.currentShell(), element, template, false)
+              Window.currentShell.withValue(Some(dialog.getShell)) {
+                dialog.open() == org.eclipse.jface.window.Window.OK
+              } match {
+                case true =>
+                  // TODO check modification
+                  Job.Result.OK(Some(true))
+                case false =>
+                  Job.Result.Cancel()
+              }
+            }
+          case _ =>
             Job.Result.Cancel()
         }
       }
@@ -98,12 +105,10 @@ class JobCreateElementFromTemplateImplementation(override val template: ElementT
         allowRedo = false
         allowUndo = true
       case Job.Result.Cancel(_) =>
-        newElement.foreach(container.eChildren -= _)
         allowExecute = true
         allowRedo = false
         allowUndo = false
       case _ =>
-        newElement.foreach(container.eChildren -= _)
         allowExecute = false
         allowRedo = false
         allowUndo = false
@@ -111,7 +116,7 @@ class JobCreateElementFromTemplateImplementation(override val template: ElementT
     // return the result
     result
   }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Element.Generic] = {
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Boolean] = {
     // TODO revert history, modify elementTemplate: after -> before
     Job.Result.Error("Unimplemented")
   }

@@ -48,6 +48,7 @@ import java.net.SocketAddress
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.mesh.transport.Transport
 
 import com.escalatesoft.subcut.inject.NewBindingModule
@@ -59,4 +60,5 @@ package object transport {
     module.bind[SocketAddress] identifiedBy "Transport" toSingle { new InetSocketAddress(21212) }
     module.bind[Transport.Interface] toModuleSingle { implicit module => new Transport }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.mesh.transport.Transport$")
 }

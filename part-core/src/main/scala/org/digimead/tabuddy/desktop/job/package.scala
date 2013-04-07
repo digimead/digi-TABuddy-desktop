@@ -44,9 +44,26 @@
 package org.digimead.tabuddy.desktop
 
 import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
 
 package object job {
   lazy val default = new NewBindingModule(module => {
     module.bind[Job.Interface] toSingle { new Job.Interface {} }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.Job$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobCreateElement$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobCreateElementFromTemplate$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobModifyElement$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobModifyElementTemplate$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobModifyElementTemplateList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobModifyEnumeration$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobModifyEnumerationList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobModifyTypeSchema$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.JobModifyTypeSchemaList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.view.JobModifyFilter$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.view.JobModifyFilterList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.view.JobModifySorting$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.view.JobModifySortingList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.view.JobModifyView$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.job.view.JobModifyViewList$")
 }

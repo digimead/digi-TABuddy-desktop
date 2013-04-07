@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.payload
 
 import java.util.UUID
 
+import scala.Option.option2Iterable
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.seqAsJavaList
 import scala.collection.immutable
@@ -55,8 +56,10 @@ import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.res.Messages
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
@@ -70,6 +73,8 @@ import org.yaml.snakeyaml.nodes.SequenceNode
 import org.yaml.snakeyaml.nodes.Tag
 import org.yaml.snakeyaml.representer.Represent
 import org.yaml.snakeyaml.representer.Representer
+
+import com.escalatesoft.subcut.inject.BindingModule
 
 class TypeSchema(
   /** A type schema name */
@@ -98,9 +103,7 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
   type propertyMap = immutable.HashMap[TemplatePropertyGroup, Seq[TemplateProperty[_ <: AnyRef with java.io.Serializable]]]
   implicit def bindingModule = DependencyInjection()
   /** Predefined type schemas that are available for this application */
-  @volatile private var predefinedSchemas: Seq[TypeSchema.Interface] = inject[Seq[TypeSchema.Interface]]
-  assert(predefinedSchemas.map(_.name).distinct.size == predefinedSchemas.size, "There are type schemas with duplicated names.")
-  assert(default() != null, "Default schema not found") // throw an error at startup
+  @volatile private var predefinedSchemas: Seq[TypeSchema.Interface] = injectPredefinedSchemas
 
   /** TypeSchema apply */
   def apply(id: UUID, name: String, description: String, entities: immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]) =
@@ -180,10 +183,23 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
   def unapply(schema: TypeSchema.Interface): Option[(UUID, String, String, immutable.HashMap[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]])] =
     Some(schema.id, schema.name, schema.description, schema.entity)
 
-  def commitInjection() {}
-  def updateInjection() {
-    predefinedSchemas = inject[Seq[TypeSchema.Interface]]
+  /*
+   * dependency injection
+   */
+  override def afterInjection(newModule: BindingModule) {
+    predefinedSchemas = injectPredefinedSchemas
+    assert(default() != null, "Default schema not found") // throw an error at startup
+  }
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[Seq[TypeSchema.Interface]](None, newModule)
+  }
+  override def onClearInjection(oldModule: BindingModule) {
+    predefinedSchemas = Seq()
+  }
+  private def injectPredefinedSchemas(): Seq[TypeSchema.Interface] = {
+    val predefinedSchemas = inject[Seq[TypeSchema.Interface]]
     assert(predefinedSchemas.map(_.name).distinct.size == predefinedSchemas.size, "There are type schemas with duplicated names.")
+    predefinedSchemas
   }
 
   /**

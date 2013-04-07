@@ -47,6 +47,8 @@ import java.util.UUID
 
 import scala.collection.immutable
 
+import org.digimead.digi.lib.DependencyInjection
+
 import com.escalatesoft.subcut.inject.NewBindingModule
 
 package object comparator {
@@ -56,4 +58,5 @@ package object comparator {
       immutable.HashMap(ByPropertyText.id -> ByPropertyText)
     }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.view.comparator.Comparator$")
 }

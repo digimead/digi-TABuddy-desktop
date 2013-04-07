@@ -47,6 +47,8 @@ import com.escalatesoft.subcut.inject.NewBindingModule
 
 import scala.collection.immutable
 
+import org.digimead.digi.lib.DependencyInjection
+
 import java.util.UUID
 
 package object filter {
@@ -56,4 +58,5 @@ package object filter {
       immutable.HashMap(ByPropertyText.id -> ByPropertyText)
     }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.view.filter.Filter$")
 }

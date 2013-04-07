@@ -49,24 +49,28 @@ import scala.collection.immutable
 
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.tabuddy.desktop.payload.PropertyType
 import org.digimead.tabuddy.desktop.payload.TemplateProperty
 import org.digimead.tabuddy.model.element.Element
 
+import com.escalatesoft.subcut.inject.BindingModule
+
 object Filter extends DependencyInjection.PersistentInjectable with Loggable {
   implicit def bindingModule = DependencyInjection()
-  /** Predefined filters that are available for this application */
-  @volatile private var filters: immutable.HashMap[UUID, Filter.Interface[_ <: Filter.Argument]] =
-    inject[immutable.HashMap[UUID, Filter.Interface[_ <: Filter.Argument]]]
-  @volatile private var defaultFilter: Filter.Interface[_ <: Filter.Argument] =
-    filters(inject[UUID]("Filter.Default"))
+  @volatile private var defaultFilter: Filter.Interface[_ <: Filter.Argument] = _
 
-  def map = filters
   def default = defaultFilter
 
-  def commitInjection() {}
-  def updateInjection() {
-    filters = inject[immutable.HashMap[UUID, Filter.Interface[_ <: Filter.Argument]]]
-    defaultFilter = filters(inject[UUID]("Filter.Default"))
+  /*
+   * dependency injection
+   */
+  /** Predefined filters that are available for this application */
+  def map = inject[immutable.HashMap[UUID, Filter.Interface[_ <: Filter.Argument]]]
+  override def afterInjection(newModule: BindingModule) {
+    defaultFilter = map(inject[UUID]("Filter.Default"))
+  }
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[immutable.HashMap[UUID, Filter.Interface[_ <: Filter.Argument]]](None, newModule)
   }
 
   /** The Base interface of the filter */
@@ -81,13 +85,18 @@ object Filter extends DependencyInjection.PersistentInjectable with Loggable {
     val isArgumentSupported: Boolean
 
     /** Convert Argument instance to the serialized string */
-    def argumentToString(argument: Argument): String
+    def argumentToString(argument: Q): String
     /** Convert Argument instance to the text representation for the user */
-    def argumentToText(argument: Argument): String
+    def argumentToText(argument: Q): String
     /** Check whether filtering is available */
     def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean
     /** Filter element property */
-    def filter[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e: Element.Generic, argument: Option[Q]): Boolean
+    def filter[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e: Element.Generic, argument: Option[Q]): Boolean =
+      filter(property.id, property.ptype, e, argument)
+    /** Filter element property */
+    def filter[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[U], e: Element.Generic, argument: Option[Q]): Boolean
+    /** Returns the generic type filter */
+    def generic = this.asInstanceOf[Filter.Interface[Filter.Argument]]
     /** Convert the serialized argument to Argument instance */
     def stringToArgument(argument: String): Option[Argument]
   }

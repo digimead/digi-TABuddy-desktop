@@ -340,26 +340,30 @@ class Payload(implicit val bindingModule: BindingModule) extends Payload.Interfa
  * - Records, binded to Model
  */
 object Payload extends DependencyInjection.PersistentInjectable with Loggable {
-  implicit def payload2implementation(p: Payload.type): Interface = p.implementation
+  implicit def payload2implementation(p: Payload.type): Interface = p.inner
   implicit def bindingModule = DependencyInjection()
-  @volatile private var implementation = inject[Interface]
-  @volatile private var defaultModel = inject[Symbol]("Payload.defaultModelIdentifier")
-  @volatile private var serialization = inject[Serialization[Array[Byte]]]("Payload.Serialization")
+  private var active: Boolean = false
   PayloadModel // initialize
 
-  def defaultModelIdentifier() = defaultModel
-  def inner() = implementation
-
-  def commitInjection() {}
-  def updateInjection() {
-    if (implementation.active) {
-      implementation.stop()
-      implementation = inject[Interface]
-      implementation.start()
-    } else
-      implementation = inject[Interface]
-    defaultModel= inject[Symbol]("Payload.defaultModelIdentifier")
-    serialization = inject[Serialization[Array[Byte]]]("Payload.Serialization")
+  /*
+   * dependency injection
+   */
+  def defaultModelIdentifier() = inject[Symbol]("Payload.defaultModelIdentifier")
+  def inner() = inject[Interface]
+  def serialization() = inject[Serialization[Array[Byte]]]("Payload.Serialization")
+  override def afterInjection(newModule: BindingModule) {
+    if (Payload.active)
+      inner.start()
+  }
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[Interface](None, newModule)
+    DependencyInjection.assertLazy[Symbol](Some("Payload.defaultModelIdentifier"), newModule)
+    DependencyInjection.assertLazy[Serialization[Array[Byte]]](Some("Payload.Serialization"), newModule)
+  }
+  override def onClearInjection(oldModule: BindingModule) {
+    Payload.active = inner.active
+    if (inner.active)
+      inner.stop()
   }
 
   trait Interface extends Main.Interface {

@@ -43,6 +43,9 @@
 
 package org.digimead.tabuddy.desktop
 
+import java.awt.Font
+
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.approver.Approver
 import org.digimead.tabuddy.desktop.approver.ApproverModelCreate
 import org.eclipse.core.commands.operations.IOperationApprover2
@@ -55,5 +58,7 @@ package object approver {
     module.bind[Seq[IOperationApprover2]] toSingle {
       Seq[IOperationApprover2](ApproverModelCreate)
     }
+    module.bind[Font] identifiedBy "Debug.Console" toSingle { new java.awt.Font("Verdana", java.awt.Font.PLAIN, 18) }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.approver.Approver$")
 }

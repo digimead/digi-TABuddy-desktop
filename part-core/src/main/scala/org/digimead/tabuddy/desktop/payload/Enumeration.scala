@@ -260,9 +260,6 @@ object Enumeration extends DependencyInjection.PersistentInjectable with Loggabl
     }
   }
 
-  def commitInjection() {}
-  def updateInjection() {}
-
   /**
    * The enumeration constant class
    * The equality is based on constant value

@@ -49,29 +49,32 @@ import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
 import org.eclipse.core.commands.operations.IOperationApprover2
 
+import com.escalatesoft.subcut.inject.BindingModule
+
 import language.implicitConversions
 
 object Approver extends DependencyInjection.PersistentInjectable with Loggable {
-  implicit def approver2implementation(a: Approver.type): Interface = a.implementation
+  implicit def approver2implementation(a: Approver.type): Interface = a.inner
   implicit def bindingModule = DependencyInjection()
-  @volatile var implementation: Interface = inject[Interface]
-  @volatile var approvers: Seq[IOperationApprover2] = inject[Seq[IOperationApprover2]]
 
-  def inner() = implementation
-  def commitInjection() {}
-  def updateInjection() {
-    implementation = inject[Interface]
-    approvers = inject[Seq[IOperationApprover2]]
+  /*
+   * dependency injection
+   */
+  def approvers() = inject[Seq[IOperationApprover2]]
+  def inner() = inject[Interface]
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[Seq[IOperationApprover2]](None, newModule)
+    DependencyInjection.assertLazy[Interface](None, newModule)
   }
 
   trait Interface extends Main.Interface {
     /**
      * This function is invoked at application start
      */
-    def start() = approvers.foreach(Data.history.addOperationApprover)
+    def start() = Approver.approvers.foreach(Data.history.addOperationApprover)
     /**
      * This function is invoked at application stop
      */
-    def stop() = approvers.foreach(Data.history.removeOperationApprover)
+    def stop() = Approver.approvers.foreach(Data.history.removeOperationApprover)
   }
 }

@@ -85,19 +85,25 @@ class Config(implicit val bindingModule: BindingModule) extends Config.Interface
 }
 
 object Config extends DependencyInjection.PersistentInjectable with Loggable {
-  implicit def config2implementation(c: Config.type): Interface = c.implementation
+  implicit def config2implementation(c: Config.type): Interface = c.inner
   implicit def bindingModule = DependencyInjection()
-  @volatile var implementation: Interface = inject[Interface]
+  @volatile private var active: Boolean = false
 
-  def inner() = implementation
-  def commitInjection() {}
-  def updateInjection() {
-    if (implementation.active) {
-      implementation.stop()
-      implementation = inject[Interface]
-      implementation.start()
-    } else
-      implementation = inject[Interface]
+  /*
+   * dependency injection
+   */
+  def inner() = inject[Interface]
+  override def afterInjection(newModule: BindingModule) {
+    if (Config.active)
+      inner.start()
+  }
+  override def beforeInjection(newModule: BindingModule) {
+    DependencyInjection.assertLazy[Interface](None, newModule)
+  }
+  override def onClearInjection(oldModule: BindingModule) {
+    Config.active = inner.active
+    if (inner.active)
+      inner.stop()
   }
 
   trait Interface extends Main.Interface {

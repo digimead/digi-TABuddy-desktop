@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,40 +41,24 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.payload.view.filter
+package org.digimead.tabuddy.desktop.job
 
-import java.util.UUID
-
-import org.digimead.digi.lib.log.Loggable
-import org.digimead.tabuddy.desktop.payload.PropertyType
+import org.digimead.digi.lib.DependencyInjection
+import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.element.Stash
 
-class ByPropertyText extends Filter.Interface[ByPropertyTextArgument] with Loggable {
-  val id = UUID.fromString("74db4f4c-261c-443c-b014-fae7d864357b")
-  val name = "By property text"
-  val description = "Compare two element's properties via text representation"
-  val isArgumentSupported = true
+abstract class JobModifyElement(val element: Element.Generic, val modelID: Symbol)
+  extends Job[Boolean](s"Modify $element")
 
-  /** Convert Argument trait to the serialized string */
-  def argumentToString(argument: ByPropertyTextArgument): String = argument.value
-  /** Convert Argument trait to the text representation for the user */
-  def argumentToText(argument: ByPropertyTextArgument): String = argument.value
-  /** Check whether filtering is available */
-  def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
-  /** Filter element property */
-  def filter[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e: Element.Generic, argument: Option[ByPropertyTextArgument]): Boolean =
-    argument match {
-      case Some(argument) =>
-        val text = e.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
-        text.toLowerCase().contains(argument.value.toLowerCase())
-      case None =>
-        log.warn("argument is absent")
-        true
-    }
-  /** Convert the serialized argument to Argument trait */
-  def stringToArgument(argument: String): Option[Filter.Argument] = Some(ByPropertyTextArgument(argument.trim()))
+object JobModifyElement extends DependencyInjection.PersistentInjectable {
+  implicit def bindingModule = DependencyInjection()
+
+  def apply(element: Element.Generic): Option[JobBuilder[JobModifyElement]] = {
+    val modelID = Model.eId
+    Some(new JobBuilder(JobModifyElement, () => jobFactory(element, modelID)))
+  }
+
+  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+  private def jobFactory = inject[(Element[_ <: Stash], Symbol) => JobModifyElement]
 }
-
-sealed case class ByPropertyTextArgument(val value: String) extends Filter.Argument
-
-object ByPropertyText extends ByPropertyText

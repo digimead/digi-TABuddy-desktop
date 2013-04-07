@@ -92,7 +92,7 @@ import org.eclipse.ui.forms.widgets.Section
 class ElementEditor(val parentShell: Shell, element: Element.Generic, template: ElementTemplate.Interface, newElement: Boolean)
   extends org.digimead.tabuddy.desktop.res.dialog.model.ElementEditor(parentShell) with Dialog with Loggable {
   /** The property representing the current element id */
-  protected lazy val idField = WritableValue("")
+  protected lazy val idField = WritableValue[String]
   /** Element properties (property, control, editor). Available only from the UI thread */
   var properties = Seq[ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]()
   /** Element properties listener */
@@ -309,6 +309,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     getForm.getBody.layout()
     // adjust height
     adjustFormHeight()
+    updateOK
   }
   /** Update OK button */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled({

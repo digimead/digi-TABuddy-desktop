@@ -56,13 +56,12 @@ abstract class JobModifyElementTemplateList(val elementTemplates: Set[ElementTem
 
 object JobModifyElementTemplateList extends DependencyInjection.PersistentInjectable {
   implicit def bindingModule = DependencyInjection()
-  @volatile private var jobFactory = inject[(Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplateList]
 
   def apply(elementTemplateList: Set[ElementTemplate.Interface]): Option[JobBuilder[JobModifyElementTemplateList]] = {
     val modelID = Model.eId
     Some(new JobBuilder(JobModifyElementTemplateList, () => jobFactory(elementTemplateList, modelID)))
   }
 
-  def commitInjection() {}
-  def updateInjection() { jobFactory = inject[(Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplateList] }
+  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+  private def jobFactory = inject[(Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplateList]
 }

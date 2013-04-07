@@ -55,13 +55,12 @@ abstract class JobModifyFilter(val filter: Filter, val filterList: Set[Filter], 
 
 object JobModifyFilter extends DependencyInjection.PersistentInjectable {
   implicit def bindingModule = DependencyInjection()
-  @volatile private var jobFactory = inject[(Filter, Set[Filter], Symbol) => JobModifyFilter]
 
   def apply(filter: Filter, filterList: Set[Filter]): Option[JobBuilder[JobModifyFilter]] = {
     val modelID = Model.eId
     Some(new JobBuilder(JobModifyFilter, () => jobFactory(filter, filterList, modelID)))
   }
 
-  def commitInjection() {}
-  def updateInjection() { jobFactory = inject[(Filter, Set[Filter], Symbol) => JobModifyFilter] }
+  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+  private def jobFactory = inject[(Filter, Set[Filter], Symbol) => JobModifyFilter]
 }
