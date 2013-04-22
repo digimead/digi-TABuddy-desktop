@@ -74,7 +74,7 @@ class ElementTemplate(
   /** The factory for the element that contains template data */
   val factory: (Element.Generic, Symbol, Symbol) => Element.Generic,
   /** Fn thats do something before the instance initialization */
-  preinitialization: ElementTemplate => Unit = tpl => {}) extends ElementTemplate.Interface with Loggable {
+  preinitialization: ElementTemplate => Unit = _ => {}) extends ElementTemplate.Interface with Loggable {
   def this(element: Element.Generic, factory: (Element.Generic, Symbol, Symbol) => Element.Generic,
     initialName: String, initialAvailability: Boolean, initialProperties: ElementTemplate.propertyMap) = {
     this(element, factory, (template) => {

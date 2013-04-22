@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,35 +41,33 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.job
+package org.digimead.tabuddy.desktop.support.serialization
 
-import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.payload.ElementTemplate
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.element.Stash
+import org.digimead.tabuddy.model.serialization.Serialization
+import org.digimead.tabuddy.model.serialization.{ YAMLSerialization => OriginalYAMLSerialization }
 
 /**
- * Modify an element template
+ * YAMLSerialization wrapper that converts serialization between Array[Byte] and UTF-8 String
  */
-abstract class JobModifyElementTemplate(
-  /** The initial element template */
-  val template: ElementTemplate.Interface,
-  /** The list of element template */
-  val templateList: Set[ElementTemplate.Interface],
-  val modelID: Symbol)
-  extends Job[ElementTemplate.Interface](s"Edit $template for model $modelID")
-
-object JobModifyElementTemplate extends DependencyInjection.PersistentInjectable {
-  implicit def bindingModule = DependencyInjection()
-
-  def apply(
-    /** The initial element template */
-    template: ElementTemplate.Interface,
-    /** The list of element template */
-    templateList: Set[ElementTemplate.Interface]): Option[JobBuilder[JobModifyElementTemplate]] = {
-    val modelId = Model.eId
-    Some(new JobBuilder(JobModifyElementTemplate, () => jobFactory(template, templateList, modelId)))
-  }
-
-  private def jobFactory = inject[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate]
+class YAMLSerialization extends Serialization[Array[Byte]] {
+  protected val original = new OriginalYAMLSerialization
+  /**
+   * Load elements from Iterable[Array[Byte]] with loadElement().
+   * Filter/adjust loaded element with filter()
+   * Return deserialized element.
+   */
+  def acquire[A <: Element[B], B <: Stash](loadElement: () => Option[Array[Byte]],
+    filter: (Element.Generic) => Option[Element.Generic] = filterAccept)(implicit ma: Manifest[A], mb: Manifest[B]): Option[A] =
+    original.acquire[A, B](() => loadElement().map(array => new String(array, "UTF-8")), filter)
+  /**
+   * Get serialized element.
+   * Filter/adjust children with filter()
+   * Save adjusted child to [Array[Byte]] with saveElement().
+   */
+  def freeze(element: Element.Generic,
+    saveElement: (Element.Generic, Array[Byte]) => Unit,
+    filter: (Element.Generic) => Option[Element.Generic] = filterAccept) =
+    original.freeze(element, (element, serialized) => saveElement(element, serialized.getBytes("UTF-8")), filter)
 }

@@ -662,7 +662,10 @@ object Table extends ShellContext[TableView, TablePerShellContext] with Loggable
       def apply(immediately: Boolean = false) = view.get.foreach(view => if (immediately)
         view.table.autoresize(true)
       else
-        future { try { view.table.autoresize(false) } catch { case e: Throwable => log.error(e.getMessage, e) } })
+        future { view.table.autoresize(false) } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        })
       override def run = if (isChecked()) apply()
     }
     object ActionResetSorting extends Action(Messages.resetSorting_text) {

@@ -174,7 +174,10 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
     // Handle modifications
     val actualEntitiesListener = actualEntities.addChangeListener { event =>
       if (TypeEditor.ActionAutoResize.isChecked())
-        future { autoresize() }
+        future { autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       updateOK()
     }
     val entityListener = entityField.addChangeListener { (entity, _) => TypeEditor.ActionAliasLookup.setEnabled(entity != null) }
@@ -257,7 +260,10 @@ class TypeEditor(val parentShell: Shell, val initial: TypeSchema.Interface, val 
   /** On dialog active */
   override protected def onActive = {
     updateOK()
-    future { autoresize() }
+    future { autoresize() } onFailure {
+      case e: Exception => log.error(e.getMessage(), e)
+      case e => log.error(e.toString())
+    }
   }
   /** Updates an actual entity */
   protected[typeed] def updateActualEntity(before: TypeSchema.Entity[_ <: AnyRef with java.io.Serializable], after: TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]) {
@@ -353,7 +359,11 @@ object TypeEditor extends Loggable {
    */
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) TypeEditor.dialog.foreach(dialog => future { dialog.autoresize })
+    override def run = if (isChecked()) TypeEditor.dialog.foreach(dialog =>
+      future { dialog.autoresize } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      })
   }
   object ActionAliasLookup extends Action(Messages.lookupAliasInTranslations_text) {
     override def run = TypeEditor.entity { before =>

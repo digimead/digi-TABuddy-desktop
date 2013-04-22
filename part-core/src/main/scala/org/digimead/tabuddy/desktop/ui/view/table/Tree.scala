@@ -525,7 +525,10 @@ object Tree extends ShellContext[TableView, TreePerShellContext] with Loggable {
       def apply(immediately: Boolean = false) = view.get.foreach(view => if (immediately)
         view.tree.autoresize(true)
       else
-        future { try { view.tree.autoresize(false) } catch { case e: Throwable => log.error(e.getMessage, e) } })
+        future { view.tree.autoresize(false) } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        })
       override def run = if (isChecked()) apply()
     }
     class ActionCollapse(val element: Element.Generic) extends Action(Messages.collapseRecursively_text) {

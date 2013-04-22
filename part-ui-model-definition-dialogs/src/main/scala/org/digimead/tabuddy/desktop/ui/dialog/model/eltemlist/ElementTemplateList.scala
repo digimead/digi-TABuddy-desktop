@@ -228,7 +228,10 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[ElementTempla
   override protected def onActive = {
     updateOK()
     if (ElementTemplateList.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
   }
   /** Updates an actual element template */
   protected[eltemlist] def updateActualTemplate(before: ElementTemplate.Interface, after: ElementTemplate.Interface) {

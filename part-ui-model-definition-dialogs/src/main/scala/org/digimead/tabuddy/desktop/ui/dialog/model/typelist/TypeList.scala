@@ -141,7 +141,10 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema.Interface], 
     initTableTypeSchemas()
     val actualListener = actual.addChangeListener { event =>
       if (TypeList.ActionAutoResize.isChecked())
-        future { autoresize() }
+        future { autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       updateOK()
     }
     val actualActiveSchemaListener = actualActiveSchema.addChangeListener { (activeSchema, event) =>
@@ -226,7 +229,10 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema.Interface], 
   /** On dialog active */
   override protected def onActive = {
     updateOK()
-    future { autoresize() }
+    future { autoresize() } onFailure {
+      case e: Exception => log.error(e.getMessage(), e)
+      case e => log.error(e.toString())
+    }
   }
   /** Updates an actual schema */
   protected[typelist] def updateActualSchema(before: TypeSchema.Interface, after: TypeSchema.Interface) {
@@ -329,7 +335,11 @@ object TypeList extends Loggable {
    */
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) TypeList.dialog.foreach(dialog => future { dialog.autoresize })
+    override def run = if (isChecked()) TypeList.dialog.foreach(dialog =>
+      future { dialog.autoresize } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      })
   }
   object ActionActivate extends Action(Messages.activate_text) with Loggable {
     override def run = TypeList.schema { (dialog, selected) =>

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,35 +41,39 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.job
+package org.digimead.tabuddy.desktop.support
 
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.payload.ElementTemplate
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
 
-/**
- * Modify an element template
- */
-abstract class JobModifyElementTemplate(
-  /** The initial element template */
-  val template: ElementTemplate.Interface,
-  /** The list of element template */
-  val templateList: Set[ElementTemplate.Interface],
-  val modelID: Symbol)
-  extends Job[ElementTemplate.Interface](s"Edit $template for model $modelID")
+import com.escalatesoft.subcut.inject.BindingModule
 
-object JobModifyElementTemplate extends DependencyInjection.PersistentInjectable {
-  implicit def bindingModule = DependencyInjection()
+object Timeout {
+  val shortest = DI.shortest
+  val short = DI.short
+  val normal = DI.normal
+  val long = DI.long
+  val longer = DI.longer
+  val longest = DI.longest
 
-  def apply(
-    /** The initial element template */
-    template: ElementTemplate.Interface,
-    /** The list of element template */
-    templateList: Set[ElementTemplate.Interface]): Option[JobBuilder[JobModifyElementTemplate]] = {
-    val modelId = Model.eId
-    Some(new JobBuilder(JobModifyElementTemplate, () => jobFactory(template, templateList, modelId)))
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    implicit def bindingModule = DependencyInjection()
+    @volatile var shortest = injectOptional[Int]("Timeout.Shortest") getOrElse 1000
+    @volatile var short = injectOptional[Int]("Timeout.Short") getOrElse 5000
+    @volatile var normal = injectOptional[Int]("Timeout.Normal") getOrElse 10000
+    @volatile var long = injectOptional[Int]("Timeout.Long") getOrElse 20000
+    @volatile var longer = injectOptional[Int]("Timeout.Longer") getOrElse 60000
+    @volatile var longest = injectOptional[Int]("Timeout.Longest") getOrElse 5 * 60000
+
+    override def injectionAfter(newModule: BindingModule) {
+      injectOptional[Int]("Timeout.Shortest") foreach (shortest = _)
+      injectOptional[Int]("Timeout.Short") foreach (short = _)
+      injectOptional[Int]("Timeout.Normal") foreach (normal = _)
+      injectOptional[Int]("Timeout.Long") foreach (long = _)
+      injectOptional[Int]("Timeout.Longer") foreach (longer = _)
+      injectOptional[Int]("Timeout.Longest") foreach (longest = _)
+    }
   }
-
-  private def jobFactory = inject[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate]
 }

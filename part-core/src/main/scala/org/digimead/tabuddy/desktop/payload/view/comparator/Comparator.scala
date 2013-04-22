@@ -66,10 +66,10 @@ object Comparator extends DependencyInjection.PersistentInjectable with Loggable
    */
   /** Predefined comparators that are available for this application */
   def map = inject[immutable.HashMap[UUID, Comparator.Interface[_ <: Comparator.Argument]]]
-  override def afterInjection(newModule: BindingModule) {
+  override def injectionAfter(newModule: BindingModule) {
     defaultComparator = map(inject[UUID]("Comparator.Default"))
   }
-  override def beforeInjection(newModule: BindingModule) {
+  override def injectionBefore(newModule: BindingModule) {
     DependencyInjection.assertLazy[immutable.HashMap[UUID, Comparator.Interface[_ <: Comparator.Argument]]](None, newModule)
   }
 

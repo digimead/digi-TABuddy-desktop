@@ -401,7 +401,7 @@ object Job extends DependencyInjection.PersistentInjectable with Loggable {
    * dependency injection
    */
   def inner(): Interface = inject[Interface]
-  override def beforeInjection(newModule: BindingModule) {
+  override def injectionBefore(newModule: BindingModule) {
     DependencyInjection.assertLazy[Interface](None, newModule)
   }
 

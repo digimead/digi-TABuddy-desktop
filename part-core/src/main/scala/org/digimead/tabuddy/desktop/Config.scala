@@ -67,7 +67,12 @@ class Config(implicit val bindingModule: BindingModule) extends Config.Interface
     log.info("initialize configuration from " + location)
     active = true
     try {
-      Configgy.setup(new Configgy.DefaultInitFromFile(location))
+      if (location.exists())
+        Configgy.setup(new Configgy.DefaultInitFromFile(location))
+      else {
+        log.info(s"Configuration $location not found, creating new.")
+        Configgy.setup(new Configgy.DefaultInit)
+      }
     } catch {
       // catch all throwables, create empty configuration
       case e: Throwable =>
@@ -93,14 +98,14 @@ object Config extends DependencyInjection.PersistentInjectable with Loggable {
    * dependency injection
    */
   def inner() = inject[Interface]
-  override def afterInjection(newModule: BindingModule) {
+  override def injectionAfter(newModule: BindingModule) {
     if (Config.active)
       inner.start()
   }
-  override def beforeInjection(newModule: BindingModule) {
+  override def injectionBefore(newModule: BindingModule) {
     DependencyInjection.assertLazy[Interface](None, newModule)
   }
-  override def onClearInjection(oldModule: BindingModule) {
+  override def injectionOnClear(oldModule: BindingModule) {
     Config.active = inner.active
     if (inner.active)
       inner.stop()

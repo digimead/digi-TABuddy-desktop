@@ -93,12 +93,12 @@ class ElementTemplateSpec_j1 extends FunSpec with ShouldMatchers with TestHelper
         note.properties should have size (1)
         note.properties should contain key (TemplatePropertyGroup.default)
         note.properties(TemplatePropertyGroup.default) should have size (1)
-        note.properties(TemplatePropertyGroup.default).head.id.name should be("label")
+        note.properties(TemplatePropertyGroup.default).head.id.name should be("name")
         //note.properties = note.properties
         note.properties should have size (1)
         note.properties should contain key (TemplatePropertyGroup.default)
         note.properties(TemplatePropertyGroup.default) should have size (1)
-        note.properties(TemplatePropertyGroup.default).head.id.name should be("label")
+        note.properties(TemplatePropertyGroup.default).head.id.name should be("name")
         val task = ElementTemplate.predefined.find(_.id == 'Task).get
     }
     it("should have proper copy constructor") {

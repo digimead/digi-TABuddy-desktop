@@ -142,7 +142,10 @@ class SortingList(val parentShell: Shell, val initial: List[Sorting])
     initTableViews()
     val actualListener = actual.addChangeListener { event =>
       if (SortingList.ActionAutoResize.isChecked())
-        future { autoresize() }
+        future { autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       updateOK()
     }
     // Add the dispose listener
@@ -234,7 +237,10 @@ class SortingList(val parentShell: Shell, val initial: List[Sorting])
   override protected def onActive = {
     updateOK()
     if (SortingList.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
   }
   /** Updates an actual element template */
   protected[sortlist] def updateActualSorting(before: Sorting, after: Sorting) {
@@ -244,7 +250,10 @@ class SortingList(val parentShell: Shell, val initial: List[Sorting])
       getTableViewer.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewer.setSelection(new StructuredSelection(after), true)
     if (SortingList.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
   }
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
@@ -339,7 +348,11 @@ object SortingList extends Loggable {
    */
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) SortingList.dialog.foreach(dialog => future { dialog.autoresize })
+    override def run = if (isChecked()) SortingList.dialog.foreach(dialog =>
+      future { dialog.autoresize } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      })
   }
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = SortingList.dialog.foreach { dialog =>

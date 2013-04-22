@@ -140,7 +140,10 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration.Inte
     initTableEnumerations()
     val actualListener = actual.addChangeListener { event =>
       if (EnumerationEditor.ActionAutoResize.isChecked())
-        future { autoresize() }
+        future { autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       updateOK()
     }
     // add dispose listener
@@ -214,6 +217,9 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration.Inte
     actual.addChangeListener(event => future {
       if (EnumerationList.ActionAutoResize.isChecked())
         Main.exec { if (!viewer.getTable.isDisposed()) autoresize() }
+    } onFailure {
+      case e: Exception => log.error(e.getMessage(), e)
+      case e => log.error(e.toString())
     })
     val comparator = new EnumerationList.EnumerationComparator
     viewer.setComparator(comparator)

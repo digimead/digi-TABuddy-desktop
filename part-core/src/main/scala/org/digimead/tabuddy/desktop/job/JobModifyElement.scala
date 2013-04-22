@@ -59,6 +59,5 @@ object JobModifyElement extends DependencyInjection.PersistentInjectable {
     Some(new JobBuilder(JobModifyElement, () => jobFactory(element, modelID)))
   }
 
-  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
   private def jobFactory = inject[(Element[_ <: Stash], Symbol) => JobModifyElement]
 }

@@ -318,7 +318,10 @@ class FilterEditor(val parentShell: Shell, val filter: FilterPayload, val filter
   override protected def onActive = {
     updateOK()
     if (FilterEditor.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
     // prevent interference with the size calculation
     getTextFilterProperties().setMessage(Messages.lookupFilter_text);
     getTextFilterFilters().setMessage(Messages.lookupFilter_text);
@@ -331,7 +334,10 @@ class FilterEditor(val parentShell: Shell, val filter: FilterPayload, val filter
       getTableViewerFilters.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewerFilters.setSelection(new StructuredSelection(after), true)
     if (FilterEditor.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
   }
   /** Update OK button state */
   protected def updateOK() = if (FilterEditor.dialog.nonEmpty) {
@@ -496,7 +502,10 @@ object FilterEditor extends Loggable {
       property.visible = false
       dialog.actual += FilterPayload.Rule(property.id, property.ptype.id, false, Filter.default.id, "")
       if (FilterEditor.ActionAutoResize.isChecked())
-        future { dialog.autoresize() }
+        future { dialog.autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       else
         dialog.getTableViewerProperties.refresh()
     }
@@ -506,7 +515,10 @@ object FilterEditor extends Loggable {
       dialog.actual -= rule
       dialog.total.find(property => rule.property == property.id && rule.propertyType == property.ptype.id).foreach(_.visible = true)
       if (FilterEditor.ActionAutoResize.isChecked())
-        future { dialog.autoresize() }
+        future { dialog.autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       else
         dialog.getTableViewerProperties.refresh()
     }

@@ -62,7 +62,7 @@ object Approver extends DependencyInjection.PersistentInjectable with Loggable {
    */
   def approvers() = inject[Seq[IOperationApprover2]]
   def inner() = inject[Interface]
-  override def beforeInjection(newModule: BindingModule) {
+  override def injectionBefore(newModule: BindingModule) {
     DependencyInjection.assertLazy[Seq[IOperationApprover2]](None, newModule)
     DependencyInjection.assertLazy[Interface](None, newModule)
   }

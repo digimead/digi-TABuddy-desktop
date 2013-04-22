@@ -110,6 +110,7 @@ package object desktop {
       module.bind[String] identifiedBy "TraceFilePrefix" toSingle { "trc" }
       module.bind[Boolean] identifiedBy "TraceFileEnabled" toSingle { true }
     }) ~
+      report.default ~
       mesh.transport.default ~
       payload.default ~
       payload.view.default ~
@@ -117,9 +118,7 @@ package object desktop {
       payload.view.filter.default ~
       job.default ~
       approver.default ~
-      debug.default ~
-      org.digimead.tabuddy.model.default ~
-      org.digimead.digi.lib.default
+      debug.default
 
   /** Starts application via scala interactive console */
   def mainInteractive(args: Array[String]) {

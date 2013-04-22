@@ -153,14 +153,14 @@ object Transport extends DependencyInjection.PersistentInjectable with Loggable 
    * dependency injection
    */
   def inner() = inject[Interface]
-  override def afterInjection(newModule: BindingModule) {
+  override def injectionAfter(newModule: BindingModule) {
     if (Transport.active)
       inner.start()
   }
-  override def beforeInjection(newModule: BindingModule) {
+  override def injectionBefore(newModule: BindingModule) {
     DependencyInjection.assertLazy[Interface](None, newModule)
   }
-  override def onClearInjection(oldModule: BindingModule) {
+  override def injectionOnClear(oldModule: BindingModule) {
     Transport.active = inner.active
     if (inner.active)
       inner.stop()

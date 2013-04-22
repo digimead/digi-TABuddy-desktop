@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop
 
 import java.io.File
+import java.net.URI
 import java.util.UUID
 
 import scala.collection.immutable
@@ -54,9 +55,11 @@ import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.payload.template.StringType
 import org.digimead.tabuddy.desktop.payload.template.TextType
 import org.digimead.tabuddy.desktop.res.Messages
+import org.digimead.tabuddy.desktop.support.serialization.YAMLSerialization
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
+import org.digimead.tabuddy.model.element.Reference
 import org.digimead.tabuddy.model.serialization.BuiltinSerialization
 import org.digimead.tabuddy.model.serialization.ProtobufSerialization
 import org.digimead.tabuddy.model.serialization.Serialization
@@ -79,10 +82,11 @@ package object payload {
       module.inject[Serialization[Array[Byte]]](Some("Payload.Serialization")) match {
         case _: BuiltinSerialization => "bcode"
         case _: ProtobufSerialization => "pbuf"
+        case _: YAMLSerialization => "yaml"
         case _ => "element"
       }
     }
-    module.bind[Serialization[Array[Byte]]] identifiedBy "Payload.Serialization" toSingle { new BuiltinSerialization }
+    module.bind[Serialization[Array[Byte]]] identifiedBy "Payload.Serialization" toSingle { new YAMLSerialization }
     module.bind[Payload.Interface] toModuleSingle { implicit module => new Payload }
     /** The map of the application property types (UI factories) */
     module.bind[Seq[PropertyType[_ <: AnyRef with java.io.Serializable]]] toSingle {
@@ -135,10 +139,12 @@ package object payload {
     module.bind[Record.Interface[_ <: Record.Stash]] identifiedBy "eEnumeration" toProvider { module =>
       module.inject[Record.Interface[_ <: Record.Stash]](Some("eSettings")) | RecordLocation('Enumerations)
     }
+    /** The payload element storage resolver */
+    module.bind[Reference => Option[URI]] identifiedBy ("Element.Storage") toSingle { Payload.getElementStorage _ }
   })
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.ElementTemplate$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.Enumeration$")
-  // skip DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.Payload$")
+  // skip DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.Payload$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.PropertyType$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.TypeSchema$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.payload.view.Filter$")

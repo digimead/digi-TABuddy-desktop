@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,35 +41,25 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.job
+package org.digimead.tabuddy.desktop
+
+import scala.collection.immutable
 
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.payload.ElementTemplate
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.digi.lib.log.appender.Appender
+import org.digimead.digi.lib.log.appender.Console
+import org.digimead.tabuddy.desktop.report.Report
+import org.digimead.tabuddy.desktop.report.ReportAppender
 
-/**
- * Modify an element template
- */
-abstract class JobModifyElementTemplate(
-  /** The initial element template */
-  val template: ElementTemplate.Interface,
-  /** The list of element template */
-  val templateList: Set[ElementTemplate.Interface],
-  val modelID: Symbol)
-  extends Job[ElementTemplate.Interface](s"Edit $template for model $modelID")
+import com.escalatesoft.subcut.inject.NewBindingModule
 
-object JobModifyElementTemplate extends DependencyInjection.PersistentInjectable {
-  implicit def bindingModule = DependencyInjection()
-
-  def apply(
-    /** The initial element template */
-    template: ElementTemplate.Interface,
-    /** The list of element template */
-    templateList: Set[ElementTemplate.Interface]): Option[JobBuilder[JobModifyElementTemplate]] = {
-    val modelId = Model.eId
-    Some(new JobBuilder(JobModifyElementTemplate, () => jobFactory(template, templateList, modelId)))
-  }
-
-  private def jobFactory = inject[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate]
+package object report {
+  lazy val default = new NewBindingModule(module => {
+    module.bind[Report.Interface] toModuleSingle { implicit module => new Report }
+    module.bind[String] identifiedBy "Report.UploadSettingsURL" toSingle { "aHR0cDovL2NvbW1vbmRhdGFzdG9yYWdlLmdvb2dsZWFwaXMuY29tL2RpZ2ktdGFidWRkeS1kZXNrdG9wL3JlcG9ydFVwbG9hZFNldHRpbmdzCg==" }
+    module.bind[Storage.Interface] toModuleSingle { implicit module => new Storage }
+    module.bind[immutable.HashSet[Appender]] identifiedBy "Log.BufferedAppenders" toSingle { immutable.HashSet[Appender](Console, ReportAppender) }
+  })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.report.Report$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.report.Storage$DI$")
 }

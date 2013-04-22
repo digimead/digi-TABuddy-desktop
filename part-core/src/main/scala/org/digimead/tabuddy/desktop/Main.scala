@@ -48,9 +48,13 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.future
+
 import org.digimead.configgy.Configgy
 import org.digimead.configgy.Configgy.getImplementation
 import org.digimead.digi.lib.DependencyInjection
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Config.config2implementation
@@ -66,6 +70,10 @@ import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Payload
 import org.digimead.tabuddy.desktop.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.payload.TypeSchema
+import org.digimead.tabuddy.desktop.report.ExceptionHandler
+import org.digimead.tabuddy.desktop.report.Report
+import org.digimead.tabuddy.desktop.report.Report.report2implementation
+import org.digimead.tabuddy.desktop.report.ReportDialog
 import org.digimead.tabuddy.desktop.ui.Window
 import org.digimead.tabuddy.desktop.ui.view
 import org.digimead.tabuddy.model.Model
@@ -75,6 +83,7 @@ import org.eclipse.core.databinding.DataBindingContext
 import org.eclipse.core.databinding.observable.Realm
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.jface.util.Policy
+import org.eclipse.jface.window.{ Window => JWindow }
 import org.eclipse.swt.custom.CTabItem
 import org.eclipse.swt.custom.TableTreeItem
 import org.eclipse.swt.dnd.DragSource
@@ -137,6 +146,9 @@ object Main extends App with Loggable {
     def run() {
       // An early initialization, as soon as possible
       Main.exec { thread }
+      JWindow.setExceptionHandler(new JWindow.IExceptionHandler() {
+        def handleException(e: Throwable) = log.error("UI Thread exception: " + e, e)
+      })
       // normal sequence
       start()
       showGUI()
@@ -152,7 +164,10 @@ object Main extends App with Loggable {
     throw throwable
   }
   /** Asynchronously execute runnable in UI thread */
-  def exec[T](f: => T): Unit = display.asyncExec(new Runnable { def run = f })
+  def exec[T](f: => T): Unit = display.asyncExec(new Runnable {
+    def run = try { f } catch { case e: Throwable => log.error("UI Thread exception: " + e, e) }
+  })
+
   /** Asynchronously execute runnable in UI thread and return result or exception */
   def execNGet[T](f: => T): T = {
     if (Main.thread.eq(Thread.currentThread()))
@@ -174,7 +189,7 @@ object Main extends App with Loggable {
       result.synchronized { result.wait() }
     result.get.get match {
       case Left(e) =>
-        throw new ExecutionException(e)
+        throw e
       case Right(r) =>
         r
     }
@@ -239,6 +254,7 @@ object Main extends App with Loggable {
   }
 
   /** This callback is invoked when UI initialization complete */
+  @log
   def onApplicationStartup() {
     // load last active model at startup
     Configgy.getString("payload.model").foreach(lastModelID =>
@@ -248,11 +264,13 @@ object Main extends App with Loggable {
       })
   }
   /** This callback is invoked at an every model initialization */
+  @log
   def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) {
     TypeSchema.onModelInitialization(oldModel, newModel, modified)
     ElementTemplate.onModelInitialization(oldModel, newModel, modified)
     Data.onModelInitialization(oldModel, newModel, modified)
   }
+  @log
   def showGUI() = try {
     log.info("show GUI")
     val window = new Window()
@@ -264,6 +282,7 @@ object Main extends App with Loggable {
       log.error(e.getMessage, e)
   }
   /** This function is invoked at the application start */
+  @log
   def start() {
     log.info("start application")
     Element.Event.subscribe(elementEventsSubscriber)
@@ -273,6 +292,8 @@ object Main extends App with Loggable {
     Resources.start()
     // Initialize the application configuration based on Configgy
     Config.start()
+    // Initialize error handler
+    Report.start()
     // Initialize the application data such as global variables, variable lists, predefined elements, etc...
     Data.start()
     // Initialize the user data, data storage, etc...
@@ -285,8 +306,11 @@ object Main extends App with Loggable {
     Approver.start()
     // Initialize other subsystems
     view.table.TableView.start()
+    // Search to stack traces
+    future { ReportDialog.searchAndSubmit() }
   }
   /** This function is invoked at the application stop */
+  @log
   def stop() {
     log.info("stop application")
     Element.Event.removeSubscription(elementEventsSubscriber)
@@ -296,6 +320,7 @@ object Main extends App with Loggable {
     Transport.stop()
     Payload.stop()
     Data.stop()
+    Report.stop()
     Config.stop()
     Resources.stop()
     system.shutdown()

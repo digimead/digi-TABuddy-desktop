@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.ui.action.view
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.job.view.JobModifyViewList
@@ -51,6 +52,7 @@ import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
 object ActionModifyViewList extends Action(Messages.views_text) with Loggable {
+  @log
   override def run = JobModifyViewList(Data.getAvailableViewDefinitions - View.default).foreach(_.setOnSucceeded { job =>
     job.getValue.foreach { case (views) => View.save(views) }
   }.execute)

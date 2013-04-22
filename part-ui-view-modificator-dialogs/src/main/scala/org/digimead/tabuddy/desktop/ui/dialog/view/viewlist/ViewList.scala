@@ -142,7 +142,10 @@ class ViewList(val parentShell: Shell, val initial: List[View])
     initTableViews()
     val actualListener = actual.addChangeListener { event =>
       if (ViewList.ActionAutoResize.isChecked())
-        future { autoresize() }
+        future { autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       updateOK()
     }
     // Add the dispose listener
@@ -236,7 +239,10 @@ class ViewList(val parentShell: Shell, val initial: List[View])
   override protected def onActive = {
     updateOK()
     if (ViewList.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
   }
   /** Updates an actual element template */
   protected[viewlist] def updateActualView(before: View, after: View) {

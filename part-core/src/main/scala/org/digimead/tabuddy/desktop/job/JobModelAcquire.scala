@@ -78,7 +78,10 @@ class JobModelAcquire private (val oldModelID: Option[Symbol], val newModelID: S
       oldModelID.foreach(id => assert(Model.eId == id, "An unexpected model %s, expect %s".format(Model.eId, id)))
       before = Some(Model.inner)
       after = Payload.acquireModel(newModelID)
-      Job.Result.OK(after)
+      if (after.nonEmpty)
+        Job.Result.OK(after)
+      else
+        Job.Result.Error(s"Unable to aquire model")
     } else
       Job.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state

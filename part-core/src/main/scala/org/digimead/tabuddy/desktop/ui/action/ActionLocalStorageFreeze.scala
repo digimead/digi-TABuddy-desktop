@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.job.JobModelFreeze
 import org.digimead.tabuddy.desktop.payload.Payload
@@ -53,5 +54,6 @@ object ActionLocalStorageFreeze extends Action(Messages.freeze_text) {
   Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
   setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
+  @log
   override def run() = JobModelFreeze(Symbol(Data.fieldModelName.value)).foreach(_.execute)
 }

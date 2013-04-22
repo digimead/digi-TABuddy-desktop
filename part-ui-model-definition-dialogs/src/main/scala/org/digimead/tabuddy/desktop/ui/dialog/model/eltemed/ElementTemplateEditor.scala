@@ -197,7 +197,10 @@ class ElementTemplateEditor(val parentShell: Shell,
     // The complex content listener
     val actualPropertiesListener = actualProperties.addChangeListener { event =>
       if (ElementTemplateEditor.ActionAutoResize.isChecked())
-        future { autoresize() }
+        future { autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       updateButtons()
     }
     // Add the dispose listener

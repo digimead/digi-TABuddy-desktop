@@ -62,6 +62,5 @@ object JobModifyEnumerationList extends DependencyInjection.PersistentInjectable
     Some(new JobBuilder(JobModifyEnumerationList, () => jobFactory(enumerationList, modelID)))
   }
 
-  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
   private def jobFactory = inject[(Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => JobModifyEnumerationList]
 }

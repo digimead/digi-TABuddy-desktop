@@ -43,11 +43,13 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.res.Messages
 import org.digimead.tabuddy.desktop.ui.Window
 import org.eclipse.jface.action.Action
 
 object ActionExit extends Action(Messages.exit_text) {
+  @log
   override def run = Main.exec { Window.shell.close() }
 }

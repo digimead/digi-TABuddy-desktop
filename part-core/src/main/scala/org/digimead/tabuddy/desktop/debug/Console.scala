@@ -171,11 +171,11 @@ object Console extends DependencyInjection.PersistentInjectable with Loggable {
   def font() = inject[Font]("Debug.Console")
   def inner() = inject[Interface]
   private def viewPortClass = inject[Class[_ <: View]]
-  override def beforeInjection(newModule: BindingModule) {
+  override def injectionBefore(newModule: BindingModule) {
     DependencyInjection.assertLazy[Interface](None, newModule)
     DependencyInjection.assertLazy[Class[_ <: View]](None, newModule)
   }
-  override def onClearInjection(oldModule: BindingModule) {
+  override def injectionOnClear(oldModule: BindingModule) {
     viewPort.map { view =>
       viewPort = None
       view.dispose

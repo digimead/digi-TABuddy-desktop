@@ -62,6 +62,5 @@ object JobModifyTypeSchemaList extends DependencyInjection.PersistentInjectable 
     Some(new JobBuilder(JobModifyTypeSchemaList, () => jobFactory(schemaList, activeSchema, modelID)))
   }
 
-  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
   private def jobFactory = inject[(Set[TypeSchema.Interface], TypeSchema.Interface, Symbol) => JobModifyTypeSchemaList]
 }

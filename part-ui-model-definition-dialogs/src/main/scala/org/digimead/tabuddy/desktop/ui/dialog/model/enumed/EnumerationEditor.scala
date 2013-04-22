@@ -197,7 +197,10 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
     // complex content listener
     val actualConstantsListener = actualConstants.addChangeListener { event =>
       if (EnumerationEditor.ActionAutoResize.isChecked())
-        future { autoresize() }
+        future { autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       updateOK()
     }
     // add dispose listener
@@ -279,7 +282,10 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration.Interfa
   /** On dialog active */
   override protected def onActive = {
     updateOK()
-    future { autoresize() }
+    future { autoresize() } onFailure {
+      case e: Exception => log.error(e.getMessage(), e)
+      case e => log.error(e.toString())
+    }
   }
   /** Updates an actual constant */
   protected[enumed] def updateActualConstant(before: EnumerationEditor.Item, after: EnumerationEditor.Item) {
@@ -414,7 +420,11 @@ object EnumerationEditor extends Loggable {
   }
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) EnumerationEditor.dialog.foreach(dialog => future { dialog.autoresize })
+    override def run = if (isChecked()) EnumerationEditor.dialog.foreach(dialog =>
+      future { dialog.autoresize } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      })
   }
   object ActionDelete extends Action(Messages.delete_text) {
     override def run = EnumerationEditor.dialog.foreach { dialog =>

@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.job.JobModelDelete
 import org.digimead.tabuddy.desktop.payload.Payload
@@ -53,5 +54,6 @@ object ActionLocalStorageDelete extends Action(Messages.delete_text) {
   Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
   setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
+  @log
   override def run() = JobModelDelete(Symbol(Data.modelName.value)).foreach(_.execute)
 }

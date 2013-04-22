@@ -136,8 +136,8 @@ class ViewEditor(val parentShell: Shell, val view: View, val viewList: List[View
   def getModifiedViews(): View = {
     val name = nameField.value.trim
     val description = descriptionField.value.trim
-    View(view.id, name, description, availabilityField.value, mutable.LinkedHashSet(actualFields:_*),
-        mutable.LinkedHashSet(actualFilters:_*), mutable.LinkedHashSet(actualSortings:_*))
+    View(view.id, name, description, availabilityField.value, mutable.LinkedHashSet(actualFields: _*),
+      mutable.LinkedHashSet(actualFilters: _*), mutable.LinkedHashSet(actualSortings: _*))
   }
 
   /** Auto resize tableviewer columns */
@@ -372,7 +372,10 @@ class ViewEditor(val parentShell: Shell, val view: View, val viewList: List[View
   /** On dialog active */
   override protected def onActive = {
     updateOK()
-    future { autoresize() }
+    future { autoresize() } onFailure {
+      case e: Exception => log.error(e.getMessage(), e)
+      case e => log.error(e.toString())
+    }
     // prevent interference with the size calculation
     getTextPropertyFilter().setMessage(Messages.lookupFilter_text);
     getTextFieldFilter().setMessage(Messages.lookupFilter_text);
@@ -533,14 +536,20 @@ object ViewEditor extends Loggable {
   object ActionAdd extends Action(">") with Loggable {
     override def run = ViewEditor.property { (dialog, property) =>
       dialog.actualFields += property
-      future { dialog.autoresize() }
+      future { dialog.autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
       dialog.getTableViewerProperties.refresh()
     }
   }
   object ActionRemove extends Action("<") with Loggable {
     override def run = ViewEditor.field { (dialog, field) =>
       dialog.actualFields -= field
-      future { dialog.autoresize() }
+      future { dialog.autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
       dialog.getTableViewerProperties.refresh()
     }
   }

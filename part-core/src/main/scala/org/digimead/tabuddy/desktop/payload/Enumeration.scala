@@ -168,7 +168,7 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
       i <- 0 until math.min(set.size, Enumeration.collectionMaximum)
       constant = iterator.next
     } {
-      element.eSet(getFieldIDConstantValue(i), Value.static(constant.value))
+      element.eSet(getFieldIDConstantValue(i), Some(Value.static(constant.value)))
       if (constant.alias.trim.nonEmpty)
         element.eSet(getFieldIDConstantAlias(i), constant.alias)
       if (constant.description.trim.nonEmpty)

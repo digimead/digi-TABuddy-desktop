@@ -61,6 +61,7 @@ public class Messages extends NLS {
 	public static String activeSchema_text;
 	public static String active_text;
 	public static String add_text;
+	public static String additionalInformation_text;
 	public static String alias_text;
 	public static String argument_text;
 	public static String ascending_text;
@@ -69,6 +70,7 @@ public class Messages extends NLS {
 	public static String available_text;
 	public static String base_text;
 	public static String blocked_text;
+	public static String cancelled_text;
 	public static String closeFile_text;
 	public static String collapseAll_text;
 	public static String collapseRecursively_text;
@@ -112,6 +114,19 @@ public class Messages extends NLS {
 	public static String enumerationUnableToCreateNoTypes_text;
 	public static String enumerationUnableToCreate_text;
 	public static String enumerations_text;
+	public static String errorReportContactHint_text;
+	public static String errorReportContactTip_text;
+	public static String errorReportContact_text;
+	public static String errorReportDescription_text;
+	public static String errorReportDetails_text;
+	public static String errorReportReasonDefault_text;
+	public static String errorReportTitle_text;
+	public static String errorReportUploadAquireFailed_text;
+	public static String errorReportUploadAquire_text;
+	public static String errorReportUploadCancelled_text;
+	public static String errorReportUploadFailed_text;
+	public static String errorReportUploadTitle_text;
+	public static String error_text;
 	public static String exit_text;
 	public static String expandAll_text;
 	public static String expandNew_text;
@@ -160,6 +175,7 @@ public class Messages extends NLS {
 	public static String path_text;
 	public static String properties_text;
 	public static String property_text;
+	public static String reason_text;
 	public static String redo_text;
 	public static String remove_text;
 	public static String required_text;

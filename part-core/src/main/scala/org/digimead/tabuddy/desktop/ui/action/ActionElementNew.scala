@@ -43,11 +43,13 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.job.JobCreateElement
 import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
 object ActionElementNew extends Action(Messages.new_text) {
+  @log
   override def run = JobCreateElement(Data.fieldElement.value).foreach(_.execute)
 }

@@ -186,14 +186,11 @@ object TypeSchema extends DependencyInjection.PersistentInjectable with Loggable
   /*
    * dependency injection
    */
-  override def afterInjection(newModule: BindingModule) {
+  override def injectionAfter(newModule: BindingModule) {
     predefinedSchemas = injectPredefinedSchemas
     assert(default() != null, "Default schema not found") // throw an error at startup
   }
-  override def beforeInjection(newModule: BindingModule) {
-    DependencyInjection.assertLazy[Seq[TypeSchema.Interface]](None, newModule)
-  }
-  override def onClearInjection(oldModule: BindingModule) {
+  override def injectionOnClear(oldModule: BindingModule) {
     predefinedSchemas = Seq()
   }
   private def injectPredefinedSchemas(): Seq[TypeSchema.Interface] = {

@@ -43,9 +43,11 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Data
+import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.job.JobModelAcquire
 import org.digimead.tabuddy.desktop.job.JobModelFreeze
 import org.digimead.tabuddy.desktop.payload.Payload
@@ -59,6 +61,7 @@ object ActionLocalStorageLock extends Action(Messages.lock_text, IAction.AS_CHEC
   Data.fieldModelName.addChangeListener { (fieldName, event) => setEnabled(Option(fieldName).getOrElse("").trim.nonEmpty) }
   Data.modelName.addChangeListener { (name, event) => setChecked(name != Payload.defaultModelIdentifier.name) }
 
+  @log
   override def run() = if (isChecked()) {
     // if model == default return None else Some
     // see module.bind[Model.Interface[Model.Stash]] at org.digimead.tabuddy.desktop.payload.default)
@@ -68,11 +71,13 @@ object ActionLocalStorageLock extends Action(Messages.lock_text, IAction.AS_CHEC
       log.warn("unable to create model with the default name")
       setChecked(false)
     } else
-      JobModelAcquire(oldModelName, newModelName).foreach(_.execute)
+      JobModelAcquire(oldModelName, newModelName).foreach(_.
+        setOnFailed { job => Main.exec { setChecked(false) } }.
+        execute)
   } else {
-    JobModelFreeze(Symbol(Data.fieldModelName.value)).foreach(_.setOnSucceeded { job =>
-      // Reset a model to default after successful freeze and unlock
-      Model.reset()
-    }.execute)
+    JobModelFreeze(Symbol(Data.fieldModelName.value)).foreach(_.
+      setOnFailed { job => Main.exec { setChecked(true) } }.
+      setOnSucceeded { job => Model.reset() }. // Reset a model to default after successful freeze and unlock
+      execute)
   }
 }

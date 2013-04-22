@@ -41,22 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.report
 
-import java.io.BufferedWriter
-import java.io.File
-import java.io.FileWriter
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.lang.Thread.UncaughtExceptionHandler
-import java.util.Date
 
-import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
-import org.digimead.digi.lib.util.Util
-
-import com.escalatesoft.subcut.inject.BindingModule
 
 class ExceptionHandler extends Loggable {
   ExceptionHandler // initiate lazy initialization
@@ -74,11 +64,7 @@ class ExceptionHandler extends Loggable {
   }
 }
 
-object ExceptionHandler extends DependencyInjection.PersistentInjectable with Loggable {
-  implicit def bindingModule = DependencyInjection()
-
-  /** Generate the log report prefix */
-  def logReportPrefix() = synchronized { inject[String]("LogReportPrefix") }
+object ExceptionHandler extends Loggable {
   @annotation.tailrec
   def retry[T](n: Int, timeout: Int = -1)(fn: => T): T = {
     val r = try { Some(fn) } catch { case e: Exception if n > 1 => None }
@@ -90,60 +76,11 @@ object ExceptionHandler extends DependencyInjection.PersistentInjectable with Lo
         retry(n - 1, timeout)(fn)
     }
   }
-  /** Generate a stack trace report */
-  def generateStackTrace(t: Thread, e: Throwable, when: Long) {
-    if (!logPath.exists())
-      if (!logPath.mkdirs()) {
-        log.fatal("Unable to create log path " + logPath)
-        return
-      }
-    // Here you should have a more robust, permanent record of problems
-    val reportName = logReportPrefix + "." + logFilePrefix + traceFileExtension
-    val result = new StringWriter()
-    val printWriter = new PrintWriter(result)
-    e.printStackTrace(printWriter)
-    if (e.getCause() != null) {
-      printWriter.println("\nCause:\n")
-      e.getCause().printStackTrace(printWriter)
-    }
-    try {
-      val file = new File(logPath, reportName)
-      log.debug("Writing unhandled exception to: " + file)
-      // Write the stacktrace to disk
-      val bos = new BufferedWriter(new FileWriter(file))
-      bos.write(Util.dateString(new Date(when)) + "\n")
-      bos.write(result.toString())
-      bos.flush()
-      // Close up everything
-      bos.close()
-      // -rw-r--r--
-      file.setReadable(true, false)
-    } catch {
-      // Nothing much we can do about this - the game is over
-      case e: Throwable =>
-    }
-  }
-
-  /*
-   * dependency injection
-   */
-  def logPath = inject[File]("Log")
-  def logFilePrefix = inject[String]("LogFilePrefix")
-  def traceFileExtension = inject[String]("TraceFilePrefix")
-  def allowGenerateStackTrace = inject[Boolean]("TraceFileEnabled")
-  override def beforeInjection(newModule: BindingModule) {
-    DependencyInjection.assertLazy[File](Some("Log"), newModule)
-    DependencyInjection.assertLazy[String](Some("LogFilePrefix"), newModule)
-    DependencyInjection.assertLazy[String](Some("TraceFilePrefix"), newModule)
-    DependencyInjection.assertLazy[Boolean](Some("TraceFileEnabled"), newModule)
-  }
 
   class Default(val defaultExceptionHandler: UncaughtExceptionHandler) extends UncaughtExceptionHandler with Loggable {
     // Default exception handler
     def uncaughtException(t: Thread, e: Throwable) {
       log.error("Unhandled exception in %s: %s".format(t, e), e)
-      if (allowGenerateStackTrace)
-        generateStackTrace(t, e, System.currentTimeMillis)
       // call original handler, handler blown up if java.lang.Throwable.getStackTrace return null :-)
       try {
         defaultExceptionHandler.uncaughtException(t, e)

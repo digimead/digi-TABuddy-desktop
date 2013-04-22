@@ -47,18 +47,20 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
-import scala.Array.canBuildFrom
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
+
 import org.digimead.digi.lib.log.Loggable
+import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.desktop.res.Messages
+import org.digimead.tabuddy.desktop.ui.BaseElement
 import org.digimead.tabuddy.desktop.ui.Default
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.value.WritableValue
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.IAction
 import org.eclipse.jface.action.IMenuListener
@@ -76,7 +78,6 @@ import org.eclipse.swt.events.SelectionEvent
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Shell
-import org.digimead.tabuddy.desktop.ui.BaseElement
 
 class TranslationLookup(val parentShell: Shell)
   extends org.digimead.tabuddy.desktop.res.dialog.TranslationLookup(parentShell) with Dialog with Loggable {
@@ -159,7 +160,10 @@ class TranslationLookup(val parentShell: Shell)
   }
   /** On dialog active */
   override protected def onActive = {
-    future { autoresize() }
+    future { autoresize() } onFailure {
+      case e: Exception => log.error(e.getMessage(), e)
+      case e => log.error(e.toString())
+    }
   }
 }
 
@@ -233,6 +237,10 @@ object TranslationLookup extends Loggable {
    */
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) TranslationLookup.dialog.foreach(dialog => future { dialog.autoresize })
+    override def run = if (isChecked()) TranslationLookup.dialog.foreach(dialog =>
+      future { dialog.autoresize } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      })
   }
 }

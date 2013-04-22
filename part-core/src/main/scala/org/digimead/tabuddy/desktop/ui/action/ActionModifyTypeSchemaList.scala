@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.tabuddy.desktop.Data
 import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.job.JobModifyTypeSchemaList
@@ -55,6 +56,7 @@ object ActionModifyTypeSchemaList extends Action(Messages.types_text) {
   Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
   setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
+  @log
   override def run = JobModifyTypeSchemaList(Data.typeSchemas.values.toSet, Data.typeSchema.value).foreach(_.setOnSucceeded { job =>
     job.getValue.foreach {
       case (schemas, activeSchema) => Main.exec {

@@ -142,7 +142,10 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
     initTableViews()
     val actualListener = actual.addChangeListener { event =>
       if (FilterList.ActionAutoResize.isChecked())
-        future { autoresize() }
+        future { autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       updateOK()
     }
     // Add the dispose listener
@@ -234,7 +237,10 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
   override protected def onActive = {
     updateOK()
     if (FilterList.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
     // prevent interference with the size calculation
     getTextFilter().setMessage(Messages.lookupFilter_text);
   }
@@ -246,7 +252,10 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
       getTableViewer.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewer.setSelection(new StructuredSelection(after), true)
     if (FilterList.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
   }
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).

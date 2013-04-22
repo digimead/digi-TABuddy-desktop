@@ -322,7 +322,10 @@ class SortingEditor(val parentShell: Shell, val sorting: Sorting, val sortingLis
   override protected def onActive = {
     updateOK()
     if (SortingEditor.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
     // prevent interference with the size calculation
     getTextFilterProperties().setMessage(Messages.lookupFilter_text);
     getTextFilterSortings().setMessage(Messages.lookupFilter_text);
@@ -335,7 +338,10 @@ class SortingEditor(val parentShell: Shell, val sorting: Sorting, val sortingLis
       getTableViewerSortings.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewerSortings.setSelection(new StructuredSelection(after), true)
     if (SortingEditor.ActionAutoResize.isChecked())
-      future { autoresize() }
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
   }
   /** Update the dialog message */
   protected def updateDescription(error: Option[String]): String = {
@@ -500,14 +506,21 @@ object SortingEditor extends Loggable {
    */
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) SortingEditor.dialog.foreach(dialog => future { dialog.autoresize })
+    override def run = if (isChecked()) SortingEditor.dialog.foreach(dialog =>
+      future { dialog.autoresize } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      })
   }
   object ActionAdd extends Action(">") with Loggable {
     override def run = SortingEditor.property { (dialog, property) =>
       property.visible = false
       dialog.actual += Sorting.Definition(property.id, property.ptype.id, Default.sortingDirection, Comparator.default.id, "")
       if (SortingEditor.ActionAutoResize.isChecked())
-        future { dialog.autoresize() }
+        future { dialog.autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       else
         dialog.getTableViewerProperties.refresh()
     }
@@ -517,7 +530,10 @@ object SortingEditor extends Loggable {
       dialog.actual -= definition
       dialog.total.find(property => definition.property == property.id && definition.propertyType == property.ptype.id).foreach(_.visible = true)
       if (SortingEditor.ActionAutoResize.isChecked())
-        future { dialog.autoresize() }
+        future { dialog.autoresize() } onFailure {
+          case e: Exception => log.error(e.getMessage(), e)
+          case e => log.error(e.toString())
+        }
       else
         dialog.getTableViewerProperties.refresh()
     }

@@ -43,10 +43,9 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.Loggable
-import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Data
-import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.job.JobModifyEnumerationList
 import org.digimead.tabuddy.desktop.payload.Enumeration
 import org.digimead.tabuddy.desktop.payload.Payload
@@ -58,6 +57,7 @@ object ActionModifyEnumerationList extends Action(Messages.enumerations_text) wi
   setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
   setText(Messages.enumerations_text + "@" + "Ctrl+W")
 
+  @log
   override def run = JobModifyEnumerationList(Data.enumerations.values.toSet).foreach(_.setOnSucceeded { job =>
     job.getValue.foreach { case (enumerations) => Enumeration.save(enumerations) }
   }.execute)

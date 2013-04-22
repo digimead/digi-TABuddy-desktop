@@ -66,10 +66,10 @@ object Filter extends DependencyInjection.PersistentInjectable with Loggable {
    */
   /** Predefined filters that are available for this application */
   def map = inject[immutable.HashMap[UUID, Filter.Interface[_ <: Filter.Argument]]]
-  override def afterInjection(newModule: BindingModule) {
+  override def injectionAfter(newModule: BindingModule) {
     defaultFilter = map(inject[UUID]("Filter.Default"))
   }
-  override def beforeInjection(newModule: BindingModule) {
+  override def injectionBefore(newModule: BindingModule) {
     DependencyInjection.assertLazy[immutable.HashMap[UUID, Filter.Interface[_ <: Filter.Argument]]](None, newModule)
   }
 

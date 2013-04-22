@@ -60,6 +60,7 @@ import scala.collection.immutable
 import scala.collection.immutable.Stream.consWrapper
 
 import org.digimead.digi.lib.DependencyInjection
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.digi.lib.util.FileUtil
@@ -70,6 +71,7 @@ import org.digimead.tabuddy.model.Model.Stash
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.element.Reference
 import org.digimead.tabuddy.model.serialization.Serialization
 
 import com.escalatesoft.subcut.inject.BindingModule
@@ -88,6 +90,7 @@ class Payload(implicit val bindingModule: BindingModule) extends Payload.Interfa
   /**
    * Load the specific model from the predefined directory ${location}/id/
    */
+  @log
   def acquireModel(modelId: Symbol): Option[Model.Interface[_ <: Model.Stash]] = {
     log.debug(s"acquire model modelId")
     try {
@@ -108,7 +111,7 @@ class Payload(implicit val bindingModule: BindingModule) extends Payload.Interfa
     } catch {
       // catch all throwables from serialization process
       case e: Throwable =>
-        log.error("Unable to load model %s: %s".format(modelId, e))
+        log.error("Unable to load model %s: %s".format(modelId, e), e)
         Model.reset()
         None
     }
@@ -116,6 +119,7 @@ class Payload(implicit val bindingModule: BindingModule) extends Payload.Interfa
   /**
    * Store the specific model to the predefined directory ${location}/id/
    */
+  @log
   def freezeModel(model: Model.Interface[_ <: Model.Stash]): Option[URI] = {
     log.debug(s"freeze model $model")
     try {
@@ -156,6 +160,7 @@ class Payload(implicit val bindingModule: BindingModule) extends Payload.Interfa
     Symbol(name.substring(0, name.size - extensionModel.size - 1))
   }
   /** Load type schemas */
+  @log
   def loadTypeSchemas(modelId: Symbol): immutable.HashSet[TypeSchema.Interface] = {
     val typeSchemasStorage = new File(getModelStorage(modelId), folderTypeSchemas)
     log.debug(s"load type schemas from $typeSchemasStorage")
@@ -181,6 +186,7 @@ class Payload(implicit val bindingModule: BindingModule) extends Payload.Interfa
     schemas
   }
   /** Save type schemas */
+  @log
   def saveTypeSchemas(modelId: Symbol, schemas: immutable.Set[TypeSchema.Interface]) {
     val typeSchemasStorage = new File(getModelStorage(modelId), folderTypeSchemas)
     log.debug(s"load type schemas to $typeSchemasStorage")
@@ -339,42 +345,31 @@ class Payload(implicit val bindingModule: BindingModule) extends Payload.Interfa
  * - Model, binded to current device with unique ID
  * - Records, binded to Model
  */
-object Payload extends DependencyInjection.PersistentInjectable with Loggable {
+object Payload extends Loggable {
   implicit def payload2implementation(p: Payload.type): Interface = p.inner
   implicit def bindingModule = DependencyInjection()
-  private var active: Boolean = false
+  @volatile private var active: Boolean = false
   PayloadModel // initialize
 
-  /*
-   * dependency injection
-   */
-  def defaultModelIdentifier() = inject[Symbol]("Payload.defaultModelIdentifier")
-  def inner() = inject[Interface]
-  def serialization() = inject[Serialization[Array[Byte]]]("Payload.Serialization")
-  override def afterInjection(newModule: BindingModule) {
-    if (Payload.active)
-      inner.start()
-  }
-  override def beforeInjection(newModule: BindingModule) {
-    DependencyInjection.assertLazy[Interface](None, newModule)
-    DependencyInjection.assertLazy[Symbol](Some("Payload.defaultModelIdentifier"), newModule)
-    DependencyInjection.assertLazy[Serialization[Array[Byte]]](Some("Payload.Serialization"), newModule)
-  }
-  override def onClearInjection(oldModule: BindingModule) {
-    Payload.active = inner.active
-    if (inner.active)
-      inner.stop()
-  }
+  def defaultModelIdentifier() = DI.defaultModelIdentifier
+  /** Returns the element storage */
+  def getElementStorage(reference: Reference): Option[URI] = inner.getElementStorage(reference)
+  def inner() = DI.implementation
+  def serialization() = DI.serialization
 
   trait Interface extends Main.Interface {
     /** empty file/marker that mark directory as buddy model */
     val modelMarker = ".Model"
     /** Location of the serialized data/payload */
     val location: File
-    val extensionElement = inject[String]("Payload.Element.Extension")
+    val extensionElement = Payload.DI.extensionElement
     val extensionModel = "model"
     val folderTypeSchemas = "typeSchemas"
 
+    /** Returns the element storage */
+    def getElementStorage(reference: Reference): Option[URI] = {
+      None
+    }
     /** Load the specific model from the predefined directory ${location}/id/ */
     def acquireModel(id: Symbol): Option[Model.Interface[_ <: Model.Stash]]
     /** Store the specific model to the predefined directory ${location}/id/ */
@@ -395,5 +390,37 @@ object Payload extends DependencyInjection.PersistentInjectable with Loggable {
     def from(yaml: String): Option[T]
     /** Convert object to YAML */
     def to(obj: T): String
+  }
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    implicit def bindingModule = DependencyInjection()
+    /** Default model identifier DI cache */
+    @volatile var defaultModelIdentifier = inject[Symbol]("Payload.defaultModelIdentifier")
+    /** Serialization DI cache */
+    @volatile var serialization = inject[Serialization[Array[Byte]]]("Payload.Serialization")
+    /** Implementation DI cache */
+    @volatile var implementation = inject[Interface]
+
+    def extensionElement() = inject[String]("Payload.Element.Extension")
+
+    override def injectionAfter(newModule: BindingModule) {
+      defaultModelIdentifier = inject[Symbol]("Payload.defaultModelIdentifier")
+      serialization = inject[Serialization[Array[Byte]]]("Payload.Serialization")
+      implementation = inject[Interface]
+      if (Payload.active)
+        inner.start()
+    }
+    override def injectionBefore(newModule: BindingModule) {
+      DependencyInjection.assertLazy[Interface](None, newModule)
+      DependencyInjection.assertLazy[Symbol](Some("Payload.defaultModelIdentifier"), newModule)
+      DependencyInjection.assertLazy[Serialization[Array[Byte]]](Some("Payload.Serialization"), newModule)
+    }
+    override def injectionOnClear(oldModule: BindingModule) {
+      Payload.active = inner.active
+      if (inner.active)
+        inner.stop()
+    }
   }
 }

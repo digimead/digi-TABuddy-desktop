@@ -137,17 +137,23 @@ object PropertyType extends DependencyInjection.PersistentInjectable with Loggab
   /*
    * dependency injection
    */
-  override def afterInjection(newModule: BindingModule) {
+  override def injectionAfter(newModule: BindingModule) {
     types = injectTypes
   }
-  override def beforeInjection(newModule: BindingModule) {
+  override def injectionBefore(newModule: BindingModule) {
     DependencyInjection.assertLazy[Seq[PropertyType[_ <: AnyRef with java.io.Serializable]]](None, newModule)
   }
   private def injectTypes(): immutable.HashMap[Symbol, PropertyType[_ <: AnyRef with java.io.Serializable]] = {
     val types = inject[Seq[PropertyType[_ <: AnyRef with java.io.Serializable]]]
     val result = immutable.HashMap[Symbol, PropertyType[_ <: AnyRef with java.io.Serializable]](types.map(n => (n.id, n)): _*)
     assert(result.nonEmpty, "unable to start application with empty properyTypes map")
-    result.values.foreach(ptype => log.debug("register property handler %s -> %s".format(ptype.typeSymbol, ptype.id.name)))
+    result.values.foreach(ptype => try {
+      log.debug("register property handler %s -> %s".format(ptype.typeSymbol, ptype.id.name))
+    } catch {
+      case e: NoSuchElementException =>
+        log.error(s"unable to register $ptype, DSL type not found", e)
+        throw e
+    })
     result
   }
 

@@ -43,10 +43,9 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.Loggable
-import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.Data
-import org.digimead.tabuddy.desktop.Main
 import org.digimead.tabuddy.desktop.job.JobModifyElementTemplateList
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Payload
@@ -57,6 +56,7 @@ object ActionModifyElementTemplateList extends Action(Messages.elementTemplates_
   Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
   setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
+  @log
   override def run = JobModifyElementTemplateList(Data.elementTemplates.values.toSet).foreach(_.setOnSucceeded { job =>
     job.getValue.foreach { case (templates) => ElementTemplate.save(templates) }
   }.execute)

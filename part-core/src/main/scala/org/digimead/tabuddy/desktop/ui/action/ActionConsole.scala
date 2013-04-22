@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.ui.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.Loggable
 import org.digimead.digi.lib.log.logger.RichLogger.rich2slf4j
 import org.digimead.tabuddy.desktop.debug.Console
@@ -51,6 +52,7 @@ import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.action.Action
 
 object ActionConsole extends Action(Messages.console_text) with Loggable {
+  @log
   override def run() = {
     new Thread(new Runnable {
       def run = try {
