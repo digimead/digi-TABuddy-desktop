@@ -52,6 +52,7 @@ import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.NonOSGi
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.launcher.report.ExceptionHandler
 
 import com.escalatesoft.subcut.inject.BindingModule
 import com.escalatesoft.subcut.inject.Injectable
@@ -112,7 +113,10 @@ class Launcher(implicit val bindingModule: BindingModule)
 
   /** Prepare OSGi framework settings. */
   @log
-  def initialize(applicationDI: Option[() => BindingModule]) = applicationLauncher.initialize(applicationDI)
+  def initialize(applicationDI: Option[() => BindingModule]) = {
+    uncaughtExceptionHandler.register() // skip, if already registered
+    applicationLauncher.initialize(applicationDI)
+  }
   /** Run OSGi framework and application. */
   @log
   def run(waitForTermination: Boolean, shutdownHandler: Option[Runnable]) = applicationLauncher.run(waitForTermination, shutdownHandler)
@@ -171,7 +175,7 @@ object Launcher extends Loggable {
    * @param launcherDI Consolidated dependency injection information for launcher.
    * @param applicationDI Consolidated dependency injection information for OSGi bundles.
    */
-  def main(launcherDI: () => BindingModule, applicationDI: Option[() => BindingModule] = None) = synchronized {
+  def main[T](wait: Boolean, launcherDI: () => BindingModule, applicationDI: Option[() => BindingModule] = None)(shutdownHook: => T) = synchronized {
     // Initialize DI, that may contains code with implicit OSGi initialization.
     // But this is not significant because we will have clean context from our framework loader
     // 1st DI - WINNER
@@ -210,7 +214,7 @@ object Launcher extends Loggable {
       log.debug(s"Pass protocol handler '${pkg}' -> '${pkgRegEx}'")
       bootstrap.rootClassLoader.addBootDelegationExpression(pkgRegEx)
     })
-    // We hide anything other(trunks and leafs of the tree) is OSGi cells. They may use
+    // We hide anything other(trunks and leaves of the tree) is OSGi cells. They may use
     // their own dependencies even binary incompatible as expected.
 
     // Should we propagate digimead classes? The reason: the body is solid.
@@ -219,17 +223,20 @@ object Launcher extends Loggable {
     // Initialize application launcher within rootClassLoader context.
     bootstrap.initialize(applicationDI)
     // Run application launcher within rootClassLoader context.
-    val wait = false
     if (wait) {
       // Start synchronous.
       bootstrap.run(true, None)
       // Stop JVM wide logging/caching
       NonOSGi.stop()
+      shutdownHook
     } else {
       // Start asynchronous.
       bootstrap.run(false, Some(new Runnable {
         // Stop JVM wide logging/caching
-        def run = NonOSGi.stop()
+        def run = {
+          NonOSGi.stop()
+          shutdownHook
+        }
       }))
     }
   }
@@ -237,6 +244,8 @@ object Launcher extends Loggable {
    * Launcher interface
    */
   trait Interface {
+    /** global exception handler */
+    lazy val uncaughtExceptionHandler = new ExceptionHandler()
     /** Application root class loader. */
     val rootClassLoader: RootClassLoader.Interface
 

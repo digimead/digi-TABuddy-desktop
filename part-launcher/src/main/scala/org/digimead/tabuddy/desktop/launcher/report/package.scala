@@ -41,12 +41,25 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.launcher
+
+import scala.collection.immutable
+
+import org.digimead.digi.lib.DependencyInjection
+import org.digimead.digi.lib.log.appender.Appender
+import org.digimead.digi.lib.log.appender.Console
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 
-package object launcher {
+package object report {
   lazy val default = new NewBindingModule(module => {
-    module.bind[Launcher.Interface] toModuleSingle { implicit module => new Launcher() }
-  }) ~ launcher.report.default
+    module.bind[Report.Interface] toModuleSingle { implicit module => new Report }
+    module.bind[Boolean] identifiedBy "Report.TraceFileEnabled" toSingle { true }
+    module.bind[Int] identifiedBy "Report.KeepLogFiles" toSingle { 4 }
+    module.bind[Int] identifiedBy "Report.KeepTrcFiles" toSingle { 8 }
+    module.bind[String] identifiedBy "Report.LogFileExtension" toSingle { "log" }
+    module.bind[String] identifiedBy "Report.TraceFileExtension" toSingle { "trc" }
+    module.bind[immutable.HashSet[Appender]] identifiedBy "Log.BufferedAppenders" toSingle { immutable.HashSet[Appender](Console, ReportAppender) }
+  })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.launcher.report.Report$DI$")
 }

@@ -106,6 +106,7 @@ class Framework(val frameworkAdaptor: FrameworkAdaptor)
 object Framework extends Loggable {
   val FILE_SCHEME = "file:"
   val INITIAL_LOCATION = "initial@"
+  val PROP_ALLOW_APPRELAUNCH = "eclipse.allowAppRelaunch"
   val PROP_APPLICATION_LAUNCHDEFAULT = "eclipse.application.launchDefault"
   val PROP_FORCED_RESTART = "osgi.forcedRestart"
   val PROP_LAUNCHER = "eclipse.launcher"

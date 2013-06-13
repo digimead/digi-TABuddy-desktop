@@ -68,6 +68,7 @@ import org.eclipse.core.runtime.adaptor.LocationManager
 import org.eclipse.core.runtime.internal.adaptor.EclipseAdaptorMsg
 import org.eclipse.core.runtime.internal.adaptor.EclipseAppLauncher
 import org.eclipse.osgi.framework.debug.FrameworkDebugOptions
+import org.eclipse.osgi.framework.internal.core.ConsoleManager
 import org.eclipse.osgi.framework.internal.core.FrameworkProperties
 import org.osgi.framework.Bundle
 import org.osgi.framework.BundleException
@@ -127,6 +128,8 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
   val nlExtensions = injectOptional[String](osgi.Framework.PROP_NL_EXTENSIONS)
   /** The operating system. */
   val os = injectOptional[String](org.eclipse.core.runtime.adaptor.EclipseStarter.PROP_OS)
+  /** Shutdown framework after application completed. */
+  val shutdownFrameworkOnExit = injectOptional[Boolean]("Launcher.ShutdownFrameworkOnExit") getOrElse true
   /** The user location for this instance. */
   val userArea = injectOptional[URL](LocationManager.PROP_USER_AREA)
   /** The window system. */
@@ -242,11 +245,16 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
       }
     }
     prepare()
+
     // now we replace EclipseStarter.run(equinoxArgs, new ApplicationLauncher.SplashHandler)
     // with more reliable implementation
-    //return EclipseStarter.run(Array(), new ApplicationLauncher.SplashHandler)
-    while (running.get) {
-      val (framework, consoleMgr, shutdownListeners) = frameworkLauncher.launch(console.nonEmpty || debug, userShutdownHook.toSeq :+ shutdownHandler)
+
+    // 0 iteration - run if everything OK or restart or exit
+    // 1 iteration - fix inconsistency of 0 iteration if forcedRestart
+    // 2 iteration - confirm inconsistency of 0 iteration if forcedRestart
+    for (retry <- 0 until 3 if running.get) {
+      log.info(s"Enter application startup sequence main loop. Retry N: ${retry}.")
+      val (framework, shutdownListeners) = frameworkLauncher.launch(Seq(shutdownHandler))
       // If everything OK, we would have here:
       //   1. framework with STARTING system bundle,
       //   2. console if needed
@@ -254,95 +262,76 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
       //   4. preloaded/cached bundles in RESOLVED state.
       //     Run sequence is restarted if SupportLoader.refreshPackages detect installed/uninstalled bundles and there is isForcedRestart
       //   5. new URL protocol handler: reference. IMPORTANT
-      if (!frameworkLauncher.check(framework)) {
-        framework.close()
-        log.info("Stop application")
-        framework.waitForStop(10000)
-        shutdownListeners.foreach(l => try { framework.getSystemBundleContext().removeBundleListener(l) } catch { case e: Throwable => })
-        return
-      }
+      frameworkLauncher.check(framework)
       val restart = frameworkLauncher.loadBundles(defaultBundlesStartLevel, framework) match {
-        case Some((lazyActivationBundles, toStartBundles)) =>
+        case ((true, lazyActivationBundles, toStartBundles)) =>
           // System bundle is STARTING, all other bundles are RESOLVED and framework is consistent
           frameworkLauncher.initializeDI(framework) // initialize DI for our OSGi infrastructure
           frameworkLauncher.startBundles(defaultInitialStartLevel, lazyActivationBundles, toStartBundles, framework)
-          consoleMgr.foreach { consoleMgr =>
-            // In the case where the built-in console is disabled we should try to start the console bundle.
-            try {
-              consoleMgr.checkForConsoleBundle()
-            } catch {
-              case e: BundleException =>
-                log.error(e.getMessage(), e)
-            }
-          }
           false
-        case None =>
-          // cannot continue; loadBundles caused refreshPackages to shutdown the framework
-          log.info("Restart initiated: loadBundles caused refreshPackages to shutdown the framework.")
-          if (!frameworkLauncher.waitForConsitentState(10000, framework))
-            log.error("Unable to stay in inconsistent state more than 10s. Shutting down anyway.")
-          // we are restarting, not shutting down
-          frameworkLauncher.finish(shutdownListeners, consoleMgr, framework)
-          framework.close()
-          framework.waitForStop(10000)
-          log.info("OSGi framework is stopped. Restart.")
-          true
+        case ((false, lazyActivationBundles, toStartBundles)) =>
+          if (retry < 2) {
+            // cannot continue; loadBundles caused refreshPackages to shutdown the framework
+            log.info("Restart initiated: loadBundles caused refreshPackages to shutdown the framework.")
+            if (!frameworkLauncher.waitForConsitentState(10000, framework))
+              log.error("Unable to stay in inconsistent state more than 10s. Shutting down anyway.")
+            // we are restarting, not shutting down, remove listeners before restart
+            frameworkLauncher.finish(shutdownListeners, None, framework)
+            framework.close()
+            framework.waitForStop(10000)
+            log.info("OSGi framework is stopped. Restart.")
+            true
+          } else {
+            log.info("Unable to get consistent OSGi environment. Start application with available one.")
+            frameworkLauncher.logUnresolvedBundles(framework)
+            // System bundle is STARTING, all other bundles are RESOLVED or INSTALLED
+            frameworkLauncher.initializeDI(framework) // initialize DI for our OSGi infrastructure
+            frameworkLauncher.startBundles(defaultInitialStartLevel, lazyActivationBundles, toStartBundles, framework)
+            false
+          }
       }
       if (!restart) {
-        Thread.sleep(1000)
-        log.___glance("RUUUUUUUN!")
-        run(framework)
+        // start console
+        val consoleMgr = if (console.nonEmpty || debug)
+          Some(ConsoleManager.startConsole(framework))
+        else
+          None
+        // wait for consistency
+        if (!frameworkLauncher.waitForConsitentState(10000, framework))
+          log.error("Unable to stay in inconsistent state more than 10s. Running anyway.")
+        consoleMgr.foreach { consoleMgr =>
+          // In the case where the built-in console is disabled we should try to start the console bundle.
+          try { consoleMgr.checkForConsoleBundle() } catch {
+            case e: BundleException => log.error(e.getMessage(), e)
+          }
+        }
+        //
+        // Run
+        //
+        log.info("Framework is prepared. Initiate platform application.")
+        try { run(framework) } catch {
+          case e: Throwable => log.error(e.getMessage, e)
+        }
+        //
+        // Shutdown
+        //
+        if (shutdownFrameworkOnExit) {
+          log.info("Application is completed. Shutdown framework.")
+          framework.getSystemBundleContext().getBundle().stop()
+        } else
+          log.info("Application is completed.")
         running.synchronized {
           while (running.get())
             running.wait()
         }
+        if (shutdownFrameworkOnExit)
+          frameworkLauncher.finish(shutdownListeners, consoleMgr, framework)
         log.info("Stop application")
       }
     }
+    userShutdownHook.foreach(hook => new Thread(hook).start())
   }
-  /**
-   * Runs the application for which the platform was started. The platform
-   * must be running.
-   * <p>
-   * The given argument is passed to the application being run.  If it is <code>null</code>
-   * then the command line arguments used in starting the platform, and not consumed
-   * by the platform code, are passed to the application as a <code>String[]</code>.
-   * </p>
-   * @param argument the argument passed to the application. May be <code>null</code>
-   * @return the result of running the application
-   * @throws Exception if anything goes wrong
-   */
-  def run(framework: osgi.Framework) {
-    if (!ApplicationLauncher.running.get)
-      throw new IllegalStateException(EclipseAdaptorMsg.ECLIPSE_STARTUP_NOT_RUNNING)
-    // if we are just initializing, do not run the application just return.
-    //if (initialize)
-    //	return new Integer(0);
-    var appLauncher: EclipseAppLauncher = null
-    try {
-      if (appLauncher == null) {
-        val launchDefault = true
-        //FrameworkProperties.getProperty(osgi.Framework.PROP_APPLICATION_LAUNCHDEFAULT, "true").toBoolean
-        // create the ApplicationLauncher and register it as a service
-        val context = framework.getSystemBundleContext()
-        val allowRelaunch = true
-        //FrameworkProperties.getProperty(PROP_ALLOW_APPRELAUNCH, "true").toBoolean
-        val log = framework.frameworkAdaptor.getFrameworkLog()
-        appLauncher = new EclipseAppLauncher(context, allowRelaunch, launchDefault, log)
-        val appLauncherRegistration = context.registerService(classOf[org.eclipse.osgi.service.runnable.ApplicationLauncher].getName(), appLauncher, null)
-        // must start the launcher AFTER service restration because this method
-        // blocks and runs the application on the current thread.  This method
-        // will return only after the application has stopped.
-        return appLauncher.start(null)
-      }
-      return appLauncher.reStart(null)
-    } catch {
-      case e: Exception =>
-        //			if (log != null && context != null) // context can be null if OSGi failed to launch (bug 151413)
-        //			logUnresolvedBundles(context.getBundles());
-        throw e
-    }
-  }
+
   /** Prepare OSGi framework. */
   @log
   protected def prepare() {
@@ -371,6 +360,41 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
       }
       writer.close()
       log.debug(buffer.toString)
+    }
+  }
+  /**
+   * Runs the application for which the platform was started. The platform
+   * must be running.
+   * <p>
+   * The given argument is passed to the application being run.  If it is <code>null</code>
+   * then the command line arguments used in starting the platform, and not consumed
+   * by the platform code, are passed to the application as a <code>String[]</code>.
+   * </p>
+   * @param argument the argument passed to the application. May be <code>null</code>
+   * @return the result of running the application
+   * @throws Exception if anything goes wrong
+   */
+  protected def run(framework: osgi.Framework) {
+    if (!ApplicationLauncher.running.get)
+      throw new IllegalStateException(EclipseAdaptorMsg.ECLIPSE_STARTUP_NOT_RUNNING)
+    try {
+      val launchDefault = FrameworkProperties.getProperty(osgi.Framework.PROP_APPLICATION_LAUNCHDEFAULT, "true").toBoolean
+      // create the ApplicationLauncher and register it as a service
+      val context = framework.getSystemBundleContext()
+      val allowRelaunch = FrameworkProperties.getProperty(osgi.Framework.PROP_ALLOW_APPRELAUNCH, "false").toBoolean
+      val log = framework.frameworkAdaptor.getFrameworkLog()
+      val appLauncher = new EclipseAppLauncher(context, allowRelaunch, launchDefault, log)
+      val appLauncherRegistration = context.registerService(classOf[org.eclipse.osgi.service.runnable.ApplicationLauncher].getName(), appLauncher, null)
+      // must start the launcher AFTER service registration because this method
+      // blocks and runs the application on the current thread.  This method
+      // will return only after the application has stopped.
+      appLauncher.start(null)
+    } catch {
+      case e: Exception =>
+        log.error("Unable to start application.", e)
+        // context can be null if OSGi failed to launch (bug 151413)
+        try { frameworkLauncher.logUnresolvedBundles(framework) } catch { case e: Throwable => }
+        throw e
     }
   }
 }

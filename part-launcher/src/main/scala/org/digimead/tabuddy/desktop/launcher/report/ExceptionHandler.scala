@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,12 +41,54 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.launcher.report
 
-import com.escalatesoft.subcut.inject.NewBindingModule
+import java.lang.Thread.UncaughtExceptionHandler
 
-package object launcher {
-  lazy val default = new NewBindingModule(module => {
-    module.bind[Launcher.Interface] toModuleSingle { implicit module => new Launcher() }
-  }) ~ launcher.report.default
+import org.digimead.digi.lib.log.api.Loggable
+
+class ExceptionHandler extends Loggable {
+  ExceptionHandler // initiate lazy initialization
+
+  def register() {
+    // don't register again if already registered
+    val currentHandler = Thread.getDefaultUncaughtExceptionHandler()
+    if (currentHandler.isInstanceOf[ExceptionHandler.Default])
+      return
+    if (currentHandler != null) {
+      log.debug("Append default uncaught exceptions handler for application.")
+      log.debug("Previous default uncaught exceptions handler was " + currentHandler.getClass.getName())
+    } else
+      log.debug("Install new default uncaught exceptions handler for application.")
+    // register default exceptions handler
+    Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandler.Default(Option(currentHandler)))
+  }
+}
+
+object ExceptionHandler extends Loggable {
+  @annotation.tailrec
+  def retry[T](n: Int, timeout: Int = -1)(fn: => T): T = {
+    val r = try { Some(fn) } catch { case e: Exception if n > 1 => None }
+    r match {
+      case Some(x) => x
+      case None =>
+        if (timeout >= 0) Thread.sleep(timeout)
+        log.warn("retry #" + (n - (n - 1)))
+        retry(n - 1, timeout)(fn)
+    }
+  }
+
+  class Default(val defaultExceptionHandler: Option[UncaughtExceptionHandler]) extends UncaughtExceptionHandler with Loggable {
+    // Default exception handler
+    def uncaughtException(t: Thread, e: Throwable) {
+      log.error("Unhandled exception in %s: %s".format(t, e), e)
+      // call original handler, handler blown up if java.lang.Throwable.getStackTrace return null :-)
+      try {
+        defaultExceptionHandler.foreach(_.uncaughtException(t, e))
+      } catch {
+        // catch all exceptions
+        case e: Throwable =>
+      }
+    }
+  }
 }
