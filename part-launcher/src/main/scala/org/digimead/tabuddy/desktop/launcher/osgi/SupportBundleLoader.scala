@@ -46,8 +46,10 @@ package org.digimead.tabuddy.desktop.launcher.osgi
 import java.io.File
 import java.io.IOException
 import java.net.URL
+
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.launcher.ApplicationLauncher
@@ -120,18 +122,9 @@ class SupportBundleLoader(val supportLocator: SupportBundleLocator) extends Logg
   }
   /** Get the initial bundle list from the PROP_EXTENSIONS and PROP_BUNDLES */
   @log
-  def getInitialBundles(defaultStartLevel: Int): Array[ApplicationLauncher.InitialBundle] = {
+  def getInitialBundles(bundles: String, filterNames: Seq[String], defaultStartLevel: Int): Array[ApplicationLauncher.InitialBundle] = {
     log.debug("Collect initial bundles.")
-    val osgiExtensions = FrameworkProperties.getProperty(EclipseStarter.PROP_EXTENSIONS)
-    val osgiBundles = FrameworkProperties.getProperty(EclipseStarter.PROP_BUNDLES)
-    val allBundles = if (osgiExtensions != null && osgiExtensions.length() > 0)
-      osgiExtensions + "," + osgiBundles
-    else
-      osgiBundles
-    if (osgiBundles != allBundles)
-      FrameworkProperties.setProperty(EclipseStarter.PROP_BUNDLES, allBundles)
-    log.trace("Complete initial bundle list: " + allBundles)
-    val initialBundles: Array[String] = allBundles.split(",").map(_.trim)
+    val initialBundles: Array[String] = bundles.split(",").map(_.trim)
     // should canonicalize the syspath.
     val syspath = try {
       new File(supportLocator.getSysPath()).getCanonicalPath()
@@ -164,7 +157,7 @@ class SupportBundleLoader(val supportLocator: SupportBundleLocator) extends Logg
           case Some(location) =>
             val relative = makeRelative(LocationManager.getInstallLocation().getURL(), location)
             val locationString = Framework.INITIAL_LOCATION + relative.toExternalForm()
-            Some(ApplicationLauncher.InitialBundle(locationString, location, level, start))
+            Some(ApplicationLauncher.InitialBundle(initialBundle, locationString, location, getBundleNameFromArgument(name), level, start))
           case None =>
             log.error(NLS.bind(EclipseAdaptorMsg.ECLIPSE_STARTUP_BUNDLE_NOT_FOUND, initialBundle))
             None
@@ -175,7 +168,31 @@ class SupportBundleLoader(val supportLocator: SupportBundleLocator) extends Logg
           None
       }
     }
-  }.flatten
+  }.flatten.filterNot(bundle => filterNames.contains(bundle.name))
+  /** Extract bundle name from string argument from config.ini, PROP_BUNDLES or PROP_EXTENSIONS */
+  def getBundleNameFromArgument(argument: String): String = {
+    // cut suffix after @
+    val internal = argument.lastIndexOf("@")
+    val entry = if (internal > -1)
+      argument.substring(0, internal)
+    else
+      argument
+    // get full name (like my-library_2.10-0.0.1.0-SNAPSHOT.jar) from entry in possible
+    val fullName = try {
+      // sometimes it maybe like file:lib/library-N.N.jar
+      new File(new URL(entry).getFile().split(":").last).getName.trim
+    } catch {
+      case e: Throwable =>
+        try {
+          new File(entry).getName.trim
+        } catch {
+          case e: Throwable =>
+            entry.trim
+        }
+    }
+    // chop version
+    fullName.replaceAll("""_\d+.*$""", "").replaceAll("""-\d+.*$""", "").replaceAll(""".jar$""", "")
+  }
   /**
    * Install the initialBundles that are not already installed.
    *
@@ -263,15 +280,15 @@ class SupportBundleLoader(val supportLocator: SupportBundleLocator) extends Logg
     val context = framework.getSystemBundleContext()
     val reference = context.getServiceReference(classOf[StartLevel].getName())
     val startLevel = if (reference != null) context.getService(reference).asInstanceOf[StartLevel] else null
-    if (startLevel == null)
-      return
-    val semaphore = new Semaphore(0)
-    val listener = new SupportBundleLoader.StartupEventListener(semaphore, FrameworkEvent.STARTLEVEL_CHANGED)
-    context.addFrameworkListener(listener)
-    context.addBundleListener(listener)
-    startLevel.setStartLevel(frameworkStartLevel)
-    context.ungetService(reference)
-    //updateSplash(semaphore, listener)
+    if (startLevel != null) {
+      val semaphore = new Semaphore(0)
+      val listener = new SupportBundleLoader.StartupEventListener(semaphore, FrameworkEvent.STARTLEVEL_CHANGED)
+      context.addFrameworkListener(listener)
+      context.addBundleListener(listener)
+      startLevel.setStartLevel(frameworkStartLevel)
+      context.ungetService(reference)
+      //updateSplash(semaphore, listener)
+    }
   }
   @log
   def startBundles(startBundles: Array[Bundle], lazyBundles: Array[Bundle]) {

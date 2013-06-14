@@ -101,11 +101,9 @@ class Launcher(implicit val bindingModule: BindingModule)
     System.out.println("\t OSGi framework: " + locationOSGi)
     System.out.println("\t OSGi bundles: " + bundles)
     System.out.println("\t data directory: " + data)
-    assert(new File(bundles, frameworkBundleName).exists,
-      s"${frameworkBundleName} not found in bundles directory ${bundles}")
     constructor.newInstance(bindingModule)
   }.asInstanceOf[{
-    def initialize(applicationDI: Option[() => BindingModule])
+    def initialize(applicationDI: Option[File])
     def run(waitForTermination: Boolean, shutdownHandler: Option[Runnable])
   }]
   assert(bundles.isDirectory() && bundles.canRead() && bundles.isAbsolute(), s"Bundles directory '${bundles}' is inaccessable or relative.")
@@ -113,9 +111,9 @@ class Launcher(implicit val bindingModule: BindingModule)
 
   /** Prepare OSGi framework settings. */
   @log
-  def initialize(applicationDI: Option[() => BindingModule]) = {
+  def initialize(applicationDIScript: Option[File]) = {
     uncaughtExceptionHandler.register() // skip, if already registered
-    applicationLauncher.initialize(applicationDI)
+    applicationLauncher.initialize(applicationDIScript)
   }
   /** Run OSGi framework and application. */
   @log
@@ -175,12 +173,13 @@ object Launcher extends Loggable {
    * @param launcherDI Consolidated dependency injection information for launcher.
    * @param applicationDI Consolidated dependency injection information for OSGi bundles.
    */
-  def main[T](wait: Boolean, launcherDI: () => BindingModule, applicationDI: Option[() => BindingModule] = None)(shutdownHook: => T) = synchronized {
+  def main[T](wait: Boolean, launcherDI: => BindingModule,
+    applicationDIScript: Option[File] = None)(shutdownHook: => T) = synchronized {
     // Initialize DI, that may contains code with implicit OSGi initialization.
     // But this is not significant because we will have clean context from our framework loader
     // 1st DI - WINNER
     org.digimead.digi.lib.DependencyInjection.reset()
-    org.digimead.digi.lib.DependencyInjection(launcherDI())
+    org.digimead.digi.lib.DependencyInjection(launcherDI)
     // Start JVM wide logging/caching
     NonOSGi.start()
     val bootstrap = DI.implementation
@@ -218,10 +217,10 @@ object Launcher extends Loggable {
     // their own dependencies even binary incompatible as expected.
 
     // Should we propagate digimead classes? The reason: the body is solid.
-    //bootstrap.rootClassLoader.addBootDelegationExpression("""org\.digimead\..*""")
+    //bootstrap.rootClassLoader.addBootDelegationExpression("""com\.twitter\..*""")
 
     // Initialize application launcher within rootClassLoader context.
-    bootstrap.initialize(applicationDI)
+    bootstrap.initialize(applicationDIScript)
     // Run application launcher within rootClassLoader context.
     if (wait) {
       // Start synchronous.
@@ -250,7 +249,7 @@ object Launcher extends Loggable {
     val rootClassLoader: RootClassLoader.Interface
 
     /** Prepare OSGi framework settings. */
-    def initialize(applicationDI: Option[() => BindingModule])
+    def initialize(applicationDIScript: Option[File])
     /** Run OSGi framework and application. */
     def run(waitForTermination: Boolean, shutdownHandler: Option[Runnable])
   }

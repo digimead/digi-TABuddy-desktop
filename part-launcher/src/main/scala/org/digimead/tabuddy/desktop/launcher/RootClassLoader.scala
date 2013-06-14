@@ -49,6 +49,9 @@ import java.net.URLStreamHandlerFactory
 
 import org.digimead.digi.lib.log.api.Loggable
 
+/**
+ * Standard parent-first class loader with additional search over delegationLoader
+ */
 class RootClassLoader(
   /** The URLs from which to load classes and resources. */
   val urls: Array[URL],

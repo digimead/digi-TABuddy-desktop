@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import org.digimead.digi.lib.log.api.Loggable
 import org.eclipse.osgi.framework.adaptor.FrameworkAdaptor
 import org.eclipse.osgi.framework.internal.core.FrameworkProperties
+import org.osgi.framework.Bundle
 import org.osgi.framework.BundleEvent
 import org.osgi.framework.BundleListener
 import org.osgi.framework.SynchronousBundleListener
@@ -101,6 +102,25 @@ class Framework(val frameworkAdaptor: FrameworkAdaptor)
       getSystemBundleContext().addBundleListener(listener)
       listener
     }
+  /**
+   * Used by ServiceReferenceImpl for isAssignableTo
+   * @param registrant Bundle registering service
+   * @param client Bundle desiring to use service
+   * @param className class name to use
+   * @param serviceClass class of original service object
+   * @return true if assignable given package wiring
+   */
+  override def isServiceAssignableTo(registrant: Bundle, client: Bundle, className: String, serviceClass: Class[_]): Boolean = {
+    if (super.isServiceAssignableTo(registrant, client, className, serviceClass))
+      return true
+    // If service is registered in system bundle
+    // And system bundle may load this class with FWK loader
+    // Then client may load it too. :-)
+    if (registrant.getBundleId() == 0)
+      try { registrant.loadClass(className); true } catch { case e: ClassNotFoundException => false }
+    else
+      false
+  }
 }
 
 object Framework extends Loggable {

@@ -114,6 +114,8 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
   val defaultInitialStartLevel = injectOptional[Int](EclipseStarter.PROP_INITIAL_STARTLEVEL) getOrElse 6
   /** The development mode and class path entries. */
   val dev = injectOptional[Boolean](EclipseStarter.PROP_DEV)
+  /** Extension bundles that added to 'osgi.bundles'. 'osgi.bundles' have more priority.  */
+  val extensionBundles = injectOptional[Array[String]](EclipseStarter.PROP_EXTENSIONS) getOrElse Array()
   /** A boolean flag indicating whether or not to be framework restarted if there are installed/uninstalled bundles. */
   val forcedRestart = injectOptional[Boolean]("osgi.forcedRestart") getOrElse false
   /** OSGi framework launcher class. */
@@ -153,18 +155,19 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
   val locationDebugOptions = new File(locationConfigurationArea, ".options")
   /** User shutdown hook. */
   @volatile protected var userShutdownHook: Option[Runnable] = None
-  @volatile protected var applicationDI: Option[() => BindingModule] = None
+  /** Location of script with DI settings. */
+  @volatile protected var applicationDIScript: Option[File] = None
 
   assert(bundles.isDirectory() && bundles.canRead() && bundles.isAbsolute(), s"Bundles directory '${bundles}' is inaccessable or relative.")
   assert(data.isDirectory() && data.canRead() && data.isAbsolute(), s"Data directory '${data}' is inaccessable or relative.")
-  /** Prepare OSGi framework settings. */
 
+  /** Prepare OSGi framework settings. */
   @log
-  def initialize(applicationDI: Option[() => BindingModule]) = if (ApplicationLauncher.initialized.compareAndSet(false, true)) {
+  def initialize(applicationDIScript: Option[File]) = if (ApplicationLauncher.initialized.compareAndSet(false, true)) {
     if (ApplicationLauncher.running.get)
       throw new IllegalStateException(EclipseAdaptorMsg.ECLIPSE_STARTUP_ALREADY_RUNNING)
     log.info("Initialize application launcher.")
-    this.applicationDI = applicationDI
+    this.applicationDIScript = applicationDIScript
     val diProperties = initializeDIProperties
     val baseProperties = immutable.HashMap[String, String](
       "osgi.checkConfiguration" -> "true", // timestamps are check in the configuration cache to ensure that the cache is up to date
@@ -175,6 +178,11 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
       // This tells framework to use our classloader as parent, so it can see classes that we see
       // org.eclipse.osgi.baseadaptor.BaseAdaptor
       "osgi.parentClassloader" -> "fwk",
+      // IMPORTANT. Allow to pass first loading request to parent (FWK) class loader.
+      // Without this the logic of BundleLoader would be "self-first", not "parent-first".
+      // Look for more at http://frankkieviet.blogspot.ru/2009/03/javalanglinkageerror-loader-constraint.html
+      // So we would get java.lang.LinkageError at least on scala.* classes.
+      "org.osgi.framework.bootdelegation" -> "*", // Should we fix it with new implementation of BundleLoader?
       //"eclipse.ignoreApp" -> "true"
       "osgi.requiredJavaVersion" -> "1.6", // the minimum java version that is required to launch application
       "osgi.resolver.usesMode" -> "aggressive", // aggressively seeks a solution with no class space inconsistencies
@@ -225,6 +233,7 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
     nl.foreach(arg => properties(EclipseStarter.PROP_NL) = arg.toString)
     nlExtensions.foreach(arg => properties(osgi.Framework.PROP_NL_EXTENSIONS) = arg.toString)
     properties(EclipseStarter.PROP_BUNDLES_STARTLEVEL) = defaultBundlesStartLevel.toString
+    properties(EclipseStarter.PROP_EXTENSIONS) = extensionBundles.mkString(",")
     properties(EclipseStarter.PROP_INITIAL_STARTLEVEL) = defaultInitialStartLevel.toString
     properties(osgi.Framework.PROP_FORCED_RESTART) = forcedRestart.toString
     properties.toMap
@@ -266,7 +275,9 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
       val restart = frameworkLauncher.loadBundles(defaultBundlesStartLevel, framework) match {
         case ((true, lazyActivationBundles, toStartBundles)) =>
           // System bundle is STARTING, all other bundles are RESOLVED and framework is consistent
-          frameworkLauncher.initializeDI(framework) // initialize DI for our OSGi infrastructure
+          // Initialize DI for our OSGi infrastructure.
+          applicationDIScript.foreach(frameworkLauncher.initializeDI(_, framework))
+          // Start bundles after DI initialization.
           frameworkLauncher.startBundles(defaultInitialStartLevel, lazyActivationBundles, toStartBundles, framework)
           false
         case ((false, lazyActivationBundles, toStartBundles)) =>
@@ -285,7 +296,9 @@ class ApplicationLauncher(implicit val bindingModule: BindingModule)
             log.info("Unable to get consistent OSGi environment. Start application with available one.")
             frameworkLauncher.logUnresolvedBundles(framework)
             // System bundle is STARTING, all other bundles are RESOLVED or INSTALLED
-            frameworkLauncher.initializeDI(framework) // initialize DI for our OSGi infrastructure
+            // Initialize DI for our OSGi infrastructure.
+            applicationDIScript.foreach(frameworkLauncher.initializeDI(_, framework))
+            // Start bundles after DI initialization
             frameworkLauncher.startBundles(defaultInitialStartLevel, lazyActivationBundles, toStartBundles, framework)
             false
           }
@@ -408,10 +421,13 @@ object ApplicationLauncher extends Loggable {
   private lazy val running = new AtomicBoolean(false)
 
   case class InitialBundle(
+    /** Original representation */
+    val originalString: String,
     /** Relative path */
     val locationString: String,
     /** Full path */
     val location: URL,
+    val name: String,
     /** Start level */
     val level: Int,
     /** Start flag */

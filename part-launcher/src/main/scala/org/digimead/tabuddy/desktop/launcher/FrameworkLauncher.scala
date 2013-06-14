@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.launcher
 
+import java.io.File
 import java.io.IOException
 import java.net.MalformedURLException
 import java.net.URL
@@ -53,6 +54,7 @@ import scala.Array.canBuildFrom
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.eclipse.core.runtime.adaptor.EclipseStarter
 import org.eclipse.core.runtime.adaptor.LocationManager
@@ -75,6 +77,7 @@ import org.osgi.framework.BundleEvent
 import org.osgi.framework.BundleListener
 import org.osgi.framework.Constants
 import org.osgi.framework.ServiceReference
+import org.osgi.framework.ServiceRegistration
 import org.osgi.service.log.LogEntry
 import org.osgi.service.log.LogListener
 import org.osgi.service.log.LogReaderService
@@ -83,8 +86,10 @@ import org.osgi.util.tracker.ServiceTracker
 import org.osgi.util.tracker.ServiceTrackerCustomizer
 import org.slf4j.LoggerFactory
 
+import com.escalatesoft.subcut.inject.BindingModule
+
 /**
- * Framework launcher used by ApplicationLauncher.
+ * Framework launcher that is used by Application launcher.
  */
 class FrameworkLauncher extends BundleListener with Loggable {
   /** Contains last bundle event. */
@@ -95,6 +100,10 @@ class FrameworkLauncher extends BundleListener with Loggable {
   lazy val supportLocator = new osgi.SupportBundleLocator()
   /** Helper with framework loading logic */
   lazy val supportLoader = new osgi.SupportBundleLoader(supportLocator)
+  /** Dependency Injection service */
+  @volatile protected var dependencyInjectionService: Option[FrameworkLauncher.DependencyInjectionService] = None
+  /** Dependency Injection service */
+  @volatile protected var dependencyInjectionRegistration: Option[ServiceRegistration[DependencyInjection]] = None
 
   /** Check OSGi framework launch. */
   @log
@@ -125,13 +134,22 @@ class FrameworkLauncher extends BundleListener with Loggable {
     (shutdownListeners :+ this).foreach(l => try { framework.getSystemBundleContext().removeBundleListener(l) } catch { case e: Throwable => })
     console.foreach(console => try { console.stopConsole() } catch { case e: Throwable => log.warn("Unable to stop OSGi console: " + e, e) })
     try { unregisterLogService(framework) } catch { case e: Throwable => log.warn("Unable to unregister bridge OSGi log service: " + e, e) }
+    dependencyInjectionRegistration = None
+    dependencyInjectionService = None
   }
   /** Initialize DI for OSGi framework. */
   @log
-  def initializeDI(framework: osgi.Framework) {
+  def initializeDI(diScript: File, framework: osgi.Framework) {
     log.debug("Initialize DI for OSGi.")
-    val initializator = new osgi.DI
-    //initializator.initialize(framework, applicationDI.map(f => () => bindingModule, f) getOrElse Seq(f))
+    val diInjector = new osgi.DI
+    diInjector.initialize(framework).foreach { diClassLoader =>
+      diInjector.evaluate(diScript, diClassLoader).foreach { di =>
+        // di is initialized within diClassLoader environment
+        log.info("Inject DI settings from " + diScript)
+        dependencyInjectionService = Some(new FrameworkLauncher.DependencyInjectionService(di))
+        dependencyInjectionRegistration = Some(framework.getSystemBundleContext().registerService(classOf[DependencyInjection], dependencyInjectionService.get, null))
+      }
+    }
   }
   /** Launch OSGi framework. */
   @log
@@ -156,10 +174,18 @@ class FrameworkLauncher extends BundleListener with Loggable {
   def loadBundles(defaultStartLevel: Int, framework: osgi.Framework): (Boolean, Array[Bundle], Array[Bundle]) = {
     log.info("Load OSGi bundles.")
     log.debug("Loading OSGi bundles.")
-    val initialBundles = supportLoader.getInitialBundles(defaultStartLevel)
+    val primaryBundles = FrameworkProperties.getProperty(EclipseStarter.PROP_BUNDLES)
+    val initialPrimaryBundles = supportLoader.getInitialBundles(primaryBundles, Seq(Launcher.OSGiPackage), defaultStartLevel)
+    val secondaryBundles = FrameworkProperties.getProperty(EclipseStarter.PROP_EXTENSIONS)
+    val initialSecondaryBundles = supportLoader.getInitialBundles(secondaryBundles, Seq(Launcher.OSGiPackage), defaultStartLevel)
+    val initialBundles = initialPrimaryBundles ++ initialSecondaryBundles.
+      filterNot(secondary => initialPrimaryBundles.exists(_.name == secondary.name))
+    val availableBundles = initialBundles.map(_.originalString.trim)
+    FrameworkProperties.setProperty(EclipseStarter.PROP_BUNDLES, availableBundles.mkString(","))
+    log.trace("Complete initial bundle list:\n\t" + availableBundles.sorted.mkString("\n\t"))
     val currentBundles = supportLoader.getCurrentBundles(true, framework)
-    log.debug(s"""Initial bundles: (${initialBundles.mkString(", ")})""")
-    log.debug(s"""Current bundles: (${currentBundles.mkString(", ")})""")
+    log.debug(s"Initial bundles:\n\t${initialBundles.map(_.originalString).mkString("\n\t")}")
+    log.debug(s"Current bundles:\n\t${currentBundles.mkString("\n\t")}")
     val uninstalledBundles = supportLoader.uninstallBundles(currentBundles, initialBundles)
     val (toLazyActivation, toStart, installedBundles) = supportLoader.installBundles(initialBundles, currentBundles, framework)
     log.debug(s"""Uninstalled bundles: (${uninstalledBundles.mkString(", ")})""")
@@ -495,6 +521,11 @@ class FrameworkLauncher extends BundleListener with Loggable {
 }
 
 object FrameworkLauncher {
+  /** DI service that pass actual value to Digi-Lib activator */
+  class DependencyInjectionService(di: BindingModule) extends DependencyInjection {
+    /** Returns actual DI. From the user diScript, builder with special class loader. */
+    def getDependencyInjection() = di
+  }
   class OSGiLogBridge extends LogListener with ServiceTrackerCustomizer[LogReaderService, LogReaderService] with Loggable {
     @volatile protected var context: Option[BundleContext] = None
     @volatile protected var logReaderTracker: Option[ServiceTracker[LogReaderService, LogReaderService]] = None
@@ -561,3 +592,4 @@ object FrameworkLauncher {
     }
   }
 }
+
