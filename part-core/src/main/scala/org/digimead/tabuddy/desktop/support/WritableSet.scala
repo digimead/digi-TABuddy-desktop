@@ -45,11 +45,9 @@ package org.digimead.tabuddy.desktop.support
 
 import java.util.HashSet
 
-import scala.collection.JavaConversions.asScalaIterator
-import scala.collection.JavaConversions.seqAsJavaList
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-import org.digimead.tabuddy.desktop.Main
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.databinding.observable.Realm
@@ -59,44 +57,44 @@ import language.implicitConversions
 
 case class WritableSet[A] private (val underlying: OriginalWritableSet) extends mutable.Set[A] with mutable.SetLike[A, WritableSet[A]] {
   override def size = {
-    Main.checkThread
+    App.checkThread
     underlying.size
   }
 
   def iterator = {
-    Main.checkThread
+    App.checkThread
     underlying.iterator.asInstanceOf[java.util.Iterator[A]]
   }
 
   def contains(elem: A): Boolean = {
-    Main.checkThread
+    App.checkThread
     underlying.contains(elem)
   }
 
   def +=(elem: A): this.type = {
-    Main.checkThread
+    App.checkThread
     underlying add elem; this
   }
   def -=(elem: A): this.type = {
-    Main.checkThread
+    App.checkThread
     underlying remove elem; this
   }
 
   override def add(elem: A): Boolean = {
-    Main.checkThread
+    App.checkThread
     underlying add elem
   }
   override def remove(elem: A): Boolean = {
-    Main.checkThread
+    App.checkThread
     underlying remove elem
   }
   override def clear() = {
-    Main.checkThread
+    App.checkThread
     underlying.clear()
   }
 
   override def empty = {
-    Main.checkThread
+    App.checkThread
     WritableSet(new OriginalWritableSet(underlying.getRealm(), new HashSet[A](), underlying.getElementType()))
   }
   // Note: Clone cannot just call underlying.clone because in Java, only specific collections
@@ -114,7 +112,7 @@ case class WritableSet[A] private (val underlying: OriginalWritableSet) extends 
 
 object WritableSet {
   implicit def wrapper2underlying(wrapper: WritableSet[_]): OriginalWritableSet = {
-    Main.checkThread
+    App.checkThread
     wrapper.underlying
   }
   // Use the unit as the method indicator

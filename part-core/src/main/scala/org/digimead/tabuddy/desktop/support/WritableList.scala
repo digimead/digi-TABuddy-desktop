@@ -45,11 +45,9 @@ package org.digimead.tabuddy.desktop.support
 
 import java.util.ArrayList
 
-import scala.collection.JavaConversions.asScalaIterator
-import scala.collection.JavaConversions.seqAsJavaList
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-import org.digimead.tabuddy.desktop.Main
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.databinding.observable.Realm
@@ -59,46 +57,46 @@ import language.implicitConversions
 
 case class WritableList[A] private (val underlying: OriginalWritableList) extends mutable.Buffer[A] {
   def length = {
-    Main.checkThread
+    App.checkThread
     underlying.size
   }
   override def isEmpty = {
-    Main.checkThread
+    App.checkThread
     underlying.isEmpty
   }
   override def iterator: Iterator[A] = {
-    Main.checkThread
+    App.checkThread
     underlying.iterator.asInstanceOf[java.util.Iterator[A]]
   }
   def apply(i: Int) = {
-    Main.checkThread
+    App.checkThread
     underlying.get(i).asInstanceOf[A]
   }
   def update(i: Int, elem: A) = {
-    Main.checkThread
+    App.checkThread
     underlying.set(i, elem)
   }
   def +=:(elem: A) = {
-    Main.checkThread
+    App.checkThread
     underlying.subList(0, 0).asInstanceOf[java.util.List[A]] add elem
     this
   }
   def +=(elem: A): this.type = {
-    Main.checkThread
+    App.checkThread
     underlying add elem
     this
   }
   def insertAll(i: Int, elems: Traversable[A]) = {
-    Main.checkThread
+    App.checkThread
     val ins = underlying.subList(0, i).asInstanceOf[java.util.List[A]]
     elems.seq.foreach(ins.add(_))
   }
   def remove(i: Int) = {
-    Main.checkThread
+    App.checkThread
     underlying.remove(i).asInstanceOf[A]
   }
   def clear() = {
-    Main.checkThread
+    App.checkThread
     underlying.clear()
   }
   // Note: Clone cannot just call underlying.clone because in Java, only specific collections
@@ -116,7 +114,7 @@ case class WritableList[A] private (val underlying: OriginalWritableList) extend
 
 object WritableList {
   implicit def wrapper2underlying(wrapper: WritableList[_]): OriginalWritableList = {
-    Main.checkThread
+    App.checkThread
     wrapper.underlying
   }
   // Use the unit as the method indicator

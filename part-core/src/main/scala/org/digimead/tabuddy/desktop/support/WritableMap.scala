@@ -45,7 +45,6 @@ package org.digimead.tabuddy.desktop.support
 
 import scala.collection.mutable
 
-import org.digimead.tabuddy.desktop.Main
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.databinding.observable.Realm
@@ -55,12 +54,12 @@ import language.implicitConversions
 
 case class WritableMap[A, B] private (val underlying: OriginalWritableMap) extends mutable.Map[A, B] with mutable.MapLike[A, B, WritableMap[A, B]] {
   override def size = {
-    Main.checkThread
+    App.checkThread
     underlying.size
   }
 
   def get(k: A) = {
-    Main.checkThread
+    App.checkThread
     val v = underlying get k
     if (v != null)
       Some(v.asInstanceOf[B])
@@ -71,28 +70,28 @@ case class WritableMap[A, B] private (val underlying: OriginalWritableMap) exten
   }
 
   def +=(kv: (A, B)): this.type = {
-    Main.checkThread
+    App.checkThread
     underlying.put(kv._1, kv._2); this
   }
   def -=(key: A): this.type = {
-    Main.checkThread
+    App.checkThread
     underlying remove key; this
   }
 
   override def put(k: A, v: B): Option[B] = {
-    Main.checkThread
+    App.checkThread
     val r = underlying.put(k, v)
     if (r != null) Some(r.asInstanceOf[B]) else None
   }
 
   override def remove(k: A): Option[B] = {
-    Main.checkThread
+    App.checkThread
     val r = underlying remove k
     if (r != null) Some(r.asInstanceOf[B]) else None
   }
 
   def iterator: Iterator[(A, B)] = {
-    Main.checkThread
+    App.checkThread
     new Iterator[(A, B)] {
       val ui = underlying.entrySet.iterator.asInstanceOf[java.util.Iterator[java.util.Map.Entry[A, B]]]
       def hasNext = ui.hasNext
@@ -101,12 +100,12 @@ case class WritableMap[A, B] private (val underlying: OriginalWritableMap) exten
   }
 
   override def clear() = {
-    Main.checkThread
+    App.checkThread
     underlying.clear()
   }
 
   override def empty: WritableMap[A, B] = {
-    Main.checkThread
+    App.checkThread
     WritableMap(new OriginalWritableMap(underlying.getRealm(), underlying.getKeyType(), underlying.getValueType()))
   }
 
@@ -119,7 +118,7 @@ case class WritableMap[A, B] private (val underlying: OriginalWritableMap) exten
 
 object WritableMap {
   implicit def wrapper2underlying(wrapper: WritableMap[_, _]): OriginalWritableMap = {
-    Main.checkThread
+    App.checkThread
     wrapper.underlying
   }
   // Use the unit as the method indicator

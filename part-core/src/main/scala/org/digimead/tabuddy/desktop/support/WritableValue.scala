@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.support
 
-import org.digimead.tabuddy.desktop.Main
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.databinding.observable.Realm
@@ -53,11 +52,11 @@ import language.implicitConversions
 
 case class WritableValue[T <: AnyRef] private (val underlying: OriginalWritableValue) {
   def getValue(): T = {
-    Main.checkThread
+    App.checkThread
     underlying.getValue().asInstanceOf[T]
   }
   def setValue(newValue: T) = {
-    Main.checkThread
+    App.checkThread
     underlying.setValue(newValue)
   }
   def value: T = getValue()
@@ -75,7 +74,7 @@ case class WritableValue[T <: AnyRef] private (val underlying: OriginalWritableV
 
 object WritableValue {
   implicit def wrapper2underlying(wrapper: WritableValue[_]): OriginalWritableValue = {
-    Main.checkThread
+    App.checkThread
     wrapper.underlying
   }
   // Use the unit as the method indicator

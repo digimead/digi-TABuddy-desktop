@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,89 +43,7 @@
 
 package org.digimead.tabuddy
 
-import java.io.File
-import java.lang.management.ManagementFactory
-import java.net.URL
-import java.util.Date
-
-import org.digimead.digi.lib.DependencyInjection
-import org.digimead.digi.lib.util.Util
-import org.digimead.tabuddy.desktop.Config
-import org.digimead.tabuddy.desktop.Main
-
-import com.escalatesoft.subcut.inject.NewBindingModule
-
 /**
- * TABuddy - global TA Buddy space
- *  +-Settings - global TA Buddy settings
- *     +-Templates - global TA Buddy element templates
- *     |  +- TemplateA[Record, Task, Note, ....]
- *     |      +- __template_field_TYPE_ID
- *     |            +- required[Boolean]
- *     |            +- default[TYPE]
- *     |            +- group[String]
+ * This is the core bundle of the TA Buddy desktop application.
  */
-
-package object desktop {
-  lazy val default =
-    new NewBindingModule(module => {
-      module.bind[File] identifiedBy "Config" toSingle {
-        /* Config */
-        val configName = "tabuddy.conf"
-        // get 'data' path from System.getProperty("data") or Main.findJarPath
-        val dataPath = Option(System.getProperty("data")).map(new URL(_)).orElse(Option(Main.findJarPath))
-        // try to get jar location or get current directory
-        val configDirectory = (dataPath match {
-          case Some(url) =>
-            val jar = new File(url.toURI())
-            if (jar.isDirectory() && jar.exists() && jar.canWrite())
-              Some(jar) // return exists
-            else {
-              val jarDirectory = if (jar.isFile()) jar.getParentFile() else jar
-              if (jarDirectory.exists() && jarDirectory.canWrite())
-                Some(jarDirectory) // return exists
-              else {
-                if (jarDirectory.mkdirs()) // create
-                  Some(jarDirectory)
-                else
-                  None
-              }
-            }
-          case None =>
-            None
-        }) getOrElse {
-          new File(".")
-        }
-        new File(configDirectory, configName)
-      }
-      module.bind[Config.Interface] toModuleSingle { implicit module => new Config }
-      module.bind[File] identifiedBy "Log" toModuleSingle { module =>
-        new File(module.inject[File](Some("Config")).getParentFile(), "log")
-      }
-      module.bind[String] identifiedBy "LogReportPrefix" toProvider { module =>
-        val id = ManagementFactory.getRuntimeMXBean().getName()
-        Util.dateFile(new Date()) + "-P" + id
-      }
-      module.bind[String] identifiedBy "LogFilePrefix" toSingle { "log" }
-      module.bind[String] identifiedBy "TraceFilePrefix" toSingle { "trc" }
-      module.bind[Boolean] identifiedBy "TraceFileEnabled" toSingle { true }
-    }) ~
-      report.default ~
-      mesh.transport.default ~
-      payload.default ~
-      payload.view.default ~
-      payload.view.comparator.default ~
-      payload.view.filter.default ~
-      job.default ~
-      approver.default ~
-      debug.default
-
-  /** Starts application via scala interactive console */
-  def mainInteractive(args: Array[String]) {
-    val thread = new Thread(new Runnable { def run = Main.main(args) })
-    thread.start
-  }
-  // skip DependencyInjection.setPersistentInjectable for Config
-  // skip DependencyInjection.setPersistentInjectable for Data
-  // skip DependencyInjection.setPersistentInjectable for ExceptionHandler
-}
+package object desktop {}

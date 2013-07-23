@@ -43,37 +43,31 @@
 
 package org.digimead.tabuddy.desktop.support
 
-import org.digimead.digi.lib.DependencyInjection
-
-import com.escalatesoft.subcut.inject.BindingModule
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
+import org.digimead.digi.lib.api.DependencyInjection
+import language.implicitConversions
+import scala.concurrent.duration.FiniteDuration
 
 object Timeout {
-  val shortest = DI.shortest
-  val short = DI.short
-  val normal = DI.normal
-  val long = DI.long
-  val longer = DI.longer
-  val longest = DI.longest
+  implicit def int2Duration(int: Int): FiniteDuration = Duration(int, TimeUnit.MILLISECONDS)
+
+  val shortest = int2Duration(DI.shortest)
+  val short = int2Duration(DI.short)
+  val normal = int2Duration(DI.normal)
+  val long = int2Duration(DI.long)
+  val longer = int2Duration(DI.longer)
+  val longest = int2Duration(DI.longest)
 
   /**
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    implicit def bindingModule = DependencyInjection()
-    @volatile var shortest = injectOptional[Int]("Timeout.Shortest") getOrElse 1000
-    @volatile var short = injectOptional[Int]("Timeout.Short") getOrElse 5000
-    @volatile var normal = injectOptional[Int]("Timeout.Normal") getOrElse 10000
-    @volatile var long = injectOptional[Int]("Timeout.Long") getOrElse 20000
-    @volatile var longer = injectOptional[Int]("Timeout.Longer") getOrElse 60000
-    @volatile var longest = injectOptional[Int]("Timeout.Longest") getOrElse 5 * 60000
-
-    override def injectionAfter(newModule: BindingModule) {
-      injectOptional[Int]("Timeout.Shortest") foreach (shortest = _)
-      injectOptional[Int]("Timeout.Short") foreach (short = _)
-      injectOptional[Int]("Timeout.Normal") foreach (normal = _)
-      injectOptional[Int]("Timeout.Long") foreach (long = _)
-      injectOptional[Int]("Timeout.Longer") foreach (longer = _)
-      injectOptional[Int]("Timeout.Longest") foreach (longest = _)
-    }
+    lazy val shortest = injectOptional[Int]("Timeout.Shortest") getOrElse 1000
+    lazy val short = injectOptional[Int]("Timeout.Short") getOrElse 5000
+    lazy val normal = injectOptional[Int]("Timeout.Normal") getOrElse 10000
+    lazy val long = injectOptional[Int]("Timeout.Long") getOrElse 20000
+    lazy val longer = injectOptional[Int]("Timeout.Longer") getOrElse 60000
+    lazy val longest = injectOptional[Int]("Timeout.Longest") getOrElse 5 * 60000
   }
 }

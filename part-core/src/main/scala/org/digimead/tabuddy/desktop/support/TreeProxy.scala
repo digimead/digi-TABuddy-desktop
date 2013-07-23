@@ -48,8 +48,7 @@ import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.parallel
 
-import org.digimead.digi.lib.log.Loggable
-import org.digimead.tabuddy.desktop.Main
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.databinding.observable.list.{ WritableList => OriginalWritableList }
 import org.eclipse.jface.viewers.TreeViewer
@@ -69,21 +68,21 @@ class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], 
 
   def clearContent() {
     log.debug("clear content")
-    Main.checkThread
+    App.checkThread
     content = parallel.immutable.ParVector[TreeProxy.Item]()
     observables.foreach(_.clear())
   }
   def clearFilter() {
     log.debug("clear filter")
-    Main.checkThread
+    App.checkThread
     filtered.clear
   }
   def getContent() = {
-    Main.checkThread
+    App.checkThread
     content
   }
   def getFilters() = {
-    Main.checkThread
+    App.checkThread
     filtered
   }
   def onCollapse(item: TreeProxy.Item) {
@@ -295,7 +294,7 @@ class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], 
         patchContent(index, Seq(), size)
     })
     if (before.isEmpty)
-      Main.exec { treeViewer.setExpandedState(toRefresh, true) }
+      App.exec { treeViewer.setExpandedState(toRefresh, true) }
     if (toRefresh == root)
       this.root = Option(root)
     // refresh sub elements

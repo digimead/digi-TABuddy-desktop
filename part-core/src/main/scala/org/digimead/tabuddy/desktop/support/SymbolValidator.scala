@@ -45,9 +45,8 @@ package org.digimead.tabuddy.desktop.support
 
 import scala.ref.WeakReference
 
-import org.digimead.tabuddy.desktop.Data
+import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.Resources
-import org.digimead.tabuddy.desktop.res.Messages
 import org.eclipse.jface.fieldassist.ControlDecoration
 import org.eclipse.swt.events.VerifyEvent
 import org.eclipse.swt.widgets.Combo
@@ -57,16 +56,16 @@ import org.eclipse.swt.widgets.Text
 class SymbolValidator private[support] (override val decoration: WeakReference[ControlDecoration], showOnlyOnFocus: Boolean, callback: (Validator, VerifyEvent) => Any)
   extends Validator(decoration, showOnlyOnFocus, callback) {
   override def showDecorationRequired(decoration: ControlDecoration, message: String = Messages.identificatorIsNotDefined_text) =
-    showDecoration(decoration, message, Resources.imageRequired)
+    showDecoration(decoration, message, Resources.Image.required)
   override def showDecorationError(decoration: ControlDecoration, message: String = Messages.identificatorCharacterIsNotValid_text) =
-    showDecoration(decoration, message, Resources.imageError)
+    showDecoration(decoration, message, Resources.Image.error)
 
   /** Sent when the text is about to be modified. */
   override def verifyText(e: VerifyEvent) {
     if (e.text.nonEmpty && e.character != '\0') {
       // add lead letter if _ is a first symbol and start is not 0
       val text = if (e.start != 0 && e.text(0) == '_') "a" + e.text else e.text
-      e.doit = Data.symbolPattern.matcher(text).matches()
+      e.doit = App.symbolPattern.matcher(text).matches()
     }
     callback(this, e)
   }

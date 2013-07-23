@@ -138,7 +138,6 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
       Messages.acquire_text.format(property.ptype.typeSymbol)
     else
       Messages.activate_text.format(property.ptype.typeSymbol)
-    //      property.typeSymbol + " " + Messages.
     label.setToolTipText(tooltip)
     label.setLayoutData(new GridData(SWT.BEGINNING, SWT.CENTER, false, false))
     label
@@ -146,7 +145,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
   /** Add the property value field */
   def addCellEditor[T <: AnyRef with java.io.Serializable: Manifest](property: TemplateProperty[T]): ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable] = {
     val initial = element.eGet[T](property.id).map(_.get) orElse property.defaultValue
-    val editor = property.ptype.createEditor(initial)
+    val editor = property.ptype.createEditor(initial, property.id, element)
     val control = property.enumeration.flatMap(id => Data.enumerations.get(id).find(enum => (if (enum.ptype == property.ptype) true else {
       log.error("enumeration %s has incompatible type %s vs %s".format(id, enum.ptype, property.ptype))
       false

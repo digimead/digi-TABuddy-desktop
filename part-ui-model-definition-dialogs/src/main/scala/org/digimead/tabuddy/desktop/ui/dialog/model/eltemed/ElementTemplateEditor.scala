@@ -360,15 +360,15 @@ class ElementTemplateEditor(val parentShell: Shell,
       item.default match {
         case Some(default) =>
           if (!enumeration.constants.exists(_.value == default))
-            defaultError = Some(("The incorrect value", Resources.imageError))
+            defaultError = Some(("The incorrect value", Resources.Image.error))
         case None =>
-          defaultError = Some(("The value is required", Resources.imageRequired))
+          defaultError = Some(("The value is required", Resources.Image.required))
       }
     }
     item.default.foreach { default =>
       if (default.getClass != item.ptype.typeClass)
         if (defaultError.nonEmpty)
-          defaultError = Some(("Incorrect the default value", Resources.imageError))
+          defaultError = Some(("Incorrect the default value", Resources.Image.error))
     }
     item.copy(idError = idError, requiredError = requiredError, typeError = typeError, defaultError = defaultError, groupError = groupError)
   }

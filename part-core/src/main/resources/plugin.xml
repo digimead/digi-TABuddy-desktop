@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin id="org.digimead.tabuddy.desktop" name="Core" version="0.0.1.0-SNAPSHOT" provider-name="Digimead team">
+  <extension point="org.eclipse.ui.perspectives">
+    <perspective name="Default Perspective" class="org.digimead.tabuddy.desktop.perspective.DefaultPerspective" id="org.digimead.tabuddy.desktop.perspective.DefaultPerspective">
+      </perspective>
+  </extension>
+  <extension point="org.eclipse.e4.workbench.model">
+    <processor beforefragment="true" class="org.eclipse.ui.internal.CommandToModelProcessor">
+        </processor>
+    <processor beforefragment="true" class="org.eclipse.ui.internal.ContextToModelProcessor">
+        </processor>
+    <processor beforefragment="true" class="org.eclipse.ui.internal.BindingToModelProcessor">
+        </processor>
+    <processor beforefragment="true" class="org.digimead.tabuddy.desktop.b4e.Processor">
+        </processor>
+    <processor class="org.digimead.tabuddy.desktop.Processor">
+        </processor>
+  </extension>
+  <extension point="org.eclipse.ui.menus">
+    <menuContribution locationURI="menu:org.eclipse.ui.main.menu">
+      <menu id="file" label="File" mnemonic="F">
+        <command commandId="org.eclipse.ui.newWizard" id="new" style="push" tooltip="New ...">
+            </command>
+        <separator name="save.seperator" visible="true">
+            </separator>
+        <command commandId="org.eclipse.ui.file.save" style="push" tooltip="Save">
+            </command>
+        <separator name="separator1" visible="true">
+            </separator>
+        <command commandId="org.eclipse.ui.file.print" style="push" tooltip="Print ...">
+            </command>
+        <separator name="separator2" visible="true">
+            </separator>
+        <command commandId="org.eclipse.ui.file.exit" style="push" tooltip="Exit">
+            </command>
+      </menu>
+      <menu
+            id="edit"
+            label="Edit"
+            mnemonic="E">
+        <command commandId="org.eclipse.ui.edit.undo" style="push">
+            </command>
+        <command commandId="org.eclipse.ui.edit.redo" style="push">
+            </command>
+        <separator name="separator1" visible="true">
+            </separator>
+        <command commandId="org.eclipse.ui.edit.copy" style="push" tooltip="Copy">
+            </command>
+        <command commandId="org.eclipse.ui.edit.cut" style="push">
+            </command>
+        <command commandId="org.eclipse.ui.edit.paste" style="push">
+            </command>
+        <separator name="separator2" visible="true">
+            </separator>
+        <command commandId="org.eclipse.ui.edit.delete" style="push">
+            </command>
+        <command commandId="org.eclipse.ui.edit.selectAll" style="push">
+            </command>
+        <separator name="separator3" visible="true">
+            </separator>
+        <command commandId="org.eclipse.ui.edit.findReplace" style="push">
+            </command>
+      </menu>
+      <menu
+            id="window"
+            label="Window"
+            mnemonic="W">
+        <command commandId="org.eclipse.ui.window.newWindow" style="push">
+            </command>
+        <menu id="org.digimead.tabuddy.desktop.menu.window.perspective" label="Open Perspective">
+          <dynamic class="org.digimead.tabuddy.desktop.menu.SimplePerspectiveChooser" id="org.digimead.tabuddy.desktop.menu.SimplePerspectiveChooser.dynamic">
+        </dynamic>
+        </menu>
+        <menu label="Show view">
+          <dynamic class="org.digimead.tabuddy.desktop.menu.ShowView" id="org.digimead.tabuddy.desktop.menu.dynamicShowView">
+        </dynamic>
+        </menu>
+        <command commandId="org.eclipse.ui.window.preferences" style="push" tooltip="Preferences">
+            </command>
+      </menu>
+      <menu
+            id="help"
+            label="Help"
+            mnemonic="H">
+        <command commandId="org.eclipse.ui.help.displayHelp" style="push" tooltip="Help Contents">
+            </command>
+        <command commandId="org.eclipse.ui.help.aboutAction" style="push" tooltip="About">
+            </command>
+      </menu>
+    </menuContribution>
+    <menuContribution locationURI="toolbar:org.eclipse.ui.main.toolbar">
+      <toolbar id="org.digimead.tabuddy.desktop.toolbar">
+        <command commandId="org.eclipse.ui.file.save" style="push" tooltip="Save">
+            </command>
+        <command commandId="org.eclipse.ui.file.print" style="push">
+            </command>
+        <separator name="org.digimead.tabuddy.desktop.toolbar.separator1">
+            </separator>
+        <command commandId="org.eclipse.ui.edit.copy" style="push">
+            </command>
+        <command commandId="org.eclipse.ui.edit.cut" style="push">
+            </command>
+        <command commandId="org.eclipse.ui.edit.paste" style="push">
+            </command>
+        <separator name="additions" visible="true">
+        </separator>
+      </toolbar>
+    </menuContribution>
+  </extension>
+  <extension id="default" point="org.eclipse.core.runtime.products">
+    <product application="org.eclipse.e4.ui.workbench.swt.E4Application" description="TA Buddy Desktop Application" name="TA Buddy Desktop">
+      <property name="clearPersistedState" value="true"/>
+      <property name="preferenceCustomization" value="plugin_customization.ini"/>
+      <property name="applicationXMI" value="org.eclipse.platform/LegacyIDE.e4xmi"/>
+      <property name="cssTheme" value="org.eclipse.e4.ui.css.theme.e4_default"/>
+      <property name="applicationCSSResources" value="platform:/plugin/org.eclipse.platform/images/"/>
+    </product>
+  </extension>
+  <extension point="org.eclipse.ui.bindings">
+    <scheme id="org.digimead.tabuddy.desktop" name="TA Buddy desktop">
+     </scheme>
+  </extension>
+</plugin>

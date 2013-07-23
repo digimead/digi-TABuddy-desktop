@@ -45,9 +45,9 @@ package org.digimead.tabuddy.desktop.support
 
 import scala.ref.WeakReference
 
-import org.digimead.digi.lib.log.Loggable
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Resources
-import org.digimead.tabuddy.desktop.res.Messages
+import org.digimead.tabuddy.desktop.Messages
 import org.eclipse.jface.fieldassist.ControlDecoration
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.FocusAdapter
@@ -89,9 +89,9 @@ class Validator private[support] (
    */
   def setShowOnlyOnFocus(showOnlyOnFocus: Boolean) = withDecoration(_.setShowOnlyOnFocus(showOnlyOnFocus))
   def showDecorationRequired(decoration: ControlDecoration, message: String = Messages.valueIsNotDefined_text) =
-    showDecoration(decoration, message, Resources.imageRequired)
+    showDecoration(decoration, message, Resources.Image.required)
   def showDecorationError(decoration: ControlDecoration, message: String = Messages.valueCharacterIsNotValid_text) =
-    showDecoration(decoration, message, Resources.imageError)
+    showDecoration(decoration, message, Resources.Image.error)
   def showDecoration(decoration: ControlDecoration, message: String, image: Image) {
     decoration.hide()
     decoration.setImage(image)
