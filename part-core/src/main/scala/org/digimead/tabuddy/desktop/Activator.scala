@@ -54,8 +54,7 @@ import org.digimead.tabuddy.desktop.MainService.main2implementation
 import org.digimead.tabuddy.desktop.Report.report2implementation
 import org.digimead.tabuddy.desktop.Resources.resources2implementation
 import org.digimead.tabuddy.desktop.api.Main
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
-import org.digimead.tabuddy.desktop.gui.Window
+import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowGroup2actorRef
 import org.digimead.tabuddy.desktop.support.App
@@ -110,8 +109,8 @@ class Activator extends BundleActivator with Loggable {
     App.system.eventStream.subscribe(Core, classOf[UnhandledMessage])
     App.system.eventStream.subscribe(Core, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(Core, classOf[App.Message.Consistent[_]])
-    App.system.eventStream.subscribe(Core, classOf[WorkbenchAdvisor.Message.PostStartup])
-    App.system.eventStream.subscribe(Core, classOf[WorkbenchAdvisor.Message.PreShutdown])
+    App.system.eventStream.subscribe(Core, classOf[App.Message.Started[_]])
+    App.system.eventStream.subscribe(Core, classOf[App.Message.Stopped[_]])
     /*    App.system.eventStream.subscribe(WindowWatcher, classOf[WindowAdvisor.Message.PostWindowCreate])
     App.system.eventStream.subscribe(WindowWatcher, classOf[WindowAdvisor.Message.PreWindowShellClose])
     App.system.eventStream.subscribe(MenuWatcher, classOf[WindowAdvisor.Message.PostWindowCreate])
@@ -121,6 +120,8 @@ class Activator extends BundleActivator with Loggable {
     App.system.eventStream.subscribe(WindowSupervisor, classOf[App.Message.Destroyed[_]])
     App.system.eventStream.subscribe(WindowSupervisor, classOf[App.Message.Started[_]])
     App.system.eventStream.subscribe(WindowSupervisor, classOf[App.Message.Stopped[_]])
+    // Start global components that haven't dispose methods.
+    Command
     System.out.println("Core component is started.")
   }
   /** Stop bundle. */
@@ -128,15 +129,15 @@ class Activator extends BundleActivator with Loggable {
     log.debug("Stop TABuddy Desktop core.")
     App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Stopped[_]])
     App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Started[_]])
-    App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Destroyed[Window.JFace]])
-    App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Created[Window.JFace]])
+    App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Destroyed[_]])
+    App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Created[_]])
 
     /*    App.system.eventStream.unsubscribe(MenuWatcher, classOf[WindowAdvisor.Message.PostWindowCreate])
     App.system.eventStream.unsubscribe(MenuWatcher, classOf[WindowAdvisor.Message.PreWindowShellClose])
     App.system.eventStream.unsubscribe(WindowWatcher, classOf[WindowAdvisor.Message.PreWindowShellClose])
     App.system.eventStream.unsubscribe(WindowWatcher, classOf[WindowAdvisor.Message.PostWindowCreate])*/
-    App.system.eventStream.unsubscribe(Core, classOf[WorkbenchAdvisor.Message.PreShutdown])
-    App.system.eventStream.unsubscribe(Core, classOf[WorkbenchAdvisor.Message.PostStartup])
+    App.system.eventStream.unsubscribe(Core, classOf[App.Message.Started[_]])
+    App.system.eventStream.unsubscribe(Core, classOf[App.Message.Stopped[_]])
     App.system.eventStream.unsubscribe(Core, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(Core, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.unsubscribe(Core, classOf[UnhandledMessage])

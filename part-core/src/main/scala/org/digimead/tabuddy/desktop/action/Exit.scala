@@ -41,76 +41,26 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui
+package org.digimead.tabuddy.desktop.action
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.UUID
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.command.Command
+import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
+import org.eclipse.jface.action.Action
 
-import language.implicitConversions
+object Exit extends Action(Messages.exit_text) with Loggable {
+  import Command.parser._
+  /** Command description. */
+  implicit lazy val description = Command.Description(UUID.randomUUID())("close", "my close", parserResult => { log.___glance("!!!!!CMD") })
+  /** Command parser. */
+  lazy val parser = Command.CmdParser("exit")
 
-/**
- * Run main loop, save and restore windows.
- */
-class GUI extends Loggable {
-  /** Main loop exit code. */
-  protected val exitCode = new AtomicReference[Option[GUI.Exit]](None)
-
-  /** Stop main loop with the specific exit code. */
-  def stop(code: GUI.Exit) = {
-    log.debugWhere("Stop main loop with code " + code)
-    if (exitCode.compareAndSet(None, Some(code)))
-      App.display.wake()
-    else
-      log.error(s"Unable to set new exit code ${code}. There is already ${exitCode.get}.")
-  }
   @log
-  def run(): GUI.Exit = {
-    log.debug("Main loop is running.")
-    val display = App.display
-    App.publish(App.Message.Started(GUI, App.system.deadLetters))
-    WindowSupervisor ! App.Message.Restore
-    while (exitCode.get.isEmpty) try {
-      if (!display.readAndDispatch())
-        display.sleep()
-    } catch {
-      case e: Throwable =>
-        log.error(e.getMessage, e)
-    }
-    App.publish(App.Message.Stopped(GUI, App.system.deadLetters))
-    if (!display.isDisposed()) display.update()
-    log.debug("Main loop is finishing. Process pending UI messages.")
-    while (display.readAndDispatch()) {}
-    log.debug("Main loop is finished.")
-    exitCode.get.getOrElse {
-      log.fatal("Unexpected termination without exit code.")
-      GUI.Exit.Error
-    }
-  }
-}
-
-object GUI {
-  implicit def gui2implementation(l: GUI.type): GUI = inner
-  /** SWT Data ID key */
-  val swtId = getClass.getName() + "#ID"
-
-  def inner(): GUI = DI.implementation
-
-  sealed trait Exit
-  object Exit {
-    case object Ok extends Exit
-    case object Error extends Exit
-    case object Restart extends Exit
-  }
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** GUI implementation */
-    lazy val implementation = injectOptional[GUI] getOrElse new GUI
+  override def run = {
+    log.___gaze("EXIT!!!")
   }
 }

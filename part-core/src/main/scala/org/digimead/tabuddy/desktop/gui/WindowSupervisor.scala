@@ -61,10 +61,10 @@ import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Core.core2actorRef
 import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
 import org.digimead.tabuddy.desktop.gui.WindowConfiguration.windowConfiguration2implementation
+import org.digimead.tabuddy.desktop.gui.window.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
-import org.eclipse.jface.window.ApplicationWindow
 import org.eclipse.jface.window.{ Window => JWindow }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Event
@@ -79,31 +79,56 @@ import akka.pattern.ask
 
 import language.implicitConversions
 
+/**
+ * Window supervisor responsible for:
+ * - start application
+ * - restore all windows
+ * - track windows
+ * - provide window configuration
+ * - save all windows configuration
+ * - shut down application
+ */
 class WindowSupervisor extends Actor with Loggable {
-  /** All known window configuration. */
+  /** All known window configurations. */
   val configurations = new mutable.HashMap[UUID, WindowConfiguration]() with mutable.SynchronizedMap[UUID, WindowConfiguration]
-  /** Configurations save process container. */
+  /** Reference to configurations save process future. */
   val configurationsSave = new AtomicReference[Option[Future[_]]](None)
-  /** Configurations save process restart required. */
+  /** Flag indicating whether the configurations save process restart is required. */
   val configurationsSaveRestart = new AtomicBoolean()
-  log.debug("Start actor " + self.path)
   /** List of all application windows. */
   val pointers = new WindowSupervisor.PointerMap()
+  log.debug("Start actor " + self.path)
 
-  /** Get subscribers list. */
   def receive = {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
-    case message @ App.Message.Created(window: Window.JFace, sender) => App.traceMessage(message) { onCreated(window, sender) }
-    case message @ App.Message.Destroyed(window: Window.JFace, sender) => App.traceMessage(message) { onDestroyed(window, sender) }
-    case message @ App.Message.Restore => App.traceMessage(message) { restore() }
-    case message @ App.Message.Save => App.traceMessage(message) { save() }
-    case message @ App.Message.Started(element: GUI.type, sender) => App.traceMessage(message) { onGUIStarted() }
-    case message @ App.Message.Stopped(element: GUI.type, sender) => App.traceMessage(message) { onGUIStopped() }
-    case message @ WindowSupervisor.Message.Get(windowId) => App.traceMessage(message) { get(sender, windowId) }
-    case message @ WindowSupervisor.Message.Peek => sender ! pointers.toSeq
-    case message @ WindowSupervisor.Message.Set(windowId, configuration) => App.traceMessage(message) { set(sender, windowId, configuration) }
+    case message @ App.Message.Created(window: window.WComposite, sender) => App.traceMessage(message) {
+      onCreated(window, sender)
+    }
+    case message @ App.Message.Destroyed(window: window.WComposite, sender) => App.traceMessage(message) {
+      onDestroyed(window, sender)
+    }
+    case message @ App.Message.Restore => App.traceMessage(message) {
+      restore()
+    }
+    case message @ App.Message.Save => App.traceMessage(message) {
+      save()
+    }
+    case message @ App.Message.Started(element: GUI.type, sender) => App.traceMessage(message) {
+      onGUIStarted()
+    }
+    case message @ App.Message.Stopped(element: GUI.type, sender) => App.traceMessage(message) {
+      onGUIStopped()
+    }
+    case message @ WindowSupervisor.Message.Get(windowId) => App.traceMessage(message) {
+      get(sender, windowId)
+    }
+    case message @ WindowSupervisor.Message.Peek =>
+      sender ! pointers.toSeq
+    case message @ WindowSupervisor.Message.Set(windowId, configuration) => App.traceMessage(message) {
+      set(sender, windowId, configuration)
+    }
 
     case message @ App.Message.Created(window, sender) =>
     case message @ App.Message.Destroyed(window, sender) =>
@@ -123,9 +148,11 @@ class WindowSupervisor extends Actor with Loggable {
   }
 
   protected def create(windowId: UUID) {
+    if (pointers.contains(windowId))
+      throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
     val window = context.actorOf(Window.props, Window.id + "@" + windowId.toString())
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
-    window ! App.Message.Create(windowId)
+    window ! App.Message.Create(windowId, self)
   }
   protected def get(sender: ActorRef, windowId: Option[UUID]) = windowId match {
     case Some(id: UUID) =>
@@ -133,12 +160,12 @@ class WindowSupervisor extends Actor with Loggable {
     case None =>
       sender ! WindowConfiguration.default
   }
-  protected def onCreated(window: Window.JFace, sender: ActorRef) {
+  protected def onCreated(window: WComposite, sender: ActorRef) {
     pointers += window.id -> WindowSupervisor.WindowPointer(sender)(new WeakReference(window))
     implicit val timeout = akka.util.Timeout(Timeout.short)
     sender ? App.Message.Open
   }
-  protected def onDestroyed(window: Window.JFace, sender: ActorRef) {
+  protected def onDestroyed(window: WComposite, sender: ActorRef) {
     pointers -= window.id
   }
   protected def onGUIStarted() = App.exec {
@@ -197,7 +224,7 @@ class WindowSupervisor extends Actor with Loggable {
   object FocusListener extends Listener() {
     def handleEvent(event: Event) {
       App.findShell(event.widget).foreach { shell =>
-        Option(shell.getData(Window.swtId).asInstanceOf[UUID]).foreach(id =>
+        Option(shell.getData(GUI.swtId).asInstanceOf[UUID]).foreach(id =>
           pointers.get(id).foreach(pointer => pointer.actor ! App.Message.Start))
       }
     }
@@ -215,7 +242,6 @@ object WindowSupervisor extends Loggable {
   lazy val actorPath = Core.path / id
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-
   /** WindowSupervisor actor reference configuration object. */
   def props = DI.props
 
@@ -224,9 +250,9 @@ object WindowSupervisor extends Loggable {
     /** Get window configuration. */
     case class Get(windowId: Option[UUID])
     object Get {
-      def apply(window: Window.JFace): Get = apply(Option(window.id))
+      def apply(window: WComposite): Get = apply(Option(window.id))
       def apply(window: JWindow): Get = {
-        val id = Option(window.getShell().getData(Window.swtId).asInstanceOf[UUID])
+        val id = Option(window.getShell().getData(GUI.swtId).asInstanceOf[UUID])
         if (id.isEmpty) log.fatal(s"${window} window ID not found.")
         apply(id)
       }
@@ -236,9 +262,9 @@ object WindowSupervisor extends Loggable {
     /** Save window configuration. */
     case class Set(windowId: UUID, configuration: WindowConfiguration)
     object Set {
-      def apply(window: Window.JFace, configuration: WindowConfiguration): Set = apply(window.id, configuration)
+      def apply(window: WComposite, configuration: WindowConfiguration): Set = apply(window.id, configuration)
       def apply(window: JWindow, configuration: WindowConfiguration): Set = {
-        val id = Option(window.getShell().getData(Window.swtId).asInstanceOf[UUID])
+        val id = Option(window.getShell().getData(GUI.swtId).asInstanceOf[UUID])
         id match {
           case Some(id) =>
             apply(id, configuration)
@@ -249,10 +275,10 @@ object WindowSupervisor extends Loggable {
     }
   }
   /**
-   * Window pointers buffer
+   * Window pointers map.
    * Shut down application on empty.
    */
-  class PointerMap extends mutable.HashMap[UUID, WindowSupervisor.WindowPointer] {
+  class PointerMap extends mutable.HashMap[UUID, WindowPointer] {
     override def -=(key: UUID): this.type = {
       get(key) match {
         case None =>
@@ -274,7 +300,7 @@ object WindowSupervisor extends Loggable {
     }
   }
   /** Wrapper that contains window and ActorRef. */
-  case class WindowPointer(val actor: ActorRef)(val window: WeakReference[ApplicationWindow])
+  case class WindowPointer(val actor: ActorRef)(val window: WeakReference[WComposite])
   /**
    * Dependency injection routines.
    */

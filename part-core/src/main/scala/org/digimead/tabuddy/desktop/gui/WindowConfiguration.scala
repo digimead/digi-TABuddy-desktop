@@ -49,18 +49,21 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.ObjectOutputStream
 import java.util.UUID
-
 import scala.collection.immutable
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.support.CustomObjectInputStream
 import org.eclipse.swt.graphics.Rectangle
-
 import language.implicitConversions
+import java.io.FilenameFilter
 
-/** Window configuration container */
+/**
+ * Window configuration container. It contains:
+ * - activation flag
+ * - location
+ * - time stamp
+ */
 case class WindowConfiguration(
   /** Is window active/visible. */
   val active: Boolean,
@@ -76,62 +79,80 @@ object WindowConfiguration extends Loggable {
 
   /** Default window configuration. */
   def default = DI.default
-  /** Creator implementation. */
+  /** WindowConfiguration implementation. */
   def inner = DI.implementation
 
   class Implementation extends Loggable {
     /** Persistent storage. */
-    lazy val configurationFile = {
-      val container = DI.location.getParentFile()
+    lazy val configurationContainer = {
+      val container = new File(DI.location.getParentFile(), DI.configurationName)
       if (!container.exists)
         if (!container.mkdirs())
           throw new IOException("Unable to create " + container)
-      val configuration = new File(DI.location.getParentFile(), DI.configurationFileName)
-      if (!configuration.exists() && !configuration.createNewFile())
-        throw new IOException(s"Unable to create configuration file ${configuration}.")
-      if (!configuration.canWrite())
-        throw new IOException(s"Configuration file ${configuration} is read only.")
-      configuration
+      if (!container.canWrite())
+        throw new IOException(s"Configuration container ${container} is read only.")
+      container
     }
+    /** Regular expression for saved configuration file. */
+    lazy val configurationFileNameRegexp = ("""([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\.""" + DI.configurationExtenstion + ")").r
     private val loadSaveLock = new Object
 
     /** Load window configurations. */
     @log
     def load(): immutable.HashMap[UUID, WindowConfiguration] = loadSaveLock.synchronized {
-      log.debug("Load windows configuration from " + configurationFile)
-      if (!configurationFile.exists() || configurationFile.length() == 0) {
+      log.debug("Load windows configuration from " + configurationContainer)
+      if (!configurationContainer.exists()) {
         log.debug("WindowConfiguration presistent storage is empty.")
         return immutable.HashMap()
       }
-      try {
+      val files = configurationContainer.listFiles(new FilenameFilter() {
+        override def accept(parent: File, name: String) =
+          name match {
+            case configurationFileNameRegexp(_) => true
+            case _ => false
+          }
+      })
+      if (files.isEmpty) {
+        log.debug("WindowConfiguration presistent storage is empty.")
+        return immutable.HashMap()
+      }
+      val configurations = for (configurationFile <- files) yield try {
+        log.debug("Load configuration from " + configurationFile.getName)
         val fis = new FileInputStream(configurationFile)
         val in = new CustomObjectInputStream(fis)
-        val result = in.readObject().asInstanceOf[immutable.HashMap[UUID, WindowConfiguration]]
+        val result = in.readObject().asInstanceOf[WindowConfiguration]
         in.close()
-        result
+        Some(UUID.fromString(configurationFile.getName().takeWhile(_ != '.')) -> result)
       } catch {
-        // catch all throwables, return None if any
         case e: Throwable =>
-          log.error("Unable to load windows configuration: " + e.getMessage(), e)
-          immutable.HashMap()
+          log.error(s"Unable to load window ${configurationFile.getName} configuration: ${e.getMessage()}.", e)
+          None
       }
+      immutable.HashMap(configurations.flatten: _*)
     }
     /** Save window configurations. */
     @log
     def save(configurations: immutable.HashMap[UUID, WindowConfiguration]) = loadSaveLock.synchronized {
-      log.debug("Save windows configuration to " + configurationFile)
+      log.debug("Save windows configuration to " + configurationContainer)
       log.trace("Save windows:\n" + configurations.toSeq.sortBy(_._1).mkString("\n"))
-      val fos = new FileOutputStream(configurationFile)
-      val out = new ObjectOutputStream(fos)
-      out.writeObject(configurations)
-      out.close()
+      for ((id, configuration) <- configurations) {
+        val configurationFile = new File(configurationContainer, id.toString + "." + DI.configurationExtenstion)
+        log.debug("Save configuration to " + configurationFile.getName)
+        val fos = new FileOutputStream(configurationFile)
+        val out = new ObjectOutputStream(fos)
+        out.writeObject(configuration)
+        out.close()
+      }
     }
   }
   /**
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val configurationFileName = injectOptional[String]("WindowConfiguration.Configuration.Name") getOrElse "WindowConfiguration.jblob"
+    /** Name of the storage container for window configurations. */
+    lazy val configurationName = injectOptional[String]("WindowConfiguration.Name") getOrElse "WindowConfiguration"
+    /** Extension for stored configurations. */
+    lazy val configurationExtenstion = injectOptional[String]("WindowConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
     lazy val default = injectOptional[WindowConfiguration]("Default") getOrElse
       WindowConfiguration(false, new Rectangle(-1, -1, 400, 300), Seq())

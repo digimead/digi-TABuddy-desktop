@@ -55,9 +55,14 @@ import org.eclipse.core.runtime.Status
 import org.osgi.framework.Bundle
 import org.osgi.framework.FrameworkUtil
 import org.eclipse.core.databinding.observable.Realm
+import org.eclipse.jface.preference.IPreferenceStore
+import org.eclipse.ui.preferences.ScopedPreferenceStore
+import org.eclipse.core.runtime.preferences.InstanceScope
 
 trait Generic extends MainService.Consumer {
   this: Loggable with Workbench with Context =>
+  /** Application preference store. */
+  protected lazy val preferenceStore = new ScopedPreferenceStore(new InstanceScope(), bundle(getClass).getSymbolicName())
   /** Hash with started classes. Class name -> running. */
   protected val started = new mutable.HashMap[String, Boolean]() with mutable.SynchronizedMap[String, Boolean]
   /** Started lock */
@@ -130,6 +135,8 @@ trait Generic extends MainService.Consumer {
     started.clear()
     startedLock.notifyAll()
   }
+  /** Get application preference store. */
+  def getPreferenceStore(): IPreferenceStore = preferenceStore
   /** Mark class as started. */
   def markAsStarted(clazz: Class[_]) = startedLock.synchronized {
     if (started.get(clazz.getName()) != Some(true)) {

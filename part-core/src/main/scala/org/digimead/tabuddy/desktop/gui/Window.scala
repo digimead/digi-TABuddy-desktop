@@ -44,23 +44,15 @@
 package org.digimead.tabuddy.desktop.gui
 
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicBoolean
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowGroup2actorSRef
-import org.digimead.tabuddy.desktop.gui.window.Creator
-import org.digimead.tabuddy.desktop.gui.window.Creator.creator2implementation
+import org.digimead.tabuddy.desktop.gui.window.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.e4.core.internal.contexts.EclipseContext
-import org.eclipse.jface.window.ApplicationWindow
-import org.eclipse.swt.custom.StackLayout
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Shell
 
 import akka.actor.Actor
 import akka.actor.ActorRef
@@ -69,24 +61,48 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 
 /**
- * Actor that represent application window.
+ * Actor that represents application window, responsible for:
+ * - create window
+ * - open window
+ * - start window
+ * - close/destroy window
  */
-class Window extends Actor with Loggable {
+class Window extends Actor with WComposite.Controller with Loggable {
+  /** Window JFace instance. */
+  protected var window: Option[WComposite] = None
+  /** Window UUID. */
+  protected val windowId = UUID.fromString(self.path.name.split("@").last)
+  /** Window context. */
+  protected val windowContext = Core.context.createChild(self.path.name).asInstanceOf[EclipseContext]
+  /** Window views supervisor. */
+  protected lazy val stackSupervisor = {
+    val actorRef = context.actorOf(StackSupervisor.props, StackSupervisor.id)
+    App.system.eventStream.subscribe(actorRef, classOf[App.Message.Created[_]])
+    App.system.eventStream.subscribe(actorRef, classOf[App.Message.Destroyed[_]])
+    actorRef
+  }
   log.debug("Start actor " + self.path)
-  protected var window: Option[Window.JFace] = None
-  protected var windowContext: Option[EclipseContext] = None
 
-  /** Get subscribers list. */
   def receive = {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
-    case message @ App.Message.Close => App.traceMessage(message) { close(sender) }
-    case message @ App.Message.Create => App.traceMessage(message) { create(UUID.randomUUID()) }
-    case message @ App.Message.Create(uuid: UUID, sender) => App.traceMessage(message) { create(uuid) }
-    case message @ App.Message.Destroy => App.traceMessage(message) { destroy(sender) }
-    case message @ App.Message.Open => App.traceMessage(message) { open(sender) }
-    case message @ App.Message.Start => App.traceMessage(message) { onStart() }
+    case message @ App.Message.Close => App.traceMessage(message) {
+      close(sender)
+    }
+    case message @ App.Message.Create(windowId: UUID, supervisor) => App.traceMessage(message) {
+      assert(windowId == this.windowId)
+      create(supervisor)
+    }
+    case message @ App.Message.Destroy => App.traceMessage(message) {
+      destroy(sender)
+    }
+    case message @ App.Message.Open => App.traceMessage(message) {
+      open(sender)
+    }
+    case message @ App.Message.Start => App.traceMessage(message) {
+      onStart()
+    }
   }
   override def postStop() = log.debug(self.path.name + " actor is stopped.")
 
@@ -97,19 +113,19 @@ class Window extends Actor with Loggable {
         sender ! Window.Message.CloseResult(window.close())
   })
   /** Create window. */
-  protected def create(id: UUID) {
+  protected def create(supervisor: ActorRef) {
+    if (window.nonEmpty)
+      throw new IllegalStateException("Unable to create window. It is already created.")
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
-    WindowSupervisor.actor ? WindowSupervisor.Message.Get(Some(id)) onSuccess {
+    supervisor ? WindowSupervisor.Message.Get(Some(windowId)) onSuccess {
       case configuration: WindowConfiguration =>
-        this.windowContext = Option(Core.context.createChild().asInstanceOf[EclipseContext])
         this.window = Option(App.execNGet {
-          val window = new Window.JFace(id, self, null)
-          window.setBlockOnOpen(true)
+          val window = new WComposite(windowId, self, stackSupervisor, null)
           window.configuration = Some(configuration)
           window
         })
-        this.window.foreach { window => App.publish(App.Message.Created(window, self)) }
+        this.window.foreach(window => App.publish(App.Message.Created(window, self)))
     }
   }
   /** Destroy created window. */
@@ -119,10 +135,8 @@ class Window extends Actor with Loggable {
   }
   /** User start interaction with window. Focus gained. */
   protected def onStart() {
-    windowContext.foreach { context =>
-      context.set(Window.id, self)
-      context.activateBranch()
-    }
+    windowContext.set(Window.id, self)
+    windowContext.activateBranch()
     window.foreach { window =>
       if (window.contentVisible.compareAndSet(false, true))
         App.exec { window.showContent }
@@ -139,8 +153,6 @@ class Window extends Actor with Loggable {
 object Window extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** SWT Data ID key */
-  val swtId = getClass.getName()
 
   /** Window actor reference configuration object. */
   def props = DI.props
@@ -149,67 +161,6 @@ object Window extends Loggable {
   object Message {
     case class OpenResult private[Window] (arg: Int) extends Message
     case class CloseResult private[Window] (arg: Boolean) extends Message
-  }
-  class JFace(val id: UUID, val ref: ActorRef, parentShell: Shell) extends ApplicationWindow(parentShell) {
-    @volatile protected[Window] var configuration: Option[WindowConfiguration] = None
-    @volatile protected[Window] var saveOnClose = true
-    /** Filler composite that visible by default. */
-    @volatile protected[Window] var filler: Option[Composite] = None
-    /** Content composite that contains views. */
-    @volatile protected[Window] var content: Option[Composite] = None
-    /** Flag indicating whether the content is visible. */
-    protected[Window] val contentVisible = new AtomicBoolean()
-
-    /** Update window configuration. */
-    def updateConfiguration() {
-      val location = getShell.getBounds()
-      this.configuration = Some(WindowConfiguration(getShell.isVisible(), location, Seq()))
-    }
-
-    /** Show content. */
-    protected[Window] def showContent() = content.foreach { content =>
-      val parent = content.getParent()
-      val layout = parent.getLayout().asInstanceOf[StackLayout]
-      layout.topControl = content
-      parent.layout()
-    }
-    /** Add window ID to shell. */
-    override protected def configureShell(shell: Shell) {
-      super.configureShell(shell)
-      shell.setData(swtId, id)
-      configuration.foreach { configuration =>
-        val oBounds = shell.getBounds
-        val cBounds = configuration.location
-        if (cBounds.x < 0 && cBounds.y < 0) {
-          // Set only size.
-          if (cBounds.width < 0) cBounds.width = oBounds.width
-          if (cBounds.height < 0) cBounds.height = oBounds.height
-          shell.setSize(cBounds.width, cBounds.height)
-        } else {
-          // Set size and position.
-          if (cBounds.x < 0) cBounds.x = oBounds.x
-          if (cBounds.y < 0) cBounds.y = oBounds.y
-          if (cBounds.width < 0) cBounds.width = oBounds.width
-          if (cBounds.height < 0) cBounds.height = oBounds.height
-          shell.setBounds(cBounds)
-        }
-      }
-    }
-    /** Creates and returns this window's contents. */
-    override protected def createContents(parent: Composite): Control = {
-      val (container, filler, content) = Creator(this, parent)
-      this.filler = Option(filler)
-      this.content = Option(content)
-      container
-    }
-    /** Add close listener. */
-    override def handleShellCloseEvent() {
-      updateConfiguration()
-      for (configuration <- configuration if saveOnClose)
-        WindowSupervisor ! WindowSupervisor.Message.Set(id, configuration)
-      super.handleShellCloseEvent
-      App.publish(App.Message.Destroyed(this, ref))
-    }
   }
   /**
    * Dependency injection routines.

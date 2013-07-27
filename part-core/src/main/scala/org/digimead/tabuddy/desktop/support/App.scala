@@ -73,40 +73,44 @@ object App {
    */
   trait Message
   object Message {
+    /*
+     * Sender argument is sufficient because messages are suitable for various transports.
+     * Transports like Akka EventBus that lost original sender are supported too.
+     */
     /** Actor send hello with indirect(over bundles) dependency sequence. */
     case class Attach(props: Props, name: String)
     /** Close something. */
-    case class Close[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Close[T <: AnyRef](arg: T, sender: ActorRef)
     /** Something closed. */
-    case class Closed[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Closed[T <: AnyRef](arg: T, sender: ActorRef)
     /** Element return integrity. */
-    case class Consistent[T <: AnyRef](element: T, sender: ActorRef = App.system.deadLetters)
+    case class Consistent[T <: AnyRef](element: T, sender: ActorRef)
     /** Create something. */
-    case class Create[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Create[T <: AnyRef](arg: T, sender: ActorRef)
     /** Something created. */
-    case class Created[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters) extends Message
+    case class Created[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Destroy something. */
-    case class Destroy[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Destroy[T <: AnyRef](arg: T, sender: ActorRef)
     /** Something destroyed. */
-    case class Destroyed[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters) extends Message
+    case class Destroyed[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Something lost consistency. */
-    case class Inconsistent[T <: AnyRef](element: T, sender: ActorRef = App.system.deadLetters)
+    case class Inconsistent[T <: AnyRef](element: T, sender: ActorRef)
     /** Open something. */
-    case class Open[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Open[T <: AnyRef](arg: T, sender: ActorRef)
     /** Something opened. */
-    case class Opened[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Opened[T <: AnyRef](arg: T, sender: ActorRef)
     /** Restore something. */
-    case class Restore[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Restore[T <: AnyRef](arg: T, sender: ActorRef)
     /** Save something. */
-    case class Save[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Save[T <: AnyRef](arg: T, sender: ActorRef)
     /** Start something. */
-    case class Start[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Start[T <: AnyRef](arg: T, sender: ActorRef)
     /** Something started. */
-    case class Started[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters) extends Message
+    case class Started[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Stop something. */
-    case class Stop[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters)
+    case class Stop[T <: AnyRef](arg: T, sender: ActorRef)
     /** Something stopped. */
-    case class Stopped[T <: AnyRef](arg: T, sender: ActorRef = App.system.deadLetters) extends Message
+    case class Stopped[T <: AnyRef](arg: T, sender: ActorRef) extends Message
   }
   /**
    * Dependency injection routines

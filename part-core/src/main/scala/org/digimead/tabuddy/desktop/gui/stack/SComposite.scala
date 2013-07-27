@@ -41,48 +41,23 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.window
+package org.digimead.tabuddy.desktop.gui.stack
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.Window
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.swt.SWT
-import org.eclipse.swt.custom.StackLayout
+import java.util.UUID
+
+import org.digimead.tabuddy.desktop.gui.GUI
+import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Composite
 
-import language.implicitConversions
+import akka.actor.ActorRef
 
-/**
- * Create initial window content.
- */
-class Creator extends Loggable {
-  /** Creates and returns this window's contents. */
-  def apply(window: Window.JFace, parent: Composite): (Composite, Composite, Composite) = {
-    val container = new Composite(parent, SWT.NONE)
-    val layout = new StackLayout()
-    container.setLayout(layout)
-    val filler = new Composite(container, SWT.NONE)
-    filler.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GREEN))
-    val content = new Composite(container, SWT.NONE)
-    content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
-    layout.topControl = filler
-    (container, filler, content)
-  }
-}
+class SComposite(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int) extends Composite(parent: Composite, style: Int) {
+  setData(GUI.swtId, id)
 
-object Creator {
-  implicit def creator2implementation(c: Creator.type): Creator = c.inner
+  /** Returns the receiver's parent, which must be a ScrolledComposite. */
+  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
 
-  /** Creator implementation. */
-  def inner = DI.implementation
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Window creator implementation. */
-    lazy val implementation = injectOptional[Creator] getOrElse new Creator
+  override protected def checkSubclass() {
+    // Disable the check that prevents subclassing of SWT components
   }
 }

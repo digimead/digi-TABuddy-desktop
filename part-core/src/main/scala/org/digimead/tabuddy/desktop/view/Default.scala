@@ -41,54 +41,88 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui
+package org.digimead.tabuddy.desktop.view
 
-import org.digimead.digi.lib.aop.log
+import java.util.concurrent.TimeoutException
+
+import scala.concurrent.Await
+import scala.concurrent.Future
+
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.gui.View
+import org.digimead.tabuddy.desktop.gui.api
 import org.digimead.tabuddy.desktop.gui.stack.SComposite
-import org.digimead.tabuddy.desktop.gui.stack.StackBuilder
-import org.digimead.tabuddy.desktop.gui.stack.StackBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.swt.custom.ScrolledComposite
+import org.digimead.tabuddy.desktop.support.Timeout
+import org.eclipse.swt.SWT
+import org.eclipse.swt.widgets.Control
 
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
+import akka.pattern.ask
 
-class View extends Actor with Loggable {
-  protected var view: Option[SComposite] = None
+class Default extends Actor with Loggable {
+  /** Container view actor. */
+  protected var view: Option[ActorRef] = None
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(View.CreateArgument(viewConfiguration, parent), supervisor) => App.traceMessage(message) {
-      create(viewConfiguration, parent, supervisor)
+    case message @ App.Message.Create(container: SComposite, viewActor) => App.traceMessage(message) {
+      App.exec { create(container, viewActor) }
+    }
+    case message @ App.Message.Destroy => App.traceMessage(message) {
+      App.exec { destroy(sender) }
+      this.view = None
     }
   }
-
-  /** Create view. */
-  protected def create(viewConfiguration: api.Configuration.PlaceHolder, parent: ScrolledComposite, supervisor: ActorRef) {
+  /** Create window. */
+  protected def create(parent: SComposite, viewActor: ActorRef) {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
-    this.view = Option(StackBuilder(viewConfiguration, parent, supervisor, self))
-    this.view.foreach(stack => App.publish(App.Message.Created(stack, self)))
+    App.checkThread
+    val button = new org.eclipse.swt.widgets.Button(parent, SWT.PUSH)
+    button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
+    parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+    parent.layout(Array[Control](button), SWT.ALL)
+  }
+  /** Destroy created window. */
+  protected def destroy(sender: ActorRef) = this.view.foreach { view =>
+    App.checkThread
   }
 }
 
-object View {
+object Default extends api.ViewFactory with Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
 
-  /** View actor reference configuration object. */
+  /** Returns actor reference that could handle Create/Destroy messages. */
+  def viewActor(configuration: api.Configuration.View): Option[ActorRef] = {
+    implicit val ec = App.system.dispatcher
+    implicit val timeout = akka.util.Timeout(Timeout.short)
+    val future = Core.actor ? App.Message.Attach(props, View.id + id + "@" + configuration.id)
+    try {
+      Option(Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration))
+    } catch {
+      case e: InterruptedException =>
+        log.error(e.getMessage, e)
+        None
+      case e: TimeoutException =>
+        log.error(e.getMessage, e)
+        None
+    }
+  }
+  /** Window actor reference configuration object. */
   def props = DI.props
 
-  case class CreateArgument(val viewConfiguration: api.Configuration.View, val parent: ScrolledComposite)
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** View actor reference configuration object. */
-    lazy val props = injectOptional[Props]("View") getOrElse Props[View]
+    /** Default view actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Default") getOrElse Props[Default]
   }
 }

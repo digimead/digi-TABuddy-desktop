@@ -41,76 +41,56 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui
+package org.digimead.tabuddy.desktop.command
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.UUID
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.lib.test.LoggingHelper
+import org.digimead.lib.test.OSGiHelper
+import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.scalatest.WordSpec
+import org.scalatest.matchers.ShouldMatchers
 
-import language.implicitConversions
+import Command.parser.commandLiteral
 
-/**
- * Run main loop, save and restore windows.
- */
-class GUI extends Loggable {
-  /** Main loop exit code. */
-  protected val exitCode = new AtomicReference[Option[GUI.Exit]](None)
+class ParserTest extends WordSpec with ShouldMatchers with OSGiHelper with LoggingHelper with Loggable {
+  val testBundleClass = org.digimead.digi.lib.default.getClass()
 
-  /** Stop main loop with the specific exit code. */
-  def stop(code: GUI.Exit) = {
-    log.debugWhere("Stop main loop with code " + code)
-    if (exitCode.compareAndSet(None, Some(code)))
-      App.display.wake()
-    else
-      log.error(s"Unable to set new exit code ${code}. There is already ${exitCode.get}.")
+  after {
+    adjustOSGiAfter
+    adjustLoggingAfter
   }
-  @log
-  def run(): GUI.Exit = {
-    log.debug("Main loop is running.")
-    val display = App.display
-    App.publish(App.Message.Started(GUI, App.system.deadLetters))
-    WindowSupervisor ! App.Message.Restore
-    while (exitCode.get.isEmpty) try {
-      if (!display.readAndDispatch())
-        display.sleep()
-    } catch {
-      case e: Throwable =>
-        log.error(e.getMessage, e)
+  before {
+    DependencyInjection(org.digimead.digi.lib.default, false)
+    adjustLoggingBefore
+    adjustOSGiBefore
+  }
+  "A Parser" should {
+    "should successful parse multiple commands" in {
+      val command1id = UUID.fromString("2b565600-f693-11e2-b778-0800200c9a66")
+      val command1 = {
+        import Command.parser._
+        implicit val description = Command.Description(command1id)("open", "my open", parserResult => { System.out.println(parserResult) })
+        Command.CmdParser("name")
+      }
+      val command2id = UUID.fromString("337c0f50-f693-11e2-b778-0800200c9a66")
+      val command2 = {
+        import Command.parser._
+        implicit val description = Command.Description(command2id)("close", "my close", parserResult => { System.out.println(parserResult) })
+        Command.CmdParser("name2")
+      }
+      val command3id = UUID.fromString("0bf42cf0-f6a3-11e2-b778-0800200c9a66")
+      val command3 = {
+        import Command.parser._
+        implicit val description = Command.Description(command3id)("info", "my info", parserResult => { System.out.println(parserResult) })
+        Command.CmdParser("name3")
+      }
+      Command.parse(command1 | command2 | command3, "name") should be(Command.Success(command1id, "name"))
+      Command.parse(command1 | command2 | command3, "name2") should be(Command.Success(command2id, "name2"))
+      Command.parse(command1 | command2 | command3, "name3") should be(Command.Success(command3id, "name3"))
+      Command.parse(command1, "name") should be(Command.Success(command1id, "name"))
     }
-    App.publish(App.Message.Stopped(GUI, App.system.deadLetters))
-    if (!display.isDisposed()) display.update()
-    log.debug("Main loop is finishing. Process pending UI messages.")
-    while (display.readAndDispatch()) {}
-    log.debug("Main loop is finished.")
-    exitCode.get.getOrElse {
-      log.fatal("Unexpected termination without exit code.")
-      GUI.Exit.Error
-    }
-  }
-}
-
-object GUI {
-  implicit def gui2implementation(l: GUI.type): GUI = inner
-  /** SWT Data ID key */
-  val swtId = getClass.getName() + "#ID"
-
-  def inner(): GUI = DI.implementation
-
-  sealed trait Exit
-  object Exit {
-    case object Ok extends Exit
-    case object Error extends Exit
-    case object Restart extends Exit
-  }
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** GUI implementation */
-    lazy val implementation = injectOptional[GUI] getOrElse new GUI
   }
 }

@@ -106,7 +106,7 @@ class Logic extends akka.actor.Actor with Loggable {
     case message @ App.Message.Inconsistent(element, sender) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
-        context.system.eventStream.publish(App.Message.Inconsistent(Logic))
+        context.system.eventStream.publish(App.Message.Inconsistent(Logic, self))
       }
       inconsistentSet = inconsistentSet + element
     }
@@ -114,7 +114,7 @@ class Logic extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
-        context.system.eventStream.publish(App.Message.Consistent(Logic))
+        context.system.eventStream.publish(App.Message.Consistent(Logic, self))
       }
     }
     case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
@@ -147,13 +147,13 @@ class Logic extends akka.actor.Actor with Loggable {
   @log
   protected def closeContainer() {
     log.info(s"Close infrastructure wide container '${Logic.container.getName()}' ")
-    App.publish(App.Message.Inconsistent(this))
+    App.publish(App.Message.Inconsistent(this, self))
     val progressMonitor = new NullProgressMonitor()
     if (Logic.container.isOpen()) {
       Payload.getModelMarker(Model).foreach(_.save)
       Logic.container.close(progressMonitor)
     }
-    App.publish(App.Message.Consistent(this))
+    App.publish(App.Message.Consistent(this, self))
   }
   /** This callback is invoked when UI initialization complete */
   @log
@@ -212,18 +212,18 @@ class Logic extends akka.actor.Actor with Loggable {
     if (inconsistentSet.nonEmpty)
       log.fatal("Inconsistent elements detected: " + inconsistentSet)
     // The everything is stopped. Absolutely consistent.
-    App.publish(App.Message.Consistent(Logic))
+    App.publish(App.Message.Consistent(Logic, self))
   }
   /** Open infrastructure wide container. */
   @log
   protected def openContainer() {
     log.info(s"Open infrastructure wide container '${Logic.container.getName()}' ")
-    App.publish(App.Message.Inconsistent(this))
+    App.publish(App.Message.Inconsistent(this, self))
     val progressMonitor = new NullProgressMonitor()
     if (!Logic.container.exists())
       Logic.container.create(progressMonitor)
     Logic.container.open(progressMonitor)
-    App.publish(App.Message.Consistent(this))
+    App.publish(App.Message.Consistent(this, self))
   }
 
 }

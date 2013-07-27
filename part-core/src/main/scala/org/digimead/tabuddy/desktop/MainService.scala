@@ -312,6 +312,7 @@ class MainService extends api.Main with Disposable.Default with Loggable {
     - internal platform code is incomplete: a lot of methods with TODO mark
     - copy'n'paste code (they don't ever want to change the code comments after paste)
     - contexts are inconsistent (They looks like monadic entities with broken behaviour)
+      As example 'removeRAT' function that isn't used at all! :-/ we may add RAT and... This is all.
     - visibleWhen is inconsistent: for example https://bugs.eclipse.org/bugs/show_bug.cgi?id=201589 (since 2006 with 30 votes)
     - reaction to bug reports is very sloooooooooooooooooooow.
     - average product quality: low

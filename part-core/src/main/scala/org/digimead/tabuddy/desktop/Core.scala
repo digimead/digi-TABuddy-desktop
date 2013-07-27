@@ -48,7 +48,9 @@ import scala.concurrent.future
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
+import org.digimead.tabuddy.desktop.command.Command
+import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Handler
@@ -74,8 +76,6 @@ class Core extends akka.actor.Actor with Loggable {
   /*
    * Core component actors.
    */
-  //val menuWatcherActor = context.actorOf(b4e.MenuWatcher.props, b4e.MenuWatcher.id)
-  //val windowWatcherActor = context.actorOf(b4e.WindowWatcher.props, b4e.WindowWatcher.id)
   val windowGroup = context.actorOf(gui.WindowSupervisor.props, gui.WindowSupervisor.id)
 
   /** Get subscribers list. */
@@ -87,7 +87,7 @@ class Core extends akka.actor.Actor with Loggable {
     case message @ App.Message.Inconsistent(element, sender) if element != Core => App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
-        context.system.eventStream.publish(App.Message.Inconsistent(Core))
+        context.system.eventStream.publish(App.Message.Inconsistent(Core, self))
       }
       inconsistentSet = inconsistentSet + element
     }
@@ -96,7 +96,7 @@ class Core extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
-        context.system.eventStream.publish(App.Message.Consistent(Core))
+        context.system.eventStream.publish(App.Message.Consistent(Core, self))
       }
     }
 
@@ -104,9 +104,11 @@ class Core extends akka.actor.Actor with Loggable {
       log.trace(s"Container actor '${self.path.name}' received message '${message}' from actor ${sender.path}. Propagate.")
       context.children.foreach(_.forward(message))
 
-    case message @ WorkbenchAdvisor.Message.PostStartup(configurer) => App.traceMessage(message) {
+    case message @ App.Message.Started(GUI, sender) => App.traceMessage(message) {
       future {
         App.verifyApplicationEnvironment
+        Command.register(action.Exit.description)
+        Command.addToContext(Core.context, action.Exit.parser)
         App.markAsStarted(Core.getClass)
       } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
@@ -114,7 +116,7 @@ class Core extends akka.actor.Actor with Loggable {
       }
     }
 
-    case message @ WorkbenchAdvisor.Message.PreShutdown(configurer) => App.traceMessage(message) {
+    case message @ App.Message.Stopped(GUI, sender) => App.traceMessage(message) {
       future {
         App.markAsStopped(Core.getClass)
       } onFailure {

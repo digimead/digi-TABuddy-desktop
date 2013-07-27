@@ -98,7 +98,7 @@ class Editor extends akka.actor.Actor with Loggable {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
         context.actorSelection(self.path / "*") ! Handler.Message.Disable
-        context.system.eventStream.publish(App.Message.Inconsistent(Editor))
+        context.system.eventStream.publish(App.Message.Inconsistent(Editor, self))
       }
       inconsistentSet = inconsistentSet + element
 
@@ -108,7 +108,7 @@ class Editor extends akka.actor.Actor with Loggable {
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
         context.actorSelection(self.path / "*") ! Handler.Message.Enable
-        context.system.eventStream.publish(App.Message.Consistent(Editor))
+        context.system.eventStream.publish(App.Message.Consistent(Editor, self))
       }
 
     case message @ Element.Event.ModelReplace(oldModel, newModel, modified) =>

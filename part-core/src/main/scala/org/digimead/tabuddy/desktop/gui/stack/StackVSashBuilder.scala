@@ -41,76 +41,45 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui
+package org.digimead.tabuddy.desktop.gui.stack
 
-import java.util.concurrent.atomic.AtomicReference
-
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.gui.StackConfiguration
+import org.digimead.tabuddy.desktop.gui.api
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.layout.GridLayout
 
 import language.implicitConversions
 
-/**
- * Run main loop, save and restore windows.
- */
-class GUI extends Loggable {
-  /** Main loop exit code. */
-  protected val exitCode = new AtomicReference[Option[GUI.Exit]](None)
-
-  /** Stop main loop with the specific exit code. */
-  def stop(code: GUI.Exit) = {
-    log.debugWhere("Stop main loop with code " + code)
-    if (exitCode.compareAndSet(None, Some(code)))
-      App.display.wake()
-    else
-      log.error(s"Unable to set new exit code ${code}. There is already ${exitCode.get}.")
-  }
-  @log
-  def run(): GUI.Exit = {
-    log.debug("Main loop is running.")
-    val display = App.display
-    App.publish(App.Message.Started(GUI, App.system.deadLetters))
-    WindowSupervisor ! App.Message.Restore
-    while (exitCode.get.isEmpty) try {
-      if (!display.readAndDispatch())
-        display.sleep()
-    } catch {
-      case e: Throwable =>
-        log.error(e.getMessage, e)
-    }
-    App.publish(App.Message.Stopped(GUI, App.system.deadLetters))
-    if (!display.isDisposed()) display.update()
-    log.debug("Main loop is finishing. Process pending UI messages.")
-    while (display.readAndDispatch()) {}
-    log.debug("Main loop is finished.")
-    exitCode.get.getOrElse {
-      log.fatal("Unexpected termination without exit code.")
-      GUI.Exit.Error
-    }
+class StackVSashBuilder extends Loggable {
+  def apply(configuration: api.Configuration.Stack.VSash, parent: ScrolledComposite): (ScrolledComposite, ScrolledComposite) = {
+    log.debug("Build content for vertical sash.")
+    App.checkThread
+    if (parent.getLayout().isInstanceOf[GridLayout])
+      throw new IllegalArgumentException(s"Unexpected parent layout ${parent.getLayout().getClass()}.")
+    val top = new ScrolledComposite(parent, SWT.NONE)
+    top.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GRAY))
+    val bottom = new ScrolledComposite(parent, SWT.NONE)
+    bottom.setBackground(App.display.getSystemColor(SWT.COLOR_MAGENTA))
+    (top, bottom)
   }
 }
 
-object GUI {
-  implicit def gui2implementation(l: GUI.type): GUI = inner
-  /** SWT Data ID key */
-  val swtId = getClass.getName() + "#ID"
+object StackVSashBuilder {
+  implicit def builder2implementation(c: StackVSashBuilder.type): StackVSashBuilder = c.inner
 
-  def inner(): GUI = DI.implementation
+  /** StackVSashBuilder implementation. */
+  def inner = DI.implementation
 
-  sealed trait Exit
-  object Exit {
-    case object Ok extends Exit
-    case object Error extends Exit
-    case object Restart extends Exit
-  }
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** GUI implementation */
-    lazy val implementation = injectOptional[GUI] getOrElse new GUI
+    /** StackVSashBuilder implementation. */
+    lazy val implementation = injectOptional[StackVSashBuilder] getOrElse new StackVSashBuilder
   }
 }
