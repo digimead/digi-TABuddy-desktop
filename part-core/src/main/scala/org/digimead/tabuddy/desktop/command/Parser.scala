@@ -58,7 +58,13 @@ import language.implicitConversions
 class Parser extends JavaTokenParsers with Loggable {
   /** Spool of successful results for various commands. */
   val successfullCommand = new DynamicVariable[Option[UUID]](None)
+  /** Stub parser. */
+  val stubParser = new StubParser
 
+  /** Simple stub parser. */
+  class StubParser[T] extends Parser[T] {
+    def apply(in: Input): ParseResult[T] = Error("Stub parser.", in)
+  }
   /**
    * Command parser. It wrap base parser with 'phrase' sentence.
    */
@@ -68,7 +74,10 @@ class Parser extends JavaTokenParsers with Loggable {
         case result: Success[_] =>
           successfullCommand.value match {
             case Some(previousSuccessful) =>
-              Error(s"Unable to process command parser ${uniqueId}, other command parser ${previousSuccessful} is already successfully parsed.", in)
+              if (previousSuccessful != uniqueId)
+                Error(s"Unable to process command parser ${uniqueId}, other command parser ${previousSuccessful} is already successfully parsed.", in)
+              else
+                result
             case None =>
               successfullCommand.value = Some(uniqueId)
               result

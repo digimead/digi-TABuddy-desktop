@@ -60,8 +60,8 @@ import org.digimead.digi.lib.log.api.RichLogger
  */
 trait Akka {
   this: MainService.Consumer with Loggable =>
-  /** Support actor. Try to get exists or create new. */
-  protected lazy val supportActor = getActorRef(system.actorSelection("Support"), 0) getOrElse system.actorOf(Props(classOf[Akka.Actor]), "Support")
+  /** Support actor. */
+  protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "Support")
 
   /** Get actor context via ActorSelection. */
   def getActorContext[T](selection: ActorSelection, timeout: Long = Timeout.longer.toMillis, period: Long = Timeout.shortest.toMillis): Option[ActorRef] = {

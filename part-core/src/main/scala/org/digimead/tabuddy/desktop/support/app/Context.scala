@@ -47,15 +47,16 @@ import scala.annotation.tailrec
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
 import org.eclipse.e4.core.contexts.EclipseContextFactory
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 
 trait Context {
   this: Loggable with Generic with Workbench =>
-  /** Dump context hierarchy acquired from workbench context. */
+  /** Dump context hierarchy acquired from Core context. */
   def contextDumpHierarchy(filter: String => Boolean = (key) => true, brief: Boolean = true): String =
-    contextDumpHierarchy(workbench.getContext, filter, brief)
+    contextDumpHierarchy(Core.context, filter, brief)
   /** Dump context hierarchy. */
   def contextDumpHierarchy(ctx: IEclipseContext, filter: String => Boolean, brief: Boolean): String = {
     var result = ""

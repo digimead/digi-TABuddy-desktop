@@ -109,6 +109,10 @@ class Core extends akka.actor.Actor with Loggable {
         App.verifyApplicationEnvironment
         Command.register(action.Exit.description)
         Command.addToContext(Core.context, action.Exit.parser)
+        Command.register(action.Test.description)
+        Command.addToContext(Core.context, action.Test.parser)
+        Command.register(action.View.description)
+        Command.addToContext(Core.context, action.View.parser)
         App.markAsStarted(Core.getClass)
       } onFailure {
         case e: Exception => log.error(e.getMessage(), e)

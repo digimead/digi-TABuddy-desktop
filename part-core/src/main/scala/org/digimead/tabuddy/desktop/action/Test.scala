@@ -44,21 +44,23 @@
 package org.digimead.tabuddy.desktop.action
 
 import java.util.UUID
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
 import org.eclipse.jface.action.Action
-import org.digimead.tabuddy.desktop.gui.GUI
 
-object Exit extends Action(Messages.exit_text) with Loggable {
+object Test extends Action("test") with Loggable {
   import Command.parser._
   /** Command description. */
-  implicit lazy val description = Command.Description(UUID.randomUUID())(Messages.exit_text, "my exit", (context, parserResult) => run)
+  implicit lazy val description = Command.Description(UUID.randomUUID())("test", "my test", (context, parserResult) => { log.___glance("!!!!!TEST") })
   /** Command parser. */
-  lazy val parser = Command.CmdParser("exit")
+  lazy val parser = Command.CmdParser("test")
 
   @log
-  override def run = GUI.stop(GUI.Exit.Ok)
+  override def run = {
+    log.___gaze("EXIT!!!")
+  }
 }
