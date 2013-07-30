@@ -52,9 +52,9 @@ import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
-import org.eclipse.jface.action.Action
+import org.eclipse.jface.action.{ Action => JFaceAction }
 
-object Exit extends Action(Messages.exit_text) with Loggable {
+object Exit extends JFaceAction(Messages.exit_text) with Loggable {
   import Command.parser._
   /** Command description. */
   implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.exit_text, "my exit",

@@ -50,7 +50,7 @@ import scala.collection.immutable
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.gui.window.WComposite
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
@@ -74,11 +74,11 @@ class Window(parentContext: EclipseContext) extends Actor with WComposite.Contro
   /** Window id. */
   lazy val windowId = UUID.fromString(self.path.name.split("@").last)
   /** Window JFace instance. */
-  protected var window: Option[WComposite] = None
+  var window: Option[WComposite] = None
   /** Window context. */
-  protected lazy val windowContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
+  lazy val windowContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
   /** Window views supervisor. */
-  protected lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq[Any](windowContext)), StackSupervisor.id)
+  lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq[Any](windowContext)), StackSupervisor.id)
   log.debug("Start actor " + self.path)
 
   def receive = {
@@ -188,6 +188,6 @@ object Window extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Window actor reference configuration object. */
-    lazy val props = injectOptional[Props]("GUI.Window") getOrElse Props(classOf[Window], Core.context)
+    lazy val props = injectOptional[Props]("Core.GUI.Window") getOrElse Props(classOf[Window], Core.context)
   }
 }

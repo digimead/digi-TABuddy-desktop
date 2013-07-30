@@ -60,6 +60,9 @@ object Configuration {
   /** Any element of the configuration. */
   sealed trait PlaceHolder {
     val id: UUID = UUID.randomUUID()
+
+    /** Map stack element to the new one. */
+    def map(f: PlaceHolder => PlaceHolder): PlaceHolder = f(this)
   }
   /** View element. */
   case class View(val factory: ViewLayer.Factory) extends PlaceHolder
@@ -67,10 +70,47 @@ object Configuration {
   sealed trait Stack extends PlaceHolder
   object Stack {
     /** Tab stack. */
-    case class Tab(children: Seq[View]) extends Stack
+    case class Tab(children: Seq[View]) extends Stack {
+      /** Map stack element to the new one. */
+      override def map(f: PlaceHolder => PlaceHolder): PlaceHolder =
+        this.copy(children = this.children.map { child =>
+          val newElement = child.map(f)
+          if (!newElement.isInstanceOf[View])
+            throw new IllegalArgumentException("Tab stack could contains only view elements.")
+          newElement.asInstanceOf[View]
+        })
+    }
     /** Horizontal stack. */
-    case class HSash(left: Stack, right: Stack, val ratio: Double = 0.5) extends Stack
+    case class HSash(left: Stack, right: Stack, val ratio: Double = 0.5) extends Stack {
+      /** Map stack element to the new one. */
+      override def map(f: PlaceHolder => PlaceHolder): PlaceHolder =
+        this.copy(left = {
+          val newElement = left.map(f)
+          if (!newElement.isInstanceOf[Stack])
+            throw new IllegalArgumentException("HSash stack could contains only stack elements.")
+          newElement.asInstanceOf[Stack]
+        }, right = {
+          val newElement = right.map(f)
+          if (!newElement.isInstanceOf[Stack])
+            throw new IllegalArgumentException("HSash stack could contains only stack elements.")
+          newElement.asInstanceOf[Stack]
+        })
+    }
     /** Vertical stack. */
-    case class VSash(top: Stack, bottom: Stack, val ratio: Double = 0.5) extends Stack
+    case class VSash(top: Stack, bottom: Stack, val ratio: Double = 0.5) extends Stack {
+      /** Map stack element to the new one. */
+      override def map(f: PlaceHolder => PlaceHolder): PlaceHolder =
+        this.copy(top = {
+          val newElement = top.map(f)
+          if (!newElement.isInstanceOf[Stack])
+            throw new IllegalArgumentException("VStack stack could contains only stack elements.")
+          newElement.asInstanceOf[Stack]
+        }, bottom = {
+          val newElement = bottom.map(f)
+          if (!newElement.isInstanceOf[Stack])
+            throw new IllegalArgumentException("VSash stack could contains only stack elements.")
+          newElement.asInstanceOf[Stack]
+        })
+    }
   }
 }

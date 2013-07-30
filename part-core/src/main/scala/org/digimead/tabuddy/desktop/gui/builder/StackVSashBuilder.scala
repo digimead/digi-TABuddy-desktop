@@ -41,38 +41,48 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui.builder
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.StackSupervisor
-import org.digimead.tabuddy.desktop.gui.ViewLayer
+import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.widget.SCompositeVSash
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.layout.GridLayout
+
+import akka.actor.ActorRef
 
 import language.implicitConversions
 
-class TransformAttachView extends Loggable {
-  def apply(stackSupervisorIternals: StackSupervisor, tabStack: SComposite, newView: VComposite) {
-    log.debug(s"Attach view ${newView} to ${tabStack}.")
+class StackVSashBuilder extends Loggable {
+  def apply(vsash: Configuration.Stack.VSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeVSash, ScrolledComposite, ScrolledComposite) = {
+    log.debug("Build content for vertical sash.")
     App.checkThread
-  }
-  def apply(stackSupervisorIternals: StackSupervisor, tabStack: SComposite, newView: ViewLayer.Factory) {
-    log.debug(s"Attach ${newView} to ${tabStack}.")
-    App.checkThread
+    if (parentWidget.getLayout().isInstanceOf[GridLayout])
+      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
+    val stackContainer = new SCompositeVSash(vsash.id, stackRef, parentWidget, SWT.NONE)
+    val top = new ScrolledComposite(stackContainer, SWT.NONE)
+    top.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GRAY))
+    val bottom = new ScrolledComposite(stackContainer, SWT.NONE)
+    bottom.setBackground(App.display.getSystemColor(SWT.COLOR_MAGENTA))
+    (stackContainer, top, bottom)
   }
 }
 
-object TransformAttachView {
-  implicit def transform2implementation(t: TransformAttachView.type): TransformAttachView = inner
+object StackVSashBuilder {
+  implicit def builder2implementation(c: StackVSashBuilder.type): StackVSashBuilder = c.inner
 
-  def inner(): TransformAttachView = DI.implementation
+  /** StackVSashBuilder implementation. */
+  def inner = DI.implementation
 
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** TransformAttachView implementation */
-    lazy val implementation = injectOptional[TransformAttachView] getOrElse new TransformAttachView
+    /** StackVSashBuilder implementation. */
+    lazy val implementation = injectOptional[StackVSashBuilder] getOrElse new StackVSashBuilder
   }
 }

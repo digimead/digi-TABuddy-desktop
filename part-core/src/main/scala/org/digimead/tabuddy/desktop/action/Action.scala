@@ -41,64 +41,79 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.action
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.WindowMenu
+import org.digimead.tabuddy.desktop.gui.WindowToolbar
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.e4.core.internal.contexts.EclipseContext
-import org.eclipse.swt.SWT
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.layout.GridData
-import org.eclipse.swt.layout.GridLayout
-import org.eclipse.swt.widgets.Control
 
+import akka.actor.Actor
 import akka.actor.ActorRef
-import akka.actor.actorRef2Scala
+import akka.actor.Props
 
-import language.implicitConversions
+/**
+ * Register action in new windows.
+ * There is no need subscribe to App.Message.Destroyed because SWT dispose will do all job.
+ */
+class Action extends Actor with Loggable {
+  log.debug("Start actor " + self.path)
 
-class StackViewBuilder extends Loggable {
-  def apply(configuration: Configuration.View, viewRef: ActorRef, parentWidget: ScrolledComposite, parentContext: EclipseContext): Option[VComposite] = {
-    log.debug(s"Build content for ${configuration}.")
-    App.checkThread
-    if (parentWidget.getLayout().isInstanceOf[GridLayout])
-      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-    configuration.factory.viewActor(configuration, parentContext) match {
-      case Some(actualViewActorRef) =>
-        val content = new VComposite(configuration.id, viewRef, actualViewActorRef, parentWidget, SWT.NONE)
-        content.setLayout(new GridLayout)
-        content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-        content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
-        content.pack(true)
-        parentWidget.setContent(content)
-        parentWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-        parentWidget.setExpandHorizontal(true)
-        parentWidget.setExpandVertical(true)
-        parentWidget.layout(Array[Control](content), SWT.ALL)
-        actualViewActorRef ! App.Message.Create(content, viewRef)
-        Some(content)
-      case None =>
-        // TODO destroy
-        log.fatal("Unable to locate actual view actor.")
-        None
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Created[_]])
+    log.debug(self.path.name + " actor is stopped.")
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[App.Message.Created[_]])
+    log.debug(self.path.name + " actor is started.")
+  }
+  def receive = {
+    case message @ App.Message.Created(window: WComposite, sender) => App.traceMessage(message) {
+      onCreated(window, sender)
     }
+
+    case message @ App.Message.Created(_, sender) =>
+  }
+
+  /** Register actions in new window. */
+  protected def onCreated(window: WComposite, sender: ActorRef) = App.exec {
+    log.debug(s"Update window ${window} composite.")
+    adjustMenu(window)
+    adjustToolbar(window)
+  }
+  /** Adjust window menu. */
+  @log
+  protected def adjustMenu(window: WComposite) {
+    val file = WindowMenu(window, WindowMenu.file)
+    file.add(Exit)
+  }
+  /** Adjust window toolbar. */
+  @log
+  protected def adjustToolbar(window: WComposite) {
+    val common = WindowToolbar(window, WindowToolbar.common)
+    window.getCoolBarManager2().markDirty()
+    window.getCoolBarManager2().update(true)
   }
 }
 
-object StackViewBuilder {
-  implicit def builder2implementation(c: StackViewBuilder.type): StackViewBuilder = c.inner
+object Action {
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
 
-  /** StackViewBuilder implementation. */
-  def inner = DI.implementation
+  /** StackLayer actor reference configuration object. */
+  def props = DI.props
 
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** StackViewBuilder implementation. */
-    lazy val implementation = injectOptional[StackViewBuilder] getOrElse new StackViewBuilder
+    /** WindowSupervisor actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Core.Action") getOrElse Props[Action]
   }
 }

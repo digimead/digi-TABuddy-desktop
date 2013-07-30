@@ -125,12 +125,12 @@ object StackConfiguration {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Name of the storage container for stack configurations. */
-    lazy val configurationName = injectOptional[String]("StackConfiguration.Name") getOrElse "StackConfiguration"
+    lazy val configurationName = injectOptional[String]("Core.GUI.StackConfiguration.Name") getOrElse "StackConfiguration"
     /** Extension for stored configurations. */
-    lazy val configurationExtenstion = injectOptional[String]("StackConfiguration.Extension") getOrElse "jblob"
+    lazy val configurationExtenstion = injectOptional[String]("Core.GUI.StackConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
-    lazy val default = injectOptional[Configuration]("Default") getOrElse
-      Configuration(org.digimead.tabuddy.desktop.gui.Configuration.View(Default))
+    lazy val default = injectOptional[Configuration]("Core.GUI.StackConfiguration.Default") getOrElse
+      Configuration(Configuration.View(Default))
     //      StackConfiguration(Stack.Tab(Seq(View(UUID.fromString("00000000-0000-0000-0000-000000000000")))))
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()

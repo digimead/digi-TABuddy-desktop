@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui.widget
 
 import java.util.UUID
 
@@ -50,5 +50,5 @@ import org.eclipse.swt.widgets.Composite
 
 import akka.actor.ActorRef
 
-class SCompositeVSash(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
+class SCompositeHSash(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
   extends Composite(parent, style) with SComposite

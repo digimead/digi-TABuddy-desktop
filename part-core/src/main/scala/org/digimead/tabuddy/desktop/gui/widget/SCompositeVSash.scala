@@ -41,14 +41,14 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui.widget
 
 import java.util.UUID
 
 import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.TabFolder
+import org.eclipse.swt.widgets.Composite
 
 import akka.actor.ActorRef
 
-class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
-  extends TabFolder(parent, style) with SComposite
+class SCompositeVSash(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
+  extends Composite(parent, style) with SComposite

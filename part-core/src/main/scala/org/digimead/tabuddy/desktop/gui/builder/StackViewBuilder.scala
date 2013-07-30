@@ -41,81 +41,65 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui.builder
 
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.Configuration
-import org.digimead.tabuddy.desktop.gui.ViewLayer
-import org.digimead.tabuddy.desktop.gui.stack.StackHSashBuilder.builder2implementation
-import org.digimead.tabuddy.desktop.gui.stack.StackTabBuilder.builder2implementation
-import org.digimead.tabuddy.desktop.gui.stack.StackVSashBuilder.builder2implementation
-import org.digimead.tabuddy.desktop.gui.stack.StackViewBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.layout.GridData
+import org.eclipse.swt.layout.GridLayout
+import org.eclipse.swt.widgets.Control
 
 import akka.actor.ActorRef
 import akka.actor.actorRef2Scala
-import akka.pattern.ask
 
 import language.implicitConversions
 
-class StackBuilder extends Loggable {
-  /** Creates stack content. */
-  @log
-  def apply(view: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, viewRef: ActorRef): Option[VComposite] = {
-    App.execNGet { StackViewBuilder(view, viewRef, parentWidget, parentContext) }
-  }
-  /** Creates stack content. */
-  @log
-  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, stackRef: ActorRef): Option[SComposite] = {
-    stack match {
-      case tab: Configuration.Stack.Tab =>
-        val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }
-        for {
-          container <- containers
-          viewConfiguration <- tab.children
-        } {
-          implicit val ec = App.system.dispatcher
-          implicit val timeout = akka.util.Timeout(Timeout.short)
-          supervisorRef ? App.Message.Attach(ViewLayer.props, ViewLayer.id + "@" + viewConfiguration.id) onSuccess {
-            case viewRef: ActorRef =>
-              viewRef ! App.Message.Create(ViewLayer.CreateArgument(viewConfiguration, parentWidget, parentContext), supervisorRef)
-          }
-        }
-        Option(tabComposite)
-      case hsash: Configuration.Stack.HSash =>
-        val (sashComposite, left, right) = StackHSashBuilder(hsash, parentWidget, stackRef)
-        //buildLevel(hsash.left, left)
-        //buildLevel(hsash.right, right)
-        Option(sashComposite)
-      case vsash: Configuration.Stack.VSash =>
-        val (sashComposite, top, bottom) = StackVSashBuilder(vsash, parentWidget, stackRef)
-        //buildLevel(vsash.top, top)
-        //buildLevel(vsash.bottom, bottom)
-        Option(sashComposite)
-      case view: Configuration.View =>
-        log.fatal("Unable to process view as stack.")
+class StackViewBuilder extends Loggable {
+  def apply(configuration: Configuration.View, viewRef: ActorRef, parentWidget: ScrolledComposite, parentContext: EclipseContext): Option[VComposite] = {
+    log.debug(s"Build content for ${configuration}.")
+    App.checkThread
+    if (parentWidget.getLayout().isInstanceOf[GridLayout])
+      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
+    configuration.factory.viewActor(configuration, parentContext) match {
+      case Some(actualViewActorRef) =>
+        val content = new VComposite(configuration.id, viewRef, actualViewActorRef, parentWidget, SWT.NONE)
+        content.setLayout(new GridLayout)
+        content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
+        content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
+        content.pack(true)
+        parentWidget.setContent(content)
+        parentWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+        parentWidget.setExpandHorizontal(true)
+        parentWidget.setExpandVertical(true)
+        parentWidget.layout(Array[Control](content), SWT.ALL)
+        actualViewActorRef ! App.Message.Create(content, viewRef)
+        Some(content)
+      case None =>
+        // TODO destroy
+        log.fatal("Unable to locate actual view actor.")
         None
     }
   }
 }
 
-object StackBuilder {
-  implicit def builder2implementation(c: StackBuilder.type): StackBuilder = c.inner
+object StackViewBuilder {
+  implicit def builder2implementation(c: StackViewBuilder.type): StackViewBuilder = c.inner
 
-  /** StackBuilder implementation. */
+  /** StackViewBuilder implementation. */
   def inner = DI.implementation
 
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Window ContentBuilder implementation. */
-    lazy val implementation = injectOptional[StackBuilder] getOrElse new StackBuilder
+    /** StackViewBuilder implementation. */
+    lazy val implementation = injectOptional[StackViewBuilder] getOrElse new StackViewBuilder
   }
 }

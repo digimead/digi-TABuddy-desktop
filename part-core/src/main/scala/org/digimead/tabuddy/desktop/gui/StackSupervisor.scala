@@ -57,11 +57,9 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.gui.StackConfiguration.configuration2implementation
-import org.digimead.tabuddy.desktop.gui.stack.SComposite
-import org.digimead.tabuddy.desktop.gui.stack.TransformReplace.transform2implementation
-import org.digimead.tabuddy.desktop.gui.stack.TransformViewToTab.transform2implementation
-import org.digimead.tabuddy.desktop.gui.stack.VComposite
-import org.digimead.tabuddy.desktop.gui.window.WComposite
+import org.digimead.tabuddy.desktop.gui.widget.SComposite
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
@@ -76,6 +74,8 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 
+import language.implicitConversions
+
 /**
  * Stack supervisor responsible for:
  * - restore all view
@@ -83,15 +83,21 @@ import akka.pattern.ask
  * - provide view configuration
  * - save all views configuration
  */
-class StackSupervisor(parentContext: EclipseContext) extends stack.StackSupervisorBase with Loggable {
+class StackSupervisor(val parentContext: EclipseContext) extends Actor with Loggable {
+  /** Stack configuration. */
+  val configuration = new StackSupervisor.AtomicConfiguration(StackConfiguration.default)
   /** Reference to configurations save process future. */
   val configurationsSave = new AtomicReference[Option[Future[_]]](None)
   /** Flag indicating whether the configurations save process restart is required. */
   val configurationsSaveRestart = new AtomicBoolean()
+  /** Top level stack hierarchy container. It is ScrolledComposite of content of WComposite. */
+  @volatile var container: Option[ScrolledComposite] = None
   /** Last active view id. */
   val lastActiveView = new AtomicReference[Option[UUID]](None)
   /** List of all window stacks. */
   val pointers = new StackSupervisor.PointerMap()
+  /** Window/StackSupervisor id. */
+  lazy val supervisorId = UUID.fromString(self.path.parent.name.split("@").last)
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
@@ -113,10 +119,10 @@ class StackSupervisor(parentContext: EclipseContext) extends stack.StackSupervis
     case message @ App.Message.Create(viewFactory: ViewLayer.Factory, supervisor) => App.traceMessage(message) {
       create(viewFactory)
     }
-    case message @ App.Message.Created(stack: stack.SComposite, sender) => App.traceMessage(message) {
+    case message @ App.Message.Created(stack: SComposite, sender) => App.traceMessage(message) {
       onCreated(stack, sender)
     }
-    case message @ App.Message.Destroyed(stack: stack.SComposite, sender) => App.traceMessage(message) {
+    case message @ App.Message.Destroyed(stack: SComposite, sender) => App.traceMessage(message) {
       onDestroyed(stack, sender)
     }
     case message @ App.Message.Restore(content: ScrolledComposite, sender) => App.traceMessage(message) {
@@ -129,10 +135,10 @@ class StackSupervisor(parentContext: EclipseContext) extends stack.StackSupervis
       onStart(widget)
     }
 
-    case message @ App.Message.Created(window, sender) =>
-    case message @ App.Message.Destroyed(window, sender) =>
-    case message @ App.Message.Started(element, sender) =>
-    case message @ App.Message.Stopped(element, sender) =>
+    case message @ App.Message.Created(_, sender) =>
+    case message @ App.Message.Destroyed(_, sender) =>
+    case message @ App.Message.Started(_, sender) =>
+    case message @ App.Message.Stopped(_, sender) =>
   }
 
   /** Create new stack element from configuration */
@@ -140,9 +146,9 @@ class StackSupervisor(parentContext: EclipseContext) extends stack.StackSupervis
     log.debug(s"Create a top level stack element with id ${stackId}.")
     if (pointers.contains(stackId))
       throw new IllegalArgumentException(s"Stack with id ${stackId} is already exists.")
-    if (!configurationMap.contains(stackId))
+    if (!configuration.element.contains(stackId))
       throw new IllegalArgumentException(s"Stack with id ${stackId} is unknown.")
-    configurationMap(stackId) match {
+    configuration.element(stackId) match {
       case stackConfiguration: org.digimead.tabuddy.desktop.gui.Configuration.Stack =>
         log.debug(s"Attach ${stackConfiguration} as top level element.")
         val stack = context.actorOf(StackLayer.props, StackLayer.id + "@" + stackId.toString())
@@ -175,8 +181,8 @@ class StackSupervisor(parentContext: EclipseContext) extends stack.StackSupervis
           case Some(view: VComposite) =>
             // Waiting for result
             App.execNGet {
-              stack.TransformViewToTab(this, view).foreach { tab =>
-                stack.TransformAttachView(this, tab, viewFactory)
+              transform.TransformViewToTab(this, view).foreach { tab =>
+                transform.TransformAttachView(this, tab, viewFactory)
               }
             }
           case _ =>
@@ -189,14 +195,14 @@ class StackSupervisor(parentContext: EclipseContext) extends stack.StackSupervis
         context.parent ? Window.Message.Get onSuccess {
           case wcomposite: WComposite =>
             // Waiting for result
-            App.execNGet { stack.TransformReplace(this, wcomposite, viewFactory) }
+            App.execNGet { transform.TransformReplace(this, wcomposite, viewFactory) }
         }
     }
   }
   /** Register created stack element. */
   protected def onCreated(stack: SComposite, sender: ActorRef) {
     pointers += stack.id -> StackSupervisor.StackPointer(sender)(new WeakReference(stack))
-    configurationMap.get(stack.id) match {
+    configuration.element.get(stack.id) match {
       case Some(view: Configuration.View) =>
         Option(pointers(view.id).stack.get()) match {
           case Some(viewComposite) =>
@@ -251,10 +257,9 @@ class StackSupervisor(parentContext: EclipseContext) extends stack.StackSupervis
   }
   protected def restore(parent: ScrolledComposite) {
     // TODO destroy all current stacks
-    StackConfiguration.load(supervisorId).foreach(configuration = _)
-    configurationMap = toMap(configuration)
+    StackConfiguration.load(supervisorId).foreach(configuration.set)
     container = Some(parent)
-    create(configuration.stack.id, parent)
+    create(configuration.get.stack.id, parent)
     // TODO activate last
   }
   /** Save windows configuration. */
@@ -269,13 +274,15 @@ class StackSupervisor(parentContext: EclipseContext) extends stack.StackSupervis
   }
   /** Set active view. */
   protected def setActiveView(id: UUID, widget: Widget) {
-    log.debug(s"Set active view ${configurationMap(id)}.")
+    log.debug(s"Set active view ${id} - ${configuration.element(id)}.")
     lastActiveView.set(Option(id))
     pointers(id).actor ! App.Message.Start(widget, self)
   }
+
 }
 
 object StackSupervisor {
+  implicit def atomicConfiguration2AtomicReference(c: AtomicConfiguration): AtomicReference[Configuration] = c.container
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   // Initialize descendant actor singletons
@@ -284,6 +291,39 @@ object StackSupervisor {
   /** StackSupervisor actor reference configuration object. */
   def props = DI.props
 
+  class AtomicConfiguration(initial: Configuration) {
+    val container = new AtomicReference[Configuration](initial)
+    /** Stack configuration map. SComposite UUID -> configuration element. */
+    @volatile protected var configurationMap: immutable.HashMap[UUID, Configuration.PlaceHolder] = toMap(initial)
+    /** Set new configuration. */
+    def set(arg: Configuration) = {
+      configurationMap = toMap(arg)
+      container.set(arg)
+    }
+    /** Get configuration map. */
+    def element = configurationMap
+
+    /** Extract map from configuration. */
+    protected def toMap(configuration: Configuration): immutable.HashMap[UUID, Configuration.PlaceHolder] = {
+      var entry = Seq[(UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder)]()
+      def visit(stack: org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder) {
+        entry = entry :+ stack.id -> stack
+        stack match {
+          case tab: org.digimead.tabuddy.desktop.gui.Configuration.Stack.Tab =>
+            tab.children.foreach(visit)
+          case hsash: org.digimead.tabuddy.desktop.gui.Configuration.Stack.HSash =>
+            visit(hsash.left)
+            visit(hsash.right)
+          case vsash: org.digimead.tabuddy.desktop.gui.Configuration.Stack.VSash =>
+            visit(vsash.top)
+            visit(vsash.bottom)
+          case view: org.digimead.tabuddy.desktop.gui.Configuration.View =>
+        }
+      }
+      visit(configuration.stack)
+      immutable.HashMap[UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder](entry: _*)
+    }
+  }
   /**
    * Stack pointers map
    * Shut down application on empty.
@@ -296,6 +336,6 @@ object StackSupervisor {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** WindowSupervisor actor reference configuration object. */
-    lazy val props = injectOptional[Props]("GUI.StackSupervisor") getOrElse Props(classOf[StackSupervisor], Core.context)
+    lazy val props = injectOptional[Props]("Core.GUI.StackSupervisor") getOrElse Props(classOf[StackSupervisor], Core.context)
   }
 }

@@ -41,46 +41,32 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui.widget
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.StackConfiguration
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.swt.SWT
+import java.util.UUID
+
+import org.digimead.tabuddy.desktop.gui.GUI
 import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.layout.GridLayout
-import language.implicitConversions
-import org.digimead.tabuddy.desktop.gui.Configuration
+import org.eclipse.swt.widgets.Composite
+
 import akka.actor.ActorRef
 
-class StackHSashBuilder extends Loggable {
-  def apply(hsash: Configuration.Stack.HSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeHSash, ScrolledComposite, ScrolledComposite) = {
-    log.debug("Build content for horizontal sash.")
-    App.checkThread
-    if (parentWidget.getLayout().isInstanceOf[GridLayout])
-      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-    val stackContainer = new SCompositeHSash(hsash.id, stackRef, parentWidget, SWT.NONE)
-    val left = new ScrolledComposite(stackContainer, SWT.NONE)
-    left.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
-    val right = new ScrolledComposite(stackContainer, SWT.NONE)
-    right.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_MAGENTA))
-    (stackContainer, left, right)
+/**
+ * Stack layer.
+ */
+trait SComposite extends Composite {
+  /** Stack layer id. */
+  val id: UUID
+  /** Stack layer actor rederence. */
+  val ref: ActorRef
+  setData(GUI.swtId, id)
+
+  /** Returns the receiver's parent, which must be a ScrolledComposite. */
+  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
+
+  override protected def checkSubclass() {
+    // Disable the check that prevents subclassing of SWT components
   }
-}
 
-object StackHSashBuilder {
-  implicit def builder2implementation(c: StackHSashBuilder.type): StackHSashBuilder = c.inner
-
-  /** StackHSashBuilder implementation. */
-  def inner = DI.implementation
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** StackHSashBuilder implementation. */
-    lazy val implementation = injectOptional[StackHSashBuilder] getOrElse new StackHSashBuilder
-  }
+  override def toString() = super.toString + "/" + id
 }

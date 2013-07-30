@@ -48,9 +48,9 @@ import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.stack.SComposite
-import org.digimead.tabuddy.desktop.gui.stack.StackBuilder
-import org.digimead.tabuddy.desktop.gui.stack.StackBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.builder.StackBuilder
+import org.digimead.tabuddy.desktop.gui.builder.StackBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.widget.SComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.e4.core.internal.contexts.EclipseContext
@@ -65,7 +65,7 @@ import akka.actor.Props
  */
 class StackLayer extends Actor with Loggable {
   /** Stack layer JFace instance. */
-  @volatile protected var stack: Option[SComposite] = None
+  @volatile var stack: Option[SComposite] = None
   /** Stack layer id. */
   lazy val stackId = UUID.fromString(self.path.name.split("@").last)
   log.debug("Start actor " + self.path)
@@ -85,9 +85,11 @@ class StackLayer extends Actor with Loggable {
       create(stackConfiguration, parentWidget, parentContext, supervisor)
     }
     case message @ App.Message.Created(stack: SComposite, sender) if (sender == self && this.stack == None) => App.traceMessage(message) {
-      log.debug(s"Update stack ${} composite.")
+      log.debug(s"Update stack ${stack} composite.")
       this.stack = Option(stack)
     }
+
+    case message @ App.Message.Created(_, sender) =>
   }
 
   /** Create stack. */
@@ -114,6 +116,6 @@ object StackLayer extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** StackLayer actor reference configuration object. */
-    lazy val props = injectOptional[Props]("GUI.StackLayer") getOrElse Props[StackLayer]
+    lazy val props = injectOptional[Props]("Core.GUI.StackLayer") getOrElse Props[StackLayer]
   }
 }

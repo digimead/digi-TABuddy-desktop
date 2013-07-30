@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.window
+package org.digimead.tabuddy.desktop.gui.widget
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -51,8 +51,9 @@ import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.WindowConfiguration
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowGroup2actorSRef
-import org.digimead.tabuddy.desktop.gui.window.ContentBuilder.builder2implementation
-import org.digimead.tabuddy.desktop.gui.window.status.StatusLineContributor.sbar2implementation
+import org.digimead.tabuddy.desktop.gui.builder.ContentBuilder
+import org.digimead.tabuddy.desktop.gui.builder.ContentBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.widget.status.StatusLineContributor.sbar2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.e4.core.internal.contexts.EclipseContext
@@ -88,7 +89,7 @@ class WComposite(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
 
   def initialize() {
     addStatusLine()
-    addToolBar(SWT.FLAT | SWT.WRAP)
+    addCoolBar(SWT.FLAT | SWT.WRAP)
     addMenuBar()
     setBlockOnOpen(false)
   }
@@ -151,6 +152,8 @@ class WComposite(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     super.handleShellCloseEvent
     App.publish(App.Message.Destroyed(this, ref))
   }
+
+  override def toString() = "WComposite/" + id
 }
 
 object WComposite {

@@ -41,55 +41,26 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui
 
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.eclipse.jface.action.ToolBarManager
+import org.digimead.tabuddy.desktop.action.Exit
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.Configuration
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.swt.SWT
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.layout.GridData
-import org.eclipse.swt.layout.GridLayout
-import akka.actor.ActorRef
-import language.implicitConversions
-import org.eclipse.swt.widgets.TabItem
-import org.eclipse.swt.widgets.Control
 
-class StackTabBuilder extends Loggable {
-  def apply(configuration: Configuration.Stack.Tab, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeTab, Seq[ScrolledComposite]) = {
-    log.debug("Build content for tab layer.")
-    App.checkThread
-    if (parentWidget.getLayout().isInstanceOf[GridLayout])
-      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-    val content = new SCompositeTab(configuration.id, stackRef, parentWidget, SWT.NONE)
-    content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-    val containers = for (child <- configuration.children) yield {
-      val container = new TabItem(content, SWT.NULL)
-      container.setText(child.id.toString())
-      val scroll = new ScrolledComposite(content, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
-      container.setControl(scroll)
-      scroll.setLayout(new GridLayout)
-      scroll.setExpandHorizontal(true)
-      scroll.setExpandVertical(true)
-      scroll
-    }
-    (content, containers)
-  }
-}
+object WindowToolbar extends Loggable {
+  val common = "Common"
 
-object StackTabBuilder {
-  implicit def builder2implementation(c: StackTabBuilder.type): StackTabBuilder = c.inner
-
-  /** StackTabBuilder implementation. */
-  def inner = DI.implementation
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** StackTabBuilder implementation. */
-    lazy val implementation = injectOptional[StackTabBuilder] getOrElse new StackTabBuilder
+  def apply(window: WComposite, menu: String) = {
+    val cbm = window.getCoolBarManager2()
+//    Option(cbm.getItems()) match {
+//      case Some(toolbar) => toolbar
+//      case None =>
+        log.___gaze("!!!!!! +?")
+        val z = new ToolBarManager
+        z.add(Exit)
+        val toolbar = cbm.add(z)
+        z
+//    }
   }
 }

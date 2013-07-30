@@ -61,7 +61,7 @@ import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Core.core2actorRef
 import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
 import org.digimead.tabuddy.desktop.gui.WindowConfiguration.windowConfiguration2implementation
-import org.digimead.tabuddy.desktop.gui.window.WComposite
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
@@ -127,10 +127,10 @@ class WindowSupervisor extends Actor with Loggable {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
-    case message @ App.Message.Created(window: window.WComposite, sender) => App.traceMessage(message) {
+    case message @ App.Message.Created(window: WComposite, sender) => App.traceMessage(message) {
       onCreated(window, sender)
     }
-    case message @ App.Message.Destroyed(window: window.WComposite, sender) => App.traceMessage(message) {
+    case message @ App.Message.Destroyed(window: WComposite, sender) => App.traceMessage(message) {
       onDestroyed(window, sender)
     }
     case message @ App.Message.Restore => App.traceMessage(message) {
@@ -333,6 +333,6 @@ object WindowSupervisor extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** WindowSupervisor actor reference configuration object. */
-    lazy val props = injectOptional[Props]("GUI.WindowSupervisor") getOrElse Props[WindowSupervisor]
+    lazy val props = injectOptional[Props]("Core.GUI.WindowSupervisor") getOrElse Props[WindowSupervisor]
   }
 }

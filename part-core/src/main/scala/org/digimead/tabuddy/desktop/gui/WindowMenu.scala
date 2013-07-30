@@ -41,47 +41,23 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui
 
-import java.util.UUID
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.eclipse.jface.action.IMenuManager
+import org.eclipse.jface.action.MenuManager
 
-import scala.collection.immutable
+object WindowMenu {
+  val file = "&File"
 
-import org.digimead.tabuddy.desktop.gui.StackConfiguration
-import org.eclipse.swt.custom.ScrolledComposite
-
-import akka.actor.Actor
-
-/**
- * Base trait for stack supervisor.
- */
-trait StackSupervisorBase extends Actor {
-  /** Window/StackSupervisor id. */
-  lazy val supervisorId = UUID.fromString(self.path.parent.name.split("@").last)
-  /** Stack configuration. */
-  @volatile protected[stack] var configuration = StackConfiguration.default
-  /** Stack configuration map. SComposite UUID -> configuration element. */
-  @volatile protected[stack] var configurationMap = toMap(configuration)
-  /** Top level stack hierarchy container. It is ScrolledComposite of content of WComposite. */
-  @volatile protected[stack] var container: Option[ScrolledComposite] = None
-
-  protected def toMap(configuration: org.digimead.tabuddy.desktop.gui.Configuration): immutable.HashMap[UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder] = {
-    var entry = Seq[(UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder)]()
-    def visit(stack: org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder) {
-      entry = entry :+ stack.id -> stack
-      stack match {
-        case tab: org.digimead.tabuddy.desktop.gui.Configuration.Stack.Tab =>
-          tab.children.foreach(visit)
-        case hsash: org.digimead.tabuddy.desktop.gui.Configuration.Stack.HSash =>
-          visit(hsash.left)
-          visit(hsash.right)
-        case vsash: org.digimead.tabuddy.desktop.gui.Configuration.Stack.VSash =>
-          visit(vsash.top)
-          visit(vsash.bottom)
-        case view: org.digimead.tabuddy.desktop.gui.Configuration.View =>
-      }
+  def apply(window: WComposite, menu: String): IMenuManager = {
+    val mbm = window.getMenuBarManager()
+    Option(mbm.findMenuUsingPath(menu)) match {
+      case Some(menu) => menu
+      case None =>
+        val menu = new MenuManager(file)
+        mbm.add(menu)
+        menu
     }
-    visit(configuration.stack)
-    immutable.HashMap[UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder](entry: _*)
   }
 }

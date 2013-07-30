@@ -43,33 +43,42 @@
 
 package org.digimead.tabuddy.desktop.gui
 
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
+
+import scala.collection.mutable
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.gui
-import org.digimead.tabuddy.desktop.gui.stack.VComposite
-import org.digimead.tabuddy.desktop.gui.stack.StackBuilder
-import org.digimead.tabuddy.desktop.gui.stack.StackBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.builder.StackBuilder
+import org.digimead.tabuddy.desktop.gui.builder.StackBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.core.databinding.observable.Diffs
+import org.eclipse.core.databinding.observable.value.AbstractObservableValue
 import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.Widget
+
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
-import java.util.UUID
-import org.digimead.tabuddy.desktop.action.View
+import akka.actor.actorRef2Scala
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
 class ViewLayer(parentContext: EclipseContext) extends Actor with Loggable {
   /** View JFace instance. */
-  protected var view: Option[VComposite] = None
+  var view: Option[VComposite] = None
   /** View layer id. */
   lazy val stackId = UUID.fromString(self.path.name.split("@").last)
   /** View context. */
-  protected val viewContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
+  val viewContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
   log.debug("Start actor " + self.path)
 
   def receive = {
@@ -82,11 +91,30 @@ class ViewLayer(parentContext: EclipseContext) extends Actor with Loggable {
   }
 
   /** Create view. */
-  protected def create(viewConfiguration: gui.Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
+  protected def create(viewConfiguration: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
-    this.view = StackBuilder(viewConfiguration, parentWidget, viewContext, supervisor, self)
-    this.view.foreach(stack => App.publish(App.Message.Created(stack, self)))
+    StackBuilder(viewConfiguration, parentWidget, viewContext, supervisor, self) match {
+      case Some(viewLayer) =>
+        App.publish(App.Message.Created(viewLayer, self))
+        this.view = Some(viewLayer)
+        // Update parent tab title if any.
+        App.exec {
+          parentWidget.getParent() match {
+            case tab: SCompositeTab =>
+              tab.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
+                case Some(tabItem) =>
+                  App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory.title(viewLayer.contentRef))
+                  tabItem.setText(viewConfiguration.factory.title(viewLayer.contentRef).getValue().asInstanceOf[String])
+                case None =>
+                  log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
+              }
+            case other =>
+          }
+        }
+      case None =>
+        log.fatal(s"Unable to build view ${viewConfiguration}.")
+    }
   }
   /** User start interaction with window/stack supervisor/view. Focus is gained. */
   protected def onStart(widget: Widget) = view match {
@@ -107,7 +135,7 @@ object ViewLayer {
   /** ViewLayer actor reference configuration object. */
   def props = DI.props
 
-  case class CreateArgument(val viewConfiguration: gui.Configuration.View, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
+  case class CreateArgument(val viewConfiguration: Configuration.View, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
   /**
    * User implemented factory, that returns ActorRef, responsible for view creation/destroying.
    */
@@ -115,18 +143,58 @@ object ViewLayer {
     /** View name. */
     val name: String
     /** View description. */
-    val description: String
+    val description: Option[String]
+    /** View image. */
+    val image: Option[Image]
+    /** View title with regards of number of views. */
+    protected val titlePerActor = new mutable.WeakHashMap[ActorRef, TitleObservableValue]() with mutable.SynchronizedMap[ActorRef, TitleObservableValue]
+    /** All currently active actors. */
+    protected val activeActorRefs = new AtomicReference[List[ActorRef]](List())
+    protected val viewActorLock = new Object
 
-    /** Returns actor reference that could handle Create/Destroy messages. */
+    /** Get active actors list. */
+    def actors = activeActorRefs.get
+    /** Get title for the actor reference. */
+    def title(ref: ActorRef): TitleObservableValue = viewActorLock.synchronized {
+      if (!activeActorRefs.get.contains(ref))
+        throw new IllegalStateException("Actor reference ${ref} in unknown in factory ${this}.")
+      titlePerActor.get(ref) match {
+        case Some(observable) => observable
+        case None =>
+          val observable = new TitleObservableValue(ref)
+          titlePerActor(ref) = observable
+          observable
+      }
+    }
+    /**
+     * Returns the actor reference that could handle Create/Destroy messages.
+     * Add reference to activeActors list.
+     */
     def viewActor(configuration: Configuration.View, parentContext: EclipseContext): Option[ActorRef]
 
-    override def toString() = s"""ViewFactory("${name}", "${description}")"""
+    override def toString() = s"""View.Factory("${name}", "${description}")"""
+
+    class TitleObservableValue(ref: ActorRef) extends AbstractObservableValue(App.realm) {
+      @volatile protected var value: AnyRef = name
+      update()
+
+      /** The value type of this observable value. */
+      def getValueType(): AnyRef = classOf[String]
+
+      def update() = viewActorLock.synchronized {
+        val n = activeActorRefs.get.filter(!_.isTerminated).indexOf(ref)
+        value = s"${name} (${n})"
+        fireValueChange(Diffs.createValueDiff(name, this.value))
+      }
+      /** Get actual value. */
+      protected def doGetValue(): AnyRef = value
+    }
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** ViewLayer actor reference configuration object. */
-    lazy val props = injectOptional[Props]("GUI.ViewLayer") getOrElse Props(classOf[ViewLayer], Core.context)
+    lazy val props = injectOptional[Props]("Core.GUI.ViewLayer") getOrElse Props(classOf[ViewLayer], Core.context)
   }
 }

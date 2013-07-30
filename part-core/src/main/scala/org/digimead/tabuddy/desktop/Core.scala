@@ -76,7 +76,8 @@ class Core extends akka.actor.Actor with Loggable {
   /*
    * Core component actors.
    */
-  val windowGroup = context.actorOf(gui.WindowSupervisor.props, gui.WindowSupervisor.id)
+  val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  val windowSupervisorRef = context.actorOf(gui.WindowSupervisor.props, gui.WindowSupervisor.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {

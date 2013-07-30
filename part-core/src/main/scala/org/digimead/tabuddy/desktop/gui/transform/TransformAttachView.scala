@@ -41,48 +41,65 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.action
+package org.digimead.tabuddy.desktop.gui.transform
 
-import java.util.UUID
-
-import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.gui
-import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.gui.StackSupervisor
+import org.digimead.tabuddy.desktop.gui.StackSupervisor.atomicConfiguration2AtomicReference
+import org.digimead.tabuddy.desktop.gui.ViewLayer
+import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder
+import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.e4.core.internal.contexts.EclipseContext
-import org.eclipse.jface.action.{ Action => JFaceAction }
+import org.digimead.tabuddy.desktop.support.Timeout
 
+import akka.actor.ActorRef
 import akka.actor.actorRef2Scala
+import akka.pattern.ask
 
-/** Show the specific view. */
-object View extends JFaceAction("view") with Loggable {
-  import Command.parser._
-  /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())("view", "Create the specific view.",
-    (activeContext, parserContext, parserResult) => parserResult match {
-      case viewFactory: gui.ViewLayer.Factory => show(activeContext, viewFactory)
-      case unknown => log.fatal(s"Unknown parser result: ${unknown.getClass}/${unknown}.")
+import language.implicitConversions
+
+class TransformAttachView extends Loggable {
+  def apply(ss: StackSupervisor, tabStack: SCompositeTab, newView: ViewLayer.Factory) {
+    log.debug(s"Attach ${newView} to ${tabStack}.")
+    App.checkThread
+    log.debug("Update stack supervisor configuration.")
+    val viewConfiguration = Configuration.View(newView)
+    ss.configuration.set(Configuration(ss.configuration.get.stack.map {
+      case element: SCompositeTab if element.id == tabStack.id => element
+      case other => other
+    }))
+    // Prepare tab item.
+    val parentWidget = StackTabBuilder.addTabItem(tabStack, (tabItem) => {
+      tabItem.setData(GUI.swtId, viewConfiguration.id)
+      newView.description.foreach(tabItem.setToolTipText)
+      newView.image.foreach(tabItem.setImage)
     })
-
-  /** Command parser. */
-  def parser(viewFactory: gui.ViewLayer.Factory) = Command.CmdParser("view" ~ "." ~> viewNameParser(viewFactory))
-  /** Create parser for the specific view factory. */
-  protected def viewNameParser(viewFactory: gui.ViewLayer.Factory): Command.parser.Parser[Any] =
-    commandLiteral(viewFactory.name,
-      CompletionHint(viewFactory.name, viewFactory.description)) ^^ { result => viewFactory }
-  @log
-  override def run = log.___glance("SHOW")
-  /** Create view from the view factory. */
-  protected def show(activeContext: EclipseContext, viewFactory: gui.ViewLayer.Factory) {
-    log.debug("Create new view from " + viewFactory)
-    activeContext.get(gui.GUI.windowContextKey) match {
-      case window: WComposite =>
-        window.ref ! App.Message.Create(viewFactory, App.system.deadLetters)
-      case unknwon =>
-        log.fatal(s"Unable to find active window for ${this}: '${activeContext}', '${viewFactory}'.")
+    implicit val ec = App.system.dispatcher
+    implicit val timeout = akka.util.Timeout(Timeout.short)
+    // Create new view layer.
+    ss.self ? App.Message.Attach(ViewLayer.props, ViewLayer.id + "@" + viewConfiguration.id) onSuccess {
+      case viewRef: ActorRef =>
+        // Create view within view layer.
+        viewRef ! App.Message.Create(ViewLayer.CreateArgument(viewConfiguration, parentWidget, ss.parentContext), tabStack.ref)
     }
+  }
+}
+
+object TransformAttachView {
+  implicit def transform2implementation(t: TransformAttachView.type): TransformAttachView = inner
+
+  def inner(): TransformAttachView = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** TransformAttachView implementation */
+    lazy val implementation = injectOptional[TransformAttachView] getOrElse new TransformAttachView
   }
 }

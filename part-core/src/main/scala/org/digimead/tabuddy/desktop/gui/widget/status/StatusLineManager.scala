@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.window.status
+package org.digimead.tabuddy.desktop.gui.widget.status
 
 import scala.concurrent.future
 

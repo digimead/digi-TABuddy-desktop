@@ -41,52 +41,65 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.window
+package org.digimead.tabuddy.desktop.gui.builder
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.custom.StackLayout
+import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.layout.GridLayout
-import org.eclipse.swt.widgets.Composite
+import org.eclipse.swt.widgets.TabItem
+
+import akka.actor.ActorRef
 
 import language.implicitConversions
 
-/**
- * Create initial window content.
- */
-class ContentBuilder extends Loggable {
-  /** Creates and returns this window's contents. */
-  def apply(window: WComposite, parent: Composite): (Composite, Composite, ScrolledComposite) = {
-    log.debug(s"Build content for window ${window.id}.")
+/** Build tab layer and allocate N tab items for views. */
+class StackTabBuilder extends Loggable {
+  def apply(configuration: Configuration.Stack.Tab, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeTab, Seq[ScrolledComposite]) = {
+    log.debug("Build content for tab layer.")
     App.checkThread
-    val container = new Composite(parent, SWT.NONE)
-    val layout = new StackLayout()
-    container.setLayout(layout)
-    val filler = new Composite(container, SWT.NONE)
-    filler.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GREEN))
-    val content = new ScrolledComposite(container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
-    content.setLayout(new GridLayout)
-    content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
-    layout.topControl = filler
-    (container, filler, content)
+    if (parentWidget.getLayout().isInstanceOf[GridLayout])
+      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
+    val content = new SCompositeTab(configuration.id, stackRef, parentWidget, SWT.NONE)
+    content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
+    val containers = for (child <- configuration.children) yield addTabItem(content, (tabItem) => {
+      tabItem.setData(GUI.swtId, child.id)
+      child.factory.description.foreach(tabItem.setToolTipText)
+      child.factory.image.foreach(tabItem.setImage)
+    })
+    (content, containers)
+  }
+  /** Add new TabItem with ScrolledComposite to SCompositeTab. */
+  def addTabItem[T](tab: SCompositeTab, adjust: TabItem => T): ScrolledComposite = {
+    val container = new TabItem(tab, SWT.NULL)
+    adjust(container)
+    val scroll = new ScrolledComposite(tab, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
+    container.setControl(scroll)
+    scroll.setLayout(new GridLayout)
+    scroll.setExpandHorizontal(true)
+    scroll.setExpandVertical(true)
+    scroll
   }
 }
 
-object ContentBuilder {
-  implicit def builder2implementation(c: ContentBuilder.type): ContentBuilder = c.inner
+object StackTabBuilder {
+  implicit def builder2implementation(c: StackTabBuilder.type): StackTabBuilder = c.inner
 
-  /** ContentBuilder implementation. */
+  /** StackTabBuilder implementation. */
   def inner = DI.implementation
 
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Window ContentBuilder implementation. */
-    lazy val implementation = injectOptional[ContentBuilder] getOrElse new ContentBuilder
+    /** StackTabBuilder implementation. */
+    lazy val implementation = injectOptional[StackTabBuilder] getOrElse new StackTabBuilder
   }
 }

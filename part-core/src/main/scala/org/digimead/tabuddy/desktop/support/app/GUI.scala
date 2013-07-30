@@ -46,16 +46,11 @@ package org.digimead.tabuddy.desktop.support.app
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.JavaConversions._
-import scala.collection.mutable
-import scala.util.control.Breaks._
+
 import scala.annotation.tailrec
-import org.eclipse.swt.widgets.Widget
+
 import org.digimead.digi.lib.log.api.Loggable
-import org.eclipse.e4.ui.model.application.ui.basic.MTrimBar
-import org.eclipse.e4.ui.model.application.ui.basic.MTrimElement
-import org.eclipse.e4.ui.model.application.ui.menu.MToolBar
-import org.eclipse.jface.wizard.WizardDialog
+import org.digimead.tabuddy.desktop.gui.widget.SComposite
 import org.eclipse.swt.custom.CTabItem
 import org.eclipse.swt.custom.TableTreeItem
 import org.eclipse.swt.dnd.DragSource
@@ -78,10 +73,6 @@ import org.eclipse.swt.widgets.ToolTip
 import org.eclipse.swt.widgets.TreeColumn
 import org.eclipse.swt.widgets.TreeItem
 import org.eclipse.swt.widgets.Widget
-import java.util.concurrent.atomic.AtomicReference
-import org.digimead.tabuddy.desktop.gui.stack.VComposite
-import org.digimead.tabuddy.desktop.gui.stack.SComposite
-import org.digimead.tabuddy.desktop.gui.window.WComposite
 
 trait GUI {
   this: Generic with Loggable =>

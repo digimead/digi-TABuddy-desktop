@@ -41,27 +41,53 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.action
+package org.digimead.tabuddy.desktop.gui.builder
 
-import java.util.UUID
-
-import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
-import org.eclipse.jface.action.{ Action => JFaceAction }
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.custom.StackLayout
+import org.eclipse.swt.layout.GridLayout
+import org.eclipse.swt.widgets.Composite
 
-object Test extends JFaceAction("test") with Loggable {
-  import Command.parser._
-  /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())("test", "my test",
-      (activeContext, parserContext, parserResult) => { log.___glance("!!!!!TEST") })
-  /** Command parser. */
-  lazy val parser = Command.CmdParser("test")
+import language.implicitConversions
 
-  @log
-  override def run = {
-    log.___gaze("EXIT!!!")
+/**
+ * Create initial window content.
+ */
+class ContentBuilder extends Loggable {
+  /** Creates and returns this window's contents. */
+  def apply(window: WComposite, parent: Composite): (Composite, Composite, ScrolledComposite) = {
+    log.debug(s"Build content for window ${window.id}.")
+    App.checkThread
+    val container = new Composite(parent, SWT.NONE)
+    val layout = new StackLayout()
+    container.setLayout(layout)
+    val filler = new Composite(container, SWT.NONE)
+    filler.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GREEN))
+    val content = new ScrolledComposite(container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
+    content.setLayout(new GridLayout)
+    content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
+    layout.topControl = filler
+    (container, filler, content)
+  }
+}
+
+object ContentBuilder {
+  implicit def builder2implementation(c: ContentBuilder.type): ContentBuilder = c.inner
+
+  /** ContentBuilder implementation. */
+  def inner = DI.implementation
+
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Window ContentBuilder implementation. */
+    lazy val implementation = injectOptional[ContentBuilder] getOrElse new ContentBuilder
   }
 }

@@ -46,17 +46,22 @@ package org.digimead.tabuddy.desktop.gui
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.FilenameFilter
 import java.io.IOException
 import java.io.ObjectOutputStream
 import java.util.UUID
+
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
 import scala.collection.immutable
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.support.CustomObjectInputStream
 import org.eclipse.swt.graphics.Rectangle
+
 import language.implicitConversions
-import java.io.FilenameFilter
 
 /**
  * Window configuration container. It contains:
@@ -150,11 +155,11 @@ object WindowConfiguration extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Name of the storage container for window configurations. */
-    lazy val configurationName = injectOptional[String]("WindowConfiguration.Name") getOrElse "WindowConfiguration"
+    lazy val configurationName = injectOptional[String]("Core.GUI.WindowConfiguration.Name") getOrElse "WindowConfiguration"
     /** Extension for stored configurations. */
-    lazy val configurationExtenstion = injectOptional[String]("WindowConfiguration.Extension") getOrElse "jblob"
+    lazy val configurationExtenstion = injectOptional[String]("Core.GUI.WindowConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
-    lazy val default = injectOptional[WindowConfiguration]("Default") getOrElse
+    lazy val default = injectOptional[WindowConfiguration]("Core.GUI.WindowConfiguration.Default") getOrElse
       WindowConfiguration(false, new Rectangle(-1, -1, 400, 300), Seq())
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[Implementation] getOrElse new Implementation()

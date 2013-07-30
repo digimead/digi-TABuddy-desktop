@@ -41,35 +41,14 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui.widget
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.StackSupervisor
-import org.digimead.tabuddy.desktop.gui.ViewLayer
-import org.digimead.tabuddy.desktop.gui.window.WComposite
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
+import java.util.UUID
 
-import language.implicitConversions
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.widgets.TabFolder
 
-class TransformReplace extends Loggable {
-  def apply(stackSupervisorIternals: StackSupervisor, window: WComposite, newView: ViewLayer.Factory) {
-    log.debug(s"Replace window ${window} content with ${newView}.")
-    App.checkThread
-  }
-}
+import akka.actor.ActorRef
 
-object TransformReplace {
-  implicit def transform2implementation(t: TransformReplace.type): TransformReplace = inner
-
-  def inner(): TransformReplace = DI.implementation
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** TransformAttachView implementation */
-    lazy val implementation = injectOptional[TransformReplace] getOrElse new TransformReplace
-  }
-}
+class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
+  extends TabFolder(parent, style) with SComposite

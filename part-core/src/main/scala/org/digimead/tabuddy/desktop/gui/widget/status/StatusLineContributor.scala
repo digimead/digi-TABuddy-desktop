@@ -41,46 +41,58 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui.widget.status
 
 import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.StackConfiguration
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.jface.action.ContributionItem
+import org.eclipse.jface.action.{ StatusLineManager => JStatusLineManager }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.layout.GridLayout
-import language.implicitConversions
-import org.digimead.tabuddy.desktop.gui.Configuration
-import akka.actor.ActorRef
+import org.eclipse.swt.widgets.Combo
+import org.eclipse.swt.widgets.Composite
+import org.eclipse.swt.widgets.Label
+import org.eclipse.swt.widgets.Text
+import org.eclipse.ui.internal.HeapStatus
 
-class StackVSashBuilder extends Loggable {
-  def apply(vsash: Configuration.Stack.VSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeVSash, ScrolledComposite, ScrolledComposite) = {
-    log.debug("Build content for vertical sash.")
-    App.checkThread
-    if (parentWidget.getLayout().isInstanceOf[GridLayout])
-      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-    val stackContainer = new SCompositeVSash(vsash.id, stackRef, parentWidget, SWT.NONE)
-    val top = new ScrolledComposite(stackContainer, SWT.NONE)
-    top.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GRAY))
-    val bottom = new ScrolledComposite(stackContainer, SWT.NONE)
-    bottom.setBackground(App.display.getSystemColor(SWT.COLOR_MAGENTA))
-    (stackContainer, top, bottom)
+import language.implicitConversions
+
+class StatusLineContributor {
+  def apply(statusLineManager: StatusLineManager) {
+    val beginGroup = statusLineManager.find(JStatusLineManager.BEGIN_GROUP)
+    statusLineManager.prependToGroup(JStatusLineManager.BEGIN_GROUP, new Item("1"))
+    statusLineManager.appendToGroup(JStatusLineManager.END_GROUP, new HeapStatusContribution)
+  }
+
+  class HeapStatusContribution extends ContributionItem("HeapStatus") {
+    override def fill(parent: Composite) {
+      new HeapStatus(parent, App.getPreferenceStore)
+    }
+  }
+  class Item(val id: String) extends ContributionItem(id) {
+    override def fill(parent: Composite) {
+
+      val label = new Label(parent, SWT.NONE);
+      label.setText("LABEL");
+      val text = new Text(parent, SWT.BORDER);
+      text.setText("TEXT");
+      val combo = new Combo(parent, SWT.NONE);
+      combo.setText("COMBO");
+    }
   }
 }
 
-object StackVSashBuilder {
-  implicit def builder2implementation(c: StackVSashBuilder.type): StackVSashBuilder = c.inner
+object StatusLineContributor {
+  implicit def sbar2implementation(c: StatusLineContributor.type): StatusLineContributor = c.inner
 
-  /** StackVSashBuilder implementation. */
+  /** StatusLineContributor implementation. */
   def inner = DI.implementation
 
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** StackVSashBuilder implementation. */
-    lazy val implementation = injectOptional[StackVSashBuilder] getOrElse new StackVSashBuilder
+    /** StatusLineContributor implementation. */
+    lazy val implementation = injectOptional[StatusLineContributor] getOrElse new StatusLineContributor
   }
 }

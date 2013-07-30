@@ -53,12 +53,13 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.gui
-import org.digimead.tabuddy.desktop.gui.stack.VComposite
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.SWT
+import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Widget
 
@@ -119,14 +120,19 @@ object Default extends gui.ViewLayer.Factory with Loggable {
   lazy val name = DI.name
   /** View description. */
   lazy val description = DI.description
+  /** View image. */
+  lazy val image = DI.image
 
   /** Returns actor reference that could handle Create/Destroy messages. */
-  def viewActor(configuration: gui.Configuration.View, parentContext: EclipseContext): Option[ActorRef] = {
+  def viewActor(configuration: gui.Configuration.View, parentContext: EclipseContext): Option[ActorRef] = viewActorLock.synchronized {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
-    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(parentContext)), gui.ViewLayer.id + "@" + id + "@" + configuration.id)
+    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(parentContext)), id + "@" + System.nanoTime() + "@" + configuration.id)
     try {
-      Option(Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration))
+      val newActorRef = Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration)
+      activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
+      titlePerActor.values.foreach(_.update)
+      Some(newActorRef)
     } catch {
       case e: InterruptedException =>
         log.error(e.getMessage, e)
@@ -144,10 +150,12 @@ object Default extends gui.ViewLayer.Factory with Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** View name. */
-    lazy val name = injectOptional[String]("View.Default.Name") getOrElse "Default"
+    lazy val name = injectOptional[String]("Core.View.Default.Name") getOrElse "Default"
     /** View description. */
-    lazy val description = injectOptional[String]("View.Default.Description") getOrElse "Default view description"
+    lazy val description = injectOptional[String]("Core.View.Default.Description") orElse Some("Default view description")
+    /** View image. */
+    lazy val image = injectOptional[Image]("Core.View.Default.Image")
     /** Default view actor reference configuration object. */
-    lazy val props = injectOptional[Props]("View.Default") getOrElse Props(classOf[Default], Core.context)
+    lazy val props = injectOptional[Props]("Core.View.Default") getOrElse Props(classOf[Default], Core.context)
   }
 }
