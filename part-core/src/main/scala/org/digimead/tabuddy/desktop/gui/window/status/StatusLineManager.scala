@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.gui.window.status
 import scala.concurrent.future
 
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
 import org.digimead.tabuddy.desktop.support.App
@@ -54,6 +55,7 @@ import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.databinding.observable.value.IObservableValue
 import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.jface.action.{ StatusLineManager => JStatusLineManager }
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.jface.fieldassist.ContentProposalAdapter
@@ -123,13 +125,14 @@ class StatusLineManager extends JStatusLineManager with Loggable {
             case Command.Success(uniqueId, result) =>
               Command.getInformation(uniqueId) match {
                 case Some(info) =>
-                  Command.getDescription(info.commandId) match {
-                    case Some(commandDescription) =>
+                  Command.getDescriptor(info.commandId) match {
+                    case Some(commandDescriptor) =>
+                      val activeContext = Core.context.getActiveLeaf().asInstanceOf[EclipseContext]
                       textField.setText("")
                       implicit val ec = App.system.dispatcher
                       future {
-                        log.info(s"Execyte command '${commandDescription.name}' within context '${info.context}' with result: " + result)
-                        commandDescription.callback(info.context, result)
+                        log.info(s"Execute command '${commandDescriptor.name}' within context '${info.context}' with argument: " + result)
+                        commandDescriptor.callback(activeContext, info.context, result)
                       }
                     case None =>
                       log.fatal("Unable to find command description for " + info)
@@ -138,7 +141,7 @@ class StatusLineManager extends JStatusLineManager with Loggable {
                   log.fatal("Unable to find command information for unique Id " + uniqueId)
               }
             case Command.MissingCompletionOrFailure(completionList, message) =>
-              log.debug(message)
+              log.debug("Autocomplete: " + message)
             case Command.Failure(message) =>
               log.debug(message)
             case Command.Error(message) =>

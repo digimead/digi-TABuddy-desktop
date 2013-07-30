@@ -43,11 +43,19 @@
 
 package org.digimead.tabuddy.desktop.gui
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+
+import scala.collection.mutable
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.action
+import org.digimead.tabuddy.desktop.command.Command
+import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowGroup2actorSRef
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 
@@ -59,6 +67,8 @@ import language.implicitConversions
 class GUI extends Loggable {
   /** Main loop exit code. */
   protected val exitCode = new AtomicReference[Option[GUI.Exit]](None)
+  /** List of all application view factories. */
+  protected val viewFactories = new GUI.ViewFactoryMap with mutable.SynchronizedMap[ViewLayer.Factory, GUI.ViewFactoryInfo]
 
   /** Stop main loop with the specific exit code. */
   def stop(code: GUI.Exit) = {
@@ -91,12 +101,26 @@ class GUI extends Loggable {
       GUI.Exit.Error
     }
   }
+  /** Add view factory to the map of the application known views. */
+  def registerViewFactory(factory: ViewLayer.Factory, enabled: Boolean) = {
+    log.debug("Add " + factory)
+    viewFactories += factory -> GUI.ViewFactoryInfo(enabled)
+  }
+  /** Remove view factory from the map of the application known views. */
+  def unregisterViewFactory(factory: ViewLayer.Factory) = {
+    log.debug("Remove " + factory)
+    viewFactories -= factory
+  }
 }
 
 object GUI {
-  implicit def gui2implementation(l: GUI.type): GUI = inner
+  implicit def gui2implementation(g: GUI.type): GUI = g.inner
   /** SWT Data ID key */
   val swtId = getClass.getName() + "#ID"
+  /** Context key with current view. */
+  lazy val viewContextKey = DI.viewContextKey
+  /** Context key with current view. */
+  lazy val windowContextKey = DI.windowContextKey
 
   def inner(): GUI = DI.implementation
 
@@ -106,10 +130,39 @@ object GUI {
     case object Error extends Exit
     case object Restart extends Exit
   }
+  /** Application view map. This class is responsible for action.View command update. */
+  class ViewFactoryMap extends mutable.WeakHashMap[ViewLayer.Factory, ViewFactoryInfo] {
+    override def +=(kv: (ViewLayer.Factory, ViewFactoryInfo)): this.type = {
+      val (key, value) = kv
+      get(key).foreach(_.uniqueActionParserId.foreach(Command.removeFromContext(Core.context, _)))
+      if (value.enabled)
+        value.uniqueActionParserId = Command.addToContext(Core.context, action.View.parser(key))
+      super.+=(kv)
+      this
+    }
+
+    override def -=(key: ViewLayer.Factory): this.type = {
+      get(key).foreach(_.uniqueActionParserId.foreach(Command.removeFromContext(Core.context, _)))
+      super.-=(key)
+    }
+
+    override def clear(): Unit = {
+      values.foreach(_.uniqueActionParserId.foreach(Command.removeFromContext(Core.context, _)))
+      super.clear()
+    }
+  }
+  /** ViewFactory information with unique action parser id if any. */
+  case class ViewFactoryInfo(enabled: Boolean) {
+    @volatile private[GUI] var uniqueActionParserId: Option[UUID] = None
+  }
   /**
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** Context key with current view. */
+    lazy val viewContextKey = injectOptional[String]("GUI.Context.ViewKey") getOrElse "view"
+    /** Context key with current view. */
+    lazy val windowContextKey = injectOptional[String]("GUI.Context.WindowKey") getOrElse "window"
     /** GUI implementation */
     lazy val implementation = injectOptional[GUI] getOrElse new GUI
   }

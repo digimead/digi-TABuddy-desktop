@@ -41,57 +41,14 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui
+package org.digimead.tabuddy.desktop.gui.stack
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.stack.SComposite
-import org.digimead.tabuddy.desktop.gui.stack.StackBuilder
-import org.digimead.tabuddy.desktop.gui.stack.StackBuilder.builder2implementation
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
+import java.util.UUID
+
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.widgets.Composite
 
-import akka.actor.Actor
 import akka.actor.ActorRef
-import akka.actor.Props
 
-/**
- * Stack implemetation that contains all views.
- */
-class Stack extends Actor with Loggable {
-  protected var stack: Option[SComposite] = None
-  log.debug("Start actor " + self.path)
-
-  def receive = {
-    case message @ App.Message.Create(Stack.CreateArgument(stackConfiguration, parent), supervisor) => App.traceMessage(message) {
-      create(stackConfiguration, parent, supervisor)
-    }
-  }
-
-  /** Create stack. */
-  protected def create(stackConfiguration: api.Configuration.PlaceHolder, parent: ScrolledComposite, supervisor: ActorRef) {
-    if (stack.nonEmpty)
-      throw new IllegalStateException("Unable to create stack. It is already created.")
-    this.stack = Option(StackBuilder(stackConfiguration, parent, supervisor, self))
-    this.stack.foreach(stack => App.publish(App.Message.Created(stack, self)))
-  }
-}
-
-object Stack extends Loggable {
-  /** Singleton identificator. */
-  val id = getClass.getSimpleName().dropRight(1)
-
-  /** Stack actor reference configuration object. */
-  def props = DI.props
-
-  case class CreateArgument(val stackConfiguration: api.Configuration.Stack, val parent: ScrolledComposite)
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Stack actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Stack") getOrElse Props[Stack]
-  }
-}
+class SCompositeVSash(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
+  extends Composite(parent, style) with SComposite

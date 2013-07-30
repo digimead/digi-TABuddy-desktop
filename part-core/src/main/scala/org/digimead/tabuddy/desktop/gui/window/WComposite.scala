@@ -45,13 +45,17 @@ package org.digimead.tabuddy.desktop.gui.window
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.WindowConfiguration
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowGroup2actorSRef
 import org.digimead.tabuddy.desktop.gui.window.ContentBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.window.status.StatusLineContributor.sbar2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.jface.action.StatusLineManager
 import org.eclipse.jface.window.ApplicationWindow
 import org.eclipse.swt.SWT
@@ -60,19 +64,17 @@ import org.eclipse.swt.custom.StackLayout
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Shell
+
 import akka.actor.ActorRef
 import akka.actor.actorRef2Scala
+
 import language.implicitConversions
-import org.eclipse.swt.layout.GridLayout
-import org.eclipse.swt.widgets.Text
-import org.eclipse.swt.graphics.Point
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.window.status.StatusLineContributor
+
 /**
  * Instance that represents visible window which is based on JFace framework.
  */
-class WComposite(val id: UUID, val windowActorRef: ActorRef,
-  val viewSupervisorActorRef: ActorRef, parentShell: Shell) extends ApplicationWindow(parentShell) with Loggable {
+class WComposite(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
+  val windowContext: EclipseContext, parentShell: Shell) extends ApplicationWindow(parentShell) with Loggable {
   @volatile protected var configuration: Option[WindowConfiguration] = None
   @volatile protected var saveOnClose = true
   /** Filler composite that visible by default. */
@@ -138,7 +140,7 @@ class WComposite(val id: UUID, val windowActorRef: ActorRef,
     val (container, filler, content) = ContentBuilder(this, parent)
     this.filler = Option(filler)
     this.content = Option(content)
-    viewSupervisorActorRef ! App.Message.Restore(content, App.system.deadLetters)
+    supervisorRef ! App.Message.Restore(content, App.system.deadLetters)
     container
   }
   /** Add close listener. */
@@ -147,7 +149,7 @@ class WComposite(val id: UUID, val windowActorRef: ActorRef,
     for (configuration <- configuration if saveOnClose)
       WindowSupervisor ! WindowSupervisor.Message.Set(id, configuration)
     super.handleShellCloseEvent
-    App.publish(App.Message.Destroyed(this, windowActorRef))
+    App.publish(App.Message.Destroyed(this, ref))
   }
 }
 

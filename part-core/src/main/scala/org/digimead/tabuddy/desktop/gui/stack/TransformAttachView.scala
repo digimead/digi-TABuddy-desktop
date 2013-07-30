@@ -41,27 +41,38 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.action
+package org.digimead.tabuddy.desktop.gui.stack
 
-import java.util.UUID
-
-import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
-import org.digimead.tabuddy.desktop.gui.GUI
-import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
-import org.eclipse.jface.action.Action
+import org.digimead.tabuddy.desktop.gui.StackSupervisor
+import org.digimead.tabuddy.desktop.gui.ViewLayer
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 
-object Exit extends Action(Messages.exit_text) with Loggable {
-  import Command.parser._
-  /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.exit_text, "my exit",
-      (activeContext, parserContext, parserResult) => run)
-  /** Command parser. */
-  lazy val parser = Command.CmdParser("exit")
+import language.implicitConversions
 
-  @log
-  override def run = GUI.stop(GUI.Exit.Ok)
+class TransformAttachView extends Loggable {
+  def apply(stackSupervisorIternals: StackSupervisor, tabStack: SComposite, newView: VComposite) {
+    log.debug(s"Attach view ${newView} to ${tabStack}.")
+    App.checkThread
+  }
+  def apply(stackSupervisorIternals: StackSupervisor, tabStack: SComposite, newView: ViewLayer.Factory) {
+    log.debug(s"Attach ${newView} to ${tabStack}.")
+    App.checkThread
+  }
+}
+
+object TransformAttachView {
+  implicit def transform2implementation(t: TransformAttachView.type): TransformAttachView = inner
+
+  def inner(): TransformAttachView = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** TransformAttachView implementation */
+    lazy val implementation = injectOptional[TransformAttachView] getOrElse new TransformAttachView
+  }
 }

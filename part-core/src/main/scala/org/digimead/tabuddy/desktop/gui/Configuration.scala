@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.api
+package org.digimead.tabuddy.desktop.gui
 
 import java.util.UUID
 
@@ -60,19 +60,17 @@ object Configuration {
   /** Any element of the configuration. */
   sealed trait PlaceHolder {
     val id: UUID = UUID.randomUUID()
-    val width: Option[Int] = None
-    val height: Option[Int] = None
   }
   /** View element. */
-  case class View(val factory: ViewFactory) extends PlaceHolder
+  case class View(val factory: ViewLayer.Factory) extends PlaceHolder
   /** Stack element of the configuration. */
   sealed trait Stack extends PlaceHolder
   object Stack {
     /** Tab stack. */
     case class Tab(children: Seq[View]) extends Stack
     /** Horizontal stack. */
-    case class HSash(left: Stack, right: Stack)
+    case class HSash(left: Stack, right: Stack, val ratio: Double = 0.5) extends Stack
     /** Vertical stack. */
-    case class VSash(top: Stack, bottom: Stack)
+    case class VSash(top: Stack, bottom: Stack, val ratio: Double = 0.5) extends Stack
   }
 }

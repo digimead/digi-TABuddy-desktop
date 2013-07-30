@@ -41,64 +41,79 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.stack
+package org.digimead.tabuddy.desktop.gui
 
+import java.util.UUID
+
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.stack.SComposite
+import org.digimead.tabuddy.desktop.gui.stack.StackBuilder
+import org.digimead.tabuddy.desktop.gui.stack.StackBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.e4.core.internal.contexts.EclipseContext
-import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.layout.GridData
-import org.eclipse.swt.layout.GridLayout
-import org.eclipse.swt.widgets.Control
 
+import akka.actor.Actor
 import akka.actor.ActorRef
-import akka.actor.actorRef2Scala
+import akka.actor.Props
 
-import language.implicitConversions
+/**
+ * Stack layer implementation that contains lay between window and view.
+ */
+class StackLayer extends Actor with Loggable {
+  /** Stack layer JFace instance. */
+  @volatile protected var stack: Option[SComposite] = None
+  /** Stack layer id. */
+  lazy val stackId = UUID.fromString(self.path.name.split("@").last)
+  log.debug("Start actor " + self.path)
 
-class StackViewBuilder extends Loggable {
-  def apply(configuration: Configuration.View, viewRef: ActorRef, parentWidget: ScrolledComposite, parentContext: EclipseContext): Option[VComposite] = {
-    log.debug(s"Build content for ${configuration}.")
-    App.checkThread
-    if (parentWidget.getLayout().isInstanceOf[GridLayout])
-      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-    configuration.factory.viewActor(configuration, parentContext) match {
-      case Some(actualViewActorRef) =>
-        val content = new VComposite(configuration.id, viewRef, actualViewActorRef, parentWidget, SWT.NONE)
-        content.setLayout(new GridLayout)
-        content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-        content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
-        content.pack(true)
-        parentWidget.setContent(content)
-        parentWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-        parentWidget.setExpandHorizontal(true)
-        parentWidget.setExpandVertical(true)
-        parentWidget.layout(Array[Control](content), SWT.ALL)
-        actualViewActorRef ! App.Message.Create(content, viewRef)
-        Some(content)
-      case None =>
-        // TODO destroy
-        log.fatal("Unable to locate actual view actor.")
-        None
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Created[_]])
+    log.debug(self.path.name + " actor is stopped.")
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[App.Message.Created[_]])
+    log.debug(self.path.name + " actor is started.")
+  }
+  def receive = {
+    case message @ App.Message.Create(StackLayer.CreateArgument(stackConfiguration, parentWidget, parentContext), supervisor) => App.traceMessage(message) {
+      create(stackConfiguration, parentWidget, parentContext, supervisor)
     }
+    case message @ App.Message.Created(stack: SComposite, sender) if (sender == self && this.stack == None) => App.traceMessage(message) {
+      log.debug(s"Update stack ${} composite.")
+      this.stack = Option(stack)
+    }
+  }
+
+  /** Create stack. */
+  protected def create(stackConfiguration: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
+    if (stack.nonEmpty)
+      throw new IllegalStateException("Unable to create stack. It is already created.")
+    this.stack = StackBuilder(stackConfiguration, parentWidget, parentContext, supervisor, self)
+    this.stack.foreach(stack => App.publish(App.Message.Created(stack, self)))
   }
 }
 
-object StackViewBuilder {
-  implicit def builder2implementation(c: StackViewBuilder.type): StackViewBuilder = c.inner
+object StackLayer extends Loggable {
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
+  // Initialize descendant actor singletons
+  ViewLayer
 
-  /** StackViewBuilder implementation. */
-  def inner = DI.implementation
+  /** StackLayer actor reference configuration object. */
+  def props = DI.props
 
+  case class CreateArgument(val stackConfiguration: Configuration.Stack, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** StackViewBuilder implementation. */
-    lazy val implementation = injectOptional[StackViewBuilder] getOrElse new StackViewBuilder
+    /** StackLayer actor reference configuration object. */
+    lazy val props = injectOptional[Props]("GUI.StackLayer") getOrElse Props[StackLayer]
   }
 }

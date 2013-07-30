@@ -65,7 +65,6 @@ import language.implicitConversions
 
 /**
  * Command supervisor.
- * There is only one command parser of the specific type per context
  */
 class Command extends Loggable {
   /**
@@ -73,8 +72,8 @@ class Command extends Loggable {
    * It is based on the current active context branch.
    */
   protected val actualParserCombinators = new AtomicReference[Command.parser.Parser[Any]](Command.parser.stubParser)
-  /** Registry with registered commands. Command id -> command description. */
-  protected val registry = new mutable.HashMap[UUID, Command.Description] with mutable.SynchronizedMap[UUID, Command.Description]
+  /** Registry with registered commands. Command id -> command descriptor. */
+  protected val registry = new mutable.HashMap[UUID, Command.Descriptor] with mutable.SynchronizedMap[UUID, Command.Descriptor]
   /** Registry with information about all active parsers within application contexts. Unique id of actual parser -> actual information. */
   protected val perContext = new mutable.HashMap[UUID, Command.ActualInformation] with mutable.SynchronizedMap[UUID, Command.ActualInformation]
   /** Run and track active branch context listener. */
@@ -91,35 +90,40 @@ class Command extends Loggable {
    * Add command parser to context.
    * Create command parser unique copy and bind it to the context.
    * So lately we may retrieve result and additional information.
+   * @return unique id of the commandParserTemplate copy
    */
-  def addToContext(context: EclipseContext, commandParserTemplate: Command.CmdParser): Unit = contextCommandsAccessLock.synchronized {
+  def addToContext(context: EclipseContext, commandParserTemplate: Command.CmdParser): Option[UUID] = contextCommandsAccessLock.synchronized {
     val commandId = commandParserTemplate.uniqueId
-    log.debug(s"Add command ${commandId} to context ${context}.")
-    val commandDescription = registry.get(commandId) match {
-      case Some(commandDescription) => commandDescription
+    val commandDescriptor = registry.get(commandId) match {
+      case Some(commandDescriptor) => commandDescriptor
       case None => throw new IllegalArgumentException(s"Unable to add parser to context: command id ${commandId} not found")
     }
-    Option(context.get(Command.contextKey)) match {
+    log.debug(s"""Add command "${commandDescriptor.name}"(${commandId}) to context '${context}'.""")
+    val newParserUniqueId = Option(context.get(Command.contextKey)) match {
       case Some(commandsGeneric: immutable.HashMap[_, _]) =>
-        val uniqueCommandParser = commandParserTemplate.copy(uniqueId = UUID.randomUUID()).named(s"""${Command.id}("${commandDescription.name}")""")
+        val uniqueCommandParser = commandParserTemplate.copy(uniqueId = UUID.randomUUID()).named(s""""${commandDescriptor.name}"(${commandId})""")
         perContext(uniqueCommandParser.uniqueId) = Command.ActualInformation(commandId, uniqueCommandParser, context)
-        context.set(Command.contextKey, commandsGeneric.asInstanceOf[immutable.HashMap[UUID, Command.CmdParser]] + (commandId -> uniqueCommandParser))
+        context.set(Command.contextKey, commandsGeneric.asInstanceOf[immutable.HashMap[UUID, Command.CmdParser]] + (uniqueCommandParser.uniqueId -> uniqueCommandParser))
+        Some(uniqueCommandParser.uniqueId)
       case Some(unknown) =>
-        log.fatal("Unknown context commands keunknowny value: " + unknown.getClass())
+        log.fatal("Unknown context commands value: " + unknown.getClass())
+        None
       case None =>
-        val uniqueCommandParser = commandParserTemplate.copy(uniqueId = UUID.randomUUID()).named(s"""${Command.id}("${commandDescription.name}")""")
+        val uniqueCommandParser = commandParserTemplate.copy(uniqueId = UUID.randomUUID()).named(s""""${commandDescriptor.name}"(${commandId})""")
         perContext(uniqueCommandParser.uniqueId) = Command.ActualInformation(commandId, uniqueCommandParser, context)
-        context.set(Command.contextKey, immutable.HashMap[UUID, Command.CmdParser](commandId -> uniqueCommandParser))
+        context.set(Command.contextKey, immutable.HashMap[UUID, Command.CmdParser](uniqueCommandParser.uniqueId -> uniqueCommandParser))
+        Some(uniqueCommandParser.uniqueId)
     }
     listener.changed(Core.context)
+    newParserUniqueId
   }
   /** Create new proposal provider for the text field. */
   def getProposalProvider(): Command.ProposalProvider = {
     log.debug("Get proposal provider.")
     new Command.ProposalProvider(actualParserCombinators)
   }
-  /** Get description for commandId. */
-  def getDescription(commandId: UUID) = registry.get(commandId)
+  /** Get descriptor for commandId. */
+  def getDescriptor(commandId: UUID) = registry.get(commandId)
   /** Get information for uniqueId. */
   def getInformation(uniqueId: UUID) = perContext.get(uniqueId)
   /** Parse input against active parser. */
@@ -146,22 +150,21 @@ class Command extends Loggable {
     }
   }
   /** Register command. */
-  def register(commandDescription: Command.Description): Unit = contextCommandsAccessLock.synchronized {
-    log.debug(s"""Register command "${commandDescription.name}" with id${commandDescription.commandId}.""")
-    registry += (commandDescription.commandId -> commandDescription)
+  def register(commandDescriptor: Command.Descriptor): Unit = contextCommandsAccessLock.synchronized {
+    log.debug(s"""Register command "${commandDescriptor.name}" with id${commandDescriptor.commandId}.""")
+    registry += (commandDescriptor.commandId -> commandDescriptor)
   }
-  /** Remove all actual parser that have specific command Id from the context. */
-  def removeFromContext(context: EclipseContext, commandId: UUID) = contextCommandsAccessLock.synchronized {
-    log.debug(s"Remove command ${commandId} from context ${context}.")
+  /** Remove all actual parser that have specific unique Id from the context. */
+  def removeFromContext(context: EclipseContext, uniqueId: UUID) = contextCommandsAccessLock.synchronized {
+    log.debug(s"Remove parser ${uniqueId} from context ${context}.")
     Option(context.get(Command.contextKey)) match {
       case Some(commandsGeneric: immutable.HashMap[_, _]) =>
-        context.set(Command.contextKey, commandsGeneric.asInstanceOf[immutable.HashMap[UUID, Command.CmdParser]] - commandId)
+        context.set(Command.contextKey, commandsGeneric.asInstanceOf[immutable.HashMap[UUID, Command.CmdParser]] - uniqueId)
       case Some(unknown) =>
         log.fatal("Unknown context commands keunknowny value: " + unknown.getClass())
       case None =>
     }
-    val uniqueIdToRemove = perContext.filter { case (uniqueId, information) => information.context == context && information.commandId == commandId }.map(_._1)
-    uniqueIdToRemove.foreach(perContext.remove)
+    perContext.remove(uniqueId)
     listener.changed(Core.context)
   }
   /** Remove all actual parser that have specific command Id from the context. */
@@ -169,7 +172,7 @@ class Command extends Loggable {
     val commandId = commandParserTemplate.uniqueId
     if (!registry.contains(commandId))
       throw new IllegalArgumentException(s"Unable to add parser to context: command id ${commandId} not found")
-    removeFromContext(context, commandId)
+    perContext.filter { case (uniqueId, information) => information.commandId == commandId }.foreach(kv => removeFromContext(context, kv._1))
   }
   /** Unregister command. */
   def unregister(commandId: UUID): Unit = contextCommandsAccessLock.synchronized {
@@ -190,13 +193,14 @@ class Command extends Loggable {
     listener.changed(Core.context)
   }
   /** Unregister command. */
-  def unregister(commandDescription: Command.Description) {
-    log.debug(s"Register command ${commandDescription.commandId}: ${commandDescription.name}.")
-    val commandId = commandDescription.commandId
+  def unregister(commandDescriptor: Command.Descriptor) {
+    log.debug(s"Register command ${commandDescriptor.commandId}: ${commandDescriptor.name}.")
+    val commandId = commandDescriptor.commandId
     if (!registry.contains(commandId))
       throw new IllegalArgumentException(s"Unable to add parser to context: command id ${commandId} not found")
     unregister(commandId)
   }
+
 }
 
 /**
@@ -218,13 +222,13 @@ object Command extends Loggable {
 
   sealed trait Result
   case class Success(uniqueId: UUID, result: Any) extends Result
-  case class MissingCompletionOrFailure(completion: List[(String, UUID)], message: String) extends Result
+  case class MissingCompletionOrFailure(completion: List[(String, List[parser.CompletionHint])], message: String) extends Result
   case class Failure(message: String) extends Result
   case class Error(message: String) extends Result
   /** Information about command parser that is  added to specific context. */
   case class ActualInformation private[Command] (commandId: UUID, parser: Command.parser.Parser[Any], context: EclipseContext)
-  /** Command description. */
-  case class Description(val commandId: UUID)(val name: String, val description: String, val callback: (EclipseContext, Any) => Unit)
+  /** Command descriptor where callback is (active context, parser context, parser result) => Unit */
+  case class Descriptor(val commandId: UUID)(val name: String, val description: String, val callback: (EclipseContext, EclipseContext, Any) => Unit)
   /** Command parser that wraps base parser combinator with 'phrase' sentence. */
   class CmdParser(val uniqueId: UUID, base: parser.Parser[Any])
     extends parser.CmdParser(uniqueId, base) {
@@ -240,8 +244,8 @@ object Command extends Loggable {
     override def hashCode = uniqueId.hashCode()
   }
   object CmdParser {
-    def apply(base: parser.Parser[Any])(implicit description: Description) =
-      new CmdParser(description.commandId, base)
+    def apply(base: parser.Parser[Any])(implicit descriptor: Descriptor) =
+      new CmdParser(descriptor.commandId, base)
   }
   /** Application wide context listener that rebuild commands. */
   class Listener(val commandParserCombinators: AtomicReference[parser.Parser[Any]]) extends RunAndTrack() {
@@ -278,15 +282,21 @@ object Command extends Loggable {
         case Command.Success(uniqueId, result) =>
           Array()
         case Command.MissingCompletionOrFailure(completionList, message) =>
-          completionList.map {
-            case (completion, commandIdFromLiteral) =>
-              Command.registry.get(commandIdFromLiteral) match {
-                case Some(commandDescription) =>
-                  Some(new ContentProposal(completion, commandDescription.name, commandDescription.description))
-                case None =>
-                  log.fatal("Unable to find command description for " + commandIdFromLiteral)
-                  None
-              }
+          {
+            completionList.map {
+              case (completion, hints) =>
+                if (hints.isEmpty)
+                  Seq(new ContentProposal(completion, null, null))
+                else
+                  hints.map {
+                    case parser.CompletionHint(label, Some(description), explicit) =>
+                      val actualCompletion = explicit getOrElse completion
+                      new ContentProposal(actualCompletion, label, description)
+                    case parser.CompletionHint(label, None, explicit) =>
+                      val actualCompletion = explicit getOrElse completion
+                      new ContentProposal(actualCompletion, label, null)
+                  }
+            }
           }.flatten.toArray
         case Command.Failure(message) =>
           log.fatal(message)
@@ -314,6 +324,6 @@ object Command extends Loggable {
     /** Command implementation. */
     lazy val implementation = injectOptional[Command] getOrElse new Command
     /** Parser implementation. */
-    lazy val parser = injectOptional[Parser] getOrElse new Parser
+    lazy val parser = injectOptional[CommandParsers] getOrElse new CommandParsers
   }
 }

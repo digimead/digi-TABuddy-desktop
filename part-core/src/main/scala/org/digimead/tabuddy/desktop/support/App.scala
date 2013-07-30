@@ -50,7 +50,7 @@ import akka.actor.Props
 import language.implicitConversions
 import akka.actor.ActorRef
 
-class App extends Loggable with app.Akka with app.Context with app.Generic with app.Model with app.Workbench
+class App extends Loggable with app.Akka with app.Context with app.Generic with app.Model with app.Workbench with app.GUI
 
 /** Application singleton. */
 object App {

@@ -60,7 +60,7 @@ import org.eclipse.ui.preferences.ScopedPreferenceStore
 import org.eclipse.core.runtime.preferences.InstanceScope
 
 trait Generic extends MainService.Consumer {
-  this: Loggable with Workbench with Context =>
+  this: Loggable with GUI with Context =>
   /** Application preference store. */
   protected lazy val preferenceStore = new ScopedPreferenceStore(new InstanceScope(), bundle(getClass).getSymbolicName())
   /** Hash with started classes. Class name -> running. */

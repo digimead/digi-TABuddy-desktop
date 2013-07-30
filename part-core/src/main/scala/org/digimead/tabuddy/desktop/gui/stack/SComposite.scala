@@ -51,7 +51,14 @@ import org.eclipse.swt.widgets.Composite
 
 import akka.actor.ActorRef
 
-class SComposite(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int) extends Composite(parent: Composite, style: Int) {
+/**
+ * Stack layer.
+ */
+trait SComposite extends Composite {
+  /** Stack layer id. */
+  val id: UUID
+  /** Stack layer actor rederence. */
+  val ref: ActorRef
   setData(GUI.swtId, id)
 
   /** Returns the receiver's parent, which must be a ScrolledComposite. */
@@ -60,4 +67,6 @@ class SComposite(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, sty
   override protected def checkSubclass() {
     // Disable the check that prevents subclassing of SWT components
   }
+
+  override def toString() = super.toString + "/" + id
 }

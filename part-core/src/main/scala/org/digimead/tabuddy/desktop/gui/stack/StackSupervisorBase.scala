@@ -41,27 +41,47 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.action
+package org.digimead.tabuddy.desktop.gui.stack
 
 import java.util.UUID
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
-import org.digimead.tabuddy.desktop.gui.GUI
-import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
-import org.eclipse.jface.action.Action
+import scala.collection.immutable
 
-object Exit extends Action(Messages.exit_text) with Loggable {
-  import Command.parser._
-  /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.exit_text, "my exit",
-      (activeContext, parserContext, parserResult) => run)
-  /** Command parser. */
-  lazy val parser = Command.CmdParser("exit")
+import org.digimead.tabuddy.desktop.gui.StackConfiguration
+import org.eclipse.swt.custom.ScrolledComposite
 
-  @log
-  override def run = GUI.stop(GUI.Exit.Ok)
+import akka.actor.Actor
+
+/**
+ * Base trait for stack supervisor.
+ */
+trait StackSupervisorBase extends Actor {
+  /** Window/StackSupervisor id. */
+  lazy val supervisorId = UUID.fromString(self.path.parent.name.split("@").last)
+  /** Stack configuration. */
+  @volatile protected[stack] var configuration = StackConfiguration.default
+  /** Stack configuration map. SComposite UUID -> configuration element. */
+  @volatile protected[stack] var configurationMap = toMap(configuration)
+  /** Top level stack hierarchy container. It is ScrolledComposite of content of WComposite. */
+  @volatile protected[stack] var container: Option[ScrolledComposite] = None
+
+  protected def toMap(configuration: org.digimead.tabuddy.desktop.gui.Configuration): immutable.HashMap[UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder] = {
+    var entry = Seq[(UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder)]()
+    def visit(stack: org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder) {
+      entry = entry :+ stack.id -> stack
+      stack match {
+        case tab: org.digimead.tabuddy.desktop.gui.Configuration.Stack.Tab =>
+          tab.children.foreach(visit)
+        case hsash: org.digimead.tabuddy.desktop.gui.Configuration.Stack.HSash =>
+          visit(hsash.left)
+          visit(hsash.right)
+        case vsash: org.digimead.tabuddy.desktop.gui.Configuration.Stack.VSash =>
+          visit(vsash.top)
+          visit(vsash.bottom)
+        case view: org.digimead.tabuddy.desktop.gui.Configuration.View =>
+      }
+    }
+    visit(configuration.stack)
+    immutable.HashMap[UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder](entry: _*)
+  }
 }

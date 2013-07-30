@@ -55,7 +55,8 @@ import org.eclipse.jface.action.Action
 object Test extends Action("test") with Loggable {
   import Command.parser._
   /** Command description. */
-  implicit lazy val description = Command.Description(UUID.randomUUID())("test", "my test", (context, parserResult) => { log.___glance("!!!!!TEST") })
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())("test", "my test",
+      (activeContext, parserContext, parserResult) => { log.___glance("!!!!!TEST") })
   /** Command parser. */
   lazy val parser = Command.CmdParser("test")
 

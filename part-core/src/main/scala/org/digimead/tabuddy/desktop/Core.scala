@@ -78,6 +78,24 @@ class Core extends akka.actor.Actor with Loggable {
    */
   val windowGroup = context.actorOf(gui.WindowSupervisor.props, gui.WindowSupervisor.id)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Started[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stopped[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[UnhandledMessage])
+    log.debug(self.path.name + " actor is stopped.")
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[UnhandledMessage])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Started[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Stopped[_]])
+    log.debug(self.path.name + " actor is started.")
+  }
   /** Get subscribers list. */
   def receive = {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
@@ -107,12 +125,8 @@ class Core extends akka.actor.Actor with Loggable {
     case message @ App.Message.Started(GUI, sender) => App.traceMessage(message) {
       future {
         App.verifyApplicationEnvironment
-        Command.register(action.Exit.description)
-        Command.addToContext(Core.context, action.Exit.parser)
-        Command.register(action.Test.description)
-        Command.addToContext(Core.context, action.Test.parser)
-        Command.register(action.View.description)
-        Command.addToContext(Core.context, action.View.parser)
+        core.Actions.configure
+        core.Views.configure
         App.markAsStarted(Core.getClass)
       } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
@@ -122,6 +136,8 @@ class Core extends akka.actor.Actor with Loggable {
 
     case message @ App.Message.Stopped(GUI, sender) => App.traceMessage(message) {
       future {
+        core.Views.unconfigure
+        core.Actions.unconfigure
         App.markAsStopped(Core.getClass)
       } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
@@ -135,7 +151,6 @@ class Core extends akka.actor.Actor with Loggable {
     case UnhandledMessage(message, sender, self) =>
       log.fatal(s"Received unexpected message '${sender}' -> '${self}': '${message}'")
   }
-  override def postStop() = log.debug("Core actor is stopped.")
 }
 
 object Core {

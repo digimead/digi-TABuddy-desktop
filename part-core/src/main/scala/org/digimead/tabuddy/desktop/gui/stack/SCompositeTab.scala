@@ -41,14 +41,14 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.api
+package org.digimead.tabuddy.desktop.gui.stack
+
+import java.util.UUID
+
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.widgets.TabFolder
 
 import akka.actor.ActorRef
 
-/**
- * User implemented factory, that returns ActorRef, responsible for view creation/destroying.
- */
-trait ViewFactory {
-  /** Returns actor reference that could handle Create/Destroy messages. */
-  def viewActor(configuration: Configuration.View): Option[ActorRef]
-}
+class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
+  extends TabFolder(parent, style) with SComposite

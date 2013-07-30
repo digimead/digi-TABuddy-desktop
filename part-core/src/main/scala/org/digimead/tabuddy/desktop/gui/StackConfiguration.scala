@@ -58,6 +58,9 @@ import org.digimead.tabuddy.desktop.view.Default
 
 import language.implicitConversions
 
+/**
+ * Stack layer configuration.
+ */
 class StackConfiguration extends Loggable {
   /** Persistent storage. */
   lazy val configurationContainer = {
@@ -73,7 +76,7 @@ class StackConfiguration extends Loggable {
 
   /** Load views configurations. */
   @log
-  def load(stackId: UUID): Option[api.Configuration] = loadSaveLock.synchronized {
+  def load(stackId: UUID): Option[Configuration] = loadSaveLock.synchronized {
     val configurationFile = new File(configurationContainer, stackId.toString + "." + StackConfiguration.configurationExtenstion)
     log.debug("Load stack configuration from " + configurationFile.getName)
     if (!configurationFile.exists() || configurationFile.length() == 0) {
@@ -85,7 +88,7 @@ class StackConfiguration extends Loggable {
       val in = new CustomObjectInputStream(fis)
       val result = in.readObject()
       in.close()
-      Option(result.asInstanceOf[api.Configuration])
+      Option(result.asInstanceOf[Configuration])
     } catch {
       case e: Throwable =>
         log.error("Unable to load stack configuration: " + e.getMessage(), e)
@@ -94,7 +97,7 @@ class StackConfiguration extends Loggable {
   }
   /** Save views configurations. */
   @log
-  def save(stackId: UUID, configuration: api.Configuration) = loadSaveLock.synchronized {
+  def save(stackId: UUID, configuration: Configuration) = loadSaveLock.synchronized {
     val configurationFile = new File(configurationContainer, stackId.toString + "." + StackConfiguration.configurationExtenstion)
     log.debug("Save stack configuration to " + configurationFile)
     log.trace("Save stack:\n" + configuration)
@@ -126,8 +129,8 @@ object StackConfiguration {
     /** Extension for stored configurations. */
     lazy val configurationExtenstion = injectOptional[String]("StackConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
-    lazy val default = injectOptional[api.Configuration]("Default") getOrElse
-      api.Configuration(api.Configuration.View(Default))
+    lazy val default = injectOptional[Configuration]("Default") getOrElse
+      Configuration(org.digimead.tabuddy.desktop.gui.Configuration.View(Default))
     //      StackConfiguration(Stack.Tab(Seq(View(UUID.fromString("00000000-0000-0000-0000-000000000000")))))
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()

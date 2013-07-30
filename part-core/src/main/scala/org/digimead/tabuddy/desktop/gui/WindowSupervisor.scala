@@ -99,6 +99,30 @@ class WindowSupervisor extends Actor with Loggable {
   val pointers = new WindowSupervisor.PointerMap()
   log.debug("Start actor " + self.path)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() {
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stopped[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Started[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Destroyed[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Created[_]])
+    val saveFuture = configurationsSave.get
+    saveFuture.map(future => Await.result(future, Timeout.short))
+    if (configurationsSaveRestart.get) {
+      for (i <- 0 to 10 if saveFuture == configurationsSave.get)
+        Thread.sleep(100) // User have limited patience - 1 second is enough
+      if (saveFuture != configurationsSave.get)
+        configurationsSave.get.map(future => Await.result(future, Timeout.short))
+    }
+    log.debug(self.path.name + " actor is stopped.")
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[App.Message.Created[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Destroyed[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Started[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Stopped[_]])
+    log.debug(self.path.name + " actor is started.")
+  }
   def receive = {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
@@ -122,12 +146,12 @@ class WindowSupervisor extends Actor with Loggable {
       onGUIStopped()
     }
     case message @ WindowSupervisor.Message.Get(windowId) => App.traceMessage(message) {
-      get(sender, windowId)
+      getConfiguration(sender, windowId)
     }
     case message @ WindowSupervisor.Message.Peek =>
       sender ! pointers.toSeq
     case message @ WindowSupervisor.Message.Set(windowId, configuration) => App.traceMessage(message) {
-      set(sender, windowId, configuration)
+      setConfiguration(sender, windowId, configuration)
     }
 
     case message @ App.Message.Created(window, sender) =>
@@ -135,18 +159,8 @@ class WindowSupervisor extends Actor with Loggable {
     case message @ App.Message.Started(element, sender) =>
     case message @ App.Message.Stopped(element, sender) =>
   }
-  override def postStop() {
-    val saveFuture = configurationsSave.get
-    saveFuture.map(future => Await.result(future, Timeout.short))
-    if (configurationsSaveRestart.get) {
-      for (i <- 0 to 10 if saveFuture == configurationsSave.get)
-        Thread.sleep(100) // User have limited patience - 1 second is enough
-      if (saveFuture != configurationsSave.get)
-        configurationsSave.get.map(future => Await.result(future, Timeout.short))
-    }
-    log.debug(self.path.name + " actor is stopped.")
-  }
 
+  /** Create new window actor and actor contents. */
   protected def create(windowId: UUID) {
     if (pointers.contains(windowId))
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
@@ -154,30 +168,36 @@ class WindowSupervisor extends Actor with Loggable {
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
     window ! App.Message.Create(windowId, self)
   }
-  protected def get(sender: ActorRef, windowId: Option[UUID]) = windowId match {
+  /** Send exists or default window configuration to sender. */
+  protected def getConfiguration(sender: ActorRef, windowId: Option[UUID]) = windowId match {
     case Some(id: UUID) =>
       sender ! (configurations.get(id) getOrElse WindowConfiguration.default)
     case None =>
       sender ! WindowConfiguration.default
   }
+  /** Update/create window pointer with WComposite value. */
   protected def onCreated(window: WComposite, sender: ActorRef) {
     pointers += window.id -> WindowSupervisor.WindowPointer(sender)(new WeakReference(window))
     implicit val timeout = akka.util.Timeout(Timeout.short)
     sender ? App.Message.Open
   }
+  /** Remove window pointer with WComposite value. */
   protected def onDestroyed(window: WComposite, sender: ActorRef) {
     pointers -= window.id
   }
+  /** Start global focus listener when GUI is available. */
   protected def onGUIStarted() = App.exec {
     App.display.addFilter(SWT.FocusIn, FocusListener)
     App.display.addFilter(SWT.FocusOut, FocusListener)
   }
+  /** Stop global focus listener when GUI is not available. */
   protected def onGUIStopped() = App.exec {
     Option(App.display).foreach { display =>
       display.removeFilter(SWT.FocusIn, FocusListener)
       display.removeFilter(SWT.FocusOut, FocusListener)
     }
   }
+  /** Restore windows from configuration. */
   protected def restore() {
     // destroy all current windows
     configurations.clear
@@ -216,16 +236,20 @@ class WindowSupervisor extends Actor with Loggable {
         save()
     }))) configurationsSaveRestart.set(true)
   }
-  protected def set(sender: ActorRef, windowId: UUID, configuration: WindowConfiguration) = {
+  /** Update configuration for window. */
+  protected def setConfiguration(sender: ActorRef, windowId: UUID, configuration: WindowConfiguration) = {
     configurations(windowId) = configuration
   }
 
-  /** Start window. */
+  /**
+   * Global focus listener.
+   * Origin of all App.Message.Start events.
+   */
   object FocusListener extends Listener() {
     def handleEvent(event: Event) {
       App.findShell(event.widget).foreach { shell =>
         Option(shell.getData(GUI.swtId).asInstanceOf[UUID]).foreach(id =>
-          pointers.get(id).foreach(pointer => pointer.actor ! App.Message.Start))
+          pointers.get(id).foreach(pointer => pointer.actor ! App.Message.Start(event.widget, self)))
       }
     }
   }
@@ -242,6 +266,9 @@ object WindowSupervisor extends Loggable {
   lazy val actorPath = Core.path / id
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  // Initialize descendant actor singletons
+  Window
+
   /** WindowSupervisor actor reference configuration object. */
   def props = DI.props
 
@@ -306,6 +333,6 @@ object WindowSupervisor extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** WindowSupervisor actor reference configuration object. */
-    lazy val props = injectOptional[Props]("WindowSupervisor") getOrElse Props[WindowSupervisor]
+    lazy val props = injectOptional[Props]("GUI.WindowSupervisor") getOrElse Props[WindowSupervisor]
   }
 }

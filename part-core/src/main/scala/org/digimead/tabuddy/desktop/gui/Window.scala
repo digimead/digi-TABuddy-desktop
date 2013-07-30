@@ -45,6 +45,8 @@ package org.digimead.tabuddy.desktop.gui
 
 import java.util.UUID
 
+import scala.collection.immutable
+
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
@@ -53,6 +55,7 @@ import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.eclipse.swt.widgets.Widget
 
 import akka.actor.Actor
 import akka.actor.ActorRef
@@ -67,20 +70,15 @@ import akka.pattern.ask
  * - start window
  * - close/destroy window
  */
-class Window extends Actor with WComposite.Controller with Loggable {
+class Window(parentContext: EclipseContext) extends Actor with WComposite.Controller with Loggable {
+  /** Window id. */
+  lazy val windowId = UUID.fromString(self.path.name.split("@").last)
   /** Window JFace instance. */
   protected var window: Option[WComposite] = None
-  /** Window UUID. */
-  protected val windowId = UUID.fromString(self.path.name.split("@").last)
   /** Window context. */
-  protected val windowContext = Core.context.createChild(self.path.name).asInstanceOf[EclipseContext]
+  protected lazy val windowContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
   /** Window views supervisor. */
-  protected lazy val stackSupervisor = {
-    val actorRef = context.actorOf(StackSupervisor.props, StackSupervisor.id)
-    App.system.eventStream.subscribe(actorRef, classOf[App.Message.Created[_]])
-    App.system.eventStream.subscribe(actorRef, classOf[App.Message.Destroyed[_]])
-    actorRef
-  }
+  protected lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq[Any](windowContext)), StackSupervisor.id)
   log.debug("Start actor " + self.path)
 
   def receive = {
@@ -94,53 +92,72 @@ class Window extends Actor with WComposite.Controller with Loggable {
       assert(windowId == this.windowId)
       create(supervisor)
     }
+    case message @ App.Message.Create(viewFactory: ViewLayer.Factory, supervisor) => App.traceMessage(message) {
+      create(viewFactory)
+    }
     case message @ App.Message.Destroy => App.traceMessage(message) {
       destroy(sender)
     }
     case message @ App.Message.Open => App.traceMessage(message) {
       open(sender)
     }
-    case message @ App.Message.Start => App.traceMessage(message) {
-      onStart()
+    case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
+      onStart(widget)
+    }
+    case message @ Window.Message.Get => App.traceMessage(message) {
+      sender ! window
     }
   }
   override def postStop() = log.debug(self.path.name + " actor is stopped.")
 
   /** Close window. */
-  protected def close(sender: ActorRef) = this.window.foreach(window => App.exec {
-    if (window.getShell() != null && !window.getShell().isDisposed())
-      if (sender != context.system.deadLetters)
-        sender ! Window.Message.CloseResult(window.close())
-  })
+  protected def close(sender: ActorRef) = {
+    log.debug(s"Close window ${windowId}.")
+    this.window.foreach(window => App.exec {
+      if (window.getShell() != null && !window.getShell().isDisposed())
+        if (sender != context.system.deadLetters)
+          sender ! Window.Message.CloseResult(window.close())
+    })
+  }
   /** Create window. */
   protected def create(supervisor: ActorRef) {
     if (window.nonEmpty)
       throw new IllegalStateException("Unable to create window. It is already created.")
+    log.debug(s"Create window ${windowId}.")
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
     supervisor ? WindowSupervisor.Message.Get(Some(windowId)) onSuccess {
       case configuration: WindowConfiguration =>
         this.window = Option(App.execNGet {
-          val window = new WComposite(windowId, self, stackSupervisor, null)
+          val window = new WComposite(windowId, self, stackSupervisor, windowContext, null)
           window.configuration = Some(configuration)
           window
         })
         this.window.foreach(window => App.publish(App.Message.Created(window, self)))
     }
   }
+  /** Create new view within window. */
+  protected def create(viewFactory: ViewLayer.Factory) {
+    if (window.isEmpty)
+      throw new IllegalStateException(s"Unable to create view from ${viewFactory}. Window isn't created.")
+    log.debug(s"Create new view from ${viewFactory}.")
+    stackSupervisor ! App.Message.Create(viewFactory, self)
+  }
   /** Destroy created window. */
   protected def destroy(sender: ActorRef) = this.window.foreach { window =>
     window.saveOnClose = false
     close(sender)
   }
-  /** User start interaction with window. Focus gained. */
-  protected def onStart() {
-    windowContext.set(Window.id, self)
-    windowContext.activateBranch()
-    window.foreach { window =>
+  /** User start interaction with window. Focus is gained. */
+  protected def onStart(widget: Widget) = window match {
+    case Some(window) =>
+      Core.context.set(GUI.windowContextKey, window)
+      windowContext.activateBranch()
+      stackSupervisor ! App.Message.Start(widget, self)
       if (window.contentVisible.compareAndSet(false, true))
         App.exec { window.showContent }
-    }
+    case None =>
+      log.fatal("Unable to start window without widget.")
   }
   /** Open created window. */
   protected def open(sender: ActorRef) = this.window.foreach(window => App.exec {
@@ -153,12 +170,16 @@ class Window extends Actor with WComposite.Controller with Loggable {
 object Window extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  // Initialize descendant actor singletons
+  StackSupervisor
 
   /** Window actor reference configuration object. */
   def props = DI.props
 
   trait Message extends App.Message
   object Message {
+    /** Get window composite. */
+    case object Get
     case class OpenResult private[Window] (arg: Int) extends Message
     case class CloseResult private[Window] (arg: Boolean) extends Message
   }
@@ -167,6 +188,6 @@ object Window extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Window actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Window") getOrElse Props[Window]
+    lazy val props = injectOptional[Props]("GUI.Window") getOrElse Props(classOf[Window], Core.context)
   }
 }

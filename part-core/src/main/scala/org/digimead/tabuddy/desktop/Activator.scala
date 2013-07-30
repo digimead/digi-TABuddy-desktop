@@ -55,8 +55,6 @@ import org.digimead.tabuddy.desktop.Report.report2implementation
 import org.digimead.tabuddy.desktop.Resources.resources2implementation
 import org.digimead.tabuddy.desktop.api.Main
 import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.gui.WindowSupervisor
-import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowGroup2actorRef
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
@@ -68,7 +66,6 @@ import org.osgi.util.tracker.ServiceTracker
 import akka.actor.Inbox
 import akka.actor.PoisonPill
 import akka.actor.Terminated
-import akka.actor.UnhandledMessage
 
 /**
  * OSGi entry point.
@@ -106,20 +103,6 @@ class Activator extends BundleActivator with Loggable {
       }
     DependencyInjection.inject()
     Core.actor // Start component actors hierarchy
-    App.system.eventStream.subscribe(Core, classOf[UnhandledMessage])
-    App.system.eventStream.subscribe(Core, classOf[App.Message.Inconsistent[_]])
-    App.system.eventStream.subscribe(Core, classOf[App.Message.Consistent[_]])
-    App.system.eventStream.subscribe(Core, classOf[App.Message.Started[_]])
-    App.system.eventStream.subscribe(Core, classOf[App.Message.Stopped[_]])
-    /*    App.system.eventStream.subscribe(WindowWatcher, classOf[WindowAdvisor.Message.PostWindowCreate])
-    App.system.eventStream.subscribe(WindowWatcher, classOf[WindowAdvisor.Message.PreWindowShellClose])
-    App.system.eventStream.subscribe(MenuWatcher, classOf[WindowAdvisor.Message.PostWindowCreate])
-    App.system.eventStream.subscribe(MenuWatcher, classOf[WindowAdvisor.Message.PreWindowShellClose])*/
-
-    App.system.eventStream.subscribe(WindowSupervisor, classOf[App.Message.Created[_]])
-    App.system.eventStream.subscribe(WindowSupervisor, classOf[App.Message.Destroyed[_]])
-    App.system.eventStream.subscribe(WindowSupervisor, classOf[App.Message.Started[_]])
-    App.system.eventStream.subscribe(WindowSupervisor, classOf[App.Message.Stopped[_]])
     // Start global components that haven't dispose methods.
     Command
     System.out.println("Core component is started.")
@@ -127,20 +110,6 @@ class Activator extends BundleActivator with Loggable {
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TABuddy Desktop core.")
-    App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Stopped[_]])
-    App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Started[_]])
-    App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Destroyed[_]])
-    App.system.eventStream.unsubscribe(WindowSupervisor, classOf[App.Message.Created[_]])
-
-    /*    App.system.eventStream.unsubscribe(MenuWatcher, classOf[WindowAdvisor.Message.PostWindowCreate])
-    App.system.eventStream.unsubscribe(MenuWatcher, classOf[WindowAdvisor.Message.PreWindowShellClose])
-    App.system.eventStream.unsubscribe(WindowWatcher, classOf[WindowAdvisor.Message.PreWindowShellClose])
-    App.system.eventStream.unsubscribe(WindowWatcher, classOf[WindowAdvisor.Message.PostWindowCreate])*/
-    App.system.eventStream.unsubscribe(Core, classOf[App.Message.Started[_]])
-    App.system.eventStream.unsubscribe(Core, classOf[App.Message.Stopped[_]])
-    App.system.eventStream.unsubscribe(Core, classOf[App.Message.Consistent[_]])
-    App.system.eventStream.unsubscribe(Core, classOf[App.Message.Inconsistent[_]])
-    App.system.eventStream.unsubscribe(Core, classOf[UnhandledMessage])
     // Stop component actors.
     val inbox = Inbox.create(App.system)
     inbox.watch(Core)

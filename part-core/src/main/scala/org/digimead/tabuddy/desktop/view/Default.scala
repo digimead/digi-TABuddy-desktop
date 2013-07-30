@@ -45,45 +45,54 @@ package org.digimead.tabuddy.desktop.view
 
 import java.util.concurrent.TimeoutException
 
+import scala.collection.immutable
 import scala.concurrent.Await
 import scala.concurrent.Future
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.gui.View
-import org.digimead.tabuddy.desktop.gui.api
-import org.digimead.tabuddy.desktop.gui.stack.SComposite
+import org.digimead.tabuddy.desktop.gui
+import org.digimead.tabuddy.desktop.gui.stack.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
+import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.widgets.Widget
 
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.pattern.ask
 
-class Default extends Actor with Loggable {
-  /** Container view actor. */
-  protected var view: Option[ActorRef] = None
+class Default(parentContext: EclipseContext) extends Actor with Loggable {
+  /** Parent view widget. */
+  @volatile protected var view: Option[VComposite] = None
+  /** View context. */
+  protected val viewContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(container: SComposite, viewActor) => App.traceMessage(message) {
-      App.exec { create(container, viewActor) }
+    case message @ App.Message.Create(container: VComposite, viewActor) => App.traceMessage(message) {
+      App.exec { create(container) }
     }
     case message @ App.Message.Destroy => App.traceMessage(message) {
       App.exec { destroy(sender) }
       this.view = None
     }
+    case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
+      onStart(widget)
+    }
   }
+
   /** Create window. */
-  protected def create(parent: SComposite, viewActor: ActorRef) {
+  protected def create(parent: VComposite) {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.checkThread
+    view = Option(parent)
     val button = new org.eclipse.swt.widgets.Button(parent, SWT.PUSH)
     button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
     parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
@@ -93,17 +102,29 @@ class Default extends Actor with Loggable {
   protected def destroy(sender: ActorRef) = this.view.foreach { view =>
     App.checkThread
   }
+  /** User start interaction with window/stack supervisor/view/this content. Focus is gained. */
+  protected def onStart(widget: Widget) = view match {
+    case Some(view) =>
+      log.debug("View started by focus event on " + widget)
+      viewContext.activateBranch()
+    case None =>
+      log.fatal("Unable to start view without widget.")
+  }
 }
 
-object Default extends api.ViewFactory with Loggable {
+object Default extends gui.ViewLayer.Factory with Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  /** View name. */
+  lazy val name = DI.name
+  /** View description. */
+  lazy val description = DI.description
 
   /** Returns actor reference that could handle Create/Destroy messages. */
-  def viewActor(configuration: api.Configuration.View): Option[ActorRef] = {
+  def viewActor(configuration: gui.Configuration.View, parentContext: EclipseContext): Option[ActorRef] = {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
-    val future = Core.actor ? App.Message.Attach(props, View.id + id + "@" + configuration.id)
+    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(parentContext)), gui.ViewLayer.id + "@" + id + "@" + configuration.id)
     try {
       Option(Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration))
     } catch {
@@ -122,7 +143,11 @@ object Default extends api.ViewFactory with Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** View name. */
+    lazy val name = injectOptional[String]("View.Default.Name") getOrElse "Default"
+    /** View description. */
+    lazy val description = injectOptional[String]("View.Default.Description") getOrElse "Default view description"
     /** Default view actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Default") getOrElse Props[Default]
+    lazy val props = injectOptional[Props]("View.Default") getOrElse Props(classOf[Default], Core.context)
   }
 }

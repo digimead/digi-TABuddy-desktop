@@ -41,27 +41,51 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.action
-
-import java.util.UUID
+package org.digimead.tabuddy.desktop.core
 
 import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.action
 import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
-import org.digimead.tabuddy.desktop.gui.GUI
-import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
-import org.eclipse.jface.action.Action
+import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
 
-object Exit extends Action(Messages.exit_text) with Loggable {
-  import Command.parser._
-  /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.exit_text, "my exit",
-      (activeContext, parserContext, parserResult) => run)
-  /** Command parser. */
-  lazy val parser = Command.CmdParser("exit")
+import language.implicitConversions
 
+/**
+ * Configurator responsible for configure/unconfigure application views.
+ */
+class Actions extends Loggable {
+  /** Configure component actions. */
   @log
-  override def run = GUI.stop(GUI.Exit.Ok)
+  def configure() {
+    Command.register(action.Exit.descriptor)
+    Command.register(action.Test.descriptor)
+    Command.register(action.View.descriptor)
+    Command.addToContext(Core.context, action.Exit.parser)
+    Command.addToContext(Core.context, action.Test.parser)
+  }
+  /** Unconfigure component actions. */
+  @log
+  def unconfigure() {
+    Command.unregister(action.View.descriptor)
+    Command.unregister(action.Test.descriptor)
+    Command.unregister(action.Exit.descriptor)
+  }
+}
+
+object Actions {
+  implicit def configurator2implementation(c: Actions.type): Actions = c.inner
+
+  /** Actions implementation. */
+  def inner(): Actions = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Actions implementation */
+    lazy val implementation = injectOptional[Actions] getOrElse new Actions
+  }
 }

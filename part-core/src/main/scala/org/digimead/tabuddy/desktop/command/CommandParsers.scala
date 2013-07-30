@@ -44,22 +44,22 @@
 package org.digimead.tabuddy.desktop.command
 
 import java.util.UUID
-
 import scala.util.DynamicVariable
-
 import org.digimead.digi.lib.log.api.Loggable
-
 import language.implicitConversions
+import scala.util.matching.Regex
 
 /**
  * Parser implementation for commands.
  * Thanks a lot to to Marcus Schulte for an idea.
  */
-class Parser extends JavaTokenParsers with Loggable {
+class CommandParsers extends JavaTokenParsers with Loggable {
   /** Spool of successful results for various commands. */
   val successfullCommand = new DynamicVariable[Option[UUID]](None)
   /** Stub parser. */
   val stubParser = new StubParser
+  /** Make whiteSpace public. */
+  override val whiteSpace = """[ \t]+""".r
 
   /** Simple stub parser. */
   class StubParser[T] extends Parser[T] {
@@ -86,9 +86,11 @@ class Parser extends JavaTokenParsers with Loggable {
       }
     }
   }
-  implicit def commandLiteral(s: String)(implicit description: Command.Description): Parser[String] =
-    commandLiteral(s, description.commandId)
-  implicit def commandLiteral(s: String, commandId: UUID): Parser[String] = new Parser[String] {
+  /** A parser that matches a literal string. */
+  implicit def commandLiteral(s: String)(implicit descriptor: Command.Descriptor): Parser[String] =
+    commandLiteral(s, CompletionHint(descriptor.name, Some(descriptor.description)))
+  /** A parser that matches a literal string. */
+  implicit def commandLiteral(s: String, hint: CompletionHint): Parser[String] = new Parser[String] {
     def apply(in: Input): ParseResult[String] = {
       val source = in.source
       val offset = in.offset
@@ -103,10 +105,34 @@ class Parser extends JavaTokenParsers with Loggable {
         Success(source.subSequence(start, j).toString, in.drop(j - offset))
       else if (j == source.length()) {
         val missing = s.substring(i)
-        MissingCompletionOrFailure(List((missing, commandId)), "expected one of " + missing, in.drop(start - offset))
+        MissingCompletionOrFailure(List((missing, List(hint))), "expected one of " + missing, in.drop(start - offset))
       } else {
         val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
         MissingCompletionOrFailure(List(), "`" + s + "' expected but " + found + " found", in.drop(start - offset))
+      }
+    }
+  }
+  /** A parser that matches a regex string. */
+  implicit def commandRegex(r: Regex)(implicit descriptor: Command.Descriptor): Parser[String] =
+    commandRegex(r, List(CompletionHint(descriptor.name, Some(descriptor.description))))
+  /** A parser that matches a regex string. */
+  implicit def commandRegex(r: Regex, hints: List[CompletionHint]): Parser[String] = new Parser[String] {
+    def apply(in: Input) = {
+      val source = in.source
+      val offset = in.offset
+      val start = handleWhiteSpace(source, offset)
+      (r findPrefixMatchOf (source.subSequence(start, source.length))) match {
+        case Some(matched) =>
+          Success(source.subSequence(start, start + matched.end).toString,
+            in.drop(start + matched.end - offset))
+        case None =>
+          val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
+          if (start == source.length()) {
+            val missing = "A"
+            MissingCompletionOrFailure(List((missing, hints)), "expected one of " + missing, in.drop(start - offset))
+          } else {
+            MissingCompletionOrFailure(List(), "string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
+          }
       }
     }
   }
@@ -114,9 +140,10 @@ class Parser extends JavaTokenParsers with Loggable {
    * A `Failure` which is curable by adding one of several possible completions.
    *
    * @param completions what would make the parser succeed if added to `in`.
+   *        1st arg - completion
    * @param next the input about to be read
    */
-  case class MissingCompletionOrFailure(val completions: List[(String, UUID)],
+  case class MissingCompletionOrFailure(val completions: List[(String, List[CompletionHint])],
     override val msg: String,
     override val next: Input) extends Failure(msg, next) {
     /** The toString method of a Failure yields an error message. */
@@ -135,4 +162,12 @@ class Parser extends JavaTokenParsers with Loggable {
           alt
     }
   }
+  case class CompletionHint(
+    /** Completion label. */
+    val completionLabel: String,
+    /** Completion description. */
+    val completionDescription: Option[String] = None,
+    /** Explicit completion overrides default completion from parser. */
+    val explicitCompletion: Option[String] = None)
 }
+

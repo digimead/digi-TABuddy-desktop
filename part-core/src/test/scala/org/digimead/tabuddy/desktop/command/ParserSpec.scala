@@ -72,19 +72,22 @@ class ParserTest extends WordSpec with ShouldMatchers with OSGiHelper with Loggi
       val command1id = UUID.fromString("2b565600-f693-11e2-b778-0800200c9a66")
       val command1 = {
         import Command.parser._
-        implicit val description = Command.Description(command1id)("open", "my open", parserResult => { System.out.println(parserResult) })
+        implicit val descriptor = Command.Descriptor(command1id)("open", "my open",
+          (activeContext, parserContext, parserResult) => { System.out.println(parserResult) })
         Command.CmdParser("name")
       }
       val command2id = UUID.fromString("337c0f50-f693-11e2-b778-0800200c9a66")
       val command2 = {
         import Command.parser._
-        implicit val description = Command.Description(command2id)("close", "my close", parserResult => { System.out.println(parserResult) })
+        implicit val descriptor = Command.Descriptor(command2id)("close", "my close",
+          (activeContext, parserContext, parserResult) => { System.out.println(parserResult) })
         Command.CmdParser("name2")
       }
       val command3id = UUID.fromString("0bf42cf0-f6a3-11e2-b778-0800200c9a66")
       val command3 = {
         import Command.parser._
-        implicit val description = Command.Description(command3id)("info", "my info", parserResult => { System.out.println(parserResult) })
+        implicit val descriptor = Command.Descriptor(command3id)("info", "my info",
+          (activeContext, parserContext, parserResult) => { System.out.println(parserResult) })
         Command.CmdParser("name3")
       }
       Command.parse(command1 | command2 | command3, "name") should be(Command.Success(command1id, "name"))

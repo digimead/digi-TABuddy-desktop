@@ -46,9 +46,8 @@ package org.digimead.tabuddy.desktop.gui.stack
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.StackConfiguration
-import org.digimead.tabuddy.desktop.gui.View
-import org.digimead.tabuddy.desktop.gui.api
+import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.gui.stack.StackHSashBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.stack.StackTabBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.stack.StackVSashBuilder.builder2implementation
@@ -56,6 +55,7 @@ import org.digimead.tabuddy.desktop.gui.stack.StackViewBuilder.builder2implement
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
+import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.custom.ScrolledComposite
 
 import akka.actor.ActorRef
@@ -67,34 +67,40 @@ import language.implicitConversions
 class StackBuilder extends Loggable {
   /** Creates stack content. */
   @log
-  def apply(stack: api.Configuration.PlaceHolder, parent: ScrolledComposite, supervisor: ActorRef, stackActor: ActorRef): SComposite = {
+  def apply(view: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, viewRef: ActorRef): Option[VComposite] = {
+    App.execNGet { StackViewBuilder(view, viewRef, parentWidget, parentContext) }
+  }
+  /** Creates stack content. */
+  @log
+  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, stackRef: ActorRef): Option[SComposite] = {
     stack match {
-      case tab: api.Configuration.Stack.Tab =>
-        val (scomposite, containers) = App.execNGet { StackTabBuilder(tab, stackActor, parent) }
+      case tab: Configuration.Stack.Tab =>
+        val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }
         for {
           container <- containers
           viewConfiguration <- tab.children
         } {
           implicit val ec = App.system.dispatcher
           implicit val timeout = akka.util.Timeout(Timeout.short)
-          supervisor ? App.Message.Attach(View.props, View.id + "@" + viewConfiguration.id) onSuccess {
-            case viewActorRef: ActorRef =>
-              viewActorRef ! App.Message.Create(View.CreateArgument(viewConfiguration, parent), supervisor)
+          supervisorRef ? App.Message.Attach(ViewLayer.props, ViewLayer.id + "@" + viewConfiguration.id) onSuccess {
+            case viewRef: ActorRef =>
+              viewRef ! App.Message.Create(ViewLayer.CreateArgument(viewConfiguration, parentWidget, parentContext), supervisorRef)
           }
         }
-        scomposite
-      case hsash: api.Configuration.Stack.HSash =>
-        val (left, right) = StackHSashBuilder(hsash, parent)
+        Option(tabComposite)
+      case hsash: Configuration.Stack.HSash =>
+        val (sashComposite, left, right) = StackHSashBuilder(hsash, parentWidget, stackRef)
         //buildLevel(hsash.left, left)
         //buildLevel(hsash.right, right)
-        null
-      case vsash: api.Configuration.Stack.VSash =>
-        val (top, bottom) = StackVSashBuilder(vsash, parent)
+        Option(sashComposite)
+      case vsash: Configuration.Stack.VSash =>
+        val (sashComposite, top, bottom) = StackVSashBuilder(vsash, parentWidget, stackRef)
         //buildLevel(vsash.top, top)
         //buildLevel(vsash.bottom, bottom)
-        null
-      case view: api.Configuration.View =>
-        App.execNGet { StackViewBuilder(view, stackActor, parent) }
+        Option(sashComposite)
+      case view: Configuration.View =>
+        log.fatal("Unable to process view as stack.")
+        None
     }
   }
 }

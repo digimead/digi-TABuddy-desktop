@@ -81,10 +81,10 @@ trait Akka {
 
     Option(result.get) getOrElse None match {
       case result @ Some(_) =>
-        log.debug(s"Lookup (${System.currentTimeMillis() - (mark - timeout)}ms) successful.")
+        log.debug(s"Lookup for ${selection} (${System.currentTimeMillis() - (mark - timeout)}ms) successful.")
         result
       case result @ None =>
-        log.debug(s"Lookup (${System.currentTimeMillis() - (mark - timeout)}ms) failed.")
+        log.debug(s"Lookup for ${selection} (${System.currentTimeMillis() - (mark - timeout)}ms) failed.")
         result
     }
   }
@@ -106,10 +106,10 @@ trait Akka {
 
     Option(result.get) getOrElse None match {
       case result @ Some(_) =>
-        log.debug(s"Lookup (${System.currentTimeMillis() - (mark - timeout)}ms) successful.")
+        log.debug(s"Lookup for ${selection} (${System.currentTimeMillis() - (mark - timeout)}ms) successful.")
         result
       case result @ None =>
-        log.debug(s"Lookup (${System.currentTimeMillis() - (mark - timeout)}ms) failed.")
+        log.debug(s"Lookup for ${selection} (${System.currentTimeMillis() - (mark - timeout)}ms) failed.")
         result
     }
   }

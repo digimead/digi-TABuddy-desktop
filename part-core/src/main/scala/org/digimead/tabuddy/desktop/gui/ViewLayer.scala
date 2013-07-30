@@ -46,49 +46,87 @@ package org.digimead.tabuddy.desktop.gui
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.stack.SComposite
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.gui
+import org.digimead.tabuddy.desktop.gui.stack.VComposite
 import org.digimead.tabuddy.desktop.gui.stack.StackBuilder
 import org.digimead.tabuddy.desktop.gui.stack.StackBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.custom.ScrolledComposite
-
+import org.eclipse.swt.widgets.Widget
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
+import java.util.UUID
+import org.digimead.tabuddy.desktop.action.View
 
-class View extends Actor with Loggable {
-  protected var view: Option[SComposite] = None
+/** View actor binded to SComposite that contains an actual view from a view factory. */
+class ViewLayer(parentContext: EclipseContext) extends Actor with Loggable {
+  /** View JFace instance. */
+  protected var view: Option[VComposite] = None
+  /** View layer id. */
+  lazy val stackId = UUID.fromString(self.path.name.split("@").last)
+  /** View context. */
+  protected val viewContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(View.CreateArgument(viewConfiguration, parent), supervisor) => App.traceMessage(message) {
-      create(viewConfiguration, parent, supervisor)
+    case message @ App.Message.Create(ViewLayer.CreateArgument(viewConfiguration, parentWidget, parentContext), supervisor) => App.traceMessage(message) {
+      create(viewConfiguration, parentWidget, parentContext, supervisor)
+    }
+    case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
+      onStart(widget)
     }
   }
 
   /** Create view. */
-  protected def create(viewConfiguration: api.Configuration.PlaceHolder, parent: ScrolledComposite, supervisor: ActorRef) {
+  protected def create(viewConfiguration: gui.Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
-    this.view = Option(StackBuilder(viewConfiguration, parent, supervisor, self))
+    this.view = StackBuilder(viewConfiguration, parentWidget, viewContext, supervisor, self)
     this.view.foreach(stack => App.publish(App.Message.Created(stack, self)))
+  }
+  /** User start interaction with window/stack supervisor/view. Focus is gained. */
+  protected def onStart(widget: Widget) = view match {
+    case Some(view) =>
+      log.debug("View layer started by focus event on " + widget)
+      Core.context.set(GUI.viewContextKey, view)
+      viewContext.activateBranch()
+      view.contentRef ! App.Message.Start(widget, self)
+    case None =>
+      log.fatal("Unable to start view without widget.")
   }
 }
 
-object View {
+object ViewLayer {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
 
-  /** View actor reference configuration object. */
+  /** ViewLayer actor reference configuration object. */
   def props = DI.props
 
-  case class CreateArgument(val viewConfiguration: api.Configuration.View, val parent: ScrolledComposite)
+  case class CreateArgument(val viewConfiguration: gui.Configuration.View, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
+  /**
+   * User implemented factory, that returns ActorRef, responsible for view creation/destroying.
+   */
+  trait Factory {
+    /** View name. */
+    val name: String
+    /** View description. */
+    val description: String
+
+    /** Returns actor reference that could handle Create/Destroy messages. */
+    def viewActor(configuration: Configuration.View, parentContext: EclipseContext): Option[ActorRef]
+
+    override def toString() = s"""ViewFactory("${name}", "${description}")"""
+  }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** View actor reference configuration object. */
-    lazy val props = injectOptional[Props]("View") getOrElse Props[View]
+    /** ViewLayer actor reference configuration object. */
+    lazy val props = injectOptional[Props]("GUI.ViewLayer") getOrElse Props(classOf[ViewLayer], Core.context)
   }
 }

@@ -46,26 +46,27 @@ package org.digimead.tabuddy.desktop.gui.stack
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.StackConfiguration
-import org.digimead.tabuddy.desktop.gui.api
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.layout.GridLayout
-
 import language.implicitConversions
+import org.digimead.tabuddy.desktop.gui.Configuration
+import akka.actor.ActorRef
 
 class StackHSashBuilder extends Loggable {
-  def apply(configuration: api.Configuration.Stack.HSash, parent: ScrolledComposite): (ScrolledComposite, ScrolledComposite) = {
+  def apply(hsash: Configuration.Stack.HSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeHSash, ScrolledComposite, ScrolledComposite) = {
     log.debug("Build content for horizontal sash.")
     App.checkThread
-    if (parent.getLayout().isInstanceOf[GridLayout])
-      throw new IllegalArgumentException(s"Unexpected parent layout ${parent.getLayout().getClass()}.")
-    val left = new ScrolledComposite(parent, SWT.NONE)
+    if (parentWidget.getLayout().isInstanceOf[GridLayout])
+      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
+    val stackContainer = new SCompositeHSash(hsash.id, stackRef, parentWidget, SWT.NONE)
+    val left = new ScrolledComposite(stackContainer, SWT.NONE)
     left.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
-    val right = new ScrolledComposite(parent, SWT.NONE)
+    val right = new ScrolledComposite(stackContainer, SWT.NONE)
     right.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_MAGENTA))
-    (left, right)
+    (stackContainer, left, right)
   }
 }
 
