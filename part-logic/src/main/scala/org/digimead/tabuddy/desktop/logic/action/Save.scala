@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.handler
+package org.digimead.tabuddy.desktop.logic.action
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
@@ -53,8 +53,9 @@ import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.commands.AbstractHandler
 import org.eclipse.core.commands.ExecutionEvent
 import org.eclipse.ui.commands.ICommandService
+import org.eclipse.jface.action.{ Action => JFaceAction }
 
-class Save extends AbstractHandler with Loggable {
+class Save extends JFaceAction with Loggable {
   @log
   def execute(event: ExecutionEvent): AnyRef = {
     null

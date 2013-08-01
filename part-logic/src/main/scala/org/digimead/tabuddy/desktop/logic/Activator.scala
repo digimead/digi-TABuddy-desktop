@@ -52,8 +52,6 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
 import org.digimead.tabuddy.desktop.logic.Logic.logic2actorRef
 import org.digimead.tabuddy.desktop.logic.Logic.logic2actorSRef
-import org.digimead.tabuddy.desktop.logic.handler.Delete.handler2actorRef
-import org.digimead.tabuddy.desktop.logic.handler.Lock.handler2actorRef
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
@@ -95,13 +93,13 @@ class Activator extends BundleActivator with Loggable {
       }
     DependencyInjection.inject()
     Logic.actor // Start component actors hierarchy
-    App.system.eventStream.subscribe(Logic, classOf[App.Message.Inconsistent[_]])
-    App.system.eventStream.subscribe(Logic, classOf[App.Message.Consistent[_]])
-    App.system.eventStream.subscribe(Logic, classOf[WorkbenchAdvisor.Message.PostStartup])
-    App.system.eventStream.subscribe(Logic, classOf[WorkbenchAdvisor.Message.PreShutdown])
-    App.system.eventStream.subscribe(Logic, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-    App.system.eventStream.subscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-    App.system.eventStream.subscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
+//    App.system.eventStream.subscribe(Logic, classOf[App.Message.Inconsistent[_]])
+//    App.system.eventStream.subscribe(Logic, classOf[App.Message.Consistent[_]])
+//    App.system.eventStream.subscribe(Logic, classOf[WorkbenchAdvisor.Message.PostStartup])
+ //   App.system.eventStream.subscribe(Logic, classOf[WorkbenchAdvisor.Message.PreShutdown])
+//    App.system.eventStream.subscribe(Logic, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+//    App.system.eventStream.subscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+//    App.system.eventStream.subscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
     Element.Event.subscribe(elementEventsSubscriber)
     System.out.println("Logic component is started.")
   }
@@ -110,13 +108,13 @@ class Activator extends BundleActivator with Loggable {
     log.debug("Stop TABuddy Desktop logic.")
     Element.Event.removeSubscription(elementEventsSubscriber)
     try {
-      App.system.eventStream.unsubscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
-      App.system.eventStream.unsubscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-      App.system.eventStream.unsubscribe(Logic, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-      App.system.eventStream.unsubscribe(Logic, classOf[WorkbenchAdvisor.Message.PreShutdown])
-      App.system.eventStream.unsubscribe(Logic, classOf[WorkbenchAdvisor.Message.PostStartup])
-      App.system.eventStream.unsubscribe(Logic, classOf[App.Message.Consistent[_]])
-      App.system.eventStream.unsubscribe(Logic, classOf[App.Message.Inconsistent[_]])
+      //App.system.eventStream.unsubscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
+      //App.system.eventStream.unsubscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+      //App.system.eventStream.unsubscribe(Logic, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+      //App.system.eventStream.unsubscribe(Logic, classOf[WorkbenchAdvisor.Message.PreShutdown])
+      //App.system.eventStream.unsubscribe(Logic, classOf[WorkbenchAdvisor.Message.PostStartup])
+      //App.system.eventStream.unsubscribe(Logic, classOf[App.Message.Consistent[_]])
+      //App.system.eventStream.unsubscribe(Logic, classOf[App.Message.Inconsistent[_]])
       // Stop component actors.
       val inbox = Inbox.create(App.system)
       inbox.watch(Logic)

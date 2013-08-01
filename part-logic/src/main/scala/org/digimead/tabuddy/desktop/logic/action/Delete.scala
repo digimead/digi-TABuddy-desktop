@@ -41,41 +41,66 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.handler
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+package org.digimead.tabuddy.desktop.logic.action
 
 import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.toolbar.ModelToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.eclipse.core.commands.AbstractHandler
+import org.digimead.tabuddy.desktop.support.Handler
 import org.eclipse.core.commands.ExecutionEvent
-import org.eclipse.ui.commands.ICommandService
+import org.eclipse.e4.core.contexts.Active
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.{ Action => JFaceAction }
 
-class Close extends AbstractHandler with Loggable {
+import akka.actor.Actor
+import akka.actor.Props
+import javax.inject.Inject
+import javax.inject.Named
+
+class Delete extends JFaceAction("Delete") with Loggable {
+  if (App.workbench.isRunning())
+    ContextInjectionFactory.inject(this, App.workbench.getContext())
+
   @log
   def execute(event: ExecutionEvent): AnyRef = {
-    future {
-      Payload.close(Payload.modelMarker(Model))
-    } onFailure { case e: Throwable => log.error(e.getMessage, e) }
     null
   }
-  override def isEnabled(): Boolean = Model.eId != Payload.defaultModel.eId
+  /** Invoked at every modification of Data.Id.modelIdUserInput. */
+  @Inject @Optional
+  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) =
+    setEnabled(id != null && id.trim.nonEmpty && Data.availableModels.contains(id.trim))
 }
 
-object Close extends Loggable {
-  def update() {
-    Option(App.workbench.getService(classOf[ICommandService])) match {
-      case Some(service: ICommandService) =>
-        service.refreshElements(classOf[Close].getName, null)
-      case _ =>
-        log.fatal("Unable to locate command service.")
+object Delete extends Handler.Singleton with Loggable {
+  /** Delete actor path. */
+  lazy val actorPath = App.system / Core.id / Logic.id / ModelToolBar.id / id
+  /** Command id for the current handler. */
+  val commandId = "org.digimead.tabuddy.desktop.logic.Delete"
+
+  /** Handler actor reference configuration object. */
+  def props = DI.props
+
+  class Behaviour extends Handler.Behaviour(Delete) with Loggable {
+    override def receive: PartialFunction[Any, Unit] = receiveBefore orElse super.receive
+    protected def receiveBefore: Actor.Receive = {
+      case message @ WorkbenchAdvisor.Message.PostStartup(configurer) =>
+        log.debug(s"Process! '${message}'.")
+        Delete.instance.keys.foreach(ContextInjectionFactory.inject(_, App.workbench.getContext()))
     }
+  }
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Delete Akka factory. */
+    lazy val props = injectOptional[Props]("command.Delete") getOrElse Props[Behaviour]
   }
 }

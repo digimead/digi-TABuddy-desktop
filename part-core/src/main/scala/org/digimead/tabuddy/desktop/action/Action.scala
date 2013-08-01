@@ -82,10 +82,15 @@ class Action extends Actor with Loggable {
   }
 
   /** Register actions in new window. */
-  protected def onCreated(window: WComposite, sender: ActorRef) = App.exec {
-    log.debug(s"Update window ${window} composite.")
-    adjustMenu(window)
-    adjustToolbar(window)
+  protected def onCreated(window: WComposite, sender: ActorRef) = {
+    // block actor
+    App.execNGet {
+      log.debug(s"Update window ${window} composite.")
+      adjustMenu(window)
+      adjustToolbar(window)
+    }
+    // publish global that window menu and toolbar are ready
+    App.publish(App.Message.Created(Action.Created(window), self))
   }
   /** Adjust window menu. */
   @log
@@ -96,8 +101,9 @@ class Action extends Actor with Loggable {
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: WComposite) {
-    val common = WindowToolbar(window, WindowToolbar.common)
-    window.getCoolBarManager2().markDirty()
+    val commonToolBar = WindowToolbar(window, WindowToolbar.common)
+    commonToolBar.getToolBarManager().add(Exit)
+    commonToolBar.getToolBarManager().add(Exit)
     window.getCoolBarManager2().update(true)
   }
 }
@@ -109,6 +115,7 @@ object Action {
   /** StackLayer actor reference configuration object. */
   def props = DI.props
 
+  case class Created(window: WComposite) extends App.Message
   /**
    * Dependency injection routines.
    */

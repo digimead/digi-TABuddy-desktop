@@ -44,16 +44,24 @@
 package org.digimead.tabuddy.desktop.support.app
 
 import java.util.concurrent.atomic.AtomicReference
+
+import scala.concurrent.Await
+
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.RichLogger
 import org.digimead.tabuddy.desktop.MainService
 import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
+
 import akka.actor.ActorIdentity
+import akka.actor.ActorPath
 import akka.actor.ActorRef
 import akka.actor.ActorSelection
 import akka.actor.Identify
 import akka.actor.Props
-import org.digimead.digi.lib.log.api.RichLogger
+import akka.actor.actorRef2Scala
+import akka.pattern.ask
 
 /**
  * Akka support trait
@@ -61,8 +69,17 @@ import org.digimead.digi.lib.log.api.RichLogger
 trait Akka {
   this: MainService.Consumer with Loggable =>
   /** Support actor. */
-  protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "Support")
+  // System.nanoTime is needed because we may have more than one supportActor per JVM
+  protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "Support." + System.nanoTime())
 
+  /** Send argument to the actor and waiting for answer. */
+  def askActor[A, B](path: Seq[String], argument: A): Option[B] = {
+    getActorRef(path: _*).map { ref =>
+      implicit val ec = App.system.dispatcher
+      implicit val timeout = akka.util.Timeout(Timeout.shortest)
+      Await.result(ref ? argument, Timeout.short).asInstanceOf[B]
+    }
+  }
   /** Get actor context via ActorSelection. */
   def getActorContext[T](selection: ActorSelection, timeout: Long = Timeout.longer.toMillis, period: Long = Timeout.shortest.toMillis): Option[ActorRef] = {
     log.debug("Lookup for reference via " + selection)
@@ -88,8 +105,32 @@ trait Akka {
         result
     }
   }
+  /** Get ActorRef via Path. */
+  def getActorRef(path: String*): Option[ActorRef] =
+    getActorRef(App.system.actorSelection(App.system / path))
+  /** Get ActorRef via Path. */
+  def getActorRef(path: Seq[String], timeout: Long): Option[ActorRef] =
+    getActorRef(App.system.actorSelection(App.system / path), timeout)
+  /** Get ActorRef via Path. */
+  def getActorRef(path: Seq[String], timeout: Long, period: Long): Option[ActorRef] =
+    getActorRef(App.system.actorSelection(App.system / path), timeout, period)
+  /** Get ActorRef via ActorPath. */
+  def getActorRef(path: ActorPath): Option[ActorRef] =
+    getActorRef(system.actorSelection(path), Timeout.long.toMillis)
   /** Get ActorRef via ActorSelection. */
-  def getActorRef[T](selection: ActorSelection, timeout: Long = Timeout.long.toMillis, period: Long = Timeout.shortest.toMillis): Option[ActorRef] = {
+  def getActorRef(path: ActorPath, timeout: Long): Option[ActorRef] =
+    getActorRef(system.actorSelection(path), timeout, Timeout.shortest.toMillis)
+  /** Get ActorRef via ActorSelection. */
+  def getActorRef(path: ActorPath, timeout: Long, period: Long): Option[ActorRef] =
+    getActorRef(system.actorSelection(path), timeout, period)
+  /** Get ActorRef via ActorSelection. */
+  def getActorRef(selection: ActorSelection): Option[ActorRef] =
+    getActorRef(selection, Timeout.long.toMillis)
+  /** Get ActorRef via ActorSelection. */
+  def getActorRef(selection: ActorSelection, timeout: Long): Option[ActorRef] =
+    getActorRef(selection, timeout, Timeout.shortest.toMillis)
+  /** Get ActorRef via ActorSelection. */
+  def getActorRef(selection: ActorSelection, timeout: Long, period: Long): Option[ActorRef] = {
     log.debug("Lookup for reference via " + selection)
     val mark = System.currentTimeMillis() + timeout
     val result = new AtomicReference[Option[ActorRef]](null)
@@ -113,6 +154,9 @@ trait Akka {
         result
     }
   }
+  /** Send argument to the actor. */
+  def tellActor[A](path: Seq[String], argument: A): Unit =
+    getActorRef(path: _*).map { _ ! argument }
   def traceMessage[T](message: AnyRef)(f: => T)(implicit l: RichLogger): T = try {
     l.trace(s"enteringHandler '${message}'")
     val result = f

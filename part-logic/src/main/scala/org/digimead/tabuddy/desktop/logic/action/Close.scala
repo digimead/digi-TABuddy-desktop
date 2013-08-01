@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,18 +41,42 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.widget
+package org.digimead.tabuddy.desktop.logic.action
 
-import java.util.UUID
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.future
 
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.Composite
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
+import org.eclipse.core.commands.AbstractHandler
+import org.eclipse.core.commands.ExecutionEvent
+import org.eclipse.ui.commands.ICommandService
+import org.eclipse.jface.action.{ Action => JFaceAction }
 
-import akka.actor.ActorRef
+class Close extends JFaceAction with Loggable {
+  @log
+  def execute(event: ExecutionEvent): AnyRef = {
+    future {
+      Payload.close(Payload.modelMarker(Model))
+    } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+    null
+  }
+  override def isEnabled(): Boolean = Model.eId != Payload.defaultModel.eId
+}
 
-/**
- * View composite that contains additional reference to content actor.
- * Content view actor is bound to root component because of changing parent by Akka is unsupported.
- */
-class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val factorySingletonClassName: String, parent: ScrolledComposite, style: Int)
-  extends Composite(parent, style) with SComposite
+object Close extends Loggable {
+  def update() {
+    Option(App.workbench.getService(classOf[ICommandService])) match {
+      case Some(service: ICommandService) =>
+        service.refreshElements(classOf[Close].getName, null)
+      case _ =>
+        log.fatal("Unable to locate command service.")
+    }
+  }
+}

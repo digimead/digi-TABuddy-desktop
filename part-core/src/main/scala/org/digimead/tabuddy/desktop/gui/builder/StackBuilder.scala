@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.gui.builder
 
+import scala.collection.immutable
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -86,10 +88,10 @@ class StackBuilder extends Loggable {
           implicit val ec = App.system.dispatcher
           implicit val timeout = akka.util.Timeout(Timeout.short)
           // Create new view layer.
-          supervisorRef ? App.Message.Attach(ViewLayer.props, ViewLayer.id + "@" + viewConfiguration.id) onSuccess {
+          supervisorRef ? App.Message.Attach(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, parentContext)), ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode())) onSuccess {
             case viewRef: ActorRef =>
               // Create view within view layer.
-              viewRef ! App.Message.Create(ViewLayer.CreateArgument(viewConfiguration, parentWidget, parentContext), supervisorRef)
+              viewRef ! App.Message.Create(ViewLayer.<>(viewConfiguration, parentWidget, parentContext), supervisorRef)
           }
         }
         Option(tabComposite)

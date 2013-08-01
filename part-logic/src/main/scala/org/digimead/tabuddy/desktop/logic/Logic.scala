@@ -44,8 +44,6 @@
 package org.digimead.tabuddy.desktop.logic
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.MILLISECONDS
 import scala.concurrent.future
 
 import org.digimead.configgy.Configgy
@@ -55,16 +53,14 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Core.core2actorRef
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
+import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.logic.Config.config2implementation
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
-import org.digimead.tabuddy.desktop.logic.toolbar.ModelToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
@@ -88,17 +84,36 @@ class Logic extends akka.actor.Actor with Loggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef]()
   /** Flag indicating whether workbench is valid. */
-  @volatile protected var workbenchValid = false
+  @volatile protected var fGUIStarted = false
   /** Current bundle */
   protected lazy val thisBundle = App.bundle(getClass())
   private val initializationLock = new Object
   log.debug("Start actor " + self.path)
 
-  // ACTORS
-  /** ModelToolBar actors. */
-  val modelToolBar = context.actorOf(ModelToolBar.props, ModelToolBar.id)
+  /*
+   * Logic component actors.
+   */
+  //val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  //val modelToolBar = context.actorOf(ModelToolBar.props, ModelToolBar.id)
 
-  /** Get subscribers list. */
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stopped[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Started[_]])
+    log.debug(self.path.name + " actor is stopped.")
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[App.Message.Started[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Stopped[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+    log.debug(self.path.name + " actor is started.")
+  }
   def receive = {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
@@ -118,21 +133,17 @@ class Logic extends akka.actor.Actor with Loggable {
       }
     }
     case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
-      if (workbenchValid) onModelInitialization(oldModel, newModel, modified)
+      if (fGUIStarted) onModelInitialization(oldModel, newModel, modified)
     }
-    case message: Handler.Message => App.traceMessage(message) {
-      log.trace(s"Container actor '${self.path.name}' received message '${message}' from actor ${sender.path}. Propagate.")
-      context.children.foreach(_.forward(message))
-    }
-    case message @ WorkbenchAdvisor.Message.PostStartup(configurer) => App.traceMessage(message) {
-      workbenchValid = true
+    case message @ App.Message.Started(GUI, sender) => App.traceMessage(message) {
+      fGUIStarted = true
       future { onWorkbenchValid() } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
       }
     }
-    case message @ WorkbenchAdvisor.Message.PreShutdown(configurer) => App.traceMessage(message) {
-      workbenchValid = false
+    case message @ App.Message.Stopped(GUI, sender) => App.traceMessage(message) {
+      fGUIStarted = false
       future { onWorkbenchInvalid } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
@@ -141,7 +152,6 @@ class Logic extends akka.actor.Actor with Loggable {
     case message @ App.Message.Inconsistent(element, sender) => // skip
     case message @ App.Message.Consistent(element, sender) => // skip
   }
-  override def postStop() = log.debug("Logic actor is stopped.")
 
   /** Close infrastructure wide container. */
   @log
@@ -257,6 +267,7 @@ object Logic {
   toolbar.ModelToolBar
 
   def containerName() = DI.infrastructureWideProjectName
+  override def toString = "Logic[Singleton]"
 
   /*
    * Explicit import for runtime components/bundle manifest generation.

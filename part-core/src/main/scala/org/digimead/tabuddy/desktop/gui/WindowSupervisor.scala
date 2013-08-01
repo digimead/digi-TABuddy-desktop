@@ -164,9 +164,9 @@ class WindowSupervisor extends Actor with Loggable {
   protected def create(windowId: UUID) {
     if (pointers.contains(windowId))
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
-    val window = context.actorOf(Window.props, Window.id + "@" + windowId.toString())
+    val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, Core.context)), Window.id + "_%08X".format(windowId.hashCode()))
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
-    window ! App.Message.Create(windowId, self)
+    window ! App.Message.Create(Window.<>(windowId), self)
   }
   /** Send exists or default window configuration to sender. */
   protected def getConfiguration(sender: ActorRef, windowId: Option[UUID]) = windowId match {
@@ -183,6 +183,7 @@ class WindowSupervisor extends Actor with Loggable {
   }
   /** Remove window pointer with WComposite value. */
   protected def onDestroyed(window: WComposite, sender: ActorRef) {
+    pointers.get(window.id).foreach(_.actor ! App.Message.Save)
     pointers -= window.id
   }
   /** Start global focus listener when GUI is available. */
@@ -192,10 +193,8 @@ class WindowSupervisor extends Actor with Loggable {
   }
   /** Stop global focus listener when GUI is not available. */
   protected def onGUIStopped() = App.exec {
-    Option(App.display).foreach { display =>
-      display.removeFilter(SWT.FocusIn, FocusListener)
-      display.removeFilter(SWT.FocusOut, FocusListener)
-    }
+    App.display.removeFilter(SWT.FocusIn, FocusListener)
+    App.display.removeFilter(SWT.FocusOut, FocusListener)
   }
   /** Restore windows from configuration. */
   protected def restore() {
@@ -248,16 +247,18 @@ class WindowSupervisor extends Actor with Loggable {
   object FocusListener extends Listener() {
     def handleEvent(event: Event) {
       App.findShell(event.widget).foreach { shell =>
-        Option(shell.getData(GUI.swtId).asInstanceOf[UUID]).foreach(id =>
-          pointers.get(id).foreach(pointer => pointer.actor ! App.Message.Start(event.widget, self)))
+        Option(shell.getData(GUI.swtId).asInstanceOf[UUID]).foreach { id =>
+          if (event.`type` == SWT.FocusIn) log.debug(s"Focus gained for widget ${event.widget}.") else log.debug("Focus lost.")
+          pointers.get(id).foreach(pointer => pointer.actor ! App.Message.Start(event.widget, self))
+        }
       }
     }
   }
 }
 
 object WindowSupervisor extends Loggable {
-  implicit def windowGroup2actorRef(w: WindowSupervisor.type): ActorRef = w.actor
-  implicit def windowGroup2actorSRef(w: WindowSupervisor.type): ScalaActorRef = w.actor
+  implicit def windowSupervisor2actorRef(w: WindowSupervisor.type): ActorRef = w.actor
+  implicit def windowSupervisor2actorSRef(w: WindowSupervisor.type): ScalaActorRef = w.actor
   /** WindowSupervisor actor reference. */
   lazy val actor = App.getActorRef(App.system.actorSelection(actorPath)) getOrElse {
     throw new IllegalStateException("Unable to locate actor with path " + actorPath)

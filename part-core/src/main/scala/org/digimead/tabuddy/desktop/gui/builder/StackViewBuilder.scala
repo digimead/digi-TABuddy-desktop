@@ -46,6 +46,8 @@ package org.digimead.tabuddy.desktop.gui.builder
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -67,23 +69,29 @@ class StackViewBuilder extends Loggable {
     App.checkThread
     if (parentWidget.getLayout().isInstanceOf[GridLayout])
       throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-    configuration.factory.viewActor(configuration, parentContext) match {
-      case Some(actualViewActorRef) =>
-        val content = new VComposite(configuration.id, viewRef, actualViewActorRef, parentWidget, SWT.NONE)
-        content.setLayout(new GridLayout)
-        content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-        content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
-        content.pack(true)
-        parentWidget.setContent(content)
-        parentWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-        parentWidget.setExpandHorizontal(true)
-        parentWidget.setExpandVertical(true)
-        parentWidget.layout(Array[Control](content), SWT.ALL)
-        actualViewActorRef ! App.Message.Create(content, viewRef)
-        Some(content)
+    GUI.factory(configuration.factorySingletonClassName) match {
+      case Some(factory) =>
+        factory.viewActor(configuration, parentContext) match {
+          case Some(actualViewActorRef) =>
+            val content = new VComposite(configuration.id, viewRef, actualViewActorRef, configuration.factorySingletonClassName, parentWidget, SWT.NONE)
+            content.setLayout(new GridLayout)
+            content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
+            content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
+            content.pack(true)
+            parentWidget.setContent(content)
+            parentWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+            parentWidget.setExpandHorizontal(true)
+            parentWidget.setExpandVertical(true)
+            parentWidget.layout(Array[Control](content), SWT.ALL)
+            actualViewActorRef ! App.Message.Create(content, viewRef)
+            Some(content)
+          case None =>
+            // TODO destroy
+            log.fatal("Unable to locate actual view actor.")
+            None
+        }
       case None =>
-        // TODO destroy
-        log.fatal("Unable to locate actual view actor.")
+        log.fatal(s"Unable to find view factory for ${configuration.factorySingletonClassName}.")
         None
     }
   }

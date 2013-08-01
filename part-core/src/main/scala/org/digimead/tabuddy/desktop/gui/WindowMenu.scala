@@ -46,16 +46,21 @@ package org.digimead.tabuddy.desktop.gui
 import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.eclipse.jface.action.IMenuManager
 import org.eclipse.jface.action.MenuManager
+import org.eclipse.jface.resource.ImageDescriptor
 
 object WindowMenu {
-  val file = "&File"
+  /** File menu descriptor. */
+  val file = Descriptor("&File", None, getClass.getName() + "#file")
 
-  def apply(window: WComposite, menu: String): IMenuManager = {
+  /** Menu descriptor. */
+  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
+  /** Return the specific menu from the window CoolBarManager. */
+  def apply(window: WComposite, menuDescriptor: Descriptor): IMenuManager = {
     val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menu)) match {
+    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
       case Some(menu) => menu
       case None =>
-        val menu = new MenuManager(file)
+        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
         mbm.add(menu)
         menu
     }

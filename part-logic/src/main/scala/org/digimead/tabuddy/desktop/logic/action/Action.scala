@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,65 +41,85 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.handler
+package org.digimead.tabuddy.desktop.logic.action
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.toolbar.ModelToolBar
+import org.digimead.tabuddy.desktop.gui.WindowMenu
+import org.digimead.tabuddy.desktop.gui.WindowToolbar
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
-import org.eclipse.core.commands.ExecutionEvent
-import org.eclipse.e4.core.contexts.Active
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
-import org.eclipse.e4.core.di.annotations.Optional
 
 import akka.actor.Actor
+import akka.actor.ActorRef
 import akka.actor.Props
-import javax.inject.Inject
-import javax.inject.Named
 
-class Delete extends Handler(Delete) with Loggable {
-  if (App.workbench.isRunning())
-    ContextInjectionFactory.inject(this, App.workbench.getContext())
+/**
+ * Register action in new windows.
+ * There is no need subscribe to App.Message.Destroyed because SWT dispose will do all job.
+ */
+class Action extends Actor with Loggable {
+  log.debug("Start actor " + self.path)
 
-  @log
-  def execute(event: ExecutionEvent): AnyRef = {
-    null
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Created[_]])
+    log.debug(self.path.name + " actor is stopped.")
   }
-  /** Invoked at every modification of Data.Id.modelIdUserInput. */
-  @Inject @Optional
-  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) =
-    setEnabled(id != null && id.trim.nonEmpty && Data.availableModels.contains(id.trim))
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[App.Message.Created[_]])
+    log.debug(self.path.name + " actor is started.")
+  }
+  def receive = {
+    case message @ App.Message.Created(window: WComposite, sender) => App.traceMessage(message) {
+      onCreated(window, sender)
+    }
+
+    case message @ App.Message.Created(_, sender) =>
+  }
+
+  /** Register actions in new window. */
+  protected def onCreated(window: WComposite, sender: ActorRef) = {
+    // block actor
+    App.execNGet {
+      log.debug(s"Update window ${window} composite.")
+      adjustMenu(window)
+      adjustToolbar(window)
+    }
+    // publish global that window menu and toolbar are ready
+    App.publish(App.Message.Created(Action.Created(window), self))
+  }
+  /** Adjust window menu. */
+  @log
+  protected def adjustMenu(window: WComposite) {
+    val file = WindowMenu(window, WindowMenu.file)
+  }
+  /** Adjust window toolbar. */
+  @log
+  protected def adjustToolbar(window: WComposite) {
+    val commonToolBar = WindowToolbar(window, WindowToolbar.common)
+    //    commonToolBar.getToolBarManager().add(Exit)
+    //    commonToolBar.getToolBarManager().add(Exit)
+    window.getCoolBarManager2().update(true)
+  }
 }
 
-object Delete extends Handler.Singleton with Loggable {
-  /** Delete actor path. */
-  lazy val actorPath = App.system / Core.id / Logic.id / ModelToolBar.id / id
-  /** Command id for the current handler. */
-  val commandId = "org.digimead.tabuddy.desktop.logic.Delete"
+object Action {
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
 
-  /** Handler actor reference configuration object. */
+  /** StackLayer actor reference configuration object. */
   def props = DI.props
 
-  class Behaviour extends Handler.Behaviour(Delete) with Loggable {
-    override def receive: PartialFunction[Any, Unit] = receiveBefore orElse super.receive
-    protected def receiveBefore: Actor.Receive = {
-      case message @ WorkbenchAdvisor.Message.PostStartup(configurer) =>
-        log.debug(s"Process! '${message}'.")
-        Delete.instance.keys.foreach(ContextInjectionFactory.inject(_, App.workbench.getContext()))
-    }
-  }
+  case class Created(window: WComposite) extends App.Message
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Delete Akka factory. */
-    lazy val props = injectOptional[Props]("command.Delete") getOrElse Props[Behaviour]
+    /** WindowSupervisor actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Logic.Action") getOrElse Props[Action]
   }
 }

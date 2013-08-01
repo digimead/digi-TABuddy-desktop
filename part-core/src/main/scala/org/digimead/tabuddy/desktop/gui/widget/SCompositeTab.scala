@@ -45,10 +45,42 @@ package org.digimead.tabuddy.desktop.gui.widget
 
 import java.util.UUID
 
+import scala.concurrent.future
+
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.events.SelectionAdapter
+import org.eclipse.swt.events.SelectionEvent
 import org.eclipse.swt.widgets.TabFolder
 
 import akka.actor.ActorRef
+import akka.actor.actorRef2Scala
 
 class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
-  extends TabFolder(parent, style) with SComposite
+  extends TabFolder(parent, style) with SComposite with Loggable {
+  // Add an event listener to write the selected tab to stdout
+  addSelectionListener(new SelectionAdapter() {
+    override def widgetSelected(event: SelectionEvent) = getSelection().headOption match {
+      case Some(selection) =>
+        selection.getControl() match {
+          case composite: ScrolledComposite if composite.getContent().isInstanceOf[VComposite] =>
+            val viewLayerComposite = composite.getContent()
+            App.execAsync {
+              // After item will be selected, but will not block UI thread.
+              implicit val ec = App.system.dispatcher
+              future {
+                log.debug(s"Start tab item with ${viewLayerComposite}.")
+                val superVisorRef = ref.path.parent
+                App.getActorRef(superVisorRef).foreach(_ ! App.Message.Start(viewLayerComposite, ref))
+              }
+            }
+          case unexpected =>
+            log.fatal(s"Tab item contains unexpected JFace element: ${unexpected}.")
+        }
+      case None =>
+        log.debug(s"Skip empty selection.")
+    }
+  })
+}

@@ -46,7 +46,6 @@ package org.digimead.tabuddy.desktop.logic.handler
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
-
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.Resources
@@ -86,8 +85,9 @@ import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Label
 import org.eclipse.ui.internal.WorkbenchWindow
 import org.eclipse.ui.menus.WorkbenchWindowControlContribution
+import org.eclipse.jface.action.ControlContribution
 
-class SelectModel extends WorkbenchWindowControlContribution(SelectModel.id) with Loggable {
+class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
   val id = getClass.getName
   @volatile protected var combo: Option[ComboViewer] = None
   @volatile protected var label: Option[Label] = None
@@ -96,12 +96,12 @@ class SelectModel extends WorkbenchWindowControlContribution(SelectModel.id) wit
 
   SelectModel.instance += this -> {}
 
-  def comboMinimumWidth = 80
-  def comboMaximumWidth = (window.getShell().getBounds().width / 4).toInt
+  //def comboMinimumWidth = 80
+  //def comboMaximumWidth = (window.getShell().getBounds().width / 4).toInt
 
   /** Create toolbar control. */
   override protected def createControl(parent: Composite): Control = {
-    val parentShell = App.findShell(parent)
+/*    val parentShell = App.findShell(parent)
 
     val container = new Composite(parent, SWT.NONE)
     val layout = RowLayoutFactory.fillDefaults().wrap(false).spacing(0).create()
@@ -138,7 +138,8 @@ class SelectModel extends WorkbenchWindowControlContribution(SelectModel.id) wit
     Data.availableModels.addChangeListener { (event) => App.exec { resizeCombo() } }
     idValue.value = Messages.default_text
     resizeCombo()
-    container
+    container*/
+    null
   }
   protected def createLabel(parent: Composite): Label = {
     val container = new Composite(parent, SWT.NONE)
@@ -191,7 +192,7 @@ class SelectModel extends WorkbenchWindowControlContribution(SelectModel.id) wit
     })
     viewer.getCombo.addKeyListener(new KeyAdapter() { override def keyReleased(e: KeyEvent) = if (e.keyCode == SWT.CR) onEnter() })
     viewer.getCombo.setEnabled(Data.modelName.value == Payload.defaultModel.eId.name)
-    viewer.getCombo.setLayoutData(new RowData(comboMinimumWidth, SWT.DEFAULT))
+    //viewer.getCombo.setLayoutData(new RowData(comboMinimumWidth, SWT.DEFAULT))
     viewer
   }
   /** Get combo text. */
@@ -219,8 +220,8 @@ class SelectModel extends WorkbenchWindowControlContribution(SelectModel.id) wit
     control = combo.getCombo()
   } {
     val prefferedWidth = control.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x
-    val width = math.min(math.max(comboMinimumWidth, prefferedWidth), comboMaximumWidth)
-    control.setLayoutData(new RowData(width, SWT.DEFAULT))
+    //val width = math.min(math.max(comboMinimumWidth, prefferedWidth), comboMaximumWidth)
+    //control.setLayoutData(new RowData(width, SWT.DEFAULT))
     control.getParent().layout()
   }
   /** Validates a text in the the combo viewer */
@@ -228,7 +229,7 @@ class SelectModel extends WorkbenchWindowControlContribution(SelectModel.id) wit
     validator.withDecoration { validator.showDecorationError(_) }
   else
     validator.withDecoration { _.hide() }
-  protected def window = getWorkbenchWindow().asInstanceOf[WorkbenchWindow]
+  //protected def window = getWorkbenchWindow().asInstanceOf[WorkbenchWindow]
 }
 
 object SelectModel {

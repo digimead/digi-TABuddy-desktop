@@ -59,8 +59,8 @@ import akka.actor.actorRef2Scala
 import language.implicitConversions
 
 class ModelToolBar extends App.ContainerActor with Loggable {
-  val lockActor = this.context.actorOf(handler.Lock.props, handler.Lock.id)
-  val deleteActor = this.context.actorOf(handler.Delete.props, handler.Delete.id)
+  //val lockActor = this.context.actorOf(handler.Lock.props, handler.Lock.id)
+  //val deleteActor = this.context.actorOf(handler.Delete.props, handler.Delete.id)
   //val expandAllActor = this.context.actorOf(ExpandAll.props, ExpandAll.id)
   //val collapseAllActor = this.context.actorOf(CollapseAll.props, CollapseAll.id)
 }
@@ -79,8 +79,8 @@ object ModelToolBar {
   /** ModelToolBar actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  handler.Lock
-  handler.Delete
+  //handler.Lock
+  //handler.Delete
 
   /**
    * Dependency injection routines.

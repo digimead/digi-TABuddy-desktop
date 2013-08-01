@@ -127,6 +127,7 @@ class Activator extends BundleActivator with Loggable {
     reportServiceTracker.foreach(_.close())
     reportServiceTracker = None
     Resources.validateOnShutdown()
+    App.display.dispose
     Activator.dispose()
     System.out.println("Core component is stopped.")
   }

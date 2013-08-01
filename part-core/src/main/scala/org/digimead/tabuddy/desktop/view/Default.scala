@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.view
 
+import java.util.UUID
 import java.util.concurrent.TimeoutException
 
 import scala.collection.immutable
@@ -68,19 +69,19 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.pattern.ask
 
-class Default(parentContext: EclipseContext) extends Actor with Loggable {
+class Default(val contentId: UUID, parentContext: EclipseContext) extends Actor with Loggable {
   /** Parent view widget. */
   @volatile protected var view: Option[VComposite] = None
   /** View context. */
-  protected val viewContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
+  protected val viewContext = parentContext.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
   log.debug("Start actor " + self.path)
 
   def receive = {
     case message @ App.Message.Create(container: VComposite, viewActor) => App.traceMessage(message) {
-      App.exec { create(container) }
+      App.execNGet { create(container) }
     }
     case message @ App.Message.Destroy => App.traceMessage(message) {
-      App.exec { destroy(sender) }
+      App.execNGet { destroy(sender) }
       this.view = None
     }
     case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
@@ -127,7 +128,7 @@ object Default extends gui.ViewLayer.Factory with Loggable {
   def viewActor(configuration: gui.Configuration.View, parentContext: EclipseContext): Option[ActorRef] = viewActorLock.synchronized {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
-    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(parentContext)), id + "@" + System.nanoTime() + "@" + configuration.id)
+    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id, parentContext)), "Content_" + id + "_%08X".format(configuration.id.hashCode()))
     try {
       val newActorRef = Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration)
       activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
@@ -156,6 +157,10 @@ object Default extends gui.ViewLayer.Factory with Loggable {
     /** View image. */
     lazy val image = injectOptional[Image]("Core.View.Default.Image")
     /** Default view actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.View.Default") getOrElse Props(classOf[Default], Core.context)
+    lazy val props = injectOptional[Props]("Core.View.Default") getOrElse Props(classOf[Default],
+      // content id = view layer id
+      UUID.fromString("00000000-0000-0000-0000-000000000000"),
+      // parent context
+      Core.context)
   }
 }

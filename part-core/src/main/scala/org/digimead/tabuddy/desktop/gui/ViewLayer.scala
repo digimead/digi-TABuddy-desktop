@@ -72,18 +72,16 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
-class ViewLayer(parentContext: EclipseContext) extends Actor with Loggable {
+class ViewLayer(viewId: UUID, parentContext: EclipseContext) extends Actor with Loggable {
   /** View JFace instance. */
   var view: Option[VComposite] = None
-  /** View layer id. */
-  lazy val stackId = UUID.fromString(self.path.name.split("@").last)
   /** View context. */
-  val viewContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
+  val viewContext = parentContext.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(ViewLayer.CreateArgument(viewConfiguration, parentWidget, parentContext), supervisor) => App.traceMessage(message) {
-      create(viewConfiguration, parentWidget, parentContext, supervisor)
+    case message @ App.Message.Create(ViewLayer.<>(viewConfiguration, parentWidget, parentContext), supervisor) => App.traceMessage(message) {
+      App.execNGet { create(viewConfiguration, parentWidget, parentContext, supervisor) }
     }
     case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
       onStart(widget)
@@ -94,18 +92,24 @@ class ViewLayer(parentContext: EclipseContext) extends Actor with Loggable {
   protected def create(viewConfiguration: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
+    App.checkThread
     StackBuilder(viewConfiguration, parentWidget, viewContext, supervisor, self) match {
       case Some(viewLayer) =>
         App.publish(App.Message.Created(viewLayer, self))
         this.view = Some(viewLayer)
         // Update parent tab title if any.
-        App.exec {
+        App.execAsync {
           parentWidget.getParent() match {
             case tab: SCompositeTab =>
               tab.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
                 case Some(tabItem) =>
-                  App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory.title(viewLayer.contentRef))
-                  tabItem.setText(viewConfiguration.factory.title(viewLayer.contentRef).getValue().asInstanceOf[String])
+                  GUI.factory(viewConfiguration.factorySingletonClassName) match {
+                    case Some(factory) =>
+                      App.bindingContext.bindValue(SWTObservables.observeText(tabItem), factory.title(viewLayer.contentRef))
+                      tabItem.setText(factory.title(viewLayer.contentRef).getValue().asInstanceOf[String])
+                    case None =>
+                      log.fatal(s"Unable to find view factory for ${viewConfiguration.factorySingletonClassName}.")
+                  }
                 case None =>
                   log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
               }
@@ -135,7 +139,8 @@ object ViewLayer {
   /** ViewLayer actor reference configuration object. */
   def props = DI.props
 
-  case class CreateArgument(val viewConfiguration: Configuration.View, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
+  /** Wrapper for App.Message,Create argument. */
+  case class <>(val viewConfiguration: Configuration.View, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
   /**
    * User implemented factory, that returns ActorRef, responsible for view creation/destroying.
    */
@@ -195,6 +200,10 @@ object ViewLayer {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** ViewLayer actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.GUI.ViewLayer") getOrElse Props(classOf[ViewLayer], Core.context)
+    lazy val props = injectOptional[Props]("Core.GUI.ViewLayer") getOrElse Props(classOf[ViewLayer],
+      // view layer id
+      UUID.fromString("00000000-0000-0000-0000-000000000000"),
+      // parent context
+      Core.context)
   }
 }

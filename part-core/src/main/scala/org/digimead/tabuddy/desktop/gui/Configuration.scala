@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.gui
 
 import java.util.UUID
+import org.digimead.digi.lib.log.api.Loggable
 
 /**
  * Stack configuration container. It contains:
@@ -54,23 +55,38 @@ case class Configuration(
   /** Stack element configuration. */
   val stack: Configuration.PlaceHolder) {
   val timestamp = System.currentTimeMillis()
+
+  /** Dump element hierarchy. */
+  def dump(): Seq[String] = this.toString +: stack.dump("")
+  override def toString = s"Configuration(timestamp: ${timestamp}, top stack layer: ${stack})"
 }
 
-object Configuration {
+object Configuration extends Loggable {
   /** Any element of the configuration. */
   sealed trait PlaceHolder {
-    val id: UUID = UUID.randomUUID()
+    val id: UUID
+    log.debug(s"Configuration element ${this} with id ${id} is alive.")
 
+    /** Dump element hierarchy. */
+    def dump(indent: String): Seq[String]
     /** Map stack element to the new one. */
     def map(f: PlaceHolder => PlaceHolder): PlaceHolder = f(this)
   }
   /** View element. */
-  case class View(val factory: ViewLayer.Factory) extends PlaceHolder
+  case class View(val factorySingletonClassName: String, val id: UUID = UUID.randomUUID()) extends PlaceHolder {
+    /** Dump element hierarchy. */
+    def dump(indent: String): Seq[String] =
+      Seq(indent + "Configuration.View[%08X#%s]".format(id.hashCode(), id) + " with factory " + GUI.factory(factorySingletonClassName))
+    override def toString = "Configuration.View[%08X]".format(id.hashCode())
+  }
   /** Stack element of the configuration. */
   sealed trait Stack extends PlaceHolder
   object Stack {
     /** Tab stack. */
-    case class Tab(children: Seq[View]) extends Stack {
+    case class Tab(children: Seq[View], val id: UUID = UUID.randomUUID()) extends Stack {
+      /** Dump element hierarchy. */
+      def dump(indent: String): Seq[String] =
+        Seq(indent + "Configuration.Tab[%08X#%s]".format(id.hashCode(), id) + " with views: ") ++ children.map(_.dump("  " + indent)).flatten
       /** Map stack element to the new one. */
       override def map(f: PlaceHolder => PlaceHolder): PlaceHolder =
         this.copy(children = this.children.map { child =>
@@ -79,9 +95,13 @@ object Configuration {
             throw new IllegalArgumentException("Tab stack could contains only view elements.")
           newElement.asInstanceOf[View]
         })
+      override def toString = "Configuration.Tab[%08X]".format(id.hashCode())
     }
     /** Horizontal stack. */
-    case class HSash(left: Stack, right: Stack, val ratio: Double = 0.5) extends Stack {
+    case class HSash(left: Stack, right: Stack, val ratio: Double = 0.5, val id: UUID = UUID.randomUUID()) extends Stack {
+      /** Dump element hierarchy. */
+      def dump(indent: String): Seq[String] =
+        Seq(indent + "Configuration.HSash[%08X#%s]".format(id.hashCode(), id) + " with parts: ") ++ left.dump("  " + indent) ++ right.dump("  " + indent)
       /** Map stack element to the new one. */
       override def map(f: PlaceHolder => PlaceHolder): PlaceHolder =
         this.copy(left = {
@@ -95,9 +115,13 @@ object Configuration {
             throw new IllegalArgumentException("HSash stack could contains only stack elements.")
           newElement.asInstanceOf[Stack]
         })
+      override def toString = "Configuration.HSash[%08X]".format(id.hashCode())
     }
     /** Vertical stack. */
-    case class VSash(top: Stack, bottom: Stack, val ratio: Double = 0.5) extends Stack {
+    case class VSash(top: Stack, bottom: Stack, val ratio: Double = 0.5, val id: UUID = UUID.randomUUID()) extends Stack {
+      /** Dump element hierarchy. */
+      def dump(indent: String): Seq[String] =
+        Seq(indent + "Configuration.VSash[%08X#%s]".format(id.hashCode(), id) + " with parts: ") ++ top.dump("  " + indent) ++ bottom.dump("  " + indent)
       /** Map stack element to the new one. */
       override def map(f: PlaceHolder => PlaceHolder): PlaceHolder =
         this.copy(top = {
@@ -111,6 +135,7 @@ object Configuration {
             throw new IllegalArgumentException("VSash stack could contains only stack elements.")
           newElement.asInstanceOf[Stack]
         })
+      override def toString = "Configuration.VSash[%08X]".format(id.hashCode())
     }
   }
 }

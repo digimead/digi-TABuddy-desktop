@@ -43,24 +43,29 @@
 
 package org.digimead.tabuddy.desktop.gui
 
-import org.digimead.tabuddy.desktop.gui.widget.WComposite
-import org.eclipse.jface.action.ToolBarManager
-import org.digimead.tabuddy.desktop.action.Exit
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.eclipse.jface.action.ToolBarContributionItem
+import org.eclipse.jface.action.ToolBarManager
 
 object WindowToolbar extends Loggable {
-  val common = "Common"
+  /** Common toolbar descriptor. */
+  val common = Descriptor(getClass.getName() + "#common")
 
-  def apply(window: WComposite, menu: String) = {
-    val cbm = window.getCoolBarManager2()
-//    Option(cbm.getItems()) match {
-//      case Some(toolbar) => toolbar
-//      case None =>
-        log.___gaze("!!!!!! +?")
-        val z = new ToolBarManager
-        z.add(Exit)
-        val toolbar = cbm.add(z)
-        z
-//    }
+  /** ToolBar descriptor. */
+  case class Descriptor(id: String)
+  /** Return toolbar with the specific id from the window CoolBarManager. */
+  def apply(window: WComposite, toolBarDescriptor: Descriptor): ToolBarContributionItem = {
+    val cbm = window.getCoolBarManager()
+    Option(cbm.find(toolBarDescriptor.id)) match {
+      case Some(toolbar: ToolBarContributionItem) =>
+        toolbar
+      case Some(unknown) =>
+        throw new IllegalArgumentException(s"${toolBarDescriptor} id points to unexpected toolbar contribution item.")
+      case None =>
+        val toolBarContributionItem = new ToolBarContributionItem(new ToolBarManager(), toolBarDescriptor.id)
+        cbm.add(toolBarContributionItem)
+        toolBarContributionItem
+    }
   }
 }

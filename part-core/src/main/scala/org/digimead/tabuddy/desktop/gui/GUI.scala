@@ -55,7 +55,6 @@ import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.action
 import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
-import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowGroup2actorSRef
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 
@@ -101,6 +100,9 @@ class GUI extends Loggable {
       GUI.Exit.Error
     }
   }
+  /** Get factory by singleton class name. */
+  def factory(singletonClassName: String): Option[ViewLayer.Factory] =
+    viewFactories.find(_._1.getClass().getName() == singletonClassName).map(_._1)
   /** Add view factory to the map of the application known views. */
   def registerViewFactory(factory: ViewLayer.Factory, enabled: Boolean) = {
     log.debug("Add " + factory)
@@ -123,6 +125,7 @@ object GUI {
   lazy val windowContextKey = DI.windowContextKey
 
   def inner(): GUI = DI.implementation
+  override def toString = "Core.GUI[Singleton]"
 
   sealed trait Exit
   object Exit {

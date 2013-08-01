@@ -48,16 +48,25 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.concurrent.Future
+import scala.concurrent.future
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.gui.StackConfiguration.configuration2implementation
+import org.digimead.tabuddy.desktop.gui.transform.TransformAttachView.transform2implementation
+import org.digimead.tabuddy.desktop.gui.transform.TransformReplace.transform2implementation
+import org.digimead.tabuddy.desktop.gui.transform.TransformViewToTab.transform2implementation
 import org.digimead.tabuddy.desktop.gui.widget.SComposite
+import org.digimead.tabuddy.desktop.gui.widget.SCompositeHSash
+import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
+import org.digimead.tabuddy.desktop.gui.widget.SCompositeVSash
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
@@ -65,6 +74,7 @@ import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.Widget
 
@@ -83,7 +93,7 @@ import language.implicitConversions
  * - provide view configuration
  * - save all views configuration
  */
-class StackSupervisor(val parentContext: EclipseContext) extends Actor with Loggable {
+class StackSupervisor(val windowId: UUID, val parentContext: EclipseContext) extends Actor with Loggable {
   /** Stack configuration. */
   val configuration = new StackSupervisor.AtomicConfiguration(StackConfiguration.default)
   /** Reference to configurations save process future. */
@@ -96,8 +106,6 @@ class StackSupervisor(val parentContext: EclipseContext) extends Actor with Logg
   val lastActiveView = new AtomicReference[Option[UUID]](None)
   /** List of all window stacks. */
   val pointers = new StackSupervisor.PointerMap()
-  /** Window/StackSupervisor id. */
-  lazy val supervisorId = UUID.fromString(self.path.parent.name.split("@").last)
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
@@ -119,11 +127,11 @@ class StackSupervisor(val parentContext: EclipseContext) extends Actor with Logg
     case message @ App.Message.Create(viewFactory: ViewLayer.Factory, supervisor) => App.traceMessage(message) {
       create(viewFactory)
     }
-    case message @ App.Message.Created(stack: SComposite, sender) => App.traceMessage(message) {
-      onCreated(stack, sender)
+    case message @ App.Message.Created(stackLayer: SComposite, sender) => App.traceMessage(message) {
+      onCreated(stackLayer, sender)
     }
-    case message @ App.Message.Destroyed(stack: SComposite, sender) => App.traceMessage(message) {
-      onDestroyed(stack, sender)
+    case message @ App.Message.Destroyed(stackLayer: SComposite, sender) => App.traceMessage(message) {
+      onDestroyed(stackLayer)
     }
     case message @ App.Message.Restore(content: ScrolledComposite, sender) => App.traceMessage(message) {
       restore(content)
@@ -134,32 +142,45 @@ class StackSupervisor(val parentContext: EclipseContext) extends Actor with Logg
     case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
       onStart(widget)
     }
+    case message @ App.Message.Updated(stackLayer: SComposite, sender) => App.traceMessage(message) {
+      onUpdated(stackLayer)
+    }
 
+    /*
+     * Skip
+     */
     case message @ App.Message.Created(_, sender) =>
     case message @ App.Message.Destroyed(_, sender) =>
     case message @ App.Message.Started(_, sender) =>
     case message @ App.Message.Stopped(_, sender) =>
+
+    /*
+     * REPL interaction
+     */
+    case "configuration" => sender ! configuration.container.get
+    case "lastActiveView" => sender ! lastActiveView.get
+    case "pointers" => sender ! pointers
   }
 
   /** Create new stack element from configuration */
   protected def create(stackId: UUID, parentWidget: ScrolledComposite) {
-    log.debug(s"Create a top level stack element with id ${stackId}.")
+    log.debug("Create a top level stack element with id %08X=%s.".format(stackId.hashCode(), stackId))
     if (pointers.contains(stackId))
       throw new IllegalArgumentException(s"Stack with id ${stackId} is already exists.")
     if (!configuration.element.contains(stackId))
       throw new IllegalArgumentException(s"Stack with id ${stackId} is unknown.")
     configuration.element(stackId) match {
-      case stackConfiguration: org.digimead.tabuddy.desktop.gui.Configuration.Stack =>
+      case (parent, stackConfiguration: Configuration.Stack) =>
         log.debug(s"Attach ${stackConfiguration} as top level element.")
-        val stack = context.actorOf(StackLayer.props, StackLayer.id + "@" + stackId.toString())
+        val stack = context.actorOf(StackLayer.props.copy(args = immutable.Seq(stackConfiguration.id)), StackLayer.id + "_%08X".format(stackConfiguration.id.hashCode()))
         pointers += stackId -> StackSupervisor.StackPointer(stack)(new WeakReference(null))
         stack ! App.Message.Create(StackLayer.CreateArgument(stackConfiguration, parentWidget, parentContext), self)
-      case viewConfiguration: org.digimead.tabuddy.desktop.gui.Configuration.View =>
+      case (parent, viewConfiguration: Configuration.View) =>
         // There is only a view that is directly attached to the window.
         log.debug(s"Attach ${viewConfiguration} as top level element.")
-        val view = context.actorOf(ViewLayer.props.copy(args = immutable.Seq[Any](parentContext)), ViewLayer.id + "@" + stackId.toString())
+        val view = context.actorOf(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, parentContext)), ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode()))
         pointers += stackId -> StackSupervisor.StackPointer(view)(new WeakReference(null))
-        view ! App.Message.Create(ViewLayer.CreateArgument(viewConfiguration, parentWidget, parentContext), self)
+        view ! App.Message.Create(ViewLayer.<>(viewConfiguration, parentWidget, parentContext), self)
     }
   }
   /** Create new view within stack hierarchy. */
@@ -167,7 +188,7 @@ class StackSupervisor(val parentContext: EclipseContext) extends Actor with Logg
   protected def create(viewFactory: ViewLayer.Factory) {
     if (container.isEmpty)
       throw new IllegalStateException(s"Unable to create view from ${viewFactory}. Stack container isn't created.")
-    log.debug(s"Create new view from ${viewFactory}.")
+    log.debug(s"Create new view from %s within StackSupervisor[%08X].".format(viewFactory, windowId.hashCode()))
     val neighborViewId = lastActiveView.get() orElse {
       pointers.find {
         case (id, pointer) => Option(pointer.stack.get()).
@@ -200,21 +221,12 @@ class StackSupervisor(val parentContext: EclipseContext) extends Actor with Logg
     }
   }
   /** Register created stack element. */
-  protected def onCreated(stack: SComposite, sender: ActorRef) {
-    pointers += stack.id -> StackSupervisor.StackPointer(sender)(new WeakReference(stack))
-    configuration.element.get(stack.id) match {
-      case Some(view: Configuration.View) =>
-        Option(pointers(view.id).stack.get()) match {
-          case Some(viewComposite) =>
-            setActiveView(view.id, viewComposite)
-          case None =>
-            log.fatal(s"Lost view ${view.id} composite weak reference.")
-        }
-      case _ => //skip
-    }
+  protected def onCreated(stackLayer: SComposite, sender: ActorRef) {
+    pointers += stackLayer.id -> StackSupervisor.StackPointer(sender)(new WeakReference(stackLayer))
+    onUpdated(stackLayer)
   }
   /** Unregister destroyed stack element. */
-  protected def onDestroyed(stack: SComposite, sender: ActorRef) {
+  protected def onDestroyed(stack: SComposite) {
     pointers -= stack.id
   }
   /** User start interaction with window/stack supervisor. Focus is gained. */
@@ -226,10 +238,10 @@ class StackSupervisor(val parentContext: EclipseContext) extends Actor with Logg
       log.debug("New active view hierarchy: " + seq)
       seq match {
         case Seq(view: VComposite, shell: Shell) =>
-          log.debug("View is directly attached to shell.")
+          // View is directly attached to shell.
           setActiveView(view.id, widget)
         case Seq(view: VComposite, stack: SComposite, _*) =>
-          log.debug("View is attached to stack.")
+          // View is attached to stack.
           setActiveView(view.id, widget)
         case unexpected =>
           log.fatal("Unexpected GUI hierarchy.")
@@ -242,10 +254,10 @@ class StackSupervisor(val parentContext: EclipseContext) extends Actor with Logg
         log.debug("Last active view hierarchy: " + lastActiveViewGUIHierarchy)
         lastActiveViewGUIHierarchy match {
           case Seq(view: VComposite, shell: Shell) =>
-            log.debug("View is directly attached to shell.")
+            // View is directly attached to shell.
             setActiveView(view.id, view)
           case Seq(view: VComposite, stack: SComposite, _*) =>
-            log.debug("View is attached to stack.")
+            // View is attached to stack.
             setActiveView(view.id, view)
           case Nil =>
             log.warn("Last active view GUI hierarchy was gone.")
@@ -255,34 +267,114 @@ class StackSupervisor(val parentContext: EclipseContext) extends Actor with Logg
       }
     }
   }
+  /** Stack layer updated. */
+  def onUpdated(stackLayer: SComposite) {
+    stackLayer match {
+      case view: VComposite =>
+        log.debug(s"${view} created. Process widgets hierarchy.")
+        val existHierarchy = stackLayer.id +: configuration.parents(stackLayer.id) :+ windowId
+        val newHierarchy = App.execNGet {
+          App.widgetHierarchy(stackLayer).map {
+            case shell: Shell =>
+              val id = shell.getData(GUI.swtId)
+              if (id == null)
+                throw new IllegalStateException("Unable to find WComposite id.")
+              id
+            case widget: SComposite =>
+              widget.id
+          }
+        }
+        if (existHierarchy == newHierarchy)
+          log.debug("Widgets hierarchy is preserved.")
+        else {
+          log.debug("Rebuild widgets hierarchy.")
+          App.execNGet { stackLayer.getShell().getChildren().map(rebuildConfiguration).flatten } match {
+            case Array(topLayerConfigurationElement) =>
+              configuration.set(Configuration(topLayerConfigurationElement))
+            case unexpected =>
+              log.fatal(s"Unexpected configuration: ${unexpected.mkString(", ")}")
+          }
+        }
+        // Set active if none.
+        if (lastActiveView.get().isEmpty && stackLayer.isInstanceOf[VComposite])
+          setActiveView(stackLayer.id, stackLayer)
+      case other =>
+    }
+  }
+  /** Rebuild configuration from the actual widgets hierarchy */
+  protected def rebuildConfiguration(widget: Widget): Option[Configuration.PlaceHolder] = widget match {
+    case vcomposite: VComposite =>
+      Some(Configuration.View(vcomposite.factorySingletonClassName, vcomposite.id))
+    case scomposite: SCompositeTab =>
+      val children: Array[Configuration.View] = scomposite.getItems().map { tabItem =>
+        rebuildConfiguration(tabItem.getControl()) match {
+          case Some(view: Configuration.View) =>
+            Some(view)
+          case Some(unexpected) =>
+            log.fatal("Unexpected configuration element: ${unexpected}.")
+            None
+          case None =>
+            None
+        }
+      }.flatten
+      if (children.nonEmpty)
+        Some(Configuration.Stack.Tab(children, scomposite.id))
+      else
+        None
+    case scomposite: SCompositeHSash =>
+      // TODO
+      None
+    case scomposite: SCompositeVSash =>
+      // TODO
+      None
+    case widget: Composite =>
+      // pass through via other composite
+      widget.getChildren().map(rebuildConfiguration).flatten match {
+        case Array() =>
+          None
+        case Array(configuration) =>
+          Some(configuration)
+        case unexpected =>
+          log.fatal(s"Unexpected configuration: ${unexpected.mkString(", ")}")
+          None
+      }
+    case unknownWidget =>
+      None
+  }
+  /** Restore stack configuration. */
   protected def restore(parent: ScrolledComposite) {
     // TODO destroy all current stacks
-    StackConfiguration.load(supervisorId).foreach(configuration.set)
+    StackConfiguration.load(windowId).foreach(configuration.set)
     container = Some(parent)
-    create(configuration.get.stack.id, parent)
+    create(configuration.stack.id, parent)
     // TODO activate last
   }
-  /** Save windows configuration. */
+  /** Save stack configuration. */
   protected def save() {
-    /*implicit val ec = App.system.dispatcher
+    implicit val ec = App.system.dispatcher
     if (!configurationsSave.compareAndSet(None, Some(future {
-      WindowConfiguration.save(immutable.HashMap(configurations.toSeq: _*))
+      StackConfiguration.save(windowId, configuration)
       configurationsSave.set(None)
       if (configurationsSaveRestart.compareAndSet(true, false))
         save()
-    }))) configurationsSaveRestart.set(true)*/
+    }))) configurationsSaveRestart.set(true)
   }
   /** Set active view. */
-  protected def setActiveView(id: UUID, widget: Widget) {
-    log.debug(s"Set active view ${id} - ${configuration.element(id)}.")
-    lastActiveView.set(Option(id))
+  protected def setActiveView(id: UUID, widget: Widget): Unit = try {
+    if (lastActiveView.get() != Some(id)) {
+      log.debug(s"Set active view ${configuration.element(id)}.")
+      lastActiveView.set(Option(id))
+    }
     pointers(id).actor ! App.Message.Start(widget, self)
+  } catch {
+    case e: Throwable =>
+      log.error(e.getMessage, e)
   }
-
 }
 
 object StackSupervisor {
-  implicit def atomicConfiguration2AtomicReference(c: AtomicConfiguration): AtomicReference[Configuration] = c.container
+  //implicit def atomicConfiguration2AtomicReference(c: AtomicConfiguration): AtomicReference[Configuration] = c.container
+  implicit def atomicConfiguration2Configuration(c: AtomicConfiguration): Configuration = c.container.get
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   // Initialize descendant actor singletons
@@ -292,11 +384,16 @@ object StackSupervisor {
   def props = DI.props
 
   class AtomicConfiguration(initial: Configuration) {
-    val container = new AtomicReference[Configuration](initial)
-    /** Stack configuration map. SComposite UUID -> configuration element. */
-    @volatile protected var configurationMap: immutable.HashMap[UUID, Configuration.PlaceHolder] = toMap(initial)
+    protected[StackSupervisor] val container = new AtomicReference[Configuration](initial)
+    /** Stack configuration map. SComposite UUID -> (parent UUID, configuration element). */
+    @volatile protected var configurationMap: immutable.HashMap[UUID, (Option[UUID], Configuration.PlaceHolder)] = toMap(initial)
+    /** Get parents. */
+    def parents(id: UUID): Seq[UUID] = configurationMap.get(id).flatMap {
+      case (parent, element) =>
+        parent.map(parents)
+    }.getOrElse(Seq[UUID]())
     /** Set new configuration. */
-    def set(arg: Configuration) = {
+    protected[StackSupervisor] def set(arg: Configuration) = {
       configurationMap = toMap(arg)
       container.set(arg)
     }
@@ -304,25 +401,26 @@ object StackSupervisor {
     def element = configurationMap
 
     /** Extract map from configuration. */
-    protected def toMap(configuration: Configuration): immutable.HashMap[UUID, Configuration.PlaceHolder] = {
-      var entry = Seq[(UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder)]()
-      def visit(stack: org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder) {
-        entry = entry :+ stack.id -> stack
+    protected def toMap(configuration: Configuration): immutable.HashMap[UUID, (Option[UUID], Configuration.PlaceHolder)] = {
+      var entry = Seq[(UUID, (Option[UUID], Configuration.PlaceHolder))]()
+      def visit(stack: Configuration.PlaceHolder, parent: Option[UUID]) {
+        entry = entry :+ stack.id -> (parent, stack)
         stack match {
           case tab: org.digimead.tabuddy.desktop.gui.Configuration.Stack.Tab =>
-            tab.children.foreach(visit)
+            tab.children.foreach(visit(_, Some(tab.id)))
           case hsash: org.digimead.tabuddy.desktop.gui.Configuration.Stack.HSash =>
-            visit(hsash.left)
-            visit(hsash.right)
+            visit(hsash.left, Some(hsash.id))
+            visit(hsash.right, Some(hsash.id))
           case vsash: org.digimead.tabuddy.desktop.gui.Configuration.Stack.VSash =>
-            visit(vsash.top)
-            visit(vsash.bottom)
+            visit(vsash.top, Some(vsash.id))
+            visit(vsash.bottom, Some(vsash.id))
           case view: org.digimead.tabuddy.desktop.gui.Configuration.View =>
         }
       }
-      visit(configuration.stack)
-      immutable.HashMap[UUID, org.digimead.tabuddy.desktop.gui.Configuration.PlaceHolder](entry: _*)
+      visit(configuration.stack, None)
+      immutable.HashMap[UUID, (Option[UUID], Configuration.PlaceHolder)](entry: _*)
     }
+    override def toString = "AtomicConfiguration: " + container.get.toString
   }
   /**
    * Stack pointers map
@@ -336,6 +434,10 @@ object StackSupervisor {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** WindowSupervisor actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.GUI.StackSupervisor") getOrElse Props(classOf[StackSupervisor], Core.context)
+    lazy val props = injectOptional[Props]("Core.GUI.StackSupervisor") getOrElse Props(classOf[StackSupervisor],
+      // window id = stack supervisor id
+      UUID.fromString("00000000-0000-0000-0000-000000000000"),
+      // parent context
+      Core.context)
   }
 }

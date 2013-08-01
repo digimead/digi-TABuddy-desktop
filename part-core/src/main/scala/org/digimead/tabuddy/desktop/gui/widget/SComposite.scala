@@ -68,5 +68,5 @@ trait SComposite extends Composite {
     // Disable the check that prevents subclassing of SWT components
   }
 
-  override def toString() = super.toString + "/" + id
+  override def toString() = super.toString + "[%08X]".format(id.hashCode())
 }

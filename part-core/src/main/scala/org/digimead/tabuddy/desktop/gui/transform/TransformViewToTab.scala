@@ -43,13 +43,14 @@
 
 package org.digimead.tabuddy.desktop.gui.transform
 
+import scala.collection.immutable
+
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.Configuration
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.StackLayer
 import org.digimead.tabuddy.desktop.gui.StackSupervisor
-import org.digimead.tabuddy.desktop.gui.StackSupervisor.atomicConfiguration2AtomicReference
 import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder
 import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
@@ -76,10 +77,13 @@ class TransformViewToTab extends Loggable {
         Option(tab)
       case other: Shell =>
         val tabParentWidget = view.getParent
-        val viewConfiguration = ss.configuration.element(view.id).asInstanceOf[Configuration.View]
+        val viewConfiguration = ss.configuration.element(view.id)._2.asInstanceOf[Configuration.View]
         val tabConfiguration = Configuration.Stack.Tab(Seq(viewConfiguration))
-        log.debug(s"Reconfigure stack hierarchy. Bind ${tabConfiguration} to ${other}.")
-        val stackRef = ss.context.actorOf(StackLayer.props, StackLayer.id + "@" + tabConfiguration.id.toString())
+        log.debug(s"Reconfigure stack hierarchy. Bind %s to WComposite[%08X].".format(tabConfiguration,
+          Option(other.getData(GUI.swtId)).map(_.hashCode()).getOrElse {
+            log.fatal(s"Bind to unknown shell ${other}."); 0 // Unable to find UUID value in shell data
+          }))
+        val stackRef = ss.context.actorOf(StackLayer.props.copy(args = immutable.Seq(tabConfiguration.id)), StackLayer.id + "_%08X".format(tabConfiguration.id.hashCode()))
         val (tabComposite, containers) = StackTabBuilder(tabConfiguration, tabParentWidget, stackRef)
         val firstTab = containers.head
         if (!view.setParent(firstTab)) {
@@ -91,8 +95,13 @@ class TransformViewToTab extends Loggable {
           firstTab.setMinSize(view.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           tabComposite.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
             case Some(tabItem) =>
-              App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory.title(view.contentRef))
-              tabItem.setText(viewConfiguration.factory.title(view.contentRef).getValue().asInstanceOf[String])
+              GUI.factory(viewConfiguration.factorySingletonClassName) match {
+                case Some(factory) =>
+                  App.bindingContext.bindValue(SWTObservables.observeText(tabItem), factory.title(view.contentRef))
+                  tabItem.setText(factory.title(view.contentRef).getValue().asInstanceOf[String])
+                case None =>
+                  log.fatal(s"Unable to find view factory for ${viewConfiguration.factorySingletonClassName}.")
+              }
             case None =>
               log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")
           }
@@ -100,14 +109,13 @@ class TransformViewToTab extends Loggable {
           tabParentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           tabParentWidget.layout(true)
           App.publish(App.Message.Created(tabComposite, stackRef))
-          log.debug("Update stack supervisor configuration.")
-          ss.configuration.set(Configuration(ss.configuration.get.stack.map {
-            case view: Configuration.View if view.id == view.id =>
-              log.debug(s"Replace configuration element ${view} with ${tabConfiguration}. ")
-              tabConfiguration
-            case other => other
-          }))
-          log.debug("Updated configuration is " + ss.configuration)
+          App.publish(App.Message.Updated(view, stackRef))
+          //ss.configuration.set(Configuration(ss.configuration.get.stack.map {
+          //  case oldView: Configuration.View if oldView.id == view.id =>
+          //    log.debug(s"Replace configuration element ${view} with ${tabConfiguration}. ")
+          //    tabConfiguration
+          //  case other => other
+          //}))
           Option(tabComposite)
         }
       case unexpected =>

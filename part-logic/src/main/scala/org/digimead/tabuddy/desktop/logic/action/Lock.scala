@@ -41,11 +41,10 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.handler
+package org.digimead.tabuddy.desktop.logic.action
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -64,14 +63,15 @@ import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.commands.ExecutionEvent
 import org.eclipse.ui.commands.IElementUpdater
 import org.eclipse.ui.menus.UIElement
-
+import org.eclipse.jface.action.{ Action => JFaceAction }
 import akka.actor.Actor
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import org.eclipse.swt.widgets.Event
 
-class Lock extends Handler(Lock) with IElementUpdater with Loggable {
+class Lock extends JFaceAction with Loggable {
   @log
-  def execute(event: ExecutionEvent): AnyRef = {
+  override def runWithEvent(event: Event) {
     val context = App.model.getContext().getActiveLeaf()
 
     if (Model.eId == Payload.defaultModel.eId) {

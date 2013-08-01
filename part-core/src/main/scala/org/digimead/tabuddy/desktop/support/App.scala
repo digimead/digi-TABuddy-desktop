@@ -45,10 +45,12 @@ package org.digimead.tabuddy.desktop.support
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+
 import akka.actor.Actor
-import akka.actor.Props
-import language.implicitConversions
 import akka.actor.ActorRef
+import akka.actor.Props
+
+import language.implicitConversions
 
 class App extends Loggable with app.Akka with app.Context with app.Generic with app.Model with app.Workbench with app.GUI
 
@@ -78,39 +80,41 @@ object App {
      * Transports like Akka EventBus that lost original sender are supported too.
      */
     /** Actor send hello with indirect(over bundles) dependency sequence. */
-    case class Attach(props: Props, name: String)
+    case class Attach(props: Props, name: String) extends Message
     /** Close something. */
-    case class Close[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Close[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Something closed. */
-    case class Closed[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Closed[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Element return integrity. */
-    case class Consistent[T <: AnyRef](element: T, sender: ActorRef)
+    case class Consistent[T <: AnyRef](element: T, sender: ActorRef) extends Message
     /** Create something. */
-    case class Create[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Create[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Something created. */
     case class Created[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Destroy something. */
-    case class Destroy[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Destroy[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Something destroyed. */
     case class Destroyed[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Something lost consistency. */
-    case class Inconsistent[T <: AnyRef](element: T, sender: ActorRef)
+    case class Inconsistent[T <: AnyRef](element: T, sender: ActorRef) extends Message
     /** Open something. */
-    case class Open[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Open[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Something opened. */
-    case class Opened[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Opened[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Restore something. */
-    case class Restore[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Restore[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Save something. */
-    case class Save[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Save[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Start something. */
-    case class Start[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Start[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Something started. */
     case class Started[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Stop something. */
-    case class Stop[T <: AnyRef](arg: T, sender: ActorRef)
+    case class Stop[T <: AnyRef](arg: T, sender: ActorRef) extends Message
     /** Something stopped. */
     case class Stopped[T <: AnyRef](arg: T, sender: ActorRef) extends Message
+    /** Something updated. */
+    case class Updated[T <: AnyRef](arg: T, sender: ActorRef) extends Message
   }
   /**
    * Dependency injection routines

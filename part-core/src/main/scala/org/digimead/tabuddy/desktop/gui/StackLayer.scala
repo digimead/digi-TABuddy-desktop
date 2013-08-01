@@ -63,11 +63,9 @@ import akka.actor.Props
 /**
  * Stack layer implementation that contains lay between window and view.
  */
-class StackLayer extends Actor with Loggable {
+class StackLayer(stackId: UUID) extends Actor with Loggable {
   /** Stack layer JFace instance. */
   @volatile var stack: Option[SComposite] = None
-  /** Stack layer id. */
-  lazy val stackId = UUID.fromString(self.path.name.split("@").last)
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
@@ -82,7 +80,7 @@ class StackLayer extends Actor with Loggable {
   }
   def receive = {
     case message @ App.Message.Create(StackLayer.CreateArgument(stackConfiguration, parentWidget, parentContext), supervisor) => App.traceMessage(message) {
-      create(stackConfiguration, parentWidget, parentContext, supervisor)
+      App.execAsync { create(stackConfiguration, parentWidget, parentContext, supervisor) }
     }
     case message @ App.Message.Created(stack: SComposite, sender) if (sender == self && this.stack == None) => App.traceMessage(message) {
       log.debug(s"Update stack ${stack} composite.")
@@ -96,6 +94,7 @@ class StackLayer extends Actor with Loggable {
   protected def create(stackConfiguration: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
     if (stack.nonEmpty)
       throw new IllegalStateException("Unable to create stack. It is already created.")
+    App.checkThread
     this.stack = StackBuilder(stackConfiguration, parentWidget, parentContext, supervisor, self)
     this.stack.foreach(stack => App.publish(App.Message.Created(stack, self)))
   }
@@ -116,6 +115,8 @@ object StackLayer extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** StackLayer actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.GUI.StackLayer") getOrElse Props[StackLayer]
+    lazy val props = injectOptional[Props]("Core.GUI.StackLayer") getOrElse Props(classOf[StackLayer],
+      // stack layer id
+      UUID.fromString("00000000-0000-0000-0000-000000000000"))
   }
 }

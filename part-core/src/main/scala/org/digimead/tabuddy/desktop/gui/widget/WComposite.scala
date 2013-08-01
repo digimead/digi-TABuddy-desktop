@@ -50,7 +50,6 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.WindowConfiguration
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor
-import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowGroup2actorSRef
 import org.digimead.tabuddy.desktop.gui.builder.ContentBuilder
 import org.digimead.tabuddy.desktop.gui.builder.ContentBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.widget.status.StatusLineContributor.sbar2implementation
@@ -141,6 +140,8 @@ class WComposite(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     val (container, filler, content) = ContentBuilder(this, parent)
     this.filler = Option(filler)
     this.content = Option(content)
+    // This is critical, Without setFocus SWT lost FocusIn and FocusOut events.
+    parent.getShell().setFocus()
     supervisorRef ! App.Message.Restore(content, App.system.deadLetters)
     container
   }
@@ -153,7 +154,7 @@ class WComposite(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     App.publish(App.Message.Destroyed(this, ref))
   }
 
-  override def toString() = "WComposite/" + id
+  override def toString() = "WComposite[%08X]".format(id.hashCode())
 }
 
 object WComposite {

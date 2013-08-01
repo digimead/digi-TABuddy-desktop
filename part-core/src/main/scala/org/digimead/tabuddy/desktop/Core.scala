@@ -97,7 +97,6 @@ class Core extends akka.actor.Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[App.Message.Stopped[_]])
     log.debug(self.path.name + " actor is started.")
   }
-  /** Get subscribers list. */
   def receive = {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
@@ -170,6 +169,7 @@ object Core {
 
   /** Core actor reference configuration object. */
   def props = DI.props
+  override def toString = "Core[Singleton]"
 
   /**
    * Dependency injection routines

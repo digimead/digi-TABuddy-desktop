@@ -76,14 +76,18 @@ import org.eclipse.swt.widgets.Widget
 
 trait GUI {
   this: Generic with Loggable =>
-  /** Asynchronously execute runnable in UI thread */
-  def exec[T](f: => T): Unit = display.asyncExec(new Runnable {
+  /** Execute runnable in UI thread. */
+  def exec[T](f: => T): Unit =
+    if (thread.eq(Thread.currentThread())) { f } else execAsync({ f })
+  /** Asynchronously execute runnable in UI thread. */
+  def execAsync[T](f: => T): Unit = display.asyncExec(new Runnable {
     def run = try { f } catch { case e: Throwable => log.error("UI Thread exception: " + e, e) }
   })
+  /** Execute runnable in UI thread and return result or exception */
+  def execNGet[T](f: => T): T =
+    if (thread.eq(Thread.currentThread())) { f } else execNGetAsync({ f })
   /** Asynchronously execute runnable in UI thread and return result or exception */
-  def execNGet[T](f: => T): T = {
-    if (thread.eq(Thread.currentThread()))
-      return f
+  def execNGetAsync[T](f: => T): T = {
     val result = new AtomicReference[Option[Either[Throwable, T]]](None)
     display.asyncExec(new Runnable {
       def run = result.synchronized {
@@ -110,7 +114,9 @@ trait GUI {
    * Asynchronously execute runnable in UI thread with timeout and return result or exception
    * NB This routine block UI thread, so it would unusual to freeze application for a few hours.
    */
-  def execNGet[T](timeout: Int, unit: TimeUnit = TimeUnit.MILLISECONDS)(f: => T): T = {
+  def execNGetAsync[T](timeout: Int, unit: TimeUnit = TimeUnit.MILLISECONDS)(f: => T): T = {
+    if (thread.eq(Thread.currentThread()))
+      throw new IllegalStateException("Unable to spawn execNGetAsync runnable with timeout within UI thread.")
     val mark = System.currentTimeMillis() + unit.toMillis(timeout)
     val result = new AtomicReference[Option[Either[Throwable, T]]](None)
     display.asyncExec(new Runnable {

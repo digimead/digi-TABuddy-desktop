@@ -70,15 +70,13 @@ import akka.pattern.ask
  * - start window
  * - close/destroy window
  */
-class Window(parentContext: EclipseContext) extends Actor with WComposite.Controller with Loggable {
-  /** Window id. */
-  lazy val windowId = UUID.fromString(self.path.name.split("@").last)
+class Window(val windowId: UUID, val parentContext: EclipseContext) extends Actor with WComposite.Controller with Loggable {
   /** Window JFace instance. */
   var window: Option[WComposite] = None
   /** Window context. */
-  lazy val windowContext = parentContext.createChild(self.path.name).asInstanceOf[EclipseContext]
+  lazy val windowContext = parentContext.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
   /** Window views supervisor. */
-  lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq[Any](windowContext)), StackSupervisor.id)
+  lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq(windowId, windowContext)), StackSupervisor.id)
   log.debug("Start actor " + self.path)
 
   def receive = {
@@ -88,12 +86,9 @@ class Window(parentContext: EclipseContext) extends Actor with WComposite.Contro
     case message @ App.Message.Close => App.traceMessage(message) {
       close(sender)
     }
-    case message @ App.Message.Create(windowId: UUID, supervisor) => App.traceMessage(message) {
+    case message @ App.Message.Create(Window.<>(windowId), supervisor) => App.traceMessage(message) {
       assert(windowId == this.windowId)
       create(supervisor)
-    }
-    case message @ App.Message.Create(viewFactory: ViewLayer.Factory, supervisor) => App.traceMessage(message) {
-      create(viewFactory)
     }
     case message @ App.Message.Destroy => App.traceMessage(message) {
       destroy(sender)
@@ -107,6 +102,12 @@ class Window(parentContext: EclipseContext) extends Actor with WComposite.Contro
     case message @ Window.Message.Get => App.traceMessage(message) {
       sender ! window
     }
+
+    case message @ App.Message.Create(viewFactory: ViewLayer.Factory, supervisor) =>
+      stackSupervisor.forward(message)
+    case message @ App.Message.Save =>
+      stackSupervisor.forward(message)
+
   }
   override def postStop() = log.debug(self.path.name + " actor is stopped.")
 
@@ -135,13 +136,6 @@ class Window(parentContext: EclipseContext) extends Actor with WComposite.Contro
         })
         this.window.foreach(window => App.publish(App.Message.Created(window, self)))
     }
-  }
-  /** Create new view within window. */
-  protected def create(viewFactory: ViewLayer.Factory) {
-    if (window.isEmpty)
-      throw new IllegalStateException(s"Unable to create view from ${viewFactory}. Window isn't created.")
-    log.debug(s"Create new view from ${viewFactory}.")
-    stackSupervisor ! App.Message.Create(viewFactory, self)
   }
   /** Destroy created window. */
   protected def destroy(sender: ActorRef) = this.window.foreach { window =>
@@ -176,6 +170,10 @@ object Window extends Loggable {
   /** Window actor reference configuration object. */
   def props = DI.props
 
+  /** Wrapper for App.Message,Create argument. */
+  case class <>(val windowId: UUID) {
+    override def toString() = "<>([%08X]=%s)".format(windowId.hashCode(), windowId.toString())
+  }
   trait Message extends App.Message
   object Message {
     /** Get window composite. */
@@ -188,6 +186,10 @@ object Window extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Window actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.GUI.Window") getOrElse Props(classOf[Window], Core.context)
+    lazy val props = injectOptional[Props]("Core.GUI.Window") getOrElse Props(classOf[Window],
+      // window id
+      UUID.fromString("00000000-0000-0000-0000-000000000000"),
+      // parent context
+      Core.context)
   }
 }
