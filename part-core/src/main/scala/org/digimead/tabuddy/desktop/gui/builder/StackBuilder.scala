@@ -44,11 +44,13 @@
 package org.digimead.tabuddy.desktop.gui.builder
 
 import scala.collection.immutable
+import scala.concurrent.Await
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.gui.builder.StackHSashBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder.builder2implementation
@@ -60,11 +62,14 @@ import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.eclipse.jface.databinding.swt.SWTObservables
+import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 
+import akka.actor.ActorContext
 import akka.actor.ActorRef
-import akka.actor.actorRef2Scala
 import akka.pattern.ask
+import akka.util.Timeout.durationToTimeout
 
 import language.implicitConversions
 
@@ -75,36 +80,68 @@ class StackBuilder extends Loggable {
     StackViewBuilder(view, viewRef, parentWidget, parentContext)
   /** Creates stack content. */
   @log
-  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, stackRef: ActorRef): Option[SComposite] = {
+  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
     stack match {
       case tab: Configuration.Stack.Tab =>
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }
         // Attach list of Configuration.View(from tab.children) to ScrolledComposite(from containers)
-        for {
-          container <- containers
-          viewConfiguration <- tab.children
-        } {
-          implicit val ec = App.system.dispatcher
-          implicit val timeout = akka.util.Timeout(Timeout.short)
-          // Create new view layer.
-          supervisorRef ? App.Message.Attach(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, parentContext)), ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode())) onSuccess {
-            case viewRef: ActorRef =>
-              // Create view within view layer.
-              implicit val sender = supervisorRef
-              viewRef ! App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget, parentContext)))
+        val tabs = for { (container, viewConfiguration) <- containers zip tab.children } yield {
+          val viewName = ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode())
+          log.debug(s"Create new view layer ${viewName}.")
+          val viewRef = supervisorContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, parentContext)), viewName)
+          // Block builder until the view is created.
+          implicit val sender = stackRef
+          Await.result(ask(viewRef, App.Message.Create(Left(ViewLayer.<>(viewConfiguration,
+            container, parentContext))))(Timeout.short), Timeout.short) match {
+            case App.Message.Create(Right(viewWidget: VComposite), None) =>
+              log.debug(s"View layer ${viewConfiguration} content created.")
+              App.execNGet {
+                // Adjust tab.
+                tabComposite.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
+                  case Some(tabItem) =>
+                    container.setContent(viewWidget)
+                    container.setMinSize(viewWidget.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+                    container.layout(true)
+                    App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(viewWidget.contentRef))
+                    tabItem.setText(viewConfiguration.factory().title(viewWidget.contentRef).getValue().asInstanceOf[String])
+                    Some(viewWidget)
+                  case None =>
+                    log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")
+                    None
+                }
+              }
+            case App.Message.Error(error, None) =>
+              log.fatal(s"Unable to create content for view layer ${viewConfiguration}: ${error}.")
+              None
+            case _ =>
+              log.fatal(s"Unable to create content for view layer ${viewConfiguration}.")
+              None
           }
         }
-        Option(tabComposite)
+        if (tabs.nonEmpty && tabs.exists(_.nonEmpty)) {
+          App.execNGet {
+            parentWidget.setContent(tabComposite)
+            parentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+            parentWidget.setExpandHorizontal(true)
+            parentWidget.setExpandVertical(true)
+            parentWidget.layout(true)
+          }
+          Option(tabComposite)
+        } else
+          None
+
       case hsash: Configuration.Stack.HSash =>
         val (sashComposite, left, right) = StackHSashBuilder(hsash, parentWidget, stackRef)
         //buildLevel(hsash.left, left)
         //buildLevel(hsash.right, right)
         Option(sashComposite)
+
       case vsash: Configuration.Stack.VSash =>
         val (sashComposite, top, bottom) = StackVSashBuilder(vsash, parentWidget, stackRef)
         //buildLevel(vsash.top, top)
         //buildLevel(vsash.bottom, bottom)
         Option(sashComposite)
+
       case view: Configuration.View =>
         log.fatal("Unable to process view as stack.")
         None

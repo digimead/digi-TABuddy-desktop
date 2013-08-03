@@ -57,8 +57,10 @@ import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.custom.ScrolledComposite
 
 import akka.actor.Actor
+import akka.actor.ActorContext
 import akka.actor.ActorRef
 import akka.actor.Props
+import akka.actor.actorRef2Scala
 
 /**
  * Stack layer implementation that contains lay between window and view.
@@ -79,16 +81,16 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext)), None) => sender ! App.traceMessage(message) {
-      create(stackConfiguration, parentWidget, parentContext, sender)
-      this.stack match {
+    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext, supervisorContext)), None) => sender ! App.traceMessage(message) {
+      create(stackConfiguration, parentWidget, parentContext, sender, supervisorContext) match {
         case Some(stack) =>
-          App.publish(App.Message.Create(Right(stack)))
+          App.publish(App.Message.Create(Right(stack), self))
           App.Message.Create(Right(stack))
         case None =>
           App.Message.Error(s"Unable to create ${stackConfiguration}.")
       }
     }
+
     case message @ App.Message.Create(Right(stack: SComposite), Some(publisher)) if (publisher == self && this.stack == None) => App.traceMessage(message) {
       log.debug(s"Update stack ${stack} composite.")
       this.stack = Option(stack)
@@ -98,11 +100,12 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
   }
 
   /** Create stack. */
-  protected def create(stackConfiguration: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
+  protected def create(stackConfiguration: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef, supervisorContext: ActorContext): Option[SComposite] = {
     if (stack.nonEmpty)
       throw new IllegalStateException("Unable to create stack. It is already created.")
     App.assertUIThread(false)
-    this.stack = StackBuilder(stackConfiguration, parentWidget, parentContext, supervisor, self)
+    this.stack = StackBuilder(stackConfiguration, parentWidget, parentContext, supervisor, supervisorContext, self)
+    this.stack
   }
 }
 
@@ -116,7 +119,7 @@ object StackLayer extends Loggable {
   def props = DI.props
 
   /** Wrapper for App.Message,Create argument. */
-  case class <>(val stackConfiguration: Configuration.Stack, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
+  case class <>(val stackConfiguration: Configuration.Stack, val parentWidget: ScrolledComposite, val parentContext: EclipseContext, supervisorContext: ActorContext)
   /**
    * Dependency injection routines.
    */

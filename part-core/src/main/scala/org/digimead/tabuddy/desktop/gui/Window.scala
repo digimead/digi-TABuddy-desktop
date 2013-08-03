@@ -82,12 +82,10 @@ class Window(val windowId: UUID, val parentContext: EclipseContext) extends Acto
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Attach(props, name) => sender ! App.traceMessage(message) {
-      context.actorOf(props, name)
-    }
     case message @ App.Message.Close => App.traceMessage(message) {
       close(sender)
     }
+
     case message @ App.Message.Create(Left(Window.<>(windowId, configuration)), None) => sender ! App.traceMessage(message) {
       assert(windowId == this.windowId)
       create(configuration, sender) match {
@@ -98,29 +96,34 @@ class Window(val windowId: UUID, val parentContext: EclipseContext) extends Acto
           App.Message.Error("Unable to create ${viewConfiguration}.")
       }
     }
+
     case message @ App.Message.Destroy => App.traceMessage(message) {
       destroy(sender)
     }
+
     case message @ App.Message.Open => App.traceMessage(message) {
       open(sender)
     }
+
     case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
       onStart(widget)
       App.Message.Start(Right(widget))
     }
+
     case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
       onStop(widget)
       App.Message.Stop(Right(widget))
     }
+
     case message @ Window.Message.Get => sender ! App.traceMessage(message) {
       window
     }
 
-    case message @ App.Message.Create(viewFactory: ViewLayer.Factory, None) =>
-      stackSupervisor.forward(message)
-    case message @ App.Message.Save =>
+    case message @ App.Message.Create(Left(viewFactory: ViewLayer.Factory), None) =>
       stackSupervisor.forward(message)
 
+    case message @ App.Message.Save =>
+      stackSupervisor.forward(message)
   }
   override def postStop() = log.debug(self.path.name + " actor is stopped.")
 

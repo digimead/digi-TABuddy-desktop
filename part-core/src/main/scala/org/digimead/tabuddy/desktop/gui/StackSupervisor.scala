@@ -123,10 +123,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: EclipseContext) ext
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Attach(props, name) => sender ! App.traceMessage(message) {
-      context.actorOf(props, name)
-    }
-    case message @ App.Message.Create(viewFactory: ViewLayer.Factory, None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Create(Left(viewFactory: ViewLayer.Factory), None) => sender ! App.traceMessage(message) {
       create(viewFactory) match {
         case Some(windowComposite) =>
           App.publish(App.Message.Create(Right(windowComposite)))
@@ -135,12 +132,15 @@ class StackSupervisor(val windowId: UUID, val parentContext: EclipseContext) ext
           App.Message.Error(s"Unable to create ${viewFactory}.")
       }
     }
+
     case message @ App.Message.Create(Right(stackLayer: SComposite), Some(publisher)) => App.traceMessage(message) {
       onCreated(stackLayer, publisher)
     }
+
     case message @ App.Message.Destroy(Right(stackLayer: SComposite), Some(publisher)) => App.traceMessage(message) {
       onDestroyed(stackLayer)
     }
+
     case message @ App.Message.Restore(Left(content: WComposite), None) => sender ! App.traceMessage(message) {
       restore(content) match {
         case Some(windowComposite) =>
@@ -150,17 +150,21 @@ class StackSupervisor(val windowId: UUID, val parentContext: EclipseContext) ext
           App.Message.Error(s"Unable to restore content for ${content}.")
       }
     }
+
     case message @ App.Message.Save => App.traceMessage(message) {
       save()
     }
+
     case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
       onStart(widget)
       App.Message.Start(Right(widget))
     }
+
     case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
       onStop(widget)
       App.Message.Stop(Right(widget))
     }
+
     case message @ App.Message.Update(Right(stackLayer: SComposite), Some(publisher)) => App.traceMessage(message) {
       onUpdated(stackLayer)
     }
@@ -196,7 +200,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: EclipseContext) ext
         pointers += stackId -> StackSupervisor.StackPointer(stack)(new WeakReference(null))
         // Block supervisor until stack is created.
         Await.result(ask(stack, App.Message.Create(Left(StackLayer.<>(stackConfiguration,
-          parentWidget, parentContext))))(Timeout.short), Timeout.short) match {
+          parentWidget, parentContext, context))))(Timeout.short), Timeout.short) match {
           case App.Message.Create(Right(stackWidget: SComposite), None) =>
             log.debug(s"Stack layer ${stackConfiguration} content created.")
             Some(stackWidget)
@@ -245,11 +249,8 @@ class StackSupervisor(val windowId: UUID, val parentContext: EclipseContext) ext
         // Attach view from viewFactory to neighborViewId.
         Option(pointers(id).stack.get) match {
           case Some(view: VComposite) =>
-            // Waiting for result
-            App.execNGet {
-              transform.TransformViewToTab(this, view).foreach { tab =>
-                transform.TransformAttachView(this, tab, viewFactory)
-              }
+            transform.TransformViewToTab(this, view).foreach { tab =>
+              transform.TransformAttachView(this, tab, viewFactory)
             }
             Some(view)
           case _ =>

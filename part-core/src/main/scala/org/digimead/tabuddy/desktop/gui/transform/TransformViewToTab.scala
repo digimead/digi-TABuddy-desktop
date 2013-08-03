@@ -55,11 +55,11 @@ import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder
 import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.SWT
-import org.eclipse.swt.widgets.Shell
 
 import language.implicitConversions
 
@@ -67,51 +67,44 @@ import language.implicitConversions
 class TransformViewToTab extends Loggable {
   def apply(ss: StackSupervisor, view: VComposite): Option[SCompositeTab] = {
     log.debug(s"Move ${view} to tab stack container.")
-    App.assertUIThread()
-    val hierarchy = App.widgetHierarchy(view)
+    App.assertUIThread(false)
+    val hierarchy = App.execNGet { App.widgetHierarchy(view) }
     if (hierarchy.headOption != Some(view) || hierarchy.size < 2)
       throw new IllegalStateException(s"Illegal hierarchy ${hierarchy}.")
     hierarchy(1) match {
       case tab: SCompositeTab =>
         log.debug(s"View ${view} is already wrapped with tab ${tab}.")
         Option(tab)
-      case other: Shell =>
-        val tabParentWidget = view.getParent
-        val viewConfiguration = ss.configuration.element(view.id)._2.asInstanceOf[Configuration.View]
-        val tabConfiguration = Configuration.Stack.Tab(Seq(viewConfiguration))
-        log.debug(s"Reconfigure stack hierarchy. Bind %s to AppWindow[%08X].".format(tabConfiguration,
-          Option(other.getData(GUI.swtId)).map(_.hashCode()).getOrElse {
-            log.fatal(s"Bind to unknown shell ${other}."); 0 // Unable to find UUID value in shell data
-          }))
-        val stackRef = ss.context.actorOf(StackLayer.props.copy(args = immutable.Seq(tabConfiguration.id)), StackLayer.id + "_%08X".format(tabConfiguration.id.hashCode()))
-        val (tabComposite, containers) = StackTabBuilder(tabConfiguration, tabParentWidget, stackRef)
-        val firstTab = containers.head
-        if (!view.setParent(firstTab)) {
-          log.fatal(s"Unable to change parent for ${view}.")
-          tabComposite.dispose()
-          None
-        } else {
-          firstTab.setContent(view)
-          firstTab.setMinSize(view.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-          tabComposite.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
-            case Some(tabItem) =>
-              App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(view.contentRef))
-              tabItem.setText(viewConfiguration.factory().title(view.contentRef).getValue().asInstanceOf[String])
-            case None =>
-              log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")
+      case wComposite: WComposite =>
+        App.execNGet {
+          val tabParentWidget = view.getParent
+          val viewConfiguration = ss.configuration.element(view.id)._2.asInstanceOf[Configuration.View]
+          val tabConfiguration = Configuration.Stack.Tab(Seq(viewConfiguration))
+          log.debug(s"Reconfigure stack hierarchy. Bind ${tabConfiguration} to ${wComposite}.")
+          val stackRef = ss.context.actorOf(StackLayer.props.copy(args = immutable.Seq(tabConfiguration.id)), StackLayer.id + "_%08X".format(tabConfiguration.id.hashCode()))
+          val (tabComposite, containers) = StackTabBuilder(tabConfiguration, tabParentWidget, stackRef)
+          val firstTab = containers.head
+          if (!view.setParent(firstTab)) {
+            log.fatal(s"Unable to change parent for ${view}.")
+            tabComposite.dispose()
+            None
+          } else {
+            firstTab.setContent(view)
+            firstTab.setMinSize(view.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+            tabComposite.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
+              case Some(tabItem) =>
+                App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(view.contentRef))
+                tabItem.setText(viewConfiguration.factory().title(view.contentRef).getValue().asInstanceOf[String])
+              case None =>
+                log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")
+            }
+            tabParentWidget.setContent(tabComposite)
+            tabParentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+            tabParentWidget.layout(true)
+            App.publish(App.Message.Create(Right(tabComposite), stackRef))
+            App.publish(App.Message.Update(Right(view), stackRef))
+            Option(tabComposite)
           }
-          tabParentWidget.setContent(tabComposite)
-          tabParentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-          tabParentWidget.layout(true)
-          App.publish(App.Message.Create(Right(tabComposite), stackRef))
-          App.publish(App.Message.Update(Right(view), stackRef))
-          //ss.configuration.set(Configuration(ss.configuration.get.stack.map {
-          //  case oldView: Configuration.View if oldView.id == view.id =>
-          //    log.debug(s"Replace configuration element ${view} with ${tabConfiguration}. ")
-          //    tabConfiguration
-          //  case other => other
-          //}))
-          Option(tabComposite)
         }
       case unexpected =>
         throw new IllegalStateException(s"Unexpected parent element ${unexpected}.")

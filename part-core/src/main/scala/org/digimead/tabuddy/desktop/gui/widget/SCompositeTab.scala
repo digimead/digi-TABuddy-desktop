@@ -45,9 +45,8 @@ package org.digimead.tabuddy.desktop.gui.widget
 
 import java.util.UUID
 
-import scala.concurrent.future
-
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.gui.WindowSupervisor
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.swt.custom.ScrolledComposite
@@ -72,13 +71,12 @@ class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, 
             val viewLayerComposite = composite.getContent()
             App.execAsync {
               // After item will be selected, but will not block UI thread.
-              implicit val ec = App.system.dispatcher
-              future {
-                log.debug(s"Start tab item with ${viewLayerComposite}.")
-                val superVisorRef = ref.path.parent
-                App.getActorRef(superVisorRef).foreach(_ ! App.Message.Start(Left(viewLayerComposite), ref))
-              }
+              log.debug(s"Start tab item with ${viewLayerComposite}.")
+              val windowId = App.widgetHierarchy(viewLayerComposite).last.asInstanceOf[WComposite].id
+              WindowSupervisor.actor ! App.Message.Start(Left(windowId, viewLayerComposite))
             }
+          case composite: ScrolledComposite if composite.getContent() == null =>
+            log.debug("Skip selection event for the empty tab.")
           case unexpected =>
             log.fatal(s"Tab item contains unexpected JFace element: ${unexpected}.")
         }

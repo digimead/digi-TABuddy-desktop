@@ -71,7 +71,7 @@ import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
-import org.eclipse.jface.window.{Window => JWindow}
+import org.eclipse.jface.window.{ Window => JWindow }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
@@ -136,24 +136,26 @@ class WindowSupervisor extends Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Attach(props, name) => sender ! App.traceMessage(message) {
-      context.actorOf(props, name)
-    }
     case message @ App.Message.Create(Right(window: AppWindow), Some(publisher)) => App.traceMessage(message) {
       onCreated(window, publisher)
     }
+
     case message @ App.Message.Destroy(Right(window: AppWindow), Some(publisher)) => App.traceMessage(message) {
       onDestroyed(window, publisher)
     }
+
     case message @ App.Message.Restore => App.traceMessage(message) {
       restore()
     }
+
     case message @ App.Message.Save => App.traceMessage(message) {
       save()
     }
+
     case message @ App.Message.Start(Right(element: GUI.type), _) => App.traceMessage(message) {
       onGUIStarted()
     }
+
     case message @ App.Message.Start(event @ Left((id: UUID, widget: Widget)), _) => App.traceMessage(message) {
       // Stop previous active widget if any
       activeFocusEvent match {
@@ -164,17 +166,22 @@ class WindowSupervisor extends Actor with Loggable {
       // Start new
       start(id, widget)
     }
+
     case message @ App.Message.Stop(Right(element: GUI.type), _) => App.traceMessage(message) {
       onGUIStopped()
     }
+
     case message @ App.Message.Stop(Left((id: UUID, widget: Widget)), _) => App.traceMessage(message) {
       stop(id, widget)
     }
+
     case message @ WindowSupervisor.Message.Get(windowId) => App.traceMessage(message) {
       getConfiguration(sender, windowId)
     }
+
     case message @ WindowSupervisor.Message.Peek =>
       sender ! pointers.toSeq
+
     case message @ WindowSupervisor.Message.Set(windowId, configuration) => App.traceMessage(message) {
       setConfiguration(sender, windowId, configuration)
     }
@@ -317,15 +324,19 @@ class WindowSupervisor extends Actor with Loggable {
         Option(shell.getData(GUI.swtId).asInstanceOf[UUID]).foreach { id =>
           event.`type` match {
             case SWT.FocusIn =>
+              log.debug("Generate StrictStartFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
               focusEvent.value = StrictStartFocusEvent(id, event.widget)
             case SWT.FocusOut =>
+              log.debug("Generate StrictStopFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
               focusEvent.value = StrictStopFocusEvent(id, event.widget)
             case SWT.Activate =>
+              log.debug("Generate FuzzyStartFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
               focusEvent.value match {
                 case StrictStartFocusEvent(sid, swidget) if sid == id => // Skip. Fuzzy couldn't override strict.
                 case _ => focusEvent.value = FuzzyStartFocusEvent(id, event.widget)
               }
             case SWT.Deactivate =>
+              log.debug("Generate StrictStopFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
               focusEvent.value match {
                 case StrictStopFocusEvent(sid, swidget) if sid == id => // Skip. Fuzzy couldn't override strict.
                 case _ => focusEvent.value = FuzzyStopFocusEvent(id, event.widget)

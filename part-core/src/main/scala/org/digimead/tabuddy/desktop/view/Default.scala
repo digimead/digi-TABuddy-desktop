@@ -50,6 +50,7 @@ import scala.collection.immutable
 import scala.concurrent.Await
 import scala.concurrent.Future
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
@@ -143,6 +144,7 @@ object Default extends gui.ViewLayer.Factory with Loggable {
   lazy val image = DI.image
 
   /** Returns actor reference that could handle Create/Destroy messages. */
+  @log
   def viewActor(configuration: gui.Configuration.View, parentContext: EclipseContext): Option[ActorRef] = viewActorLock.synchronized {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
