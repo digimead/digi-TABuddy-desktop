@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.gui.widget
 
 import java.util.UUID
 
+import org.digimead.tabuddy.desktop.gui.Configuration
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Composite
 
@@ -54,5 +55,8 @@ import akka.actor.ActorRef
  * View composite that contains additional reference to content actor.
  * Content view actor is bound to root component because of changing parent by Akka is unsupported.
  */
-class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val factorySingletonClassName: String, parent: ScrolledComposite, style: Int)
-  extends Composite(parent, style) with SComposite
+class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val factory: Configuration.Factory, parent: ScrolledComposite, style: Int)
+  extends Composite(parent, style) with SComposite {
+  /** Returns the receiver's parent, which must be a ScrolledComposite. */
+  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
+}

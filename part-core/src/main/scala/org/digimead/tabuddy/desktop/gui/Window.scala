@@ -46,11 +46,12 @@ package org.digimead.tabuddy.desktop.gui
 import java.util.UUID
 
 import scala.collection.immutable
+import scala.concurrent.Await
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
@@ -62,6 +63,7 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
+import akka.util.Timeout.durationToTimeout
 
 /**
  * Actor that represents application window, responsible for:
@@ -70,9 +72,9 @@ import akka.pattern.ask
  * - start window
  * - close/destroy window
  */
-class Window(val windowId: UUID, val parentContext: EclipseContext) extends Actor with WComposite.Controller with Loggable {
+class Window(val windowId: UUID, val parentContext: EclipseContext) extends Actor with AppWindow.Controller with Loggable {
   /** Window JFace instance. */
-  var window: Option[WComposite] = None
+  var window: Option[AppWindow] = None
   /** Window context. */
   lazy val windowContext = parentContext.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
   /** Window views supervisor. */
@@ -80,15 +82,21 @@ class Window(val windowId: UUID, val parentContext: EclipseContext) extends Acto
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
-      sender ! context.actorOf(props, name)
+    case message @ App.Message.Attach(props, name) => sender ! App.traceMessage(message) {
+      context.actorOf(props, name)
     }
     case message @ App.Message.Close => App.traceMessage(message) {
       close(sender)
     }
-    case message @ App.Message.Create(Window.<>(windowId), supervisor) => App.traceMessage(message) {
+    case message @ App.Message.Create(Left(Window.<>(windowId, configuration)), None) => sender ! App.traceMessage(message) {
       assert(windowId == this.windowId)
-      create(supervisor)
+      create(configuration, sender) match {
+        case Some(appWindow) =>
+          App.publish(App.Message.Create(Right(appWindow), self))
+          App.Message.Create(Right(appWindow))
+        case None =>
+          App.Message.Error("Unable to create ${viewConfiguration}.")
+      }
     }
     case message @ App.Message.Destroy => App.traceMessage(message) {
       destroy(sender)
@@ -96,14 +104,19 @@ class Window(val windowId: UUID, val parentContext: EclipseContext) extends Acto
     case message @ App.Message.Open => App.traceMessage(message) {
       open(sender)
     }
-    case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
+    case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
       onStart(widget)
+      App.Message.Start(Right(widget))
     }
-    case message @ Window.Message.Get => App.traceMessage(message) {
-      sender ! window
+    case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+      onStop(widget)
+      App.Message.Stop(Right(widget))
+    }
+    case message @ Window.Message.Get => sender ! App.traceMessage(message) {
+      window
     }
 
-    case message @ App.Message.Create(viewFactory: ViewLayer.Factory, supervisor) =>
+    case message @ App.Message.Create(viewFactory: ViewLayer.Factory, None) =>
       stackSupervisor.forward(message)
     case message @ App.Message.Save =>
       stackSupervisor.forward(message)
@@ -121,21 +134,15 @@ class Window(val windowId: UUID, val parentContext: EclipseContext) extends Acto
     })
   }
   /** Create window. */
-  protected def create(supervisor: ActorRef) {
-    if (window.nonEmpty)
+  protected def create(configuration: WindowConfiguration, supervisor: ActorRef): Option[AppWindow] = {
+    if (this.window.nonEmpty)
       throw new IllegalStateException("Unable to create window. It is already created.")
+    App.assertUIThread(false)
     log.debug(s"Create window ${windowId}.")
-    implicit val ec = App.system.dispatcher
-    implicit val timeout = akka.util.Timeout(Timeout.short)
-    supervisor ? WindowSupervisor.Message.Get(Some(windowId)) onSuccess {
-      case configuration: WindowConfiguration =>
-        this.window = Option(App.execNGet {
-          val window = new WComposite(windowId, self, stackSupervisor, windowContext, null)
-          window.configuration = Some(configuration)
-          window
-        })
-        this.window.foreach(window => App.publish(App.Message.Created(window, self)))
-    }
+    val window = new AppWindow(windowId, self, stackSupervisor, windowContext, null)
+    window.configuration = Some(configuration)
+    this.window = Option(window)
+    this.window
   }
   /** Destroy created window. */
   protected def destroy(sender: ActorRef) = this.window.foreach { window =>
@@ -147,14 +154,19 @@ class Window(val windowId: UUID, val parentContext: EclipseContext) extends Acto
     case Some(window) =>
       Core.context.set(GUI.windowContextKey, window)
       windowContext.activateBranch()
-      stackSupervisor ! App.Message.Start(widget, self)
-      if (window.contentVisible.compareAndSet(false, true))
-        App.exec { window.showContent }
+      Await.ready(ask(stackSupervisor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
     case None =>
-      log.fatal("Unable to start window without widget.")
+      log.fatal("Unable to start unexists window.")
+  }
+  /** Focus is lost. */
+  protected def onStop(widget: Widget) = window match {
+    case Some(window) =>
+      Await.ready(ask(stackSupervisor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
+    case None =>
+      log.fatal("Unable to stop unexists window.")
   }
   /** Open created window. */
-  protected def open(sender: ActorRef) = this.window.foreach(window => App.exec {
+  protected def open(sender: ActorRef) = this.window.foreach(window => App.execNGet {
     if (window.getShell() == null || (window.getShell() != null && !window.getShell().isDisposed()))
       if (sender != context.system.deadLetters)
         sender ! Window.Message.OpenResult(window.open())
@@ -171,8 +183,8 @@ object Window extends Loggable {
   def props = DI.props
 
   /** Wrapper for App.Message,Create argument. */
-  case class <>(val windowId: UUID) {
-    override def toString() = "<>([%08X]=%s)".format(windowId.hashCode(), windowId.toString())
+  case class <>(val windowId: UUID, val configuration: WindowConfiguration) {
+    override def toString() = "<>([%08X]=%s, %s)".format(windowId.hashCode(), windowId.toString(), configuration)
   }
   trait Message extends App.Message
   object Message {

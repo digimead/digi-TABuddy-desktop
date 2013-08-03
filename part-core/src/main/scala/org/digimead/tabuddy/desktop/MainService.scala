@@ -43,15 +43,13 @@
 
 package org.digimead.tabuddy.desktop
 
-import scala.collection.JavaConversions.mapAsScalaMap
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.MILLISECONDS
+import java.util.concurrent.atomic.AtomicReference
+
+import scala.collection.JavaConversions._
 
 import org.digimead.digi.lib.Disposable
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
 import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -80,21 +78,12 @@ import language.implicitConversions
 class MainService extends api.Main with Disposable.Default with Loggable {
   /** Application context timeout. */
   protected val applicationContextTimeout = Timeout.long
-  // Initialized by call()
-  /** The global application data binding context */
-  protected lazy val bindingContext = new DataBindingContext(realm)
-  // There is no display dispose because I don't want to read huge pack of exception reports
-  // from Eclipse shit (spreading across bundles widely) that completely ignores bundles restart possibility.
-  // We save display with all allocated garbage even between bundle restarts. Many thanks to Eclipse developers for this crap.
-  //   Ezh
-  // Initialized by call()
-  /** The default display, available from ui.Window */
-  protected lazy val display = PlatformUI.createDisplay()
-  // Initialized by call()
-  /** The realm representing the UI thread for the given display */
-  protected lazy val realm = SWTObservables.getRealm(display)
+  /** The UI thread */
+  protected lazy val thread = new MainService.UIThread
+  /** Weak reference with manager for disposable marker. */
+  protected val disposeable = Disposable(this, Activator)
   /** The application-wide actor system */
-  protected val system = {
+  val system = {
     log.debug("Start Akka ecosystem.")
     val config = ConfigFactory.parseString("""
       akka {
@@ -106,11 +95,6 @@ class MainService extends api.Main with Disposable.Default with Loggable {
     """)
     ActorSystem("DesktopTABuddySystem", config.withFallback(ConfigFactory.load()), getClass.getClassLoader())
   }
-  // Initialized by call()
-  /** The UI thread */
-  protected lazy val thread = Thread.currentThread()
-  /** Weak reference with manager for disposable marker. */
-  protected val disposeable = Disposable(this, Activator)
 
   /**
    * Application entry point from launcher.
@@ -118,11 +102,6 @@ class MainService extends api.Main with Disposable.Default with Loggable {
    */
   def call(): Int = try {
     log.info("Run core.")
-    assert(thread == Thread.currentThread(), "Incorrect UI thread.") // initialize
-    assert(display != null, "Display is not available.") // initialize
-    assert(realm != null, "Realm is not available.") // initialize
-    assert(bindingContext != null, "Binding context is not available.") // initialize
-    log.debug("Mark UI thread with ID " + thread.getId())
     updateDI()
     val applicationContextServiceTracker = new ServiceTracker[IApplicationContext, IApplicationContext](App.bundle(getClass).getBundleContext(), classOf[IApplicationContext], null)
     applicationContextServiceTracker.open()
@@ -188,11 +167,8 @@ class MainService extends api.Main with Disposable.Default with Loggable {
   /** Starts Digi application */
   protected def digiStart(): Int = {
     log.debug("Start application.")
-    assert(display != null) // Initialize
-    assert(realm != null) // Initialize
-    @volatile var result: gui.GUI.Exit = gui.GUI.Exit.Ok
-    Realm.runWithDefault(realm, new Runnable() { def run() { result = gui.GUI.run() } })
-    result match {
+    thread.start()
+    thread.waitForResult() match {
       case gui.GUI.Exit.Ok => IApplication.EXIT_OK
       case gui.GUI.Exit.Restart => IApplication.EXIT_RESTART
       case gui.GUI.Exit.Error => -1
@@ -227,14 +203,14 @@ class MainService extends api.Main with Disposable.Default with Loggable {
     """, since = "the beginning")
   protected def eclipseStart(): Int = {
     log.debug("Start application.")
-    assert(display != null) // Initialize
-    assert(realm != null) // Initialize
+    //assert(display != null) // Initialize
+    //assert(realm != null) // Initialize
     var returnCode = PlatformUI.RETURN_RESTART
-    returnCode = PlatformUI.createAndRunWorkbench(display, new WorkbenchAdvisor())
+    //returnCode = PlatformUI.createAndRunWorkbench(display, new WorkbenchAdvisor())
     /* Workbench is still active sporadically after createAndRunWorkbench is completed. */
     try { App.workbench.close() } catch { case e: Throwable => }
     // Flush display queue.
-    while (display.readAndDispatch()) {}
+    //while (display.readAndDispatch()) {}
     /*
      * Workbench context contains garbage after createAndRunWorkbench is completed.
      * Obviously that developer(s) of E4Application is stupid asshole.
@@ -368,13 +344,13 @@ object MainService extends Loggable {
    */
   trait Consumer {
     /** The global application data binding context */
-    def bindingContext = MainService.bindingContext
+    def bindingContext = MainService.thread.bindingContext
     /** The default display, available from ui.Window */
-    def display = MainService.display
+    def display = MainService.thread.display
     /** Application EMF model. */
     def model = application
     /** The realm representing the UI thread for the given display */
-    def realm = MainService.realm
+    def realm = MainService.thread.realm
     /** The application-wide actor system */
     def system = MainService.system
     /** The UI thread */
@@ -388,6 +364,37 @@ object MainService extends Loggable {
       if (application != null && MainService.application != null)
         throw new IllegalStateException("MApplication singleton is already initialized.")
       MainService.application = application
+    }
+  }
+  class UIThread extends Thread("GUI Thread") {
+    // Initialized by call()
+    /** The global application data binding context */
+    lazy val bindingContext = new DataBindingContext(realm)
+    // There is no display dispose because I don't want to read huge pack of exception reports
+    // from Eclipse shit (spreading across bundles widely) that completely ignores bundles restart possibility.
+    // We save display with all allocated garbage even between bundle restarts. Many thanks to Eclipse developers for this crap.
+    //   Ezh
+    // Initialized by call()
+    /** The default display, available from ui.Window */
+    lazy val display = PlatformUI.createDisplay()
+    // Initialized by call()
+    /** The realm representing the UI thread for the given display */
+    lazy val realm = SWTObservables.getRealm(display)
+    /** Thread result. */
+    val result = new AtomicReference[Option[gui.GUI.Exit]](None)
+
+    override def run {
+      assert(result.get.isEmpty)
+      assert(bindingContext != null)
+      assert(display != null)
+      assert(realm != null)
+      log.debug("Mark UI thread with ID " + getId())
+      Realm.runWithDefault(realm, new Runnable() { def run() = gui.GUI.run(result) })
+    }
+    /** Wait for GUI result. */
+    def waitForResult() = {
+      result.synchronized { while (result.get.isEmpty) result.wait() }
+      result.get.get
     }
   }
   /**

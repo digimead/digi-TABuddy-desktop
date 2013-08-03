@@ -54,12 +54,12 @@ import language.implicitConversions
 
 case class WritableMap[A, B] private (val underlying: OriginalWritableMap) extends mutable.Map[A, B] with mutable.MapLike[A, B, WritableMap[A, B]] {
   override def size = {
-    App.checkThread
+    App.assertUIThread()
     underlying.size
   }
 
   def get(k: A) = {
-    App.checkThread
+    App.assertUIThread()
     val v = underlying get k
     if (v != null)
       Some(v.asInstanceOf[B])
@@ -70,28 +70,28 @@ case class WritableMap[A, B] private (val underlying: OriginalWritableMap) exten
   }
 
   def +=(kv: (A, B)): this.type = {
-    App.checkThread
+    App.assertUIThread()
     underlying.put(kv._1, kv._2); this
   }
   def -=(key: A): this.type = {
-    App.checkThread
+    App.assertUIThread()
     underlying remove key; this
   }
 
   override def put(k: A, v: B): Option[B] = {
-    App.checkThread
+    App.assertUIThread()
     val r = underlying.put(k, v)
     if (r != null) Some(r.asInstanceOf[B]) else None
   }
 
   override def remove(k: A): Option[B] = {
-    App.checkThread
+    App.assertUIThread()
     val r = underlying remove k
     if (r != null) Some(r.asInstanceOf[B]) else None
   }
 
   def iterator: Iterator[(A, B)] = {
-    App.checkThread
+    App.assertUIThread()
     new Iterator[(A, B)] {
       val ui = underlying.entrySet.iterator.asInstanceOf[java.util.Iterator[java.util.Map.Entry[A, B]]]
       def hasNext = ui.hasNext
@@ -100,12 +100,12 @@ case class WritableMap[A, B] private (val underlying: OriginalWritableMap) exten
   }
 
   override def clear() = {
-    App.checkThread
+    App.assertUIThread()
     underlying.clear()
   }
 
   override def empty: WritableMap[A, B] = {
-    App.checkThread
+    App.assertUIThread()
     WritableMap(new OriginalWritableMap(underlying.getRealm(), underlying.getKeyType(), underlying.getValueType()))
   }
 
@@ -118,7 +118,7 @@ case class WritableMap[A, B] private (val underlying: OriginalWritableMap) exten
 
 object WritableMap {
   implicit def wrapper2underlying(wrapper: WritableMap[_, _]): OriginalWritableMap = {
-    App.checkThread
+    App.assertUIThread()
     wrapper.underlying
   }
   // Use the unit as the method indicator

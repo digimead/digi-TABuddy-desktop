@@ -70,33 +70,39 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Created[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Create[_]])
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
-    App.system.eventStream.subscribe(self, classOf[App.Message.Created[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Create(StackLayer.CreateArgument(stackConfiguration, parentWidget, parentContext), supervisor) => App.traceMessage(message) {
-      App.execAsync { create(stackConfiguration, parentWidget, parentContext, supervisor) }
+    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext)), None) => sender ! App.traceMessage(message) {
+      create(stackConfiguration, parentWidget, parentContext, sender)
+      this.stack match {
+        case Some(stack) =>
+          App.publish(App.Message.Create(Right(stack)))
+          App.Message.Create(Right(stack))
+        case None =>
+          App.Message.Error(s"Unable to create ${stackConfiguration}.")
+      }
     }
-    case message @ App.Message.Created(stack: SComposite, sender) if (sender == self && this.stack == None) => App.traceMessage(message) {
+    case message @ App.Message.Create(Right(stack: SComposite), Some(publisher)) if (publisher == self && this.stack == None) => App.traceMessage(message) {
       log.debug(s"Update stack ${stack} composite.")
       this.stack = Option(stack)
     }
 
-    case message @ App.Message.Created(_, sender) =>
+    case message @ App.Message.Create(_, _) =>
   }
 
   /** Create stack. */
   protected def create(stackConfiguration: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
     if (stack.nonEmpty)
       throw new IllegalStateException("Unable to create stack. It is already created.")
-    App.checkThread
+    App.assertUIThread(false)
     this.stack = StackBuilder(stackConfiguration, parentWidget, parentContext, supervisor, self)
-    this.stack.foreach(stack => App.publish(App.Message.Created(stack, self)))
   }
 }
 
@@ -109,7 +115,8 @@ object StackLayer extends Loggable {
   /** StackLayer actor reference configuration object. */
   def props = DI.props
 
-  case class CreateArgument(val stackConfiguration: Configuration.Stack, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
+  /** Wrapper for App.Message,Create argument. */
+  case class <>(val stackConfiguration: Configuration.Stack, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
   /**
    * Dependency injection routines.
    */

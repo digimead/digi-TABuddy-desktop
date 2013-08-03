@@ -120,16 +120,25 @@ trait Generic extends MainService.Consumer {
     })
   }, origin + " afterStart").start
   /** Assert the current thread against the UI one. */
-  def assertThread() = if (!checkThread) {
-    val throwable = new IllegalAccessException("Only the original thread that created a UI can touch its views and use observables.")
-    // sometimes we throw exception in threads that haven't catch block, notify anyway
-    log.error("Only the original thread that created a UI can touch its views and use observables.", throwable)
-    throw throwable
+  def assertUIThread(uiThread: Boolean = true) = if (uiThread) {
+    if (!checkUIThread) {
+      val throwable = new IllegalAccessException("Only the original thread that created a UI can touch its views and use observables.")
+      // sometimes we throw exception in threads that haven't catch block, notify anyway
+      log.error("Only the original thread that created a UI can touch its views and use observables.", throwable)
+      throw throwable
+    }
+  } else {
+    if (checkUIThread) {
+      val throwable = new IllegalAccessException(s"Current thread ${Thread.currentThread()} is UI blocker.")
+      // sometimes we throw exception in threads that haven't catch block, notify anyway
+      log.error(s"Current thread ${Thread.currentThread()} is UI blocker.", throwable)
+      throw throwable
+    }
   }
   /** Get bundle for class. */
   def bundle(clazz: Class[_]) = FrameworkUtil.getBundle(clazz)
   /** Check the current thread against the UI one. */
-  def checkThread() = thread.eq(Thread.currentThread())
+  def checkUIThread() = thread.eq(Thread.currentThread())
   /** Clear all started entries. */
   def clearStarted() = startedLock.synchronized {
     started.clear()
@@ -157,8 +166,6 @@ trait Generic extends MainService.Consumer {
       log.debug("Already marked as stopped: " + clazz.getName())
     }
   }
-  /** Publish event to Akka Event Bus */
-  def publish = system.eventStream.publish _
   /** Convert throwable to MultiStatus. */
   def throwableToMultiStatus(t: Throwable, bundle: Bundle): MultiStatus = {
     val sw = new StringWriter()

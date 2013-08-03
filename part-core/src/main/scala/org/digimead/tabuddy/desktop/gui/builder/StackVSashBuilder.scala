@@ -60,7 +60,7 @@ import language.implicitConversions
 class StackVSashBuilder extends Loggable {
   def apply(vsash: Configuration.Stack.VSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeVSash, ScrolledComposite, ScrolledComposite) = {
     log.debug("Build content for vertical sash.")
-    App.checkThread
+    App.assertUIThread()
     if (parentWidget.getLayout().isInstanceOf[GridLayout])
       throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
     val stackContainer = new SCompositeVSash(vsash.id, stackRef, parentWidget, SWT.NONE)

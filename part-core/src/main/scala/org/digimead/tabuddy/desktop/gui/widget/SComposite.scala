@@ -46,7 +46,6 @@ package org.digimead.tabuddy.desktop.gui.widget
 import java.util.UUID
 
 import org.digimead.tabuddy.desktop.gui.GUI
-import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Composite
 
 import akka.actor.ActorRef
@@ -60,9 +59,6 @@ trait SComposite extends Composite {
   /** Stack layer actor rederence. */
   val ref: ActorRef
   setData(GUI.swtId, id)
-
-  /** Returns the receiver's parent, which must be a ScrolledComposite. */
-  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
 
   override protected def checkSubclass() {
     // Disable the check that prevents subclassing of SWT components

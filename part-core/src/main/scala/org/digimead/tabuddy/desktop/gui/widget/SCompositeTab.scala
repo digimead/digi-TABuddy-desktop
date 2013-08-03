@@ -60,6 +60,9 @@ import akka.actor.actorRef2Scala
 
 class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
   extends TabFolder(parent, style) with SComposite with Loggable {
+  /** Returns the receiver's parent, which must be a ScrolledComposite. */
+  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
+
   // Add an event listener to write the selected tab to stdout
   addSelectionListener(new SelectionAdapter() {
     override def widgetSelected(event: SelectionEvent) = getSelection().headOption match {
@@ -73,7 +76,7 @@ class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, 
               future {
                 log.debug(s"Start tab item with ${viewLayerComposite}.")
                 val superVisorRef = ref.path.parent
-                App.getActorRef(superVisorRef).foreach(_ ! App.Message.Start(viewLayerComposite, ref))
+                App.getActorRef(superVisorRef).foreach(_ ! App.Message.Start(Left(viewLayerComposite), ref))
               }
             }
           case unexpected =>

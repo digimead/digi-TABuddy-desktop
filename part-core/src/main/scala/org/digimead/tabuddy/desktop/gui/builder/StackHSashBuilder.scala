@@ -60,7 +60,7 @@ import language.implicitConversions
 class StackHSashBuilder extends Loggable {
   def apply(hsash: Configuration.Stack.HSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeHSash, ScrolledComposite, ScrolledComposite) = {
     log.debug("Build content for horizontal sash.")
-    App.checkThread
+    App.assertUIThread()
     if (parentWidget.getLayout().isInstanceOf[GridLayout])
       throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
     val stackContainer = new SCompositeHSash(hsash.id, stackRef, parentWidget, SWT.NONE)

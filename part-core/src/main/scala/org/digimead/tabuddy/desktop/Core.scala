@@ -81,8 +81,8 @@ class Core extends akka.actor.Actor with Loggable {
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Started[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stopped[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[UnhandledMessage])
@@ -93,8 +93,8 @@ class Core extends akka.actor.Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[UnhandledMessage])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Started[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Stopped[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
@@ -102,7 +102,7 @@ class Core extends akka.actor.Actor with Loggable {
       sender ! context.actorOf(props, name)
     }
 
-    case message @ App.Message.Inconsistent(element, sender) if element != Core => App.traceMessage(message) {
+    case message @ App.Message.Inconsistent(element, _) if element != Core => App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
         context.system.eventStream.publish(App.Message.Inconsistent(Core, self))
@@ -110,7 +110,7 @@ class Core extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet + element
     }
 
-    case message @ App.Message.Consistent(element, sender) if element != Core => App.traceMessage(message) {
+    case message @ App.Message.Consistent(element, _) if element != Core => App.traceMessage(message) {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
@@ -122,7 +122,7 @@ class Core extends akka.actor.Actor with Loggable {
       log.trace(s"Container actor '${self.path.name}' received message '${message}' from actor ${sender.path}. Propagate.")
       context.children.foreach(_.forward(message))
 
-    case message @ App.Message.Started(GUI, sender) => App.traceMessage(message) {
+    case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
       future {
         App.verifyApplicationEnvironment
         core.Actions.configure
@@ -134,7 +134,7 @@ class Core extends akka.actor.Actor with Loggable {
       }
     }
 
-    case message @ App.Message.Stopped(GUI, sender) => App.traceMessage(message) {
+    case message @ App.Message.Stop(Right(GUI), _) => App.traceMessage(message) {
       future {
         core.Views.unconfigure
         core.Actions.unconfigure
@@ -145,8 +145,8 @@ class Core extends akka.actor.Actor with Loggable {
       }
     }
 
-    case message @ App.Message.Inconsistent(element, sender) if element == Core => // skip
-    case message @ App.Message.Consistent(element, sender) if element == Core => // skip
+    case message @ App.Message.Inconsistent(element, _) if element == Core => // skip
+    case message @ App.Message.Consistent(element, _) if element == Core => // skip
 
     case UnhandledMessage(message, sender, self) =>
       log.fatal(s"Received unexpected message '${sender}' -> '${self}': '${message}'")

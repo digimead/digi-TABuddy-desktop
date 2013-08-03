@@ -67,13 +67,9 @@ import language.implicitConversions
 class TransformAttachView extends Loggable {
   def apply(ss: StackSupervisor, tabStack: SCompositeTab, newView: ViewLayer.Factory) {
     log.debug(s"Create new view from ${newView} and attach it to ${tabStack}.")
-    App.checkThread
+    App.assertUIThread()
     log.debug("Update stack supervisor configuration.")
-    val viewConfiguration = Configuration.View(newView.getClass.getName)
-    //ss.configuration.set(Configuration(ss.configuration.get.stack.map {
-    //  case element: SCompositeTab if element.id == tabStack.id => element
-    //  case other => other
-    //}))
+    val viewConfiguration = Configuration.View(newView.configuration)
     // Prepare tab item.
     val parentWidget = StackTabBuilder.addTabItem(tabStack, (tabItem) => {
       tabItem.setData(GUI.swtId, viewConfiguration.id)
@@ -85,15 +81,9 @@ class TransformAttachView extends Loggable {
     // Create new view layer.
     ss.self ? App.Message.Attach(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, ss.parentContext)), ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode())) onSuccess {
       case viewRef: ActorRef =>
-        log.___glance("!!!!!!!!" + tabStack.id)
-        //ss.configuration.set(Configuration(ss.configuration.get.stack.map {
-        //  case tabConfiguration: Configuration.Stack.Tab if tabConfiguration.id == tabStack.id =>
-        //    log.debug(s"Add configuration element ${viewConfiguration} to ${tabConfiguration}. ")
-        //    tabConfiguration.copy(children = tabConfiguration.children :+ viewConfiguration)
-        //  case other => other
-        //}))
         // Create view within view layer.
-        viewRef ! App.Message.Create(ViewLayer.<>(viewConfiguration, parentWidget, ss.parentContext), tabStack.ref)
+        implicit val sender = tabStack.ref
+        viewRef ! App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget, ss.parentContext)))
     }
   }
 }

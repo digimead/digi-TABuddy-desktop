@@ -97,14 +97,14 @@ trait Workbench {
    */
   def hideToolBar(toolbar: MToolBar) {
     log.debug("Hide toolbar " + toolbar)
-    checkThread
+    assertUIThread()
     toolbar.setVisible(false)
     toolbar.setToBeRendered(false)
     display.update() // reenter to the new UI transaction
   }
   /** Invoking an Wizard by id. */
   def openWizard(id: String) {
-    checkThread()
+    assertUIThread()
     // First see if this is a "new wizard".
     val descriptor = Option(workbench.getNewWizardRegistry().findWizard(id)).orElse {
       // If not check if it is an "import wizard".
@@ -128,7 +128,7 @@ trait Workbench {
    */
   def showToolBar(toolbar: MToolBar) {
     log.debug("Show toolbar " + toolbar)
-    checkThread
+    assertUIThread()
     toolbar.setVisible(true)
     toolbar.setToBeRendered(true)
     display.update() // reenter to the new UI transaction

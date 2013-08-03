@@ -47,8 +47,8 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.mutable
+import scala.concurrent.Await
 
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
@@ -58,6 +58,7 @@ import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.core.databinding.observable.Diffs
 import org.eclipse.core.databinding.observable.value.AbstractObservableValue
 import org.eclipse.e4.core.internal.contexts.EclipseContext
@@ -70,6 +71,8 @@ import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import akka.pattern.ask
+import akka.util.Timeout.durationToTimeout
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
 class ViewLayer(viewId: UUID, parentContext: EclipseContext) extends Actor with Loggable {
@@ -80,44 +83,51 @@ class ViewLayer(viewId: UUID, parentContext: EclipseContext) extends Actor with 
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(ViewLayer.<>(viewConfiguration, parentWidget, parentContext), supervisor) => App.traceMessage(message) {
-      App.execNGet { create(viewConfiguration, parentWidget, parentContext, supervisor) }
+    case message @ App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget, parentContext)), None) => sender ! App.traceMessage(message) {
+      create(viewConfiguration, parentWidget, parentContext, sender) match {
+        case Some(viewWidget) =>
+          App.publish(App.Message.Create(Right(viewWidget), self))
+          App.Message.Create(Right(viewWidget))
+        case None =>
+          App.Message.Error(s"Unable to create ${viewConfiguration}.")
+      }
     }
-    case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
+    case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
       onStart(widget)
+      App.Message.Start(Right(widget))
+    }
+    case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+      onStop(widget)
+      App.Message.Stop(Right(widget))
     }
   }
 
   /** Create view. */
-  protected def create(viewConfiguration: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef) {
+  protected def create(viewConfiguration: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef): Option[VComposite] = {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
-    App.checkThread
+    App.assertUIThread(false)
     StackBuilder(viewConfiguration, parentWidget, viewContext, supervisor, self) match {
-      case Some(viewLayer) =>
-        App.publish(App.Message.Created(viewLayer, self))
-        this.view = Some(viewLayer)
+      case Some(viewWidget) =>
+        this.view = Some(viewWidget)
         // Update parent tab title if any.
         App.execAsync {
           parentWidget.getParent() match {
             case tab: SCompositeTab =>
               tab.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
                 case Some(tabItem) =>
-                  GUI.factory(viewConfiguration.factorySingletonClassName) match {
-                    case Some(factory) =>
-                      App.bindingContext.bindValue(SWTObservables.observeText(tabItem), factory.title(viewLayer.contentRef))
-                      tabItem.setText(factory.title(viewLayer.contentRef).getValue().asInstanceOf[String])
-                    case None =>
-                      log.fatal(s"Unable to find view factory for ${viewConfiguration.factorySingletonClassName}.")
-                  }
+                  App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(viewWidget.contentRef))
+                  tabItem.setText(viewConfiguration.factory().title(viewWidget.contentRef).getValue().asInstanceOf[String])
                 case None =>
                   log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
               }
             case other =>
           }
         }
+        this.view
       case None =>
         log.fatal(s"Unable to build view ${viewConfiguration}.")
+        None
     }
   }
   /** User start interaction with window/stack supervisor/view. Focus is gained. */
@@ -126,9 +136,16 @@ class ViewLayer(viewId: UUID, parentContext: EclipseContext) extends Actor with 
       log.debug("View layer started by focus event on " + widget)
       Core.context.set(GUI.viewContextKey, view)
       viewContext.activateBranch()
-      view.contentRef ! App.Message.Start(widget, self)
+      Await.ready(ask(view.contentRef, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
     case None =>
-      log.fatal("Unable to start view without widget.")
+      log.fatal("Unable to start unexists view.")
+  }
+  /** Focus is lost. */
+  protected def onStop(widget: Widget) = view match {
+    case Some(view) =>
+      Await.ready(ask(view.contentRef, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
+    case None =>
+      log.fatal("Unable to stop unexists view.")
   }
 }
 
@@ -159,6 +176,8 @@ object ViewLayer {
 
     /** Get active actors list. */
     def actors = activeActorRefs.get
+    /** Get factory configuration. */
+    def configuration = Configuration.Factory(App.bundle(this.getClass()).getSymbolicName(), this.getClass().getName())
     /** Get title for the actor reference. */
     def title(ref: ActorRef): TitleObservableValue = viewActorLock.synchronized {
       if (!activeActorRefs.get.contains(ref))

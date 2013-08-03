@@ -64,23 +64,17 @@ import language.implicitConversions
 class StackTabBuilder extends Loggable {
   def apply(configuration: Configuration.Stack.Tab, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeTab, Seq[ScrolledComposite]) = {
     log.debug(s"Build content for ${configuration}.")
-    App.checkThread
+    App.assertUIThread()
     if (parentWidget.getLayout().isInstanceOf[GridLayout])
       throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
     val content = new SCompositeTab(configuration.id, stackRef, parentWidget, SWT.NONE)
     content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-    val containers = for (child <- configuration.children) yield GUI.factory(child.factorySingletonClassName) match {
-      case Some(factory) =>
-        Some(addTabItem(content, (tabItem) => {
-          tabItem.setData(GUI.swtId, child.id)
-          factory.description.foreach(tabItem.setToolTipText)
-          factory.image.foreach(tabItem.setImage)
-        }))
-      case None =>
-        log.fatal(s"Unable to find view factory for ${child.factorySingletonClassName}.")
-        None
-    }
-    (content, containers.flatten)
+    val containers = for (child <- configuration.children) yield addTabItem(content, (tabItem) => {
+      tabItem.setData(GUI.swtId, child.id)
+      child.factory().description.foreach(tabItem.setToolTipText)
+      child.factory().image.foreach(tabItem.setImage)
+    })
+    (content, containers)
   }
   /** Add new TabItem with ScrolledComposite to SCompositeTab. */
   def addTabItem[T](tab: SCompositeTab, adjust: TabItem => T): ScrolledComposite = {

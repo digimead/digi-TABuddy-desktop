@@ -57,44 +57,44 @@ import language.implicitConversions
 
 case class WritableSet[A] private (val underlying: OriginalWritableSet) extends mutable.Set[A] with mutable.SetLike[A, WritableSet[A]] {
   override def size = {
-    App.checkThread
+    App.assertUIThread()
     underlying.size
   }
 
   def iterator = {
-    App.checkThread
+    App.assertUIThread()
     underlying.iterator.asInstanceOf[java.util.Iterator[A]]
   }
 
   def contains(elem: A): Boolean = {
-    App.checkThread
+    App.assertUIThread()
     underlying.contains(elem)
   }
 
   def +=(elem: A): this.type = {
-    App.checkThread
+    App.assertUIThread()
     underlying add elem; this
   }
   def -=(elem: A): this.type = {
-    App.checkThread
+    App.assertUIThread()
     underlying remove elem; this
   }
 
   override def add(elem: A): Boolean = {
-    App.checkThread
+    App.assertUIThread()
     underlying add elem
   }
   override def remove(elem: A): Boolean = {
-    App.checkThread
+    App.assertUIThread()
     underlying remove elem
   }
   override def clear() = {
-    App.checkThread
+    App.assertUIThread()
     underlying.clear()
   }
 
   override def empty = {
-    App.checkThread
+    App.assertUIThread()
     WritableSet(new OriginalWritableSet(underlying.getRealm(), new HashSet[A](), underlying.getElementType()))
   }
   // Note: Clone cannot just call underlying.clone because in Java, only specific collections
@@ -112,7 +112,7 @@ case class WritableSet[A] private (val underlying: OriginalWritableSet) extends 
 
 object WritableSet {
   implicit def wrapper2underlying(wrapper: WritableSet[_]): OriginalWritableSet = {
-    App.checkThread
+    App.assertUIThread()
     wrapper.underlying
   }
   // Use the unit as the method indicator

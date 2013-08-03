@@ -100,7 +100,7 @@ abstract class Menu[A](
   @log
   protected def create[T](menuManager: MenuManager, template: MenuTemplate): Option[Menu[_]] = {
     log.debug(s"Create submenu from ${template} for '${this}'.")
-    App.assertThread()
+    App.assertUIThread()
     template.insertInto(menuManager).map {
       case contribution: MenuManager =>
         new JFaceMenu(contribution)
@@ -110,7 +110,7 @@ abstract class Menu[A](
   @log
   protected def create[T](menuManager: MenuManager, template: MenuItemTemplate): Option[Item[_]] = {
     log.debug(s"Create item from ${template} for '${this}'.")
-    App.assertThread()
+    App.assertUIThread()
     template.insertInto(menuManager).map {
       case action: ActionContributionItem =>
         new JFaceAItem(action)

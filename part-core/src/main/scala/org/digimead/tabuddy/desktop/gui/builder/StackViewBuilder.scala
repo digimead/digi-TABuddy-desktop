@@ -43,56 +43,73 @@
 
 package org.digimead.tabuddy.desktop.gui.builder
 
+import scala.concurrent.Await
+import scala.concurrent.Future
+
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.Configuration
-import org.digimead.tabuddy.desktop.gui.GUI
-import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.layout.GridLayout
+import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 
 import akka.actor.ActorRef
-import akka.actor.actorRef2Scala
+import akka.pattern.ask
+import akka.util.Timeout.durationToTimeout
 
 import language.implicitConversions
 
 class StackViewBuilder extends Loggable {
   def apply(configuration: Configuration.View, viewRef: ActorRef, parentWidget: ScrolledComposite, parentContext: EclipseContext): Option[VComposite] = {
     log.debug(s"Build content for ${configuration}.")
-    App.checkThread
-    if (parentWidget.getLayout().isInstanceOf[GridLayout])
-      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-    GUI.factory(configuration.factorySingletonClassName) match {
-      case Some(factory) =>
-        factory.viewActor(configuration, parentContext) match {
-          case Some(actualViewActorRef) =>
-            val content = new VComposite(configuration.id, viewRef, actualViewActorRef, configuration.factorySingletonClassName, parentWidget, SWT.NONE)
-            content.setLayout(new GridLayout)
-            content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-            content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
-            content.pack(true)
-            parentWidget.setContent(content)
-            parentWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-            parentWidget.setExpandHorizontal(true)
-            parentWidget.setExpandVertical(true)
-            parentWidget.layout(Array[Control](content), SWT.ALL)
-            actualViewActorRef ! App.Message.Create(content, viewRef)
-            Some(content)
-          case None =>
-            // TODO destroy
-            log.fatal("Unable to locate actual view actor.")
-            None
-        }
-      case None =>
-        log.fatal(s"Unable to find view factory for ${configuration.factorySingletonClassName}.")
-        None
+    App.assertUIThread(false)
+    // Create view widget.
+    val viewWidget = App.execNGet {
+      if (parentWidget.getLayout().isInstanceOf[GridLayout])
+        throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
+      configuration.factory().viewActor(configuration, parentContext) match {
+        case Some(actualViewActorRef) =>
+          val content = new VComposite(configuration.id, viewRef, actualViewActorRef, configuration.factory, parentWidget, SWT.NONE)
+          content.setLayout(new GridLayout)
+          content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
+          content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
+          content.pack(true)
+          parentWidget.setContent(content)
+          parentWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+          parentWidget.setExpandHorizontal(true)
+          parentWidget.setExpandVertical(true)
+          parentWidget.layout(Array[Control](content), SWT.ALL)
+
+          Some(content)
+        case None =>
+          // TODO destroy
+          log.fatal("Unable to locate actual view actor.")
+          None
+      }
+    }
+    // Create widget content
+    viewWidget.flatMap { widget =>
+      Await.result(ask(widget.contentRef, App.Message.Create(Left(widget)))(Timeout.short), Timeout.short) match {
+        case App.Message.Create(Right(contentContainerWidget), None) =>
+          log.debug(s"View layer ${configuration} content created.")
+          viewWidget
+        case App.Message.Error(error, None) =>
+          log.fatal(s"Unable to create content for view layer ${configuration}: ${error}.")
+          viewWidget.foreach(widget => App.execNGet { widget.dispose })
+          None
+        case _ =>
+          log.fatal(s"Unable to create content for view layer ${configuration}.")
+          viewWidget.foreach(widget => App.execNGet { widget.dispose })
+          None
+      }
     }
   }
 }

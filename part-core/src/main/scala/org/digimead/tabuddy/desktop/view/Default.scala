@@ -61,12 +61,14 @@ import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Image
+import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Widget
 
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
+import akka.actor.actorRef2Scala
 import akka.pattern.ask
 
 class Default(val contentId: UUID, parentContext: EclipseContext) extends Actor with Loggable {
@@ -77,32 +79,48 @@ class Default(val contentId: UUID, parentContext: EclipseContext) extends Actor 
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(container: VComposite, viewActor) => App.traceMessage(message) {
-      App.execNGet { create(container) }
+    case message @ App.Message.Create(Left(parentWidget: VComposite), None) => sender ! App.traceMessage(message) {
+      create(parentWidget) match {
+        case Some(contentWidget) =>
+          App.publish(App.Message.Create(Right(contentWidget), self))
+          App.Message.Create(Right(contentWidget))
+        case None =>
+          App.Message.Error(s"Unable to create ${this} for ${parentWidget}.")
+      }
     }
     case message @ App.Message.Destroy => App.traceMessage(message) {
       App.execNGet { destroy(sender) }
       this.view = None
     }
-    case message @ App.Message.Start(widget: Widget, supervisor) => App.traceMessage(message) {
+    case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
       onStart(widget)
+      App.Message.Start(Right(widget))
+    }
+    case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+      App.Message.Stop(Right(widget))
     }
   }
 
-  /** Create window. */
-  protected def create(parent: VComposite) {
+  /**
+   * Create view content.
+   * @return content container.
+   */
+  protected def create(parent: VComposite): Option[Composite] = {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
-    App.checkThread
+    App.assertUIThread(false)
     view = Option(parent)
-    val button = new org.eclipse.swt.widgets.Button(parent, SWT.PUSH)
-    button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
-    parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-    parent.layout(Array[Control](button), SWT.ALL)
+    App.execNGet {
+      val button = new org.eclipse.swt.widgets.Button(parent, SWT.PUSH)
+      button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
+      parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+      parent.layout(Array[Control](button), SWT.ALL)
+    }
+    Some(parent)
   }
   /** Destroy created window. */
   protected def destroy(sender: ActorRef) = this.view.foreach { view =>
-    App.checkThread
+    App.assertUIThread()
   }
   /** User start interaction with window/stack supervisor/view/this content. Focus is gained. */
   protected def onStart(widget: Widget) = view match {

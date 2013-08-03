@@ -154,6 +154,8 @@ trait Akka {
         result
     }
   }
+    /** Publish event to Akka Event Bus */
+  def publish = system.eventStream.publish _
   /** Send argument to the actor. */
   def tellActor[A](path: Seq[String], argument: A): Unit =
     getActorRef(path: _*).map { _ ! argument }

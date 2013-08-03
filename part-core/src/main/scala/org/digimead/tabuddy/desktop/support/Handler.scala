@@ -88,7 +88,7 @@ abstract class Handler(singleton: Handler.Singleton) extends AbstractHandler {
   }
   /** Called by the framework to allow the handler to update its enabled state. */
   def setEnabled(enabled: Boolean, context: IEclipseContext) {
-    App.checkThread
+    App.assertUIThread()
     context.set(idEnabled, enabled)
     fireHandlerChanged(new HandlerEvent(this, true, false))
   }
@@ -163,7 +163,7 @@ object Handler {
       }
     /** Called by the framework to allow the handler to update its enabled state. */
     protected def setEnabled(enabled: Boolean, context: IEclipseContext) {
-      App.checkThread
+      App.assertUIThread()
       singleton.instance.keys match {
         case Nil =>
           context.set(idEnabled, enabled)

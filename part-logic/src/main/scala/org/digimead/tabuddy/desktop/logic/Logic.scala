@@ -101,14 +101,14 @@ class Logic extends akka.actor.Actor with Loggable {
     App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stopped[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Started[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
-    App.system.eventStream.subscribe(self, classOf[App.Message.Started[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Stopped[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
@@ -118,14 +118,14 @@ class Logic extends akka.actor.Actor with Loggable {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
-    case message @ App.Message.Inconsistent(element, sender) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
+    case message @ App.Message.Inconsistent(element, _) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
         context.system.eventStream.publish(App.Message.Inconsistent(Logic, self))
       }
       inconsistentSet = inconsistentSet + element
     }
-    case message @ App.Message.Consistent(element, sender) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
+    case message @ App.Message.Consistent(element, _) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
@@ -135,22 +135,22 @@ class Logic extends akka.actor.Actor with Loggable {
     case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
       if (fGUIStarted) onModelInitialization(oldModel, newModel, modified)
     }
-    case message @ App.Message.Started(GUI, sender) => App.traceMessage(message) {
+    case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
       fGUIStarted = true
       future { onWorkbenchValid() } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
       }
     }
-    case message @ App.Message.Stopped(GUI, sender) => App.traceMessage(message) {
+    case message @ App.Message.Stop(Right(GUI), _) => App.traceMessage(message) {
       fGUIStarted = false
       future { onWorkbenchInvalid } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
       }
     }
-    case message @ App.Message.Inconsistent(element, sender) => // skip
-    case message @ App.Message.Consistent(element, sender) => // skip
+    case message @ App.Message.Inconsistent(element, _) => // skip
+    case message @ App.Message.Consistent(element, _) => // skip
   }
 
   /** Close infrastructure wide container. */

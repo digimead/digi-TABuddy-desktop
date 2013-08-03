@@ -114,7 +114,7 @@ class MainPart extends Loggable {
   }
   /** Update top control visibility with respect to current model. */
   def updateTopControl() = {
-    App.checkThread
+    App.assertUIThread()
     if (Model.eId != Payload.defaultModel.eId) {
       if (layout.topControl != active) {
         log.debug("Switch to active layout.")

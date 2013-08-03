@@ -88,6 +88,7 @@ class StackConfiguration extends Loggable {
       val in = new CustomObjectInputStream(fis)
       val result = in.readObject()
       in.close()
+      log.trace("Loaded configuration is:\n" + result.asInstanceOf[Configuration].dump.mkString("\n"))
       Option(result.asInstanceOf[Configuration])
     } catch {
       case e: Throwable =>
@@ -100,7 +101,7 @@ class StackConfiguration extends Loggable {
   def save(stackId: UUID, configuration: Configuration) = loadSaveLock.synchronized {
     val configurationFile = new File(configurationContainer, stackId.toString + "." + StackConfiguration.configurationExtenstion)
     log.debug("Save stack configuration to " + configurationFile)
-    log.trace("Save stack:\n" + configuration)
+    log.trace("Saved configuration is:\n" + configuration.dump.mkString("\n"))
     val fos = new FileOutputStream(configurationFile)
     val out = new ObjectOutputStream(fos)
     out.writeObject(configuration)
@@ -130,7 +131,7 @@ object StackConfiguration {
     lazy val configurationExtenstion = injectOptional[String]("Core.GUI.StackConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
     lazy val default = injectOptional[Configuration]("Core.GUI.StackConfiguration.Default") getOrElse
-      Configuration(Configuration.View(Default.getClass().getName()))
+      Configuration(Configuration.View(Default.configuration))
     //      StackConfiguration(Stack.Tab(Seq(View(UUID.fromString("00000000-0000-0000-0000-000000000000")))))
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()

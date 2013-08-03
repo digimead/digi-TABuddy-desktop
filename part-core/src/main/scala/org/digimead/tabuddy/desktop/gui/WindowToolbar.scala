@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.gui
 
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.eclipse.jface.action.ToolBarContributionItem
 import org.eclipse.jface.action.ToolBarManager
 
@@ -55,7 +55,7 @@ object WindowToolbar extends Loggable {
   /** ToolBar descriptor. */
   case class Descriptor(id: String)
   /** Return toolbar with the specific id from the window CoolBarManager. */
-  def apply(window: WComposite, toolBarDescriptor: Descriptor): ToolBarContributionItem = {
+  def apply(window: AppWindow, toolBarDescriptor: Descriptor): ToolBarContributionItem = {
     val cbm = window.getCoolBarManager()
     Option(cbm.find(toolBarDescriptor.id)) match {
       case Some(toolbar: ToolBarContributionItem) =>

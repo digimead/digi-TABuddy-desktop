@@ -87,7 +87,7 @@ case class JFaceMenu(
             element.updateAll(true)
           }
         }
-        if (App.checkThread) body() else App.exec { body() }
+        if (App.checkUIThread()) body() else App.exec { body() }
     }
   }
   /** Remove item from menu. */
@@ -99,7 +99,7 @@ case class JFaceMenu(
   /** Adjust exists menu with template values within the UI thread. */
   protected def adjust[T](menu: Menu[_], menuManager: MenuManager, template: MenuTemplate): Option[Menu[_]] = {
     log.debug(s"Adjust menu '${uniform.label}' from " + template)
-    App.checkThread()
+    App.assertUIThread()
     val menuItem = {
       val field = menuManager.getClass().getDeclaredField("menuItem")
       if (!field.isAccessible()) field.setAccessible(true)

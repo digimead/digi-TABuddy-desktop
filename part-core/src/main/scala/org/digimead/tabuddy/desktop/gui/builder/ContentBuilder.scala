@@ -45,11 +45,11 @@ package org.digimead.tabuddy.desktop.gui.builder
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.swt.SWT
-import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.custom.StackLayout
 import org.eclipse.swt.layout.GridLayout
 import org.eclipse.swt.widgets.Composite
@@ -61,15 +61,15 @@ import language.implicitConversions
  */
 class ContentBuilder extends Loggable {
   /** Creates and returns this window's contents. */
-  def apply(window: WComposite, parent: Composite): (Composite, Composite, ScrolledComposite) = {
+  def apply(window: AppWindow, parent: Composite): (Composite, Composite, WComposite) = {
     log.debug(s"Build content for window ${window.id}.")
-    App.checkThread
+    App.assertUIThread()
     val container = new Composite(parent, SWT.NONE)
     val layout = new StackLayout()
     container.setLayout(layout)
     val filler = new Composite(container, SWT.NONE)
     filler.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GREEN))
-    val content = new ScrolledComposite(container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
+    val content = new WComposite(window.id, window.ref, container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
     content.setLayout(new GridLayout)
     content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
     layout.topControl = filler

@@ -118,6 +118,9 @@ class Activator extends BundleActivator with Loggable {
       log.debug("Core actors hierarchy is terminated.")
     else
       log.fatal("Unable to shutdown Core actors hierarchy.")
+    val display = App.display
+    // There are no actors. So dispose it for sure.
+    App.exec { display.dispose() }
     // Stop "main" service.
     mainRegistration.foreach { serviceRegistration =>
       log.debug("Unregister TABuddy Desktop application entry point service.")
@@ -127,7 +130,6 @@ class Activator extends BundleActivator with Loggable {
     reportServiceTracker.foreach(_.close())
     reportServiceTracker = None
     Resources.validateOnShutdown()
-    App.display.dispose
     Activator.dispose()
     System.out.println("Core component is stopped.")
   }

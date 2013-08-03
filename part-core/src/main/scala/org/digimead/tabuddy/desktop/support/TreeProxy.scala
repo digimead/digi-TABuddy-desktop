@@ -68,21 +68,21 @@ class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], 
 
   def clearContent() {
     log.debug("clear content")
-    App.checkThread
+    App.assertUIThread()
     content = parallel.immutable.ParVector[TreeProxy.Item]()
     observables.foreach(_.clear())
   }
   def clearFilter() {
     log.debug("clear filter")
-    App.checkThread
+    App.assertUIThread()
     filtered.clear
   }
   def getContent() = {
-    App.checkThread
+    App.assertUIThread()
     content
   }
   def getFilters() = {
-    App.checkThread
+    App.assertUIThread()
     filtered
   }
   def onCollapse(item: TreeProxy.Item) {

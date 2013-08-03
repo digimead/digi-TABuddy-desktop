@@ -44,7 +44,10 @@
 package org.digimead.tabuddy.desktop.gui
 
 import java.util.UUID
+
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 
 /**
  * Stack configuration container. It contains:
@@ -62,6 +65,25 @@ case class Configuration(
 }
 
 object Configuration extends Loggable {
+  /** View factory configuration. */
+  case class Factory(val bundleSymbolicName: String, val singletonClassName: String) {
+    /** Factory singleton instance. */
+    @transient
+    protected lazy val singleton = {
+      val singletonClass = App.bundle(getClass).getBundleContext().getBundles().
+        find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(singletonClassName)).get
+      singletonClass.getField("MODULE$").get(singletonClass).asInstanceOf[ViewLayer.Factory]
+    }
+    def apply(): ViewLayer.Factory = singleton
+    /** Validate if this factory is exists. */
+    def validate(): Boolean = try {
+      App.bundle(getClass).getBundleContext().getBundles().find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(singletonClassName)).nonEmpty
+    } catch {
+      case e: ClassNotFoundException => false
+      case e: IllegalStateException => false
+    }
+    override def toString() = s"Factory(Symbolic-Name: ${bundleSymbolicName}, Singleton: ${singletonClassName})"
+  }
   /** Any element of the configuration. */
   sealed trait PlaceHolder {
     val id: UUID
@@ -73,10 +95,12 @@ object Configuration extends Loggable {
     def map(f: PlaceHolder => PlaceHolder): PlaceHolder = f(this)
   }
   /** View element. */
-  case class View(val factorySingletonClassName: String, val id: UUID = UUID.randomUUID()) extends PlaceHolder {
+  case class View(val factory: Factory, val id: UUID = UUID.randomUUID()) extends PlaceHolder {
+    factory.validate()
+
     /** Dump element hierarchy. */
     def dump(indent: String): Seq[String] =
-      Seq(indent + "Configuration.View[%08X#%s]".format(id.hashCode(), id) + " with factory " + GUI.factory(factorySingletonClassName))
+      Seq(indent + "Configuration.View[%08X#%s]".format(id.hashCode(), id) + " with factory " + factory)
     override def toString = "Configuration.View[%08X]".format(id.hashCode())
   }
   /** Stack element of the configuration. */

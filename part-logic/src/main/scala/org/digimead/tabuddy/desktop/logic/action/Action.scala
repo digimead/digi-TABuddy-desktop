@@ -48,7 +48,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.WindowMenu
 import org.digimead.tabuddy.desktop.gui.WindowToolbar
-import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 
@@ -65,24 +65,24 @@ class Action extends Actor with Loggable {
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Created[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Create[_]])
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
-    App.system.eventStream.subscribe(self, classOf[App.Message.Created[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Created(window: WComposite, sender) => App.traceMessage(message) {
-      onCreated(window, sender)
+    case message @ App.Message.Create(Right(window: AppWindow), Some(publisher)) => App.traceMessage(message) {
+      onCreated(window, publisher)
     }
 
-    case message @ App.Message.Created(_, sender) =>
+    case message @ App.Message.Create(_, _) =>
   }
 
   /** Register actions in new window. */
-  protected def onCreated(window: WComposite, sender: ActorRef) = {
+  protected def onCreated(window: AppWindow, sender: ActorRef) = {
     // block actor
     App.execNGet {
       log.debug(s"Update window ${window} composite.")
@@ -90,16 +90,16 @@ class Action extends Actor with Loggable {
       adjustToolbar(window)
     }
     // publish global that window menu and toolbar are ready
-    App.publish(App.Message.Created(Action.Created(window), self))
+    App.publish(App.Message.Create(Right(Action, window), self))
   }
   /** Adjust window menu. */
   @log
-  protected def adjustMenu(window: WComposite) {
+  protected def adjustMenu(window: AppWindow) {
     val file = WindowMenu(window, WindowMenu.file)
   }
   /** Adjust window toolbar. */
   @log
-  protected def adjustToolbar(window: WComposite) {
+  protected def adjustToolbar(window: AppWindow) {
     val commonToolBar = WindowToolbar(window, WindowToolbar.common)
     //    commonToolBar.getToolBarManager().add(Exit)
     //    commonToolBar.getToolBarManager().add(Exit)
@@ -114,7 +114,7 @@ object Action {
   /** StackLayer actor reference configuration object. */
   def props = DI.props
 
-  case class Created(window: WComposite) extends App.Message
+  case class Created(window: AppWindow) extends App.Message
   /**
    * Dependency injection routines.
    */

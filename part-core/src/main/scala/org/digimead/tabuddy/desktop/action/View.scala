@@ -49,7 +49,7 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.gui
-import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.e4.core.internal.contexts.EclipseContext
@@ -79,8 +79,8 @@ object View extends JFaceAction("view") with Loggable {
   protected def show(activeContext: EclipseContext, viewFactory: gui.ViewLayer.Factory) {
     log.debug("Create new view from " + viewFactory)
     activeContext.get(gui.GUI.windowContextKey) match {
-      case window: WComposite =>
-        window.ref ! App.Message.Create(viewFactory, App.system.deadLetters)
+      case window: AppWindow =>
+        window.ref ! App.Message.Create(Left(viewFactory))
       case unknwon =>
         log.fatal(s"Unable to find active window for ${this}: '${activeContext}', '${viewFactory}'.")
     }

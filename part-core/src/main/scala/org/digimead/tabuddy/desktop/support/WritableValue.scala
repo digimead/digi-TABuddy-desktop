@@ -52,11 +52,11 @@ import language.implicitConversions
 
 case class WritableValue[T <: AnyRef] private (val underlying: OriginalWritableValue) {
   def getValue(): T = {
-    App.checkThread
+    App.assertUIThread()
     underlying.getValue().asInstanceOf[T]
   }
   def setValue(newValue: T) = {
-    App.checkThread
+    App.assertUIThread()
     underlying.setValue(newValue)
   }
   def value: T = getValue()
@@ -74,7 +74,7 @@ case class WritableValue[T <: AnyRef] private (val underlying: OriginalWritableV
 
 object WritableValue {
   implicit def wrapper2underlying(wrapper: WritableValue[_]): OriginalWritableValue = {
-    App.checkThread
+    App.assertUIThread()
     wrapper.underlying
   }
   // Use the unit as the method indicator

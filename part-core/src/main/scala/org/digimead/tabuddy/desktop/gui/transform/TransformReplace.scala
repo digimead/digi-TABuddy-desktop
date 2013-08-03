@@ -47,16 +47,16 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.StackSupervisor
 import org.digimead.tabuddy.desktop.gui.ViewLayer
-import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 
 import language.implicitConversions
 
 class TransformReplace extends Loggable {
-  def apply(stackSupervisorIternals: StackSupervisor, window: WComposite, newView: ViewLayer.Factory) {
+  def apply(stackSupervisorIternals: StackSupervisor, window: AppWindow, newView: ViewLayer.Factory) {
     log.debug(s"Replace window ${window} content with ${newView}.")
-    App.checkThread
+    App.assertUIThread()
   }
 }
 

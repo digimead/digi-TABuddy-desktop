@@ -67,7 +67,7 @@ import language.implicitConversions
 class TransformViewToTab extends Loggable {
   def apply(ss: StackSupervisor, view: VComposite): Option[SCompositeTab] = {
     log.debug(s"Move ${view} to tab stack container.")
-    App.checkThread
+    App.assertUIThread()
     val hierarchy = App.widgetHierarchy(view)
     if (hierarchy.headOption != Some(view) || hierarchy.size < 2)
       throw new IllegalStateException(s"Illegal hierarchy ${hierarchy}.")
@@ -79,7 +79,7 @@ class TransformViewToTab extends Loggable {
         val tabParentWidget = view.getParent
         val viewConfiguration = ss.configuration.element(view.id)._2.asInstanceOf[Configuration.View]
         val tabConfiguration = Configuration.Stack.Tab(Seq(viewConfiguration))
-        log.debug(s"Reconfigure stack hierarchy. Bind %s to WComposite[%08X].".format(tabConfiguration,
+        log.debug(s"Reconfigure stack hierarchy. Bind %s to AppWindow[%08X].".format(tabConfiguration,
           Option(other.getData(GUI.swtId)).map(_.hashCode()).getOrElse {
             log.fatal(s"Bind to unknown shell ${other}."); 0 // Unable to find UUID value in shell data
           }))
@@ -95,21 +95,16 @@ class TransformViewToTab extends Loggable {
           firstTab.setMinSize(view.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           tabComposite.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
             case Some(tabItem) =>
-              GUI.factory(viewConfiguration.factorySingletonClassName) match {
-                case Some(factory) =>
-                  App.bindingContext.bindValue(SWTObservables.observeText(tabItem), factory.title(view.contentRef))
-                  tabItem.setText(factory.title(view.contentRef).getValue().asInstanceOf[String])
-                case None =>
-                  log.fatal(s"Unable to find view factory for ${viewConfiguration.factorySingletonClassName}.")
-              }
+              App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(view.contentRef))
+              tabItem.setText(viewConfiguration.factory().title(view.contentRef).getValue().asInstanceOf[String])
             case None =>
               log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")
           }
           tabParentWidget.setContent(tabComposite)
           tabParentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           tabParentWidget.layout(true)
-          App.publish(App.Message.Created(tabComposite, stackRef))
-          App.publish(App.Message.Updated(view, stackRef))
+          App.publish(App.Message.Create(Right(tabComposite), stackRef))
+          App.publish(App.Message.Update(Right(view), stackRef))
           //ss.configuration.set(Configuration(ss.configuration.get.stack.map {
           //  case oldView: Configuration.View if oldView.id == view.id =>
           //    log.debug(s"Replace configuration element ${view} with ${tabConfiguration}. ")

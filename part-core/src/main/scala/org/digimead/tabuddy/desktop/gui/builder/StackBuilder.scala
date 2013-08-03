@@ -71,9 +71,8 @@ import language.implicitConversions
 class StackBuilder extends Loggable {
   /** Creates stack content. */
   @log
-  def apply(view: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, viewRef: ActorRef): Option[VComposite] = {
-    App.execNGet { StackViewBuilder(view, viewRef, parentWidget, parentContext) }
-  }
+  def apply(view: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, viewRef: ActorRef): Option[VComposite] =
+    StackViewBuilder(view, viewRef, parentWidget, parentContext)
   /** Creates stack content. */
   @log
   def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, stackRef: ActorRef): Option[SComposite] = {
@@ -91,7 +90,8 @@ class StackBuilder extends Loggable {
           supervisorRef ? App.Message.Attach(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, parentContext)), ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode())) onSuccess {
             case viewRef: ActorRef =>
               // Create view within view layer.
-              viewRef ! App.Message.Create(ViewLayer.<>(viewConfiguration, parentWidget, parentContext), supervisorRef)
+              implicit val sender = supervisorRef
+              viewRef ! App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget, parentContext)))
           }
         }
         Option(tabComposite)

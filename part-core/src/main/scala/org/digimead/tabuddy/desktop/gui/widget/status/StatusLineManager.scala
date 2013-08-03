@@ -70,7 +70,7 @@ import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Text
 
 /**
- * Composite status manager for WComposite
+ * Composite status manager for AppWindow
  */
 class StatusLineManager extends JStatusLineManager with Loggable {
   /** The status line control; <code>null</code> before creation and after disposal. */
@@ -83,6 +83,8 @@ class StatusLineManager extends JStatusLineManager with Loggable {
     statusLineContainer = new Composite(parent, SWT.NONE)
     statusLineContainer.setLayout(new GridLayout(2, false))
     commandLine = createCommandLine(statusLineContainer)
+    // This is critical. Without setFocus SWT lost FocusIn and FocusOut events. This is INITIAL window element that gains focus.
+    commandLine.setFocus()
     val statusLine = super.createControl(statusLineContainer, SWT.NONE)
     statusLine.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
     statusLineContainer

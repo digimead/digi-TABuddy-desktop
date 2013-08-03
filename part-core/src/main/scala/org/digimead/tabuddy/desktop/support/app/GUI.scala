@@ -47,15 +47,19 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
 import scala.annotation.tailrec
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.widget.SComposite
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.eclipse.swt.custom.CTabItem
 import org.eclipse.swt.custom.TableTreeItem
 import org.eclipse.swt.dnd.DragSource
 import org.eclipse.swt.dnd.DropTarget
 import org.eclipse.swt.widgets.Caret
+import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.CoolItem
 import org.eclipse.swt.widgets.ExpandItem
@@ -205,12 +209,33 @@ trait GUI {
   /** Get all GUI components from the current widget to top level parent(shell). */
   def widgetHierarchy(widget: Widget): Seq[Widget] = Option(widget) match {
     case Some(composite: SComposite) =>
-      checkThread
+      assertUIThread()
       widgetHierarchy(composite, Seq(composite))
     case Some(shell: Shell) =>
-      Seq(shell)
+      assertUIThread()
+      // There is only few levels, so recursion is unneeded.
+      shell.getChildren().map {
+        case windowContainer: WComposite =>
+          Some(windowContainer)
+        case composite: Composite =>
+          composite.getChildren().map {
+            case windowContainer: WComposite =>
+              Some(windowContainer)
+            case composite: Composite =>
+              composite.getChildren().map {
+                case windowContainer: WComposite =>
+                  Some(windowContainer)
+                case other =>
+                  None
+              }.flatten.headOption
+            case other =>
+              None
+          }.flatten.headOption
+        case other =>
+          None
+      }.flatten.headOption.toSeq
     case Some(parent) =>
-      checkThread
+      assertUIThread()
       widgetHierarchy(parent, Seq())
     case None =>
       Seq()
@@ -219,10 +244,12 @@ trait GUI {
   @tailrec
   private def widgetHierarchy(widget: Widget, acc: Seq[Widget]): Seq[Widget] = {
     findParent(widget) match {
+      case Some(parent: WComposite) =>
+        acc :+ parent
       case Some(parent: SComposite) =>
         widgetHierarchy(parent, acc :+ parent)
       case Some(parent: Shell) =>
-        acc :+ parent
+        acc
       case Some(parent) =>
         widgetHierarchy(parent, acc)
       case None =>

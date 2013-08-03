@@ -51,4 +51,7 @@ import org.eclipse.swt.widgets.Composite
 import akka.actor.ActorRef
 
 class SCompositeVSash(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
-  extends Composite(parent, style) with SComposite
+  extends Composite(parent, style) with SComposite {
+  /** Returns the receiver's parent, which must be a ScrolledComposite. */
+  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
+}

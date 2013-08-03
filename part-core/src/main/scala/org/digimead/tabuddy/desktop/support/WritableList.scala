@@ -57,46 +57,46 @@ import language.implicitConversions
 
 case class WritableList[A] private (val underlying: OriginalWritableList) extends mutable.Buffer[A] {
   def length = {
-    App.checkThread
+    App.assertUIThread()
     underlying.size
   }
   override def isEmpty = {
-    App.checkThread
+    App.assertUIThread()
     underlying.isEmpty
   }
   override def iterator: Iterator[A] = {
-    App.checkThread
+    App.assertUIThread()
     underlying.iterator.asInstanceOf[java.util.Iterator[A]]
   }
   def apply(i: Int) = {
-    App.checkThread
+    App.assertUIThread()
     underlying.get(i).asInstanceOf[A]
   }
   def update(i: Int, elem: A) = {
-    App.checkThread
+    App.assertUIThread()
     underlying.set(i, elem)
   }
   def +=:(elem: A) = {
-    App.checkThread
+    App.assertUIThread()
     underlying.subList(0, 0).asInstanceOf[java.util.List[A]] add elem
     this
   }
   def +=(elem: A): this.type = {
-    App.checkThread
+    App.assertUIThread()
     underlying add elem
     this
   }
   def insertAll(i: Int, elems: Traversable[A]) = {
-    App.checkThread
+    App.assertUIThread()
     val ins = underlying.subList(0, i).asInstanceOf[java.util.List[A]]
     elems.seq.foreach(ins.add(_))
   }
   def remove(i: Int) = {
-    App.checkThread
+    App.assertUIThread()
     underlying.remove(i).asInstanceOf[A]
   }
   def clear() = {
-    App.checkThread
+    App.assertUIThread()
     underlying.clear()
   }
   // Note: Clone cannot just call underlying.clone because in Java, only specific collections
@@ -114,7 +114,7 @@ case class WritableList[A] private (val underlying: OriginalWritableList) extend
 
 object WritableList {
   implicit def wrapper2underlying(wrapper: WritableList[_]): OriginalWritableList = {
-    App.checkThread
+    App.assertUIThread()
     wrapper.underlying
   }
   // Use the unit as the method indicator

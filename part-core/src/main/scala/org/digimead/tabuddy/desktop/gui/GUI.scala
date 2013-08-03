@@ -65,23 +65,28 @@ import language.implicitConversions
  */
 class GUI extends Loggable {
   /** Main loop exit code. */
-  protected val exitCode = new AtomicReference[Option[GUI.Exit]](None)
+  @volatile protected var exitCode: Option[AtomicReference[Option[GUI.Exit]]] = None
   /** List of all application view factories. */
   protected val viewFactories = new GUI.ViewFactoryMap with mutable.SynchronizedMap[ViewLayer.Factory, GUI.ViewFactoryInfo]
 
   /** Stop main loop with the specific exit code. */
   def stop(code: GUI.Exit) = {
     log.debugWhere("Stop main loop with code " + code)
-    if (exitCode.compareAndSet(None, Some(code)))
-      App.display.wake()
-    else
-      log.error(s"Unable to set new exit code ${code}. There is already ${exitCode.get}.")
+    exitCode.foreach(exitCode => exitCode.synchronized {
+      if (exitCode.compareAndSet(None, Some(code))) {
+        exitCode.notifyAll()
+        App.display.wake()
+        log.debugWhere("Exit code updated.")
+      } else
+        log.error(s"Unable to set new exit code ${code}. There is already ${exitCode.get}.")
+    })
   }
   @log
-  def run(): GUI.Exit = {
+  def run(exitCode: AtomicReference[Option[GUI.Exit]]) = {
     log.debug("Main loop is running.")
+    this.exitCode = Some(exitCode)
     val display = App.display
-    App.publish(App.Message.Started(GUI, App.system.deadLetters))
+    App.publish(App.Message.Start(Right(GUI)))
     WindowSupervisor ! App.Message.Restore
     while (exitCode.get.isEmpty) try {
       if (!display.readAndDispatch())
@@ -90,15 +95,22 @@ class GUI extends Loggable {
       case e: Throwable =>
         log.error(e.getMessage, e)
     }
-    App.publish(App.Message.Stopped(GUI, App.system.deadLetters))
-    if (!display.isDisposed()) display.update()
+    App.publish(App.Message.Stop(Right(GUI)))
     log.debug("Main loop is finishing. Process pending UI messages.")
-    while (display.readAndDispatch()) {}
+    // Process UI messages until the display is disposed.
+    while (!display.isDisposed()) try {
+      if (!display.readAndDispatch())
+        display.sleep()
+    } catch {
+      case e: Throwable =>
+        log.error(e.getMessage, e)
+    }
     log.debug("Main loop is finished.")
     exitCode.get.getOrElse {
       log.fatal("Unexpected termination without exit code.")
-      GUI.Exit.Error
+      exitCode.set(Some(GUI.Exit.Error))
     }
+    exitCode.synchronized { exitCode.notifyAll() }
   }
   /** Get factory by singleton class name. */
   def factory(singletonClassName: String): Option[ViewLayer.Factory] =

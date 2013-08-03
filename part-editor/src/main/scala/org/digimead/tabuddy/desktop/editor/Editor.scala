@@ -93,7 +93,7 @@ class Editor extends akka.actor.Actor with Loggable {
       log.debug(s"Process '${message}'.")
       sender ! context.actorOf(props, name)
 
-    case message @ App.Message.Inconsistent(element, sender) if element != Editor && App.bundle(element.getClass()) == thisBundle =>
+    case message @ App.Message.Inconsistent(element, _) if element != Editor && App.bundle(element.getClass()) == thisBundle =>
       log.debug(s"Process '${message}'.")
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
@@ -102,7 +102,7 @@ class Editor extends akka.actor.Actor with Loggable {
       }
       inconsistentSet = inconsistentSet + element
 
-    case message @ App.Message.Consistent(element, sender) if element != Editor && App.bundle(element.getClass()) == thisBundle =>
+    case message @ App.Message.Consistent(element, _) if element != Editor && App.bundle(element.getClass()) == thisBundle =>
       log.debug(s"Process '${message}'.")
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
@@ -142,8 +142,8 @@ class Editor extends akka.actor.Actor with Loggable {
         case e => log.error(e.toString())
       }
 
-    case message @ App.Message.Inconsistent(element, sender) => // skip
-    case message @ App.Message.Consistent(element, sender) => // skip
+    case message @ App.Message.Inconsistent(element, _) => // skip
+    case message @ App.Message.Consistent(element, _) => // skip
   }
   override def postStop() = log.debug("Editor actor is stopped.")
 }
