@@ -43,9 +43,6 @@
 
 package org.digimead.tabuddy.desktop.gui.transform
 
-import scala.collection.immutable
-import scala.concurrent.Await
-
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.Configuration
@@ -54,14 +51,11 @@ import org.digimead.tabuddy.desktop.gui.StackSupervisor
 import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder
 import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder.builder2implementation
-import org.digimead.tabuddy.desktop.gui.widget.SComposite
+import org.digimead.tabuddy.desktop.gui.builder.StackViewBuilder
+import org.digimead.tabuddy.desktop.gui.builder.StackViewBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Timeout
-
-import akka.pattern.ask
-import akka.util.Timeout.durationToTimeout
 
 import language.implicitConversions
 
@@ -79,23 +73,7 @@ class TransformAttachView extends Loggable {
         newView.image.foreach(tabItem.setImage)
       })
     }
-    val viewName = ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode())
-    log.debug(s"Create new view layer ${viewName}.")
-    val viewRef = ss.context.actorOf(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, ss.parentContext)), viewName)
-    // Block builder until the view is created.
-    implicit val sender = tabStack.ref
-    Await.result(ask(viewRef, App.Message.Create(Left(ViewLayer.<>(viewConfiguration,
-      parentWidget, ss.parentContext))))(Timeout.short), Timeout.short) match {
-      case App.Message.Create(Right(viewWidget: SComposite), None) =>
-        log.debug(s"View layer ${viewConfiguration} content created.")
-        Some(viewWidget)
-      case App.Message.Error(error, None) =>
-        log.fatal(s"Unable to create content for view layer ${viewConfiguration}: ${error}.")
-        None
-      case _ =>
-        log.fatal(s"Unable to create content for view layer ${viewConfiguration}.")
-        None
-    }
+    StackViewBuilder(viewConfiguration, parentWidget, ss.parentContext, ss.context)
   }
 }
 

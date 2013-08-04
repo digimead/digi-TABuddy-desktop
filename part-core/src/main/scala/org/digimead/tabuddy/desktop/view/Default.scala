@@ -72,11 +72,10 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 
-class Default(val contentId: UUID, parentContext: EclipseContext) extends Actor with Loggable {
+class Default(val contentId: UUID) extends Actor with Loggable {
   /** Parent view widget. */
   @volatile protected var view: Option[VComposite] = None
-  /** View context. */
-  protected val viewContext = parentContext.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
+
   log.debug("Start actor " + self.path)
 
   def receive = {
@@ -127,7 +126,6 @@ class Default(val contentId: UUID, parentContext: EclipseContext) extends Actor 
   protected def onStart(widget: Widget) = view match {
     case Some(view) =>
       log.debug("View started by focus event on " + widget)
-      viewContext.activateBranch()
     case None =>
       log.fatal("Unable to start view without widget.")
   }
@@ -145,10 +143,11 @@ object Default extends gui.ViewLayer.Factory with Loggable {
 
   /** Returns actor reference that could handle Create/Destroy messages. */
   @log
-  def viewActor(configuration: gui.Configuration.View, parentContext: EclipseContext): Option[ActorRef] = viewActorLock.synchronized {
+  def viewActor(configuration: gui.Configuration.View): Option[ActorRef] = viewActorLock.synchronized {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
-    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id, parentContext)), "Content_" + id + "_%08X".format(configuration.id.hashCode()))
+    val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
+    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
     try {
       val newActorRef = Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration)
       activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
@@ -179,8 +178,6 @@ object Default extends gui.ViewLayer.Factory with Loggable {
     /** Default view actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.View.Default") getOrElse Props(classOf[Default],
       // content id = view layer id
-      UUID.fromString("00000000-0000-0000-0000-000000000000"),
-      // parent context
-      Core.context)
+      UUID.fromString("00000000-0000-0000-0000-000000000000"))
   }
 }

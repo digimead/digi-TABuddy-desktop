@@ -111,7 +111,7 @@ object Config extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Implementation DI cache */
+    /** Config implementation. */
     lazy val implementation = inject[api.Config]
   }
 }

@@ -86,6 +86,8 @@ import org.eclipse.swt.widgets.Label
 import org.eclipse.ui.internal.WorkbenchWindow
 import org.eclipse.ui.menus.WorkbenchWindowControlContribution
 import org.eclipse.jface.action.ControlContribution
+import org.digimead.digi.lib.api.DependencyInjection
+import akka.actor.Props
 
 class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
   val id = getClass.getName
@@ -101,7 +103,7 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
 
   /** Create toolbar control. */
   override protected def createControl(parent: Composite): Control = {
-/*    val parentShell = App.findShell(parent)
+        val parentShell = App.findShell(parent)
 
     val container = new Composite(parent, SWT.NONE)
     val layout = RowLayoutFactory.fillDefaults().wrap(false).spacing(0).create()
@@ -112,7 +114,8 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
     this.label = Option(label)
     val comboViewer = createCombo(container)
     this.combo = Option(comboViewer)
-    assert(window != null)
+    /*val context = App.widgetView(parent)
+
     //
     // initialize combo
     //
@@ -137,9 +140,8 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
     comboViewer.setInput(Data.availableModels.underlying)
     Data.availableModels.addChangeListener { (event) => App.exec { resizeCombo() } }
     idValue.value = Messages.default_text
-    resizeCombo()
-    container*/
-    null
+    resizeCombo()*/
+    container
   }
   protected def createLabel(parent: Composite): Label = {
     val container = new Composite(parent, SWT.NONE)
@@ -244,4 +246,11 @@ object SelectModel {
       case value => super.getText(element)
     }
   }
+  /**
+   * Dependency injection routines.
+   */
+//  private object DI extends DependencyInjection.PersistentInjectable {
+//    /** Payload implementation. */
+//    lazy val implementation = inject[api.Payload]
+//  }
 }

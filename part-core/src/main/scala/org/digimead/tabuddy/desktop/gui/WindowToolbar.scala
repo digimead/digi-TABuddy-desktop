@@ -49,9 +49,6 @@ import org.eclipse.jface.action.ToolBarContributionItem
 import org.eclipse.jface.action.ToolBarManager
 
 object WindowToolbar extends Loggable {
-  /** Common toolbar descriptor. */
-  val common = Descriptor(getClass.getName() + "#common")
-
   /** ToolBar descriptor. */
   case class Descriptor(id: String)
   /** Return toolbar with the specific id from the window CoolBarManager. */

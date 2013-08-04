@@ -46,9 +46,11 @@ package org.digimead.tabuddy.desktop.logic.action
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.WindowMenu
+import org.digimead.tabuddy.desktop.action.Exit
+import org.digimead.tabuddy.desktop.action.{ Action => CoreAction }
 import org.digimead.tabuddy.desktop.gui.WindowToolbar
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
+import org.digimead.tabuddy.desktop.logic.handler.SelectModel
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 
@@ -74,7 +76,8 @@ class Action extends Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Create(Right(window: AppWindow), Some(publisher)) => App.traceMessage(message) {
+    // Adjust menu and toolbar after Core component.
+    case message @ App.Message.Create(Right((action: CoreAction.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
       onCreated(window, publisher)
     }
 
@@ -95,14 +98,15 @@ class Action extends Actor with Loggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(window, WindowMenu.file)
+    //    val file = WindowMenu(window, WindowMenu.file)
+    //    file.add(Exit)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val commonToolBar = WindowToolbar(window, WindowToolbar.common)
-    //    commonToolBar.getToolBarManager().add(Exit)
-    //    commonToolBar.getToolBarManager().add(Exit)
+    val modelToolBar = WindowToolbar(window, Action.modelToolbar)
+    modelToolBar.getToolBarManager().add(new SelectModel)
+    modelToolBar.getToolBarManager().add(Exit)
     window.getCoolBarManager2().update(true)
   }
 }
@@ -110,6 +114,8 @@ class Action extends Actor with Loggable {
 object Action {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  /** Model toolbar descriptor. */
+  val modelToolbar = WindowToolbar.Descriptor(getClass.getName() + "#model")
 
   /** StackLayer actor reference configuration object. */
   def props = DI.props
@@ -119,7 +125,7 @@ object Action {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** WindowSupervisor actor reference configuration object. */
+    /** Action actor reference configuration object. */
     lazy val props = injectOptional[Props]("Logic.Action") getOrElse Props[Action]
   }
 }

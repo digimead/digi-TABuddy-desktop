@@ -72,11 +72,9 @@ import akka.util.Timeout.durationToTimeout
  * - start window
  * - close/destroy window
  */
-class Window(val windowId: UUID, val parentContext: EclipseContext) extends Actor with AppWindow.Controller with Loggable {
+class Window(val windowId: UUID, val windowContext: EclipseContext) extends Actor with AppWindow.Controller with Loggable {
   /** Window JFace instance. */
   var window: Option[AppWindow] = None
-  /** Window context. */
-  lazy val windowContext = parentContext.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
   /** Window views supervisor. */
   lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq(windowId, windowContext)), StackSupervisor.id)
   log.debug("Start actor " + self.path)

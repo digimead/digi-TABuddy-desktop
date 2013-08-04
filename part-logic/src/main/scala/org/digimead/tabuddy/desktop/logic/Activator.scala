@@ -93,11 +93,6 @@ class Activator extends BundleActivator with Loggable {
       }
     DependencyInjection.inject()
     Logic.actor // Start component actors hierarchy
-//    App.system.eventStream.subscribe(Logic, classOf[App.Message.Inconsistent[_]])
-//    App.system.eventStream.subscribe(Logic, classOf[App.Message.Consistent[_]])
-//    App.system.eventStream.subscribe(Logic, classOf[WorkbenchAdvisor.Message.PostStartup])
- //   App.system.eventStream.subscribe(Logic, classOf[WorkbenchAdvisor.Message.PreShutdown])
-//    App.system.eventStream.subscribe(Logic, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
 //    App.system.eventStream.subscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
 //    App.system.eventStream.subscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
     Element.Event.subscribe(elementEventsSubscriber)
@@ -110,11 +105,6 @@ class Activator extends BundleActivator with Loggable {
     try {
       //App.system.eventStream.unsubscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
       //App.system.eventStream.unsubscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-      //App.system.eventStream.unsubscribe(Logic, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-      //App.system.eventStream.unsubscribe(Logic, classOf[WorkbenchAdvisor.Message.PreShutdown])
-      //App.system.eventStream.unsubscribe(Logic, classOf[WorkbenchAdvisor.Message.PostStartup])
-      //App.system.eventStream.unsubscribe(Logic, classOf[App.Message.Consistent[_]])
-      //App.system.eventStream.unsubscribe(Logic, classOf[App.Message.Inconsistent[_]])
       // Stop component actors.
       val inbox = Inbox.create(App.system)
       inbox.watch(Logic)

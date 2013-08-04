@@ -71,6 +71,7 @@ import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
+import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.jface.window.{ Window => JWindow }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Event
@@ -197,7 +198,8 @@ class WindowSupervisor extends Actor with Loggable {
     if (pointers.contains(windowId))
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
     App.assertUIThread(false)
-    val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, Core.context)), Window.id + "_%08X".format(windowId.hashCode()))
+    val windowContext = Core.context.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
+    val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), Window.id + "_%08X".format(windowId.hashCode()))
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
     // Block supervisor until window is created
     implicit val ec = App.system.dispatcher

@@ -52,8 +52,8 @@ import scala.concurrent.Await
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.gui.builder.StackBuilder
-import org.digimead.tabuddy.desktop.gui.builder.StackBuilder.builder2implementation
+import org.digimead.tabuddy.desktop.gui.builder.StackViewBuilder
+import org.digimead.tabuddy.desktop.gui.builder.StackViewBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
@@ -75,16 +75,14 @@ import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
-class ViewLayer(viewId: UUID, parentContext: EclipseContext) extends Actor with Loggable {
+class ViewLayer(viewId: UUID, viewContext: EclipseContext) extends Actor with Loggable {
   /** View JFace instance. */
   var view: Option[VComposite] = None
-  /** View context. */
-  val viewContext = parentContext.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget, parentContext)), None) => sender ! App.traceMessage(message) {
-      create(viewConfiguration, parentWidget, parentContext, sender) match {
+    case message @ App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget)), None) => sender ! App.traceMessage(message) {
+      create(viewConfiguration, parentWidget, sender) match {
         case Some(viewWidget) =>
           App.publish(App.Message.Create(Right(viewWidget), self))
           App.Message.Create(Right(viewWidget))
@@ -103,11 +101,11 @@ class ViewLayer(viewId: UUID, parentContext: EclipseContext) extends Actor with 
   }
 
   /** Create view. */
-  protected def create(viewConfiguration: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef): Option[VComposite] = {
+  protected def create(viewConfiguration: Configuration.View, parentWidget: ScrolledComposite, supervisor: ActorRef): Option[VComposite] = {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertUIThread(false)
-    StackBuilder(viewConfiguration, parentWidget, viewContext, supervisor, self) match {
+    StackViewBuilder(viewConfiguration, self, viewContext, parentWidget) match {
       case Some(viewWidget) =>
         this.view = Some(viewWidget)
         // Update parent tab title if any.
@@ -157,7 +155,7 @@ object ViewLayer {
   def props = DI.props
 
   /** Wrapper for App.Message,Create argument. */
-  case class <>(val viewConfiguration: Configuration.View, val parentWidget: ScrolledComposite, val parentContext: EclipseContext)
+  case class <>(val viewConfiguration: Configuration.View, val parentWidget: ScrolledComposite)
   /**
    * User implemented factory, that returns ActorRef, responsible for view creation/destroying.
    */
@@ -194,7 +192,7 @@ object ViewLayer {
      * Returns the actor reference that could handle Create/Destroy messages.
      * Add reference to activeActors list.
      */
-    def viewActor(configuration: Configuration.View, parentContext: EclipseContext): Option[ActorRef]
+    def viewActor(configuration: Configuration.View): Option[ActorRef]
 
     override def toString() = s"""View.Factory("${name}", "${description}")"""
 

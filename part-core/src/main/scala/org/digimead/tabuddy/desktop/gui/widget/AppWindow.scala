@@ -165,7 +165,8 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   protected def onActive() = {}
   /** Show content. */
   protected def showContent(content: WComposite) {
-    log.debug("Show content of ${this}.")
+    log.debug(s"Show content of ${this}.")
+    content.setData(classOf[EclipseContext].getName, windowContext) // Bind window context to composite.
     implicit val ec = App.system.dispatcher
     val result = supervisorRef.ask(App.Message.Restore(Left(content)))(Timeout.short)
     result.onSuccess {
@@ -176,7 +177,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
             val parent = content.getParent()
             val layout = parent.getLayout().asInstanceOf[StackLayout]
             layout.topControl = content
-            //content.setFocus()
+            layout.topControl.setFocus()
             parent.layout()
           }
         }

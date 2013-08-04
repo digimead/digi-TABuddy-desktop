@@ -76,25 +76,14 @@ import language.implicitConversions
 class StackBuilder extends Loggable {
   /** Creates stack content. */
   @log
-  def apply(view: Configuration.View, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, viewRef: ActorRef): Option[VComposite] =
-    StackViewBuilder(view, viewRef, parentWidget, parentContext)
-  /** Creates stack content. */
-  @log
   def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
     stack match {
       case tab: Configuration.Stack.Tab =>
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }
         // Attach list of Configuration.View(from tab.children) to ScrolledComposite(from containers)
         val tabs = for { (container, viewConfiguration) <- containers zip tab.children } yield {
-          val viewName = ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode())
-          log.debug(s"Create new view layer ${viewName}.")
-          val viewRef = supervisorContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, parentContext)), viewName)
-          // Block builder until the view is created.
-          implicit val sender = stackRef
-          Await.result(ask(viewRef, App.Message.Create(Left(ViewLayer.<>(viewConfiguration,
-            container, parentContext))))(Timeout.short), Timeout.short) match {
-            case App.Message.Create(Right(viewWidget: VComposite), None) =>
-              log.debug(s"View layer ${viewConfiguration} content created.")
+          StackViewBuilder(viewConfiguration, container, parentContext, supervisorContext) match {
+            case result @ Some(viewWidget) =>
               App.execNGet {
                 // Adjust tab.
                 tabComposite.getItems().find { item => item.getData(GUI.swtId) == viewConfiguration.id } match {
@@ -110,11 +99,8 @@ class StackBuilder extends Loggable {
                     None
                 }
               }
-            case App.Message.Error(error, None) =>
-              log.fatal(s"Unable to create content for view layer ${viewConfiguration}: ${error}.")
-              None
-            case _ =>
-              log.fatal(s"Unable to create content for view layer ${viewConfiguration}.")
+              result
+            case None =>
               None
           }
         }

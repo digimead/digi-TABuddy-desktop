@@ -61,6 +61,8 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.gui.StackConfiguration.configuration2implementation
+import org.digimead.tabuddy.desktop.gui.builder.StackViewBuilder
+import org.digimead.tabuddy.desktop.gui.builder.StackViewBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.transform.TransformAttachView.transform2implementation
 import org.digimead.tabuddy.desktop.gui.transform.TransformReplace.transform2implementation
 import org.digimead.tabuddy.desktop.gui.transform.TransformViewToTab.transform2implementation
@@ -85,8 +87,6 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
-
-import language.implicitConversions
 
 /**
  * Stack supervisor responsible for:
@@ -214,19 +214,11 @@ class StackSupervisor(val windowId: UUID, val parentContext: EclipseContext) ext
       case (parent, viewConfiguration: Configuration.View) =>
         // There is only a view that is directly attached to the window.
         log.debug(s"Attach ${viewConfiguration} as top level element.")
-        val view = context.actorOf(ViewLayer.props.copy(args = immutable.Seq(viewConfiguration.id, parentContext)), ViewLayer.id + "_%08X".format(viewConfiguration.id.hashCode()))
-        pointers += stackId -> StackSupervisor.StackPointer(view)(new WeakReference(null))
-        // Block supervisor until view is created.
-        Await.result(ask(view, App.Message.Create(Left(ViewLayer.<>(viewConfiguration,
-          parentWidget, parentContext))))(Timeout.short), Timeout.short) match {
-          case App.Message.Create(Right(viewWidget: SComposite), None) =>
-            log.debug(s"View layer ${viewConfiguration} content created.")
-            Some(viewWidget)
-          case App.Message.Error(error, None) =>
-            log.fatal(s"Unable to create content for view layer ${viewConfiguration}: ${error}.")
-            None
-          case _ =>
-            log.fatal(s"Unable to create content for view layer ${viewConfiguration}.")
+        StackViewBuilder(viewConfiguration, parentWidget, parentContext, context) match {
+          case result @ Some(viewWidget) =>
+            pointers += stackId -> StackSupervisor.StackPointer(viewWidget.ref)(new WeakReference(viewWidget))
+            result
+          case None =>
             None
         }
     }

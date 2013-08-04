@@ -95,13 +95,13 @@ class Action extends Actor with Loggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(window, WindowMenu.file)
+    val file = WindowMenu(window, Action.fileMenu)
     file.add(Exit)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val commonToolBar = WindowToolbar(window, WindowToolbar.common)
+    val commonToolBar = WindowToolbar(window, Action.commonToolbar)
     commonToolBar.getToolBarManager().add(Exit)
     commonToolBar.getToolBarManager().add(Exit)
     window.getCoolBarManager2().update(true)
@@ -111,6 +111,10 @@ class Action extends Actor with Loggable {
 object Action {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  /** Common toolbar descriptor. */
+  val commonToolbar = WindowToolbar.Descriptor(getClass.getName() + "#common")
+  /** File menu descriptor. */
+  val fileMenu = WindowMenu.Descriptor("&File", None, getClass.getName() + "#file")
 
   /** StackLayer actor reference configuration object. */
   def props = DI.props

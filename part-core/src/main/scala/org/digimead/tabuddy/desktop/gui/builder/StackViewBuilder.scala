@@ -43,12 +43,13 @@
 
 package org.digimead.tabuddy.desktop.gui.builder
 
+import scala.collection.immutable
 import scala.concurrent.Await
-import scala.concurrent.Future
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -58,9 +59,9 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.layout.GridLayout
-import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 
+import akka.actor.ActorContext
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
@@ -68,26 +69,66 @@ import akka.util.Timeout.durationToTimeout
 import language.implicitConversions
 
 class StackViewBuilder extends Loggable {
-  def apply(configuration: Configuration.View, viewRef: ActorRef, parentWidget: ScrolledComposite, parentContext: EclipseContext): Option[VComposite] = {
+  /**
+   * Build view actor and get actor content.
+   * Must not be UI thread.
+   *
+   * @param configuration view configuration
+   * @param pWidget parent widget
+   * @param pEContext parent EclipseContext
+   * @param pAContext parent ActorContext
+   * @return Option[VComposite]
+   */
+  def apply(configuration: Configuration.View, pWidget: ScrolledComposite, pEContext: EclipseContext, pAContext: ActorContext): Option[VComposite] = {
+    val viewName = ViewLayer.id + "_%08X".format(configuration.id.hashCode())
+    log.debug(s"Build view layer ${viewName}.")
+    App.assertUIThread(false)
+    val viewContext = pEContext.createChild("Context_" + viewName).asInstanceOf[EclipseContext]
+    val view = pAContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
+    // Block until view is created.
+    implicit val sender = pAContext.self
+    Await.result(ask(view, App.Message.Create(Left(ViewLayer.<>(configuration, pWidget))))(Timeout.short), Timeout.short) match {
+      case App.Message.Create(Right(viewWidget: VComposite), None) =>
+        log.debug(s"View layer ${configuration} content created.")
+        Some(viewWidget)
+      case App.Message.Error(error, None) =>
+        log.fatal(s"Unable to create content for view layer ${configuration}: ${error}.")
+        None
+      case _ =>
+        log.fatal(s"Unable to create content for view layer ${configuration}.")
+        None
+    }
+  }
+  /**
+   * Build actor content.
+   * Must not be UI thread.
+   *
+   * @param configuration view configuration
+   * @param ref view actor reference
+   * @param context view EclipseContext
+   * @param pWidget parent widget
+   * @return Option[VComposite]
+   */
+  def apply(configuration: Configuration.View, ref: ActorRef, context: EclipseContext, pWidget: ScrolledComposite): Option[VComposite] = {
     log.debug(s"Build content for ${configuration}.")
     App.assertUIThread(false)
     // Create view widget.
     val viewWidget = App.execNGet {
-      if (parentWidget.getLayout().isInstanceOf[GridLayout])
-        throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-      configuration.factory().viewActor(configuration, parentContext) match {
+      if (pWidget.getLayout().isInstanceOf[GridLayout])
+        throw new IllegalArgumentException(s"Unexpected parent layout ${pWidget.getLayout().getClass()}.")
+      configuration.factory().viewActor(configuration) match {
         case Some(actualViewActorRef) =>
-          val content = new VComposite(configuration.id, viewRef, actualViewActorRef, configuration.factory, parentWidget, SWT.NONE)
+          val content = new VComposite(configuration.id, ref, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
+          content.setData(classOf[EclipseContext].getName, context)
           content.setLayout(new GridLayout)
           content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
           content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
           content.pack(true)
-          parentWidget.setContent(content)
-          parentWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-          parentWidget.setExpandHorizontal(true)
-          parentWidget.setExpandVertical(true)
-          parentWidget.layout(Array[Control](content), SWT.ALL)
-
+          pWidget.setContent(content)
+          pWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+          pWidget.setExpandHorizontal(true)
+          pWidget.setExpandVertical(true)
+          pWidget.layout(Array[Control](content), SWT.ALL)
           Some(content)
         case None =>
           // TODO destroy

@@ -49,9 +49,6 @@ import org.eclipse.jface.action.MenuManager
 import org.eclipse.jface.resource.ImageDescriptor
 
 object WindowMenu {
-  /** File menu descriptor. */
-  val file = Descriptor("&File", None, getClass.getName() + "#file")
-
   /** Menu descriptor. */
   case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
   /** Return the specific menu from the window CoolBarManager. */

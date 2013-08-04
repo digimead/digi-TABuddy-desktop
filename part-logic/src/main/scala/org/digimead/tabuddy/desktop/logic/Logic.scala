@@ -93,7 +93,7 @@ class Logic extends akka.actor.Actor with Loggable {
   /*
    * Logic component actors.
    */
-  //val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  val actionRef = context.actorOf(action.Action.props, action.Action.id)
   //val modelToolBar = context.actorOf(ModelToolBar.props, ModelToolBar.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
