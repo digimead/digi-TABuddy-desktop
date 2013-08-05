@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.logic.action
 
+import java.util.UUID
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 
@@ -50,6 +52,8 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.command.Command
+import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.support.App
@@ -80,8 +84,14 @@ class Close extends JFaceAction(Messages.closeFile_text) with Loggable {
 }
 
 object Close extends Loggable {
+  import Command.parser._
+  /** Command description. */
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())("close", "close model",
+    (activeContext, parserContext, parserResult) => action.foreach(_.runWithEvent(null)))
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  /** Command parser. */
+  lazy val parser = Command.CmdParser("close")
   /** Close action. */
   @volatile protected var action: Option[Close] = None
 

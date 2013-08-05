@@ -41,42 +41,108 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.editor.handler
+package org.digimead.tabuddy.desktop.editor.action
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.future
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.editor.Editor
-import org.digimead.tabuddy.desktop.editor.toolbar.EditorToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.core.commands.ExecutionEvent
+import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.jface.action.{ Action => JFaceAction }
+import org.eclipse.jface.action.IAction
+import org.eclipse.swt.widgets.Event
 
 import akka.actor.Props
+
+/** Expand all elements. */
+class CollapseAll extends JFaceAction("CollapseAll") with Loggable {
+  @volatile protected var enabled = false
+  ContextInjectionFactory.inject(this, Core.context)
+
+  override def isEnabled(): Boolean = super.isEnabled && enabled
+  /** Runs this action, passing the triggering SWT event. */
+  @log
+  override def runWithEvent(event: Event) = future {
+    //Payload.close(Payload.modelMarker(Model))
+    //Payload.delete(Payload.modelMarker(Model))
+  } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+}
+
 /*
-class ToggleEmpty extends Handler(ToggleEmpty) with Loggable {
+class CollapseAll extends Handler(CollapseAll) with Loggable {
   @log
   def execute(event: ExecutionEvent): AnyRef = {
     null
   }
 }
 
-object ToggleEmpty extends Handler.Singleton with Loggable {
-  /** ToggleEmpty actor path. */
+object CollapseAll extends Handler.Singleton with Loggable {
+  /** CollapseAll actor path. */
   lazy val actorPath = App.system / Core.id / Editor.id / EditorToolBar.id / id
   /** Command id for the current handler. */
-  val commandId = classOf[ToggleEmpty].getName
+  val commandId = "org.digimead.tabuddy.desktop.editor.CollapseAll"
   /** Handler actor reference configuration object. */
   val props = DI.props
 
-  class Behavoiur extends Handler.Behaviour(ToggleEmpty) with Loggable
+  class Behavoiur extends Handler.Behaviour(CollapseAll) with Loggable
   /**
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** ToggleEmpty actor reference configuration object. */
-    lazy val props = injectOptional[Props]("command.ToggleEmpty") getOrElse Props[Behavoiur]
+    /** CollapseAll actor reference configuration object. */
+    lazy val props = injectOptional[Props]("command.CollapseAll") getOrElse Props[Behavoiur]
   }
 }
 */
+
+object CollapseAll extends Loggable {
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
+  /** CollapseAll action. */
+  @volatile protected var action: Option[CollapseAll] = None
+
+  /** Returns CollapseAll action. */
+  def apply(): CollapseAll = action.getOrElse {
+    val CollapseAllAction = App.execNGet { new CollapseAll }
+    action = Some(CollapseAllAction)
+    CollapseAllAction
+  }
+  /** CollapseAll actor reference configuration object. */
+  def props = DI.props
+
+  /** CollapseAll actor. */
+  class Actor extends akka.actor.Actor {
+    log.debug("Start actor " + self.path)
+
+    /** Is called asynchronously after 'actor.stop()' is invoked. */
+    override def postStop() = {
+      log.debug(self.path.name + " actor is stopped.")
+    }
+    /** Is called when an Actor is started. */
+    override def preStart() {
+      log.debug(self.path.name + " actor is started.")
+    }
+    def receive = {
+      case message if message == null =>
+    }
+  }
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** CollapseAll actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Editor.Action.CollapseAll") getOrElse Props[CollapseAll.Actor]
+  }
+}

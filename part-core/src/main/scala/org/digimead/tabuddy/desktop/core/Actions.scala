@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
 import language.implicitConversions
 
 /**
- * Configurator responsible for configure/unconfigure application views.
+ * Configurator responsible for configure/unconfigure core actions.
  */
 class Actions extends Loggable {
   /** Configure component actions. */

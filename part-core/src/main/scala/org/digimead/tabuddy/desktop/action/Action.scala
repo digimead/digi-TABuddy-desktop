@@ -89,7 +89,7 @@ class Action extends Actor with Loggable {
       adjustMenu(window)
       adjustToolbar(window)
     }
-    // publish global that window menu and toolbar are ready
+    // publish that window menu and toolbar are ready
     App.publish(App.Message.Create(Right(Action, window), self))
   }
   /** Adjust window menu. */

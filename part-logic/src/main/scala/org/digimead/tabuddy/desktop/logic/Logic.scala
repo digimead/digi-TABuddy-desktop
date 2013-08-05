@@ -94,7 +94,6 @@ class Logic extends akka.actor.Actor with Loggable {
    * Logic component actors.
    */
   val actionRef = context.actorOf(action.Action.props, action.Action.id)
-  //val modelToolBar = context.actorOf(ModelToolBar.props, ModelToolBar.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -201,6 +200,7 @@ class Logic extends akka.actor.Actor with Loggable {
       //Transport.start() // Initialize the network transport(s)
       //Job.start()           // Initialize the job handler
       //Approver.start()           // Initialize the job approver
+      Actions.configure
       App.markAsStarted(Logic.getClass)
       future { onApplicationStartup() } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
@@ -214,6 +214,7 @@ class Logic extends akka.actor.Actor with Loggable {
     val context = thisBundle.getBundleContext()
     App.markAsStopped(Logic.getClass())
     // Prepare for shutdown.
+    Actions.unconfigure
     //Approver.stop()
     //Job.stop()
     //Transport.stop()
@@ -268,7 +269,6 @@ object Logic {
   }
   // Initialize descendant actor singletons
   action.Action
-  //toolbar.ModelToolBar
 
   def containerName() = DI.infrastructureWideProjectName
   override def toString = "Logic[Singleton]"

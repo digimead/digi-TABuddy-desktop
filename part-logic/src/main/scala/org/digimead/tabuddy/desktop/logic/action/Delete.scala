@@ -79,7 +79,7 @@ class Delete extends JFaceAction(Messages.delete_text) with Loggable {
   } onFailure { case e: Throwable => log.error(e.getMessage, e) }
 
   /** Invoked at every modification of Data.Id.modelIdUserInput. */
-  @Inject @Optional @log
+  @Inject @Optional // @log
   def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) = App.exec {
     if ((id != null && id.trim.nonEmpty && Data.availableModels.contains(id.trim)) != enabled) {
       enabled = !enabled

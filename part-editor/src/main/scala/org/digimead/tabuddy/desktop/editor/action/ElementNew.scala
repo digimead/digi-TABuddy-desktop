@@ -41,19 +41,45 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.editor.handler
+package org.digimead.tabuddy.desktop.editor.action
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.future
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.editor.Editor
-import org.digimead.tabuddy.desktop.editor.toolbar.ElementToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.core.commands.ExecutionEvent
+import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.jface.action.{ Action => JFaceAction }
+import org.eclipse.jface.action.IAction
+import org.eclipse.swt.widgets.Event
 
 import akka.actor.Props
+
+/** Delete model element. */
+class ElementNew extends JFaceAction("ElementNew") with Loggable {
+  @volatile protected var enabled = false
+  ContextInjectionFactory.inject(this, Core.context)
+
+  override def isEnabled(): Boolean = super.isEnabled && enabled
+  /** Runs this action, passing the triggering SWT event. */
+  @log
+  override def runWithEvent(event: Event) = future {
+    //Payload.close(Payload.modelMarker(Model))
+    //Payload.delete(Payload.modelMarker(Model))
+  } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+}
+
 /*
 class ElementNew extends Handler(ElementNew) with Loggable {
   @log
@@ -80,3 +106,43 @@ object ElementNew extends Handler.Singleton with Loggable {
   }
 }
 */
+
+object ElementNew extends Loggable {
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
+  /** ElementNew action. */
+  @volatile protected var action: Option[ElementNew] = None
+
+  /** Returns ElementNew action. */
+  def apply(): ElementNew = action.getOrElse {
+    val ElementNewAction = App.execNGet { new ElementNew }
+    action = Some(ElementNewAction)
+    ElementNewAction
+  }
+  /** ElementNew actor reference configuration object. */
+  def props = DI.props
+
+  /** ElementNew actor. */
+  class Actor extends akka.actor.Actor {
+    log.debug("Start actor " + self.path)
+
+    /** Is called asynchronously after 'actor.stop()' is invoked. */
+    override def postStop() = {
+      log.debug(self.path.name + " actor is stopped.")
+    }
+    /** Is called when an Actor is started. */
+    override def preStart() {
+      log.debug(self.path.name + " actor is started.")
+    }
+    def receive = {
+      case message if message == null =>
+    }
+  }
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** ElementNew actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Editor.Action.ElementNew") getOrElse Props[ElementNew.Actor]
+  }
+}

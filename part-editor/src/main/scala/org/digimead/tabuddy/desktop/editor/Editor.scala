@@ -81,11 +81,10 @@ class Editor extends akka.actor.Actor with Loggable {
   private val initializationLock = new Object
   log.debug("Start actor " + self.path)
 
-  // ACTORS
-  /** EditorToolBar actor. */
-  //val editorToolBarActor = context.actorOf(EditorToolBar.props, EditorToolBar.id)
-  /** ElementToolBar actor. */
-  //val elementToolBarActor = context.actorOf(ElementToolBar.props, ElementToolBar.id)
+  /*
+   * Editor component actors.
+   */
+  val actionRef = context.actorOf(action.Action.props, action.Action.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -192,8 +191,7 @@ object Editor {
   /** Editor actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  toolbar.EditorToolBar
-  toolbar.ElementToolBar
+  action.Action
 
   /**
    * Dependency injection routines

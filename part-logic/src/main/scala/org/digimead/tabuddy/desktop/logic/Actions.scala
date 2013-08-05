@@ -41,51 +41,45 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.toolbar
+package org.digimead.tabuddy.desktop.logic
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.ScalaActorRef
-import akka.actor.actorRef2Scala
+import org.digimead.tabuddy.desktop.command.Command
+import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
 
 import language.implicitConversions
 
-class ModelToolBar extends App.ContainerActor with Loggable {
-  //val lockActor = this.context.actorOf(handler.Lock.props, handler.Lock.id)
-  //val deleteActor = this.context.actorOf(handler.Delete.props, handler.Delete.id)
-  //val expandAllActor = this.context.actorOf(ExpandAll.props, ExpandAll.id)
-  //val collapseAllActor = this.context.actorOf(CollapseAll.props, CollapseAll.id)
+/**
+ * Configurator responsible for configure/unconfigure logic actions.
+ */
+class Actions extends Loggable {
+  /** Configure component actions. */
+  @log
+  def configure() {
+    Command.register(action.Close.descriptor)
+    Command.addToContext(Core.context, action.Close.parser)
+  }
+  /** Unconfigure component actions. */
+  @log
+  def unconfigure() {
+    Command.unregister(action.Close.descriptor)
+  }
 }
 
-object ModelToolBar {
-  implicit def toolbar2actorRef(t: ModelToolBar.type): ActorRef = t.actor
-  implicit def toolbar2actorSRef(t: ModelToolBar.type): ScalaActorRef = t.actor
-  /** ModelToolBar actor reference. */
-  lazy val actor = App.getActorRef(App.system.actorSelection(actorPath)) getOrElse {
-    throw new IllegalStateException("Unable to locate actor with path " + actorPath)
-  }
-  /** ModelToolBar actor path. */
-  lazy val actorPath = App.system / Core.id / Logic.id / id
-  /** Singleton identificator. */
-  val id = getClass.getSimpleName().dropRight(1)
-  /** ModelToolBar actor reference configuration object. */
-  lazy val props = DI.props
-  // Initialize descendant actor singletons
-  //handler.Lock
-  //handler.Delete
+object Actions {
+  implicit def configurator2implementation(c: Actions.type): Actions = c.inner
+
+  /** Actions implementation. */
+  def inner(): Actions = DI.implementation
 
   /**
-   * Dependency injection routines.
+   * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** EditorToolBar actor reference configuration object. */
-    lazy val props = injectOptional[Props]("ModelToolBar") getOrElse Props[ModelToolBar]
+    /** Actions implementation */
+    lazy val implementation = injectOptional[Actions] getOrElse new Actions
   }
 }
