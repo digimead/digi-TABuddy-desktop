@@ -56,7 +56,6 @@ import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.logic.toolbar.ModelToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
@@ -68,11 +67,18 @@ import akka.actor.Actor
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import org.eclipse.swt.widgets.Event
+import org.digimead.tabuddy.desktop.Messages
+import org.eclipse.e4.core.contexts.RunAndTrack
+import org.eclipse.e4.core.contexts.IEclipseContext
+import org.digimead.tabuddy.desktop.support.AppContext
+import org.eclipse.jface.action.IAction
 
-class Lock extends JFaceAction with Loggable {
+object Lock extends JFaceAction(Messages.lock_text) with Loggable {
+  Core.context.runAndTrack(new Lock.Listener)
+
   @log
-  override def runWithEvent(event: Event) {
-    val context = App.model.getContext().getActiveLeaf()
+  override def run() {
+    val context = Core.context.getActiveLeaf()
 
     if (Model.eId == Payload.defaultModel.eId) {
       // There is the default model. Load different model.
@@ -102,18 +108,16 @@ class Lock extends JFaceAction with Loggable {
         }
       } onFailure { case e: Throwable => log.error(e.getMessage, e) }
     }
-    null
   }
   override def isEnabled(): Boolean = {
-    val context = App.model.getContext().getActiveLeaf()
-    super.isEnabled && (context.get(Data.Id.modelIdUserInput).asInstanceOf[String].nonEmpty || Model.eId != Payload.defaultModel.eId)
+    val context = Core.context.getActiveLeaf()
+    val a = super.isEnabled
+    val b = Option(context.get(Data.Id.modelIdUserInput).asInstanceOf[String]).getOrElse("").nonEmpty
+    val c = Model.eId == Payload.defaultModel.eId
+    a && b && c
   }
-  def updateElement(element: UIElement, paramters: java.util.Map[_, _]) {
-    element.setChecked(Model.eId != Payload.defaultModel.eId)
-  }
-}
 
-object Lock extends Handler.Singleton with Loggable {
+  /*object Lock extends Handler.Singleton with Loggable {
   /** Lock actor path. */
   lazy val actorPath = App.system / Core.id / Logic.id / ModelToolBar.id / id
   /** Command id for the current handler. */
@@ -138,3 +142,27 @@ object Lock extends Handler.Singleton with Loggable {
     lazy val props = injectOptional[Props]("command.Lock") getOrElse Props[Behaviour]
   }
 }
+*/
+
+  /** Track Data.Id.modelIdUserInput. */
+  class Listener extends RunAndTrack() {
+    /** Sequence of active branch contexts. */
+    @volatile var activeBranch = Seq(Core.context: AppContext)
+    /** Last enabled state. */
+    @volatile var lastEnabledState = isEnabled
+    AppContext.Event.subscribe(Data.Id.modelIdUserInput, modelIdUserInputChanged _)
+
+    /** Track active branch.*/
+    override def changed(context: IEclipseContext): Boolean = {
+      activeBranch = Core.context.getActiveLeaf().getParents()
+      true
+    }
+    /** Fire event if input changed within active context. */
+    def modelIdUserInputChanged(name: String, context: AppContext) =
+      if (activeBranch.contains(context) && lastEnabledState != isEnabled) {
+        firePropertyChange(IAction.ENABLED, lastEnabledState, !lastEnabledState)
+        lastEnabledState = !lastEnabledState
+      }
+  }
+}
+

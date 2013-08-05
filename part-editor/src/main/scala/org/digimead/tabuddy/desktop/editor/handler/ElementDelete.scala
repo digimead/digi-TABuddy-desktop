@@ -51,11 +51,10 @@ import org.digimead.tabuddy.desktop.editor.Editor
 import org.digimead.tabuddy.desktop.editor.toolbar.ElementToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
 import org.eclipse.core.commands.ExecutionEvent
 
 import akka.actor.Props
-
+/*
 class ElementDelete extends Handler(ElementDelete) with Loggable {
   @log
   def execute(event: ExecutionEvent): AnyRef = {
@@ -80,3 +79,4 @@ object ElementDelete extends Handler.Singleton with Loggable {
     lazy val props = injectOptional[Props]("command.ElementDelete") getOrElse Props[Behavoiur]
   }
 }
+*/

@@ -43,40 +43,32 @@
 
 package org.digimead.tabuddy.desktop.gui.builder
 
-import scala.collection.immutable
-import scala.concurrent.Await
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.Configuration
 import org.digimead.tabuddy.desktop.gui.GUI
-import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.gui.builder.StackHSashBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.builder.StackTabBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.builder.StackVSashBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.builder.StackViewBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.gui.widget.SComposite
-import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Timeout
-import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.digimead.tabuddy.desktop.support.AppContext
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 
 import akka.actor.ActorContext
 import akka.actor.ActorRef
-import akka.pattern.ask
-import akka.util.Timeout.durationToTimeout
 
 import language.implicitConversions
 
 class StackBuilder extends Loggable {
   /** Creates stack content. */
   @log
-  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
+  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: AppContext, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
     stack match {
       case tab: Configuration.Stack.Tab =>
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }

@@ -58,7 +58,6 @@ import org.digimead.tabuddy.desktop.editor.part.MainPart
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.ConditionMap
-import org.digimead.tabuddy.desktop.support.Handler
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.e4.ui.di.UIEventTopic
@@ -125,12 +124,12 @@ class ElementToolBar extends Resources.ResourceToolBarSubscriber(classOf[Element
   log.debug("Start actor " + self.path)
 
   // ACTORS
-  /** ElementNew handler actor. */
+  /*/** ElementNew handler actor. */
   val elementNewActor = this.context.actorOf(handler.ElementNew.props, handler.ElementNew.id)
   /** ElementEdit handler actor. */
   val elementEditActor = this.context.actorOf(handler.ElementEdit.props, handler.ElementEdit.id)
   /** ElementDelete handler actor. */
-  val elementDeleteActor = this.context.actorOf(handler.ElementDelete.props, handler.ElementDelete.id)
+  val elementDeleteActor = this.context.actorOf(handler.ElementDelete.props, handler.ElementDelete.id)*/
 
   /** Is called when an Actor is started. Actors are automatically started asynchronously when created. */
   @log
@@ -154,10 +153,6 @@ class ElementToolBar extends Resources.ResourceToolBarSubscriber(classOf[Element
     case message @ WorkbenchAdvisor.Message.PostStartup(configurer) =>
       log.debug(s"Process '${message}'.")
       ContextInjectionFactory.inject(this, App.workbench.getContext())
-
-    case message: Handler.Message =>
-      log.trace(s"'${self.path.name}' received message '${message}' from actor ${sender.path}. Propagate.")
-      context.children.foreach(_.forward(message))
 
     case message @ Resources.Message.ToolbarCreated(toolbar) => // skip
   }
@@ -201,9 +196,9 @@ object ElementToolBar {
   /** ElementToolBar actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  handler.ElementNew
-  handler.ElementEdit
-  handler.ElementDelete
+  //handler.ElementNew
+  //handler.ElementEdit
+  //handler.ElementDelete
 
   /**
    * Dependency injection routines.

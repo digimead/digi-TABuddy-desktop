@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.toolbar.ModelToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
+//import org.digimead.tabuddy.desktop.support.Handler
 import org.eclipse.core.commands.ExecutionEvent
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
@@ -79,7 +79,7 @@ class Delete extends JFaceAction("Delete") with Loggable {
     setEnabled(id != null && id.trim.nonEmpty && Data.availableModels.contains(id.trim))
 }
 
-object Delete extends Handler.Singleton with Loggable {
+/*object Delete extends Handler.Singleton with Loggable {
   /** Delete actor path. */
   lazy val actorPath = App.system / Core.id / Logic.id / ModelToolBar.id / id
   /** Command id for the current handler. */
@@ -104,3 +104,5 @@ object Delete extends Handler.Singleton with Loggable {
     lazy val props = injectOptional[Props]("command.Delete") getOrElse Props[Behaviour]
   }
 }
+*/
+

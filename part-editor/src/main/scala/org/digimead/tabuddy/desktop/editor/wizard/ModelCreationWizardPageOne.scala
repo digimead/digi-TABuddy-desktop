@@ -65,13 +65,14 @@ import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.DirectoryDialog
 import org.eclipse.swt.widgets.Shell
 import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.Core
 
 class ModelCreationWizardPageOne extends WizardPage(Messages.ModelCreationWizardPageOne_title_text) with Loggable {
   /** Page view. */
   protected var view: Option[ModelCreationWizardPageOneView] = None
   /** Model identifier. */
-  protected val idField = WritableValue(Option(App.model.getContext().getActiveLeaf().get(Data.Id.modelIdUserInput)) match {
-    case Some(id: String) if App.symbolPattern.matcher(id).matches() => id // There is a non empty value in active context
+  protected val idField = WritableValue(Option(Core.context.getActiveLeaf().get(Data.Id.modelIdUserInput)) match {
+    //case Some(id: String) if App.symbolPattern.matcher(id).matches() => id // There is a non empty value in active context
     case _ => ""
   })
 

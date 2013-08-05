@@ -62,7 +62,7 @@ import org.eclipse.core.runtime.preferences.InstanceScope
 trait Generic extends MainService.Consumer {
   this: Loggable with GUI with Context =>
   /** Application preference store. */
-  protected lazy val preferenceStore = new ScopedPreferenceStore(new InstanceScope(), bundle(getClass).getSymbolicName())
+  protected lazy val preferenceStore = new ScopedPreferenceStore(InstanceScope.INSTANCE, bundle(getClass).getSymbolicName())
   /** Hash with started classes. Class name -> running. */
   protected val started = new mutable.HashMap[String, Boolean]() with mutable.SynchronizedMap[String, Boolean]
   /** Started lock */

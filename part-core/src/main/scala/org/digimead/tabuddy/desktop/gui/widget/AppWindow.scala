@@ -56,8 +56,8 @@ import org.digimead.tabuddy.desktop.gui.builder.ContentBuilder.builder2implement
 import org.digimead.tabuddy.desktop.gui.widget.status.StatusLineContributor.sbar2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.AppContext
 import org.digimead.tabuddy.desktop.support.Timeout
-import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.jface.action.StatusLineManager
 import org.eclipse.jface.window.ApplicationWindow
 import org.eclipse.swt.SWT
@@ -80,7 +80,7 @@ import language.implicitConversions
  * Instance that represents visible window which is based on JFace framework.
  */
 class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
-  val windowContext: EclipseContext, parentShell: Shell) extends ApplicationWindow(parentShell) with Loggable {
+  val windowContext: AppContext.Rich, parentShell: Shell) extends ApplicationWindow(parentShell) with Loggable {
   @volatile protected var configuration: Option[WindowConfiguration] = None
   @volatile protected var saveOnClose = true
   /** Filler composite that visible by default. */
@@ -166,7 +166,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   /** Show content. */
   protected def showContent(content: WComposite) {
     log.debug(s"Show content of ${this}.")
-    content.setData(classOf[EclipseContext].getName, windowContext) // Bind window context to composite.
+    content.setData(App.widgetContextKey, windowContext: AppContext) // Bind window context to composite.
     implicit val ec = App.system.dispatcher
     val result = supervisorRef.ask(App.Message.Restore(Left(content)))(Timeout.short)
     result.onSuccess {

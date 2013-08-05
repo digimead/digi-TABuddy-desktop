@@ -46,16 +46,16 @@ package org.digimead.tabuddy.desktop
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.digimead.tabuddy.desktop.core.Actions.configurator2implementation
+import org.digimead.tabuddy.desktop.core.Views.configurator2implementation
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
-import org.eclipse.e4.core.contexts.EclipseContextFactory
-import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.support.AppContext.appContext2rich
 
 import akka.actor.ActorRef
 import akka.actor.Props
@@ -118,10 +118,6 @@ class Core extends akka.actor.Actor with Loggable {
       }
     }
 
-    case message: Handler.Message =>
-      log.trace(s"Container actor '${self.path.name}' received message '${message}' from actor ${sender.path}. Propagate.")
-      context.children.foreach(_.forward(message))
-
     case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
       future {
         App.verifyApplicationEnvironment
@@ -161,7 +157,7 @@ object Core {
   /** Core actor path. */
   lazy val actorPath = actor.path
   /** Root context. */
-  val context = EclipseContextFactory.create("root").asInstanceOf[EclipseContext]
+  val context = AppContext("Core"): AppContext.Rich
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   // Initialize descendant actor singletons

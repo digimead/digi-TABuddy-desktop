@@ -143,12 +143,12 @@ object MainPart extends BundleActivator {
   /** Part instance. */
   @volatile private var instances = Set[MainPart]()
   /** Part descriptor */
-  private lazy val descriptor = App.modelCreatePartDescriptor(
+  /*private lazy val descriptor = App.modelCreatePartDescriptor(
     contributionURI = new URI(s"bundleclass://${App.bundle(getClass).getSymbolicName()}/${classOf[MainPart].getName()}"),
     contributorURI = new URI(s"platform:/plugin/${App.bundle(getClass).getSymbolicName()}"),
     iconURI = Some(BundleUtility.find(App.bundle(getClass), "icons/16x16/documentation.png").toURI()),
     id = classOf[MainPart].getName(),
-    label = "Model Editor")
+    label = "Model Editor")*/
   /** Part id. */
   lazy val id = getClass.getName.dropRight(1)
   /** The column special identifier */
@@ -210,8 +210,8 @@ object MainPart extends BundleActivator {
 
   /** Add descriptor to model. */
   def apply() {
-    if (!App.model.getDescriptors().contains(descriptor))
-      App.model.getDescriptors().add(descriptor)
+    //if (!App.model.getDescriptors().contains(descriptor))
+      //App.model.getDescriptors().add(descriptor)
   }
   /** Update active view for part with regards to current model. */
   def onModelInitialization() = App.exec { instances.foreach(_.updateTopControl) }

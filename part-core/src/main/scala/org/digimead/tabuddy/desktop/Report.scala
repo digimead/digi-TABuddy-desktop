@@ -106,10 +106,10 @@ object Report {
   def inner() = DI.implementation
 
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Implementation DI cache */
+    /** Report implementation. */
     lazy val implementation = injectOptional[Report] getOrElse new Report(App.bundle(getClass).getBundleContext())
   }
 }

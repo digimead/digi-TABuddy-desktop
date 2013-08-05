@@ -58,7 +58,6 @@ import org.digimead.tabuddy.desktop.editor.part.MainPart
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.ConditionMap
-import org.digimead.tabuddy.desktop.support.Handler
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.e4.ui.di.UIEventTopic
@@ -125,14 +124,14 @@ class EditorToolBar extends Resources.ResourceToolBarSubscriber(classOf[EditorTo
   log.debug("Start actor " + self.path)
 
   // ACTORS
-  /** ToggleIdentificators handler actor. */
+  /*/** ToggleIdentificators handler actor. */
   val toggleIdentificatorsActor = this.context.actorOf(handler.ToggleIdentificators.props, handler.ToggleIdentificators.id)
   /** ToggleEmpty handler actor. */
   val toggleEmptyActor = this.context.actorOf(handler.ToggleEmpty.props, handler.ToggleEmpty.id)
   /** ExpandAll handler actor. */
   val expandAllActor = this.context.actorOf(handler.ExpandAll.props, handler.ExpandAll.id)
   /** CollapseAll handler actor. */
-  val collapseAllActor = this.context.actorOf(handler.CollapseAll.props, handler.CollapseAll.id)
+  val collapseAllActor = this.context.actorOf(handler.CollapseAll.props, handler.CollapseAll.id)*/
 
   /** Is called when an Actor is started. Actors are automatically started asynchronously when created. */
   @log
@@ -156,9 +155,9 @@ class EditorToolBar extends Resources.ResourceToolBarSubscriber(classOf[EditorTo
       log.debug(s"Process '${message}'.")
       ContextInjectionFactory.inject(this, App.workbench.getContext())
 
-    case message: Handler.Message =>
-      log.trace(s"'${self.path.name}' received message '${message}' from actor ${sender.path}. Propagate.")
-      context.children.foreach(_.forward(message))
+//    case message: Handler.Message =>
+//      log.trace(s"'${self.path.name}' received message '${message}' from actor ${sender.path}. Propagate.")
+//      context.children.foreach(_.forward(message))
 
     case message @ Resources.Message.ToolbarCreated(toolbar) => // skip
   }
@@ -202,10 +201,10 @@ object EditorToolBar {
   /** EditorToolBar actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  handler.ToggleIdentificators
-  handler.ToggleEmpty
-  handler.ExpandAll
-  handler.CollapseAll
+  //handler.ToggleIdentificators
+  //handler.ToggleEmpty
+  //handler.ExpandAll
+  //handler.CollapseAll
 
   /**
    * Dependency injection routines.

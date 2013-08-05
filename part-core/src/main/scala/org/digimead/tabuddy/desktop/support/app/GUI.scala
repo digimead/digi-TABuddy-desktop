@@ -176,7 +176,7 @@ trait GUI {
     }
   }
   /** Find SWT widget parent. */
-  def findParent(widget: Widget): Option[Widget] = {
+  def findParent(widget: Widget): Option[Composite] = {
     if (widget == null)
       return None
     widget match {
@@ -198,7 +198,7 @@ trait GUI {
       case item: TreeColumn => Option(item.getParent())
       case item: TreeItem => Option(item.getParent())
       case menu: Menu => Option(menu.getParent())
-      case scrollbar: ScrollBar => Option(scrollbar.getParent())
+      case scrollbar: ScrollBar => Option(scrollbar.getParent().getParent())
       case taskbar: TaskBar => taskbar.getItems().find(item => Option(item.getMenu).nonEmpty).map(_.getMenu().getParent())
       case tooltip: ToolTip => Option(tooltip.getParent())
       case widget: Widget =>
@@ -206,34 +206,38 @@ trait GUI {
         None
     }
   }
+  /** Find WComposite by shell */
+  def findWindowComposite(shell: Shell): Option[WComposite] = {
+    assertUIThread()
+    // There is only few levels, so recursion is unneeded.
+    shell.getChildren().map {
+      case windowContainer: WComposite =>
+        Some(windowContainer)
+      case composite: Composite =>
+        composite.getChildren().map {
+          case windowContainer: WComposite =>
+            Some(windowContainer)
+          case composite: Composite =>
+            composite.getChildren().map {
+              case windowContainer: WComposite =>
+                Some(windowContainer)
+              case other =>
+                None
+            }.flatten.headOption
+          case other =>
+            None
+        }.flatten.headOption
+      case other =>
+        None
+    }.flatten.headOption
+  }
   /** Get all GUI components from the current widget to top level parent(shell). */
   def widgetHierarchy(widget: Widget): Seq[Widget] = Option(widget) match {
     case Some(composite: SComposite) =>
       assertUIThread()
       widgetHierarchy(composite, Seq(composite))
     case Some(shell: Shell) =>
-      assertUIThread()
-      // There is only few levels, so recursion is unneeded.
-      shell.getChildren().map {
-        case windowContainer: WComposite =>
-          Some(windowContainer)
-        case composite: Composite =>
-          composite.getChildren().map {
-            case windowContainer: WComposite =>
-              Some(windowContainer)
-            case composite: Composite =>
-              composite.getChildren().map {
-                case windowContainer: WComposite =>
-                  Some(windowContainer)
-                case other =>
-                  None
-              }.flatten.headOption
-            case other =>
-              None
-          }.flatten.headOption
-        case other =>
-          None
-      }.flatten.headOption.toSeq
+      findWindowComposite(shell).toSeq
     case Some(parent) =>
       assertUIThread()
       widgetHierarchy(parent, Seq())

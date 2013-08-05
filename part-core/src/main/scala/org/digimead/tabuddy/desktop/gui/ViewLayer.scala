@@ -58,10 +58,11 @@ import org.digimead.tabuddy.desktop.gui.widget.SCompositeTab
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.core.databinding.observable.Diffs
 import org.eclipse.core.databinding.observable.value.AbstractObservableValue
-import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.graphics.Image
@@ -75,7 +76,7 @@ import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
-class ViewLayer(viewId: UUID, viewContext: EclipseContext) extends Actor with Loggable {
+class ViewLayer(viewId: UUID, viewContext: AppContext.Rich) extends Actor with Loggable {
   /** View JFace instance. */
   var view: Option[VComposite] = None
   log.debug("Start actor " + self.path)

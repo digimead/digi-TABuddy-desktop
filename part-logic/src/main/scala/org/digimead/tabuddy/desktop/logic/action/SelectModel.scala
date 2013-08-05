@@ -41,11 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.handler
+package org.digimead.tabuddy.desktop.logic.action
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
+
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.Resources
@@ -63,6 +64,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
+import org.eclipse.jface.action.ControlContribution
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.layout.RowLayoutFactory
 import org.eclipse.jface.viewers.ComboViewer
@@ -83,11 +85,6 @@ import org.eclipse.swt.widgets.Combo
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Label
-import org.eclipse.ui.internal.WorkbenchWindow
-import org.eclipse.ui.menus.WorkbenchWindowControlContribution
-import org.eclipse.jface.action.ControlContribution
-import org.digimead.digi.lib.api.DependencyInjection
-import akka.actor.Props
 
 class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
   val id = getClass.getName
@@ -98,12 +95,12 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
 
   SelectModel.instance += this -> {}
 
-  //def comboMinimumWidth = 80
-  //def comboMaximumWidth = (window.getShell().getBounds().width / 4).toInt
+  def comboMinimumWidth = 80
+  def comboMaximumWidth = (window.getShell().getBounds().width / 4).toInt
 
   /** Create toolbar control. */
   override protected def createControl(parent: Composite): Control = {
-        val parentShell = App.findShell(parent)
+    val parentShell = App.findShell(parent)
 
     val container = new Composite(parent, SWT.NONE)
     val layout = RowLayoutFactory.fillDefaults().wrap(false).spacing(0).create()
@@ -114,12 +111,11 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
     this.label = Option(label)
     val comboViewer = createCombo(container)
     this.combo = Option(comboViewer)
-    /*val context = App.widgetView(parent)
 
     //
     // initialize combo
     //
-    val context = window.getModel().getContext()
+    val context = App.getWindowContext(parent.getShell())
     // propagate idValue -> context Data.Id.modelIdUserInput
     idValue.addChangeListener { (id, event) =>
       if (id == Messages.default_text || id == Payload.defaultModel.eId.name)
@@ -140,7 +136,7 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
     comboViewer.setInput(Data.availableModels.underlying)
     Data.availableModels.addChangeListener { (event) => App.exec { resizeCombo() } }
     idValue.value = Messages.default_text
-    resizeCombo()*/
+    resizeCombo()
     container
   }
   protected def createLabel(parent: Composite): Label = {
@@ -194,7 +190,7 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
     })
     viewer.getCombo.addKeyListener(new KeyAdapter() { override def keyReleased(e: KeyEvent) = if (e.keyCode == SWT.CR) onEnter() })
     viewer.getCombo.setEnabled(Data.modelName.value == Payload.defaultModel.eId.name)
-    //viewer.getCombo.setLayoutData(new RowData(comboMinimumWidth, SWT.DEFAULT))
+    viewer.getCombo.setLayoutData(new RowData(comboMinimumWidth, SWT.DEFAULT))
     viewer
   }
   /** Get combo text. */
@@ -222,8 +218,8 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
     control = combo.getCombo()
   } {
     val prefferedWidth = control.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x
-    //val width = math.min(math.max(comboMinimumWidth, prefferedWidth), comboMaximumWidth)
-    //control.setLayoutData(new RowData(width, SWT.DEFAULT))
+    val width = math.min(math.max(comboMinimumWidth, prefferedWidth), comboMaximumWidth)
+    control.setLayoutData(new RowData(width, SWT.DEFAULT))
     control.getParent().layout()
   }
   /** Validates a text in the the combo viewer */
@@ -231,7 +227,7 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
     validator.withDecoration { validator.showDecorationError(_) }
   else
     validator.withDecoration { _.hide() }
-  //protected def window = getWorkbenchWindow().asInstanceOf[WorkbenchWindow]
+  protected def window = combo.get.getControl().getShell()
 }
 
 object SelectModel {
@@ -246,11 +242,4 @@ object SelectModel {
       case value => super.getText(element)
     }
   }
-  /**
-   * Dependency injection routines.
-   */
-//  private object DI extends DependencyInjection.PersistentInjectable {
-//    /** Payload implementation. */
-//    lazy val implementation = inject[api.Payload]
-//  }
 }

@@ -74,8 +74,8 @@ import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.AppContext
 import org.digimead.tabuddy.desktop.support.Timeout
-import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Shell
@@ -88,6 +88,8 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
 
+import language.implicitConversions
+
 /**
  * Stack supervisor responsible for:
  * - restore all view
@@ -95,7 +97,7 @@ import akka.util.Timeout.durationToTimeout
  * - provide view configuration
  * - save all views configuration
  */
-class StackSupervisor(val windowId: UUID, val parentContext: EclipseContext) extends Actor with Loggable {
+class StackSupervisor(val windowId: UUID, val parentContext: AppContext.Rich) extends Actor with Loggable {
   /** Stack configuration. */
   val configuration = new StackSupervisor.AtomicConfiguration(StackConfiguration.default)
   /** Reference to configurations save process future. */

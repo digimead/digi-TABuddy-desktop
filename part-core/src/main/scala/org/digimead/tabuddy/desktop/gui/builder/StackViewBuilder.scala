@@ -53,8 +53,8 @@ import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.AppContext
 import org.digimead.tabuddy.desktop.support.Timeout
-import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.layout.GridData
@@ -75,15 +75,15 @@ class StackViewBuilder extends Loggable {
    *
    * @param configuration view configuration
    * @param pWidget parent widget
-   * @param pEContext parent EclipseContext
+   * @param pEContext parent AppContext
    * @param pAContext parent ActorContext
    * @return Option[VComposite]
    */
-  def apply(configuration: Configuration.View, pWidget: ScrolledComposite, pEContext: EclipseContext, pAContext: ActorContext): Option[VComposite] = {
+  def apply(configuration: Configuration.View, pWidget: ScrolledComposite, pEContext: AppContext.Rich, pAContext: ActorContext): Option[VComposite] = {
     val viewName = ViewLayer.id + "_%08X".format(configuration.id.hashCode())
     log.debug(s"Build view layer ${viewName}.")
     App.assertUIThread(false)
-    val viewContext = pEContext.createChild("Context_" + viewName).asInstanceOf[EclipseContext]
+    val viewContext = pEContext.createChild("Context_" + viewName): AppContext.Rich
     val view = pAContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
     // Block until view is created.
     implicit val sender = pAContext.self
@@ -105,11 +105,11 @@ class StackViewBuilder extends Loggable {
    *
    * @param configuration view configuration
    * @param ref view actor reference
-   * @param context view EclipseContext
+   * @param context view AppContext
    * @param pWidget parent widget
    * @return Option[VComposite]
    */
-  def apply(configuration: Configuration.View, ref: ActorRef, context: EclipseContext, pWidget: ScrolledComposite): Option[VComposite] = {
+  def apply(configuration: Configuration.View, ref: ActorRef, context: AppContext, pWidget: ScrolledComposite): Option[VComposite] = {
     log.debug(s"Build content for ${configuration}.")
     App.assertUIThread(false)
     // Create view widget.
@@ -119,7 +119,7 @@ class StackViewBuilder extends Loggable {
       configuration.factory().viewActor(configuration) match {
         case Some(actualViewActorRef) =>
           val content = new VComposite(configuration.id, ref, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
-          content.setData(classOf[EclipseContext].getName, context)
+          content.setData(App.widgetContextKey, context)
           content.setLayout(new GridLayout)
           content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
           content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))

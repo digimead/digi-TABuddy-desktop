@@ -51,12 +51,11 @@ import org.digimead.tabuddy.desktop.editor.Editor
 import org.digimead.tabuddy.desktop.editor.toolbar.EditorToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
 import org.eclipse.core.commands.ExecutionEvent
 
 import akka.actor.ActorSelection.toScala
 import akka.actor.Props
-
+/*
 class ToggleIdentificators extends Handler(ToggleIdentificators) with Loggable {
   /** Executes with the map of parameter values by name. */
   @log
@@ -84,3 +83,4 @@ object ToggleIdentificators extends Handler.Singleton with Loggable {
     lazy val props = injectOptional[Props]("command.ToggleIdentificators") getOrElse Props[Behavoiur]
   }
 }
+*/

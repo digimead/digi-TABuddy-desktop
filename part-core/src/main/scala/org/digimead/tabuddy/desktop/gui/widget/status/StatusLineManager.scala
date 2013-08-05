@@ -55,7 +55,6 @@ import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.databinding.observable.value.IObservableValue
 import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.jface.action.{ StatusLineManager => JStatusLineManager }
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.jface.fieldassist.ContentProposalAdapter
@@ -129,7 +128,7 @@ class StatusLineManager extends JStatusLineManager with Loggable {
                 case Some(info) =>
                   Command.getDescriptor(info.commandId) match {
                     case Some(commandDescriptor) =>
-                      val activeContext = Core.context.getActiveLeaf().asInstanceOf[EclipseContext]
+                      val activeContext = Core.context.getActiveLeaf()
                       textField.setText("")
                       implicit val ec = App.system.dispatcher
                       future {

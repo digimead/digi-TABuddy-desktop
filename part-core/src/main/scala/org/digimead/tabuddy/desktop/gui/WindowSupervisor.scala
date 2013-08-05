@@ -64,6 +64,8 @@ import org.digimead.tabuddy.desktop.gui.WindowConfiguration.windowConfiguration2
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.support.AppContext.appContext2rich
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
@@ -71,7 +73,6 @@ import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
-import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.jface.window.{ Window => JWindow }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Event
@@ -198,8 +199,9 @@ class WindowSupervisor extends Actor with Loggable {
     if (pointers.contains(windowId))
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
     App.assertUIThread(false)
-    val windowContext = Core.context.createChild("Context_" + self.path.name).asInstanceOf[EclipseContext]
-    val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), Window.id + "_%08X".format(windowId.hashCode()))
+    val windowName = Window.id + "_%08X".format(windowId.hashCode())
+    val windowContext = Core.context.createChild("Context_" + windowName): AppContext.Rich
+    val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), windowName)
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
     // Block supervisor until window is created
     implicit val ec = App.system.dispatcher

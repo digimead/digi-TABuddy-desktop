@@ -50,7 +50,6 @@ import org.digimead.tabuddy.desktop.action.Exit
 import org.digimead.tabuddy.desktop.action.{ Action => CoreAction }
 import org.digimead.tabuddy.desktop.gui.WindowToolbar
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
-import org.digimead.tabuddy.desktop.logic.handler.SelectModel
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 
@@ -106,7 +105,7 @@ class Action extends Actor with Loggable {
   protected def adjustToolbar(window: AppWindow) {
     val modelToolBar = WindowToolbar(window, Action.modelToolbar)
     modelToolBar.getToolBarManager().add(new SelectModel)
-    modelToolBar.getToolBarManager().add(Exit)
+    modelToolBar.getToolBarManager().add(Lock)
     window.getCoolBarManager2().update(true)
   }
 }

@@ -49,7 +49,6 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
 import org.eclipse.jface.action.IMenuListener2
 import org.eclipse.jface.action.IMenuManager
 import org.eclipse.jface.internal.MenuManagerEventHelper
@@ -77,8 +76,6 @@ class MenuWatcher extends akka.actor.Actor with Loggable {
     case message @ WindowAdvisor.Message.PreWindowShellClose(configurer) =>
       log.debug(s"Process '${message}'.")
       uninstallGlobalHook()
-
-    case message: Handler.Message => // skip
   }
   /** Configure menu. */
   @log

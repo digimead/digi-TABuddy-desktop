@@ -184,7 +184,7 @@ object Base extends Loggable {
     }
     /** Convert EMF item to uniform wrapper */
     protected def EMF2wrapper(element: MUIElement): Option[Base[_]] = element match {
-      case menu: MenuImpl => Some(new EMFMenu(menu))
+//      case menu: MenuImpl => Some(new EMFMenu(menu))
       case item: MenuItemImpl => Some(new EMFItem(item))
       case separator: MenuSeparatorImpl => Some(new EMFSeparator(separator))
       case unknown =>

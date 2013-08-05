@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.gui.builder.StackBuilder.builder2implementat
 import org.digimead.tabuddy.desktop.gui.widget.SComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.digimead.tabuddy.desktop.support.AppContext
 import org.eclipse.swt.custom.ScrolledComposite
 
 import akka.actor.Actor
@@ -100,7 +100,7 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
   }
 
   /** Create stack. */
-  protected def create(stackConfiguration: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: EclipseContext, supervisor: ActorRef, supervisorContext: ActorContext): Option[SComposite] = {
+  protected def create(stackConfiguration: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: AppContext, supervisor: ActorRef, supervisorContext: ActorContext): Option[SComposite] = {
     if (stack.nonEmpty)
       throw new IllegalStateException("Unable to create stack. It is already created.")
     App.assertUIThread(false)
@@ -119,7 +119,7 @@ object StackLayer extends Loggable {
   def props = DI.props
 
   /** Wrapper for App.Message,Create argument. */
-  case class <>(val stackConfiguration: Configuration.Stack, val parentWidget: ScrolledComposite, val parentContext: EclipseContext, supervisorContext: ActorContext)
+  case class <>(val stackConfiguration: Configuration.Stack, val parentWidget: ScrolledComposite, val parentContext: AppContext, supervisorContext: ActorContext)
   /**
    * Dependency injection routines.
    */

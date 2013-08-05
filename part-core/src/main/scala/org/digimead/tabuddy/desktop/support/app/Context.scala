@@ -48,12 +48,21 @@ import scala.collection.JavaConversions._
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
+import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
 import org.eclipse.e4.core.contexts.EclipseContextFactory
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.eclipse.swt.widgets.Composite
+import org.eclipse.swt.widgets.Shell
+import org.eclipse.swt.widgets.Widget
 
 trait Context {
-  this: Loggable with Generic with Workbench =>
+  this: Loggable with Generic with Workbench with GUI =>
+  /** Name of the key of SWT widget. */
+  val widgetContextKey = classOf[AppContext].getName()
+
   /** Dump context hierarchy acquired from Core context. */
   def contextDumpHierarchy(filter: String => Boolean = (key) => true, brief: Boolean = true): String =
     contextDumpHierarchy(Core.context, filter, brief)
@@ -106,6 +115,20 @@ trait Context {
   def contextParents(ctx: IEclipseContext): Seq[IEclipseContext] = getContextParents(ctx, Seq())
   /** Get context children. */
   def contextChildren(ctx: EclipseContext): Seq[EclipseContext] = getContextChildren(Seq(ctx))
+  /** Find context of view with the specific widget. */
+  def findViewContext(widget: Widget): Option[AppContext] = widget match {
+    case composite: Composite => findViewContext(composite)
+    case other => findParent(widget).flatMap(findViewContext)
+  }
+  /** Find context of window with the specific widget. */
+  def findWindowContext(shell: Shell): Option[AppContext] =
+    findWComposite(shell).flatMap(wcomposite => Option(wcomposite.getData(widgetContextKey).asInstanceOf[AppContext]))
+  /** Get context of view with the specific widget. */
+  def getViewContext(widget: Widget): AppContext =
+    findViewContext(widget) getOrElse { throw new IllegalArgumentException(s"Widget ${widget} does not belong to view with context.") }
+  /** Get context of window with the specific widget. */
+  def getWindowContext(shell: Shell): AppContext =
+    findWindowContext(shell) getOrElse { throw new IllegalArgumentException(s"Shell ${shell} does not belong to window with context.") }
   /** Get root context. */
   def rootContext = EclipseContextFactory.getServiceContext(bundle(getClass).getBundleContext()) match {
     case ctx: EclipseContext => ctx
@@ -125,5 +148,14 @@ trait Context {
     val children = ctx.map(_.getChildren().toSeq).flatten
     if (children.isEmpty) return acc.distinct
     getContextChildren(children, children ++ acc)
+  }
+  /** Find context of view with the specific widget. */
+  private def findViewContext(composite: Composite): Option[AppContext] = {
+    composite match {
+      case view: VComposite =>
+        Option(view.getData(widgetContextKey).asInstanceOf[AppContext])
+      case other: Composite =>
+        Option(other.getParent()).flatMap(findViewContext)
+    }
   }
 }

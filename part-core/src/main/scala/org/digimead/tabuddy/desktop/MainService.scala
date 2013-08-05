@@ -332,8 +332,6 @@ class MainService extends api.Main with Disposable.Default with Loggable {
 
 object MainService extends Loggable {
   implicit def main2implementation(c: MainService.type): MainService = c.inner
-  /** MApplication singleton that available before fragment initialization stage. */
-  @volatile private var application: MApplication = null
   private val disposeableLock = new Object
 
   /** Main implementation. */
@@ -347,24 +345,12 @@ object MainService extends Loggable {
     def bindingContext = MainService.thread.bindingContext
     /** The default display, available from ui.Window */
     def display = MainService.thread.display
-    /** Application EMF model. */
-    def model = application
     /** The realm representing the UI thread for the given display */
     def realm = MainService.thread.realm
     /** The application-wide actor system */
     def system = MainService.system
     /** The UI thread */
     def thread = MainService.thread
-  }
-  /**
-   * Trait for b4e.Processor that provides an ability to early application initialization.
-   */
-  trait MApplicationInterceptor {
-    def setApplication(application: MApplication) {
-      if (application != null && MainService.application != null)
-        throw new IllegalStateException("MApplication singleton is already initialized.")
-      MainService.application = application
-    }
   }
   class UIThread extends Thread("GUI Thread") {
     // Initialized by call()

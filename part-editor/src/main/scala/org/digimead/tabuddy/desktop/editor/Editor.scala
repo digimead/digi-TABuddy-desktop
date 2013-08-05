@@ -58,7 +58,6 @@ import org.digimead.tabuddy.desktop.editor.toolbar.ElementToolBar
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Handler
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.digimead.tabuddy.model.element.Element
 
@@ -97,7 +96,6 @@ class Editor extends akka.actor.Actor with Loggable {
       log.debug(s"Process '${message}'.")
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
-        context.actorSelection(self.path / "*") ! Handler.Message.Disable
         context.system.eventStream.publish(App.Message.Inconsistent(Editor, self))
       }
       inconsistentSet = inconsistentSet + element
@@ -107,17 +105,12 @@ class Editor extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
-        context.actorSelection(self.path / "*") ! Handler.Message.Enable
         context.system.eventStream.publish(App.Message.Consistent(Editor, self))
       }
 
     case message @ Element.Event.ModelReplace(oldModel, newModel, modified) =>
       log.debug(s"Process '${message}'.")
     //onModelInitialization(oldModel, newModel, modified)
-
-    case message: Handler.Message =>
-      log.trace(s"Container actor '${self.path.name}' received message '${message}' from actor ${sender.path}. Propagate.")
-      context.children.foreach(_.forward(message))
 
     case message @ WorkbenchAdvisor.Message.PostStartup(configurer) =>
       log.debug(s"Process '${message}'.")

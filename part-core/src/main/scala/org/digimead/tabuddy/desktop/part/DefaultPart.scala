@@ -73,9 +73,10 @@ class DefaultPart extends Loggable {
   @Inject
   private val context: IEclipseContext = null
   private lazy val viewMenu = {
-    val menu = App.modelCreateMenuFromContribution("org.digimead.tabuddy.desktop.menuX", context, false)
-    menu.getTags().add(StackRenderer.TAG_VIEW_MENU)
-    menu
+    //val menu = App.modelCreateMenuFromContribution("org.digimead.tabuddy.desktop.menuX", context, false)
+    //menu.getTags().add(StackRenderer.TAG_VIEW_MENU)
+    //menu
+    null
   }
 
   @Inject
@@ -262,15 +263,15 @@ menu.getChildren().add(menuItem);
 }
 
 object DefaultPart {
-  private lazy val descriptor = App.modelCreatePartDescriptor(
+/*  private lazy val descriptor = App.modelCreatePartDescriptor(
     contributionURI = new URI(s"bundleclass://${App.bundle(getClass).getSymbolicName()}/${classOf[DefaultPart].getName()}"),
     contributorURI = new URI(s"platform:/plugin/${App.bundle(getClass).getSymbolicName()}"),
     iconURI = Some(BundleUtility.find(App.bundle(getClass), "icons/16x16/view-process-all.png").toURI()),
     id = classOf[DefaultPart].getName(),
-    label = Messages.overViewPanelTitle_text)
+    label = Messages.overViewPanelTitle_text)*/
 
-  def apply() {
-    if (!App.model.getDescriptors().contains(descriptor))
-      App.model.getDescriptors().add(descriptor)
-  }
+  //def apply() {
+  //  if (!App.model.getDescriptors().contains(descriptor))
+  //    App.model.getDescriptors().add(descriptor)
+ // }
 }
