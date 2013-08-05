@@ -51,6 +51,8 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.desktop.Resources.resources2implementation
+import org.digimead.tabuddy.desktop.core
+import org.digimead.tabuddy.desktop.core.Wizards.registry2implementation
 import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
@@ -85,6 +87,7 @@ import org.eclipse.swt.widgets.Combo
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Label
+import org.eclipse.swt.widgets.Widget
 
 class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
   val id = getClass.getName
@@ -188,7 +191,7 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
         case selection =>
       }
     })
-    viewer.getCombo.addKeyListener(new KeyAdapter() { override def keyReleased(e: KeyEvent) = if (e.keyCode == SWT.CR) onEnter() })
+    viewer.getCombo.addKeyListener(new KeyAdapter() { override def keyReleased(e: KeyEvent) = if (e.keyCode == SWT.CR) onEnter(e.widget) })
     viewer.getCombo.setEnabled(Data.modelName.value == Payload.defaultModel.eId.name)
     viewer.getCombo.setLayoutData(new RowData(comboMinimumWidth, SWT.DEFAULT))
     viewer
@@ -196,7 +199,7 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
   /** Get combo text. */
   def getComboText() = if (Model.eId == Payload.defaultModel.eId) Messages.default_text else Model.eId.name
   /** On Enter key event. */
-  protected def onEnter() = if (idValue.value.nonEmpty) {
+  protected def onEnter(widget: Widget) = if (idValue.value.nonEmpty) {
     val id = idValue.value
     future {
       Payload.listModels.find(marker => marker.isValid && marker.id.name == id) match {
@@ -204,7 +207,11 @@ class SelectModel extends ControlContribution(SelectModel.id) with Loggable {
           Payload.acquireModel(marker)
         case None =>
           try {
-            App.exec { App.openWizard("org.digimead.tabuddy.desktop.editor.wizard.NewModelWizard") }
+            App.exec {
+              App.findShell(widget).foreach { shell =>
+                core.Wizards.open("org.digimead.tabuddy.desktop.editor.wizard.ModelCreationWizard", shell)
+              }
+            }
           } catch {
             case e: IllegalArgumentException =>
               log.error(e.getMessage())

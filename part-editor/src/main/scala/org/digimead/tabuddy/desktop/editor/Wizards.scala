@@ -41,17 +41,39 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.perspective
+package org.digimead.tabuddy.desktop.editor
 
-import org.digimead.tabuddy.desktop.part.DefaultPart
-import org.eclipse.ui.IPageLayout
-import org.eclipse.ui.IPerspectiveFactory
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.core
+import org.digimead.tabuddy.desktop.core.Wizards.registry2implementation
+import org.digimead.tabuddy.desktop.editor.wizard.ModelCreationWizard
 
-class DefaultPerspective extends IPerspectiveFactory {
-  def createInitialLayout(layout: IPageLayout) {
-    val editorArea = layout.getEditorArea()
-    layout.setEditorAreaVisible(false)
-    layout.setFixed(false)
-    layout.addView(classOf[DefaultPart].getName(), IPageLayout.LEFT, 1f, editorArea)
+import language.implicitConversions
+
+class Wizards {
+  /** Configure component wizards. */
+  @log
+  def configure() {
+    core.Wizards.register(classOf[ModelCreationWizard])
+  }
+  @log /** Unconfigure component wizards. */
+  def unconfigure() {
+    core.Wizards.unregister(classOf[ModelCreationWizard])
+  }
+}
+
+object Wizards {
+  implicit def configurator2implementation(w: Wizards.type): Wizards = w.inner
+
+  /** Wizards implementation. */
+  def inner(): Wizards = DI.implementation
+
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Wizards implementation */
+    lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
   }
 }

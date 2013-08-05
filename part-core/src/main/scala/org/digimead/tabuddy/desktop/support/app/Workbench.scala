@@ -102,25 +102,6 @@ trait Workbench {
     toolbar.setToBeRendered(false)
     display.update() // reenter to the new UI transaction
   }
-  /** Invoking an Wizard by id. */
-  def openWizard(id: String) {
-    assertUIThread()
-    // First see if this is a "new wizard".
-    val descriptor = Option(workbench.getNewWizardRegistry().findWizard(id)).orElse {
-      // If not check if it is an "import wizard".
-      Option(workbench.getImportWizardRegistry().findWizard(id))
-    }.orElse {
-      // Or maybe an export wizard
-      Option(workbench.getExportWizardRegistry().findWizard(id))
-    }.getOrElse {
-      throw new IllegalArgumentException(s"Wizard with id '${id}' not found.")
-    }
-    // Then if we have a wizard, open it.
-    val wizard = descriptor.createWizard()
-    val wd = new WizardDialog(workbench.getActiveWorkbenchWindow().getShell(), wizard)
-    wd.setTitle(wizard.getWindowTitle())
-    wd.open()
-  }
   /**
    * Show toolbar in trimbar.
    * This method is create widget.

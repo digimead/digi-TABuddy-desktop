@@ -51,7 +51,6 @@ import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Resources
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
 import org.digimead.tabuddy.desktop.editor.Editor.editor2actorRef
 import org.digimead.tabuddy.desktop.editor.Editor.editor2actorSRef
 import org.digimead.tabuddy.desktop.editor.toolbar.EditorToolBar.toolbar2actorRef
@@ -94,30 +93,20 @@ class Activator extends BundleActivator with Loggable {
       }
     DependencyInjection.inject()
     Editor.actor // Start component actors hierarchy
-    App.system.eventStream.subscribe(Editor, classOf[App.Message.Inconsistent[_]])
-    App.system.eventStream.subscribe(Editor, classOf[App.Message.Consistent[_]])
-    App.system.eventStream.subscribe(Editor, classOf[WorkbenchAdvisor.Message.PostStartup])
-    App.system.eventStream.subscribe(Editor, classOf[WorkbenchAdvisor.Message.PreShutdown])
-    App.system.eventStream.subscribe(Editor, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-    App.system.eventStream.subscribe(toolbar.EditorToolBar, classOf[Resources.Message.ToolbarCreated])
-    App.system.eventStream.subscribe(toolbar.EditorToolBar, classOf[WorkbenchAdvisor.Message.PostStartup])
-    App.system.eventStream.subscribe(toolbar.ElementToolBar, classOf[Resources.Message.ToolbarCreated])
-    App.system.eventStream.subscribe(toolbar.ElementToolBar, classOf[WorkbenchAdvisor.Message.PostStartup])
+    //App.system.eventStream.subscribe(toolbar.EditorToolBar, classOf[Resources.Message.ToolbarCreated])
+    //App.system.eventStream.subscribe(toolbar.EditorToolBar, classOf[WorkbenchAdvisor.Message.PostStartup])
+    //App.system.eventStream.subscribe(toolbar.ElementToolBar, classOf[Resources.Message.ToolbarCreated])
+    //App.system.eventStream.subscribe(toolbar.ElementToolBar, classOf[WorkbenchAdvisor.Message.PostStartup])
     System.out.println("Editor component is started.")
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TABuddy Desktop editor.")
     try {
-      App.system.eventStream.unsubscribe(toolbar.ElementToolBar, classOf[WorkbenchAdvisor.Message.PostStartup])
-      App.system.eventStream.unsubscribe(toolbar.ElementToolBar, classOf[Resources.Message.ToolbarCreated])
-      App.system.eventStream.unsubscribe(toolbar.EditorToolBar, classOf[WorkbenchAdvisor.Message.PostStartup])
-      App.system.eventStream.unsubscribe(toolbar.EditorToolBar, classOf[Resources.Message.ToolbarCreated])
-      App.system.eventStream.unsubscribe(Editor, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-      App.system.eventStream.unsubscribe(Editor, classOf[WorkbenchAdvisor.Message.PreShutdown])
-      App.system.eventStream.unsubscribe(Editor, classOf[WorkbenchAdvisor.Message.PostStartup])
-      App.system.eventStream.unsubscribe(Editor, classOf[App.Message.Consistent[_]])
-      App.system.eventStream.unsubscribe(Editor, classOf[App.Message.Inconsistent[_]])
+      //App.system.eventStream.unsubscribe(toolbar.ElementToolBar, classOf[WorkbenchAdvisor.Message.PostStartup])
+      //App.system.eventStream.unsubscribe(toolbar.ElementToolBar, classOf[Resources.Message.ToolbarCreated])
+      //App.system.eventStream.unsubscribe(toolbar.EditorToolBar, classOf[WorkbenchAdvisor.Message.PostStartup])
+      //App.system.eventStream.unsubscribe(toolbar.EditorToolBar, classOf[Resources.Message.ToolbarCreated])
       // Stop component actors.
       val inbox = Inbox.create(App.system)
       inbox.watch(Editor)

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,51 +41,84 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.toolbar
+package org.digimead.tabuddy.desktop.core
 
+import scala.collection.immutable
+
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.ScalaActorRef
-import akka.actor.actorRef2Scala
+import org.eclipse.jface.wizard.IWizard
+import org.eclipse.jface.wizard.WizardDialog
+import org.eclipse.swt.widgets.Shell
 
 import language.implicitConversions
 
-class ModelToolBar extends App.ContainerActor with Loggable {
-  //val lockActor = this.context.actorOf(handler.Lock.props, handler.Lock.id)
-  //val deleteActor = this.context.actorOf(handler.Delete.props, handler.Delete.id)
-  //val expandAllActor = this.context.actorOf(ExpandAll.props, ExpandAll.id)
-  //val collapseAllActor = this.context.actorOf(CollapseAll.props, CollapseAll.id)
+class Wizards extends Loggable {
+  /** Set of application wizards. */
+  @volatile var wizards = immutable.HashSet[Class[_ <: IWizard]]()
+  private val lock = new Object
+
+  /** Show wizard by class. */
+  def open(clazz: Class[_ <: IWizard], shell: Shell): AnyRef = open(clazz, shell, None)
+  /** Show wizard by class. */
+  @log
+  def open(clazz: Class[_ <: IWizard], shell: Shell, argument: Option[AnyRef]): AnyRef = lock.synchronized {
+    log.debug(s"Open wizard ${clazz.getName()}.")
+    val instance = clazz.newInstance()
+    argument.foreach { argument =>
+      instance match {
+        case wizard: org.digimead.tabuddy.desktop.support.wizard.IWizard =>
+          wizard.init(argument)
+        case wizard =>
+      }
+    }
+    val wd = new WizardDialog(shell, instance)
+    wd.setTitle(instance.getWindowTitle())
+    val result = wd.open(): Integer
+    instance match {
+      case wizard: org.digimead.tabuddy.desktop.support.wizard.IWizard =>
+        wizard.result getOrElse result
+      case wizard =>
+        result
+    }
+  }
+  /** Show wizard by class name. */
+  def open(name: String, shell: Shell): AnyRef = open(name, shell, None)
+  /** Show wizard by class name. */
+  @log
+  def open(name: String, shell: Shell, argument: Option[AnyRef]): AnyRef = lock.synchronized {
+    wizards.find(_.getName == name) match {
+      case Some(clazz) =>
+        open(clazz, shell, argument)
+      case None =>
+        log.warn(s"Wizard with name ${name} not found.")
+        -1: Integer
+    }
+  }
+  /** Register wizard. */
+  def register(clazz: Class[_ <: IWizard]) = lock.synchronized {
+    log.debug(s"Register wizard ${clazz.getName}.")
+    wizards += clazz
+  }
+  /** Unregister wizard. */
+  def unregister(clazz: Class[_ <: IWizard]) = lock.synchronized {
+    log.debug(s"Unregister wizard ${clazz.getName}.")
+    wizards -= clazz
+  }
 }
 
-object ModelToolBar {
-  implicit def toolbar2actorRef(t: ModelToolBar.type): ActorRef = t.actor
-  implicit def toolbar2actorSRef(t: ModelToolBar.type): ScalaActorRef = t.actor
-  /** ModelToolBar actor reference. */
-  lazy val actor = App.getActorRef(App.system.actorSelection(actorPath)) getOrElse {
-    throw new IllegalStateException("Unable to locate actor with path " + actorPath)
-  }
-  /** ModelToolBar actor path. */
-  lazy val actorPath = App.system / Core.id / Logic.id / id
-  /** Singleton identificator. */
-  val id = getClass.getSimpleName().dropRight(1)
-  /** ModelToolBar actor reference configuration object. */
-  lazy val props = DI.props
-  // Initialize descendant actor singletons
-  //handler.Lock
-  //handler.Delete
+object Wizards {
+  implicit def registry2implementation(w: Wizards.type): Wizards = w.inner
+
+  /** Wizards implementation. */
+  def inner(): Wizards = DI.implementation
 
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** EditorToolBar actor reference configuration object. */
-    lazy val props = injectOptional[Props]("ModelToolBar") getOrElse Props[ModelToolBar]
+    /** Wizards implementation */
+    lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
   }
 }

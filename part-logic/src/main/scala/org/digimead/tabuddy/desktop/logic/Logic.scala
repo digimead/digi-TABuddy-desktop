@@ -83,7 +83,7 @@ import language.implicitConversions
 class Logic extends akka.actor.Actor with Loggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef]()
-  /** Flag indicating whether workbench is valid. */
+  /** Flag indicating whether GUI is valid. */
   @volatile protected var fGUIStarted = false
   /** Current bundle */
   protected lazy val thisBundle = App.bundle(getClass())
@@ -137,14 +137,14 @@ class Logic extends akka.actor.Actor with Loggable {
     }
     case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
       fGUIStarted = true
-      future { onWorkbenchValid() } onFailure {
+      future { onGUIValid() } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
       }
     }
     case message @ App.Message.Stop(Right(GUI), _) => App.traceMessage(message) {
       fGUIStarted = false
-      future { onWorkbenchInvalid } onFailure {
+      future { onGUIInvalid } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
       }
@@ -178,15 +178,18 @@ class Logic extends akka.actor.Actor with Loggable {
   }
   /** This callback is invoked at an every model initialization. */
   @log
-  protected def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) {
+  protected def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = try {
     TypeSchema.onModelInitialization(oldModel, newModel, modified)
     ElementTemplate.onModelInitialization(oldModel, newModel, modified)
     Data.onModelInitialization(oldModel, newModel, modified)
     Config.save()
+  } catch {
+    case e: Throwable =>
+      log.error(e.getMessage, e)
   }
-  /** This callback is invoked when workbench is valid. */
+  /** This callback is invoked when GUI is valid. */
   @log
-  protected def onWorkbenchValid() = initializationLock.synchronized {
+  protected def onGUIValid() = initializationLock.synchronized {
     App.afterStart("Desktop Logic", Timeout.normal.toMillis, Core.getClass()) {
       val context = thisBundle.getBundleContext()
       openContainer()
@@ -205,9 +208,9 @@ class Logic extends akka.actor.Actor with Loggable {
       }
     }
   }
-  /** This callback is invoked when workbench is invalid. */
+  /** This callback is invoked when GUI is invalid. */
   @log
-  protected def onWorkbenchInvalid() = initializationLock.synchronized {
+  protected def onGUIInvalid() = initializationLock.synchronized {
     val context = thisBundle.getBundleContext()
     App.markAsStopped(Logic.getClass())
     // Prepare for shutdown.
@@ -217,7 +220,7 @@ class Logic extends akka.actor.Actor with Loggable {
     Config.stop(context)
     closeContainer()
     // Avoid deadlock.
-    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+    App.system.eventStream.unsubscribe(self, classOf[org.digimead.tabuddy.model.element.Element.Event.ModelReplace[_ <: org.digimead.tabuddy.model.Model.Interface[_ <: org.digimead.tabuddy.model.Model.Stash], _ <: org.digimead.tabuddy.model.Model.Interface[_ <: org.digimead.tabuddy.model.Model.Stash]]])
     Model.reset(Payload.defaultModel)
     if (inconsistentSet.nonEmpty)
       log.fatal("Inconsistent elements detected: " + inconsistentSet)
@@ -264,7 +267,8 @@ object Logic {
     root.getProject(Logic.containerName)
   }
   // Initialize descendant actor singletons
-  toolbar.ModelToolBar
+  action.Action
+  //toolbar.ModelToolBar
 
   def containerName() = DI.infrastructureWideProjectName
   override def toString = "Logic[Singleton]"

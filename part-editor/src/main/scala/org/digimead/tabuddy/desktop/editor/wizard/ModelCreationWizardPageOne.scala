@@ -44,15 +44,22 @@
 package org.digimead.tabuddy.desktop.editor.wizard
 
 import java.io.File
+
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.editor.Messages
+import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
 import org.digimead.tabuddy.desktop.support.SymbolValidator
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
+import org.eclipse.e4.core.contexts.Active
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.wizard.Wizard
 import org.eclipse.jface.wizard.WizardPage
@@ -64,20 +71,22 @@ import org.eclipse.swt.events.SelectionEvent
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.DirectoryDialog
 import org.eclipse.swt.widgets.Shell
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.Core
+
+import javax.inject.Inject
+import javax.inject.Named
 
 class ModelCreationWizardPageOne extends WizardPage(Messages.ModelCreationWizardPageOne_title_text) with Loggable {
   /** Page view. */
   protected var view: Option[ModelCreationWizardPageOneView] = None
   /** Model identifier. */
-  protected val idField = WritableValue(Option(Core.context.getActiveLeaf().get(Data.Id.modelIdUserInput)) match {
-    //case Some(id: String) if App.symbolPattern.matcher(id).matches() => id // There is a non empty value in active context
-    case _ => ""
-  })
-
+  protected val idField = WritableValue("")
   /** Model container. */
   protected val locationField = WritableValue("")
+  /** Current Data.Id.modelIdUserInput. */
+  @Inject @Optional @Active @Named(Data.Id.modelIdUserInput)
+  val modelIdUserInput: String = null
+  ContextInjectionFactory.inject(this, Core.context)
+  Option(modelIdUserInput).foreach(idField.value = _)
 
   setTitle(Messages.ModelCreationWizardPageOne_title_text)
   setDescription(Messages.ModelCreationWizardPageOne_description_text)

@@ -51,13 +51,11 @@ import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.wizard.INewWizard
 import org.eclipse.core.runtime.IStatus
 import org.eclipse.core.runtime.Status
 import org.eclipse.jface.dialogs.ErrorDialog
-import org.eclipse.jface.viewers.IStructuredSelection
 import org.eclipse.jface.wizard.Wizard
-import org.eclipse.ui.INewWizard
-import org.eclipse.ui.IWorkbench
 
 class ModelCreationWizard extends Wizard with INewWizard with Loggable {
   /** The only available page. */
@@ -74,19 +72,8 @@ class ModelCreationWizard extends Wizard with INewWizard with Loggable {
   override def addPages() {
     addPage(one)
   }
-  /**
-   * Initializes this creation wizard using the passed workbench and
-   * object selection.
-   * <p>
-   * This method is called after the no argument constructor and
-   * before other methods are called.
-   * </p>
-   *
-   * @param workbench the current workbench
-   * @param selection the current object selection
-   */
-  def init(workbench: IWorkbench, selection: IStructuredSelection) {}
-
+  /** This method is invoked before wizard opening. */
+  def init(argument: AnyRef) {}
   /**
    * Performs any actions appropriate in response to the user
    * having pressed the Finish button, or refuse if finishing

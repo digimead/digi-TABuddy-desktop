@@ -122,7 +122,7 @@ trait Context {
   }
   /** Find context of window with the specific widget. */
   def findWindowContext(shell: Shell): Option[AppContext] =
-    findWComposite(shell).flatMap(wcomposite => Option(wcomposite.getData(widgetContextKey).asInstanceOf[AppContext]))
+    findWindowComposite(shell).flatMap(wcomposite => Option(wcomposite.getData(widgetContextKey).asInstanceOf[AppContext]))
   /** Get context of view with the specific widget. */
   def getViewContext(widget: Widget): AppContext =
     findViewContext(widget) getOrElse { throw new IllegalArgumentException(s"Widget ${widget} does not belong to view with context.") }

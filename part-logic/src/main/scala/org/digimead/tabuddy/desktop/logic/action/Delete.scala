@@ -43,66 +43,93 @@
 
 package org.digimead.tabuddy.desktop.logic.action
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.future
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
+import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.toolbar.ModelToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-//import org.digimead.tabuddy.desktop.support.Handler
-import org.eclipse.core.commands.ExecutionEvent
+import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.{ Action => JFaceAction }
+import org.eclipse.jface.action.IAction
+import org.eclipse.swt.widgets.Event
 
-import akka.actor.Actor
 import akka.actor.Props
 import javax.inject.Inject
 import javax.inject.Named
 
-class Delete extends JFaceAction("Delete") with Loggable {
-  if (App.workbench.isRunning())
-    ContextInjectionFactory.inject(this, App.workbench.getContext())
+class Delete extends JFaceAction(Messages.delete_text) with Loggable {
+  @volatile protected var enabled = false
+  ContextInjectionFactory.inject(this, Core.context)
 
+  override def isEnabled(): Boolean = super.isEnabled && enabled
+  /** Runs this action, passing the triggering SWT event. */
   @log
-  def execute(event: ExecutionEvent): AnyRef = {
-    null
-  }
+  override def runWithEvent(event: Event) = future {
+    //Payload.close(Payload.modelMarker(Model))
+    //Payload.delete(Payload.modelMarker(Model))
+  } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+
   /** Invoked at every modification of Data.Id.modelIdUserInput. */
-  @Inject @Optional
-  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) =
-    setEnabled(id != null && id.trim.nonEmpty && Data.availableModels.contains(id.trim))
+  @Inject @Optional @log
+  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) = App.exec {
+    if ((id != null && id.trim.nonEmpty && Data.availableModels.contains(id.trim)) != enabled) {
+      enabled = !enabled
+      updateEnabled()
+    }
+  }
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
 
-/*object Delete extends Handler.Singleton with Loggable {
-  /** Delete actor path. */
-  lazy val actorPath = App.system / Core.id / Logic.id / ModelToolBar.id / id
-  /** Command id for the current handler. */
-  val commandId = "org.digimead.tabuddy.desktop.logic.Delete"
+object Delete extends Loggable {
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
+  /** Delete action. */
+  @volatile protected var action: Option[Delete] = None
 
-  /** Handler actor reference configuration object. */
+  /** Returns delete action. */
+  def apply(): Delete = action.getOrElse {
+    val deleteAction = App.execNGet { new Delete }
+    action = Some(deleteAction)
+    deleteAction
+  }
+  /** Delete action actor reference configuration object. */
   def props = DI.props
 
-  class Behaviour extends Handler.Behaviour(Delete) with Loggable {
-    override def receive: PartialFunction[Any, Unit] = receiveBefore orElse super.receive
-    protected def receiveBefore: Actor.Receive = {
-      case message @ WorkbenchAdvisor.Message.PostStartup(configurer) =>
-        log.debug(s"Process! '${message}'.")
-        Delete.instance.keys.foreach(ContextInjectionFactory.inject(_, App.workbench.getContext()))
+  /** Delete action actor. */
+  class Actor extends akka.actor.Actor {
+    log.debug("Start actor " + self.path)
+
+    /** Is called asynchronously after 'actor.stop()' is invoked. */
+    override def postStop() = {
+      log.debug(self.path.name + " actor is stopped.")
+    }
+    /** Is called when an Actor is started. */
+    override def preStart() {
+      log.debug(self.path.name + " actor is started.")
+    }
+    def receive = {
+      case message if message == null =>
     }
   }
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Delete Akka factory. */
-    lazy val props = injectOptional[Props]("command.Delete") getOrElse Props[Behaviour]
+    /** Delete actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Logic.Action.Delete") getOrElse Props[Delete.Actor]
   }
 }
-*/
 

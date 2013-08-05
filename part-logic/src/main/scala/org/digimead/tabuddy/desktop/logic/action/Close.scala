@@ -47,36 +47,78 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 
 import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
-import org.eclipse.core.commands.AbstractHandler
-import org.eclipse.core.commands.ExecutionEvent
-import org.eclipse.ui.commands.ICommandService
+import org.digimead.tabuddy.model.element.Element
 import org.eclipse.jface.action.{ Action => JFaceAction }
+import org.eclipse.jface.action.IAction
+import org.eclipse.swt.widgets.Event
 
-class Close extends JFaceAction with Loggable {
+import akka.actor.Props
+
+/** Close the opened model. */
+class Close extends JFaceAction(Messages.closeFile_text) with Loggable {
+  override def isEnabled(): Boolean = super.isEnabled && (Model.eId != Payload.defaultModel.eId)
+  /** Runs this action, passing the triggering SWT event. */
   @log
-  def execute(event: ExecutionEvent): AnyRef = {
-    future {
-      Payload.close(Payload.modelMarker(Model))
-    } onFailure { case e: Throwable => log.error(e.getMessage, e) }
-    null
-  }
-  override def isEnabled(): Boolean = Model.eId != Payload.defaultModel.eId
+  override def runWithEvent(event: Event) = future {
+    Payload.close(Payload.modelMarker(Model))
+  } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
 
 object Close extends Loggable {
-  def update() {
-    Option(App.workbench.getService(classOf[ICommandService])) match {
-      case Some(service: ICommandService) =>
-        service.refreshElements(classOf[Close].getName, null)
-      case _ =>
-        log.fatal("Unable to locate command service.")
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
+  /** Close action. */
+  @volatile protected var action: Option[Close] = None
+
+  /** Returns close action. */
+  def apply(): Close = action.getOrElse {
+    val closeAction = App.execNGet { new Close }
+    action = Some(closeAction)
+    closeAction
+  }
+  /** Close action actor reference configuration object. */
+  def props = DI.props
+
+  /** Close action actor. */
+  class Actor extends akka.actor.Actor {
+    log.debug("Start actor " + self.path)
+
+    /** Is called asynchronously after 'actor.stop()' is invoked. */
+    override def postStop() = {
+      App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+      log.debug(self.path.name + " actor is stopped.")
     }
+    /** Is called when an Actor is started. */
+    override def preStart() {
+      App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+      log.debug(self.path.name + " actor is started.")
+    }
+    def receive = {
+      case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
+        action.foreach(action => App.exec { action.updateEnabled })
+      }
+    }
+  }
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Close actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Logic.Action.Close") getOrElse Props[Close.Actor]
   }
 }

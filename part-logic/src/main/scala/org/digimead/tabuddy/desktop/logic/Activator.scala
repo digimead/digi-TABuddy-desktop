@@ -43,26 +43,23 @@
 
 package org.digimead.tabuddy.desktop.logic
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.MILLISECONDS
 import scala.ref.WeakReference
+
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
 import org.digimead.tabuddy.desktop.logic.Logic.logic2actorRef
 import org.digimead.tabuddy.desktop.logic.Logic.logic2actorSRef
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
-import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.osgi.framework.BundleActivator
 import org.osgi.framework.BundleContext
+
 import akka.actor.Inbox
 import akka.actor.PoisonPill
 import akka.actor.Terminated
-import org.digimead.tabuddy.desktop.MainService
 
 /**
  * OSGi entry point.
@@ -93,8 +90,8 @@ class Activator extends BundleActivator with Loggable {
       }
     DependencyInjection.inject()
     Logic.actor // Start component actors hierarchy
-//    App.system.eventStream.subscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-//    App.system.eventStream.subscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
+    //    App.system.eventStream.subscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+    //    App.system.eventStream.subscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
     Element.Event.subscribe(elementEventsSubscriber)
     System.out.println("Logic component is started.")
   }

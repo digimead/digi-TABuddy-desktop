@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,51 +41,13 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.toolbar
+package org.digimead.tabuddy.desktop.support.wizard
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
+/** Base application wizard with init(arg) method */
+trait IWizard extends org.eclipse.jface.wizard.IWizard {
+  /** Wizard result. Int by default. */
+  val result: Option[AnyRef] = None
 
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.ScalaActorRef
-import akka.actor.actorRef2Scala
-
-import language.implicitConversions
-
-class ModelToolBar extends App.ContainerActor with Loggable {
-  //val lockActor = this.context.actorOf(handler.Lock.props, handler.Lock.id)
-  //val deleteActor = this.context.actorOf(handler.Delete.props, handler.Delete.id)
-  //val expandAllActor = this.context.actorOf(ExpandAll.props, ExpandAll.id)
-  //val collapseAllActor = this.context.actorOf(CollapseAll.props, CollapseAll.id)
-}
-
-object ModelToolBar {
-  implicit def toolbar2actorRef(t: ModelToolBar.type): ActorRef = t.actor
-  implicit def toolbar2actorSRef(t: ModelToolBar.type): ScalaActorRef = t.actor
-  /** ModelToolBar actor reference. */
-  lazy val actor = App.getActorRef(App.system.actorSelection(actorPath)) getOrElse {
-    throw new IllegalStateException("Unable to locate actor with path " + actorPath)
-  }
-  /** ModelToolBar actor path. */
-  lazy val actorPath = App.system / Core.id / Logic.id / id
-  /** Singleton identificator. */
-  val id = getClass.getSimpleName().dropRight(1)
-  /** ModelToolBar actor reference configuration object. */
-  lazy val props = DI.props
-  // Initialize descendant actor singletons
-  //handler.Lock
-  //handler.Delete
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** EditorToolBar actor reference configuration object. */
-    lazy val props = injectOptional[Props]("ModelToolBar") getOrElse Props[ModelToolBar]
-  }
+  /** This method is invoked before wizard opening. */
+  def init(argument: AnyRef)
 }

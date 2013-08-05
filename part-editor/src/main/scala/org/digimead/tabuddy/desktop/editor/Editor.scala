@@ -44,25 +44,23 @@
 package org.digimead.tabuddy.desktop.editor
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.MILLISECONDS
 import scala.concurrent.future
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Core.core2actorRef
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
-import org.digimead.tabuddy.desktop.editor.toolbar.EditorToolBar
-import org.digimead.tabuddy.desktop.editor.toolbar.ElementToolBar
+import org.digimead.tabuddy.desktop.editor.Wizards.configurator2implementation
+import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
+import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 
 import akka.actor.ActorRef
-import akka.actor.ActorSelection.toScala
 import akka.actor.Inbox
 import akka.actor.Props
 import akka.actor.ScalaActorRef
@@ -76,16 +74,37 @@ import language.implicitConversions
 class Editor extends akka.actor.Actor with Loggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef]()
+  /** Flag indicating whether GUI is valid. */
+  @volatile protected var fGUIStarted = false
   /** Current bundle */
   protected lazy val thisBundle = App.bundle(getClass())
+  private val initializationLock = new Object
   log.debug("Start actor " + self.path)
 
   // ACTORS
   /** EditorToolBar actor. */
-  val editorToolBarActor = context.actorOf(EditorToolBar.props, EditorToolBar.id)
+  //val editorToolBarActor = context.actorOf(EditorToolBar.props, EditorToolBar.id)
   /** ElementToolBar actor. */
-  val elementToolBarActor = context.actorOf(ElementToolBar.props, ElementToolBar.id)
+  //val elementToolBarActor = context.actorOf(ElementToolBar.props, ElementToolBar.id)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
+    log.debug(self.path.name + " actor is stopped.")
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+    log.debug(self.path.name + " actor is started.")
+  }
   /** Get subscribers list. */
   def receive = {
     case message @ App.Message.Attach(props, name) =>
@@ -112,33 +131,44 @@ class Editor extends akka.actor.Actor with Loggable {
       log.debug(s"Process '${message}'.")
     //onModelInitialization(oldModel, newModel, modified)
 
-    case message @ WorkbenchAdvisor.Message.PostStartup(configurer) =>
-      log.debug(s"Process '${message}'.")
-      future {
-        App.afterStart("Desktop Editor", Timeout.normal.toMillis, Logic.getClass()) {
-          //Approver.start()
-          App.markAsStarted(Editor.getClass)
-        }
-      } onFailure {
+    case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
+      fGUIStarted = true
+      future { onGUIValid() } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
       }
+    }
 
-    case message @ WorkbenchAdvisor.Message.PreShutdown(configurer) =>
-      log.debug(s"Process '${message}'.")
-      future {
-        App.markAsStopped(Editor.getClass())
-        if (inconsistentSet.nonEmpty)
-          log.fatal("Inconsistent elements detected: " + inconsistentSet)
-      } onFailure {
+    case message @ App.Message.Stop(Right(GUI), _) => App.traceMessage(message) {
+      fGUIStarted = false
+      future { onGUIInvalid } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
       }
+    }
 
     case message @ App.Message.Inconsistent(element, _) => // skip
     case message @ App.Message.Consistent(element, _) => // skip
   }
-  override def postStop() = log.debug("Editor actor is stopped.")
+  /** This callback is invoked when GUI is valid. */
+  @log
+  protected def onGUIValid() = initializationLock.synchronized {
+    App.afterStart("Desktop Editor", Timeout.normal.toMillis, Logic.getClass()) {
+      Wizards.configure
+      //Approver.start()
+      App.markAsStarted(Editor.getClass)
+    }
+  }
+  /** This callback is invoked when GUI is invalid. */
+  @log
+  protected def onGUIInvalid() = initializationLock.synchronized {
+    App.markAsStopped(Editor.getClass())
+    Wizards.unconfigure
+    if (inconsistentSet.nonEmpty)
+      log.fatal("Inconsistent elements detected: " + inconsistentSet)
+    // The everything is stopped. Absolutely consistent.
+    App.publish(App.Message.Consistent(Logic, self))
+  }
 }
 
 object Editor {

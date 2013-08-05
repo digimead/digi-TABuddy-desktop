@@ -71,7 +71,7 @@ class Views extends Loggable {
 object Views {
   implicit def configurator2implementation(c: Views.type): Views = c.inner
 
-  /** Actions implementation. */
+  /** Views implementation. */
   def inner(): Views = DI.implementation
 
   /**

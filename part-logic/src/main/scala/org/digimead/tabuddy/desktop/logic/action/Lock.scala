@@ -45,39 +45,51 @@ package org.digimead.tabuddy.desktop.logic.action
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.core
+import org.digimead.tabuddy.desktop.core.Wizards.registry2implementation
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.logic.toolbar.ModelToolBar
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.commands.ExecutionEvent
-import org.eclipse.ui.commands.IElementUpdater
-import org.eclipse.ui.menus.UIElement
+import org.eclipse.e4.core.contexts.Active
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.{ Action => JFaceAction }
-import akka.actor.Actor
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import org.eclipse.swt.widgets.Event
-import org.digimead.tabuddy.desktop.Messages
-import org.eclipse.e4.core.contexts.RunAndTrack
-import org.eclipse.e4.core.contexts.IEclipseContext
-import org.digimead.tabuddy.desktop.support.AppContext
 import org.eclipse.jface.action.IAction
+import org.eclipse.swt.widgets.Event
 
-object Lock extends JFaceAction(Messages.lock_text) with Loggable {
-  Core.context.runAndTrack(new Lock.Listener)
+import akka.actor.Props
+import javax.inject.Inject
+import javax.inject.Named
 
+/** Lock/unlock model. */
+class Lock private () extends JFaceAction(Messages.lock_text, IAction.AS_CHECK_BOX) with Loggable {
+  @volatile protected var enabled = false
+  ContextInjectionFactory.inject(this, Core.context)
+
+  override def isEnabled(): Boolean = super.isEnabled() && (enabled || isChecked)
+  override def isChecked(): Boolean = Model.eId != Payload.defaultModel.eId
+  /** Invoked at every modification of Data.Id.modelIdUserInput. */
+  @Inject @Optional // @log
+  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) =
+    if ((id != null && id.trim.nonEmpty) != enabled) {
+      enabled = !enabled
+      updateEnabled()
+    }
+  /** Runs this action, passing the triggering SWT event. */
   @log
-  override def run() {
+  override def runWithEvent(event: Event) {
     val context = Core.context.getActiveLeaf()
 
     if (Model.eId == Payload.defaultModel.eId) {
@@ -88,13 +100,11 @@ object Lock extends JFaceAction(Messages.lock_text) with Loggable {
           Payload.listModels.find(marker => marker.isValid && marker.id.name == id) match {
             case Some(marker) =>
               Payload.acquireModel(marker)
-            case None =>
-              try {
-                App.exec { App.openWizard("org.digimead.tabuddy.desktop.editor.wizard.NewModelWizard") }
-              } catch {
-                case e: IllegalArgumentException =>
-                  log.error(e.getMessage())
+            case None => App.exec {
+              App.findShell(event.widget).foreach { shell =>
+                core.Wizards.open("org.digimead.tabuddy.desktop.editor.wizard.ModelCreationWizard", shell)
               }
+            }
           }
         } onFailure { case e: Throwable => log.error(e.getMessage, e) }
     } else {
@@ -109,43 +119,31 @@ object Lock extends JFaceAction(Messages.lock_text) with Loggable {
       } onFailure { case e: Throwable => log.error(e.getMessage, e) }
     }
   }
-  override def isEnabled(): Boolean = {
-    val context = Core.context.getActiveLeaf()
-    val a = super.isEnabled
-    val b = Option(context.get(Data.Id.modelIdUserInput).asInstanceOf[String]).getOrElse("").nonEmpty
-    val c = Model.eId == Payload.defaultModel.eId
-    a && b && c
+  override def setChecked(checked: Boolean) {
+    val checked = Model.eId != Payload.defaultModel.eId
+    super.setChecked(checked)
+    updateChecked
   }
 
-  /*object Lock extends Handler.Singleton with Loggable {
-  /** Lock actor path. */
-  lazy val actorPath = App.system / Core.id / Logic.id / ModelToolBar.id / id
-  /** Command id for the current handler. */
-  val commandId = "org.digimead.tabuddy.desktop.logic.Lock"
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+  /** Update checked action state. */
+  protected def updateChecked() = if (isChecked)
+    firePropertyChange(IAction.CHECKED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.CHECKED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 
-  /** Handler actor reference configuration object. */
-  def props = DI.props
-
-  class Behaviour extends Handler.Behaviour(Lock) with Loggable {
-    override def receive: PartialFunction[Any, Unit] = receiveBefore orElse super.receive
-    protected def receiveBefore: Actor.Receive = {
-      case message @ Element.Event.ModelReplace(oldModel, newModel, modified) =>
-        log.debug(s"Process '${message}'.")
-        self ! Handler.Message.Refresh
-    }
-  }
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Lock Akka factory. */
-    lazy val props = injectOptional[Props]("command.Lock") getOrElse Props[Behaviour]
-  }
-}
-*/
-
+  //Core.context.runAndTrack(new Listener)
+  //override def isEnabled(): Boolean = {
+  //  val context = Core.context.getActiveLeaf()
+  //  val modelIdUserInput = Option(context.get(Data.Id.modelIdUserInput).asInstanceOf[String]).getOrElse("")
+  //  super.isEnabled && (modelIdUserInput.nonEmpty || isChecked)
+  //}
   /** Track Data.Id.modelIdUserInput. */
-  class Listener extends RunAndTrack() {
+  /*class Listener extends RunAndTrack() {
     /** Sequence of active branch contexts. */
     @volatile var activeBranch = Seq(Core.context: AppContext)
     /** Last enabled state. */
@@ -154,15 +152,62 @@ object Lock extends JFaceAction(Messages.lock_text) with Loggable {
 
     /** Track active branch.*/
     override def changed(context: IEclipseContext): Boolean = {
-      activeBranch = Core.context.getActiveLeaf().getParents()
+      val activeContext = Core.context.getActiveLeaf()
+      activeBranch = activeContext.getParents() :+ activeContext
+      // Update action state when the active branch changes
+      modelIdUserInputChanged(Data.Id.modelIdUserInput, activeContext)
       true
     }
     /** Fire event if input changed within active context. */
-    def modelIdUserInputChanged(name: String, context: AppContext) =
+    def modelIdUserInputChanged(name: String, context: AppContext) = {
       if (activeBranch.contains(context) && lastEnabledState != isEnabled) {
         firePropertyChange(IAction.ENABLED, lastEnabledState, !lastEnabledState)
         lastEnabledState = !lastEnabledState
       }
-  }
+    }
+  }*/
 }
 
+object Lock extends Loggable {
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
+  /** Lock action. */
+  @volatile protected var action: Option[Lock] = None
+
+  /** Returns lock action. */
+  def apply(): Lock = action.getOrElse {
+    val lockAction = App.execNGet { new Lock }
+    action = Some(lockAction)
+    lockAction
+  }
+  /** Lock action actor reference configuration object. */
+  def props = DI.props
+
+  /** Lock action actor. */
+  class Actor extends akka.actor.Actor {
+    log.debug("Start actor " + self.path)
+
+    /** Is called asynchronously after 'actor.stop()' is invoked. */
+    override def postStop() = {
+      App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+      log.debug(self.path.name + " actor is stopped.")
+    }
+    /** Is called when an Actor is started. */
+    override def preStart() {
+      App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+      log.debug(self.path.name + " actor is started.")
+    }
+    def receive = {
+      case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
+        action.foreach(action => App.exec { action.updateChecked })
+      }
+    }
+  }
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Lock actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Logic.Action.Lock") getOrElse Props[Lock.Actor]
+  }
+}

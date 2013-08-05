@@ -51,7 +51,6 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.desktop.Resources.resources2implementation
-import org.digimead.tabuddy.desktop.b4e.WorkbenchAdvisor
 import org.digimead.tabuddy.desktop.editor.Editor
 import org.digimead.tabuddy.desktop.editor.handler
 import org.digimead.tabuddy.desktop.editor.part.MainPart
@@ -150,9 +149,9 @@ class ElementToolBar extends Resources.ResourceToolBarSubscriber(classOf[Element
       log.debug(s"Process '${message}'.")
       App.exec { visibleWhen.test() }
 
-    case message @ WorkbenchAdvisor.Message.PostStartup(configurer) =>
-      log.debug(s"Process '${message}'.")
-      ContextInjectionFactory.inject(this, App.workbench.getContext())
+    //case message @ WorkbenchAdvisor.Message.PostStartup(configurer) =>
+      //log.debug(s"Process '${message}'.")
+      //ContextInjectionFactory.inject(this, App.workbench.getContext())
 
     case message @ Resources.Message.ToolbarCreated(toolbar) => // skip
   }

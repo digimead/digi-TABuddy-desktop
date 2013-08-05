@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.logic.action
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.action.Exit
-import org.digimead.tabuddy.desktop.action.{ Action => CoreAction }
+import org.digimead.tabuddy.desktop
+import org.digimead.tabuddy.desktop.gui.WindowMenu
 import org.digimead.tabuddy.desktop.gui.WindowToolbar
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
@@ -64,6 +64,14 @@ import akka.actor.Props
 class Action extends Actor with Loggable {
   log.debug("Start actor " + self.path)
 
+  /*
+   * Logic component action actors.
+   */
+  val closeActionRef = context.actorOf(Close.props, Close.id)
+  val deleteActionRef = context.actorOf(Delete.props, Delete.id)
+  val lockActionRef = context.actorOf(Lock.props, Lock.id)
+  val saveActionRef = context.actorOf(Save.props, Save.id)
+
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Create[_]])
@@ -76,7 +84,7 @@ class Action extends Actor with Loggable {
   }
   def receive = {
     // Adjust menu and toolbar after Core component.
-    case message @ App.Message.Create(Right((action: CoreAction.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
+    case message @ App.Message.Create(Right((action: desktop.action.Action.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
       onCreated(window, publisher)
     }
 
@@ -97,15 +105,19 @@ class Action extends Actor with Loggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    //    val file = WindowMenu(window, WindowMenu.file)
-    //    file.add(Exit)
+    val file = WindowMenu(window, desktop.action.Action.fileMenu)
+    file.add(Save())
+    file.add(Delete())
+    file.add(Close())
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
     val modelToolBar = WindowToolbar(window, Action.modelToolbar)
     modelToolBar.getToolBarManager().add(new SelectModel)
-    modelToolBar.getToolBarManager().add(Lock)
+    modelToolBar.getToolBarManager().add(Lock())
+    modelToolBar.getToolBarManager().add(Save())
+    modelToolBar.getToolBarManager().add(Delete())
     window.getCoolBarManager2().update(true)
   }
 }
@@ -115,6 +127,11 @@ object Action {
   val id = getClass.getSimpleName().dropRight(1)
   /** Model toolbar descriptor. */
   val modelToolbar = WindowToolbar.Descriptor(getClass.getName() + "#model")
+  // Initialize descendant actor singletons
+  Close
+  Delete
+  Lock
+  Save
 
   /** StackLayer actor reference configuration object. */
   def props = DI.props
