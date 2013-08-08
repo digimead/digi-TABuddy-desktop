@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.core
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.GUI
-import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
+import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.Resources.resources2implementation
 import org.digimead.tabuddy.desktop.view
 
 import language.implicitConversions
@@ -59,12 +59,12 @@ class Views extends Loggable {
   /** Configure component views. */
   @log
   def configure() {
-    GUI.registerViewFactory(view.Default, true)
+    Resources.registerViewFactory(view.Default, true)
   }
-  @log
   /** Unconfigure component views. */
+  @log
   def unconfigure() {
-    GUI.unregisterViewFactory(view.Default)
+    Resources.unregisterViewFactory(view.Default)
   }
 }
 

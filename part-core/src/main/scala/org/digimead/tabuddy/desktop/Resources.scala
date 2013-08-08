@@ -43,26 +43,22 @@
 
 package org.digimead.tabuddy.desktop
 
-import scala.collection.JavaConversions._
-import scala.collection.immutable
+import java.util.UUID
+
 import scala.collection.mutable
-import scala.collection.mutable.Publisher
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.command.Command
+import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.eclipse.e4.ui.model.application.ui.MElementContainer
-import org.eclipse.e4.ui.model.application.ui.MUIElement
-import org.eclipse.e4.ui.model.application.ui.basic.MWindow
-import org.eclipse.e4.ui.model.application.ui.menu.MMenu
-import org.eclipse.e4.ui.model.application.ui.menu.MToolBar
-import org.eclipse.jface.action.MenuManager
-import org.eclipse.jface.action.ToolBarManager
+import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
+import org.digimead.tabuddy.desktop.support.wizard.IWizard
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry
 import org.eclipse.swt.graphics.Font
 import org.eclipse.swt.graphics.Image
-import org.eclipse.swt.widgets.Shell
 import org.osgi.framework.BundleActivator
 import org.osgi.framework.BundleContext
 
@@ -75,13 +71,17 @@ class Resources extends BundleActivator with Loggable {
   val small = 0.315
   val medium = 0.7
   val large = 1
-  /** Application menu set. */
-  protected val menuSet = new Resources.MenuSet
-  /** Application toolbar set. */
-  protected val toolbarSet = new Resources.ToolBarSet
-  /** Application top window set. */
-  protected val topWindowSet = new Resources.TopWindowSet
+  /** List of all application view factories. */
+  protected val viewFactoriesMap = new Resources.ViewFactoryMap with mutable.SynchronizedMap[ViewLayer.Factory, Boolean]
+  /** Application wizards set. */
+  protected val wizardsSet = new mutable.HashSet[Class[_ <: IWizard]]() with mutable.SynchronizedSet[Class[_ <: IWizard]]
+  private val lock = new Object
 
+  /** Get factory by singleton class name. */
+  def factory(singletonClassName: String): Option[ViewLayer.Factory] =
+    viewFactoriesMap.find(_._1.getClass().getName() == singletonClassName).map(_._1)
+  /** Get map of factories. */
+  def factories() = viewFactoriesMap.toMap
   /** the large font */
   lazy val fontLarge = {
     val fD = App.display.getSystemFont().getFontData()
@@ -98,6 +98,16 @@ class Resources extends BundleActivator with Loggable {
     val image = ResourceManager.getImage(getClass, path)
     scale(image, k)
   }
+  /** Add view factory to the map of the application known views. */
+  def registerViewFactory(factory: ViewLayer.Factory, enabled: Boolean) = lock.synchronized {
+    log.debug("Add " + factory)
+    viewFactoriesMap += factory -> enabled
+  }
+  /** Register wizard. */
+  def registerWizard(clazz: Class[_ <: IWizard]) = lock.synchronized {
+    log.debug(s"Register wizard ${clazz.getName}.")
+    wizardsSet += clazz
+  }
   def scale(image: Image, k: Double): Image = {
     val width = image.getBounds().width
     val height = image.getBounds().height
@@ -109,7 +119,6 @@ class Resources extends BundleActivator with Loggable {
     fD.head.setStyle(style)
     new Font(App.display, fD.head)
   }
-
   def start(context: BundleContext) {
     fontLarge
     fontSmall
@@ -119,23 +128,22 @@ class Resources extends BundleActivator with Loggable {
     Image.required.dispose()
     ResourceManager.dispose()
   }
-  /** Get map of menus. */
-  def menus(): immutable.Set[MMenu] = menuSet.toSet
-  /** Get menu by id. */
-  def menu(id: String): Seq[MMenu] = menuSet.id(id)
-  /** Get map of toolbars. */
-  def toolbars(): immutable.Set[MToolBar] = toolbarSet.toSet
-  /** Get toolbar by id. */
-  def toolbar(id: String): Seq[MToolBar] = toolbarSet.id(id)
-  /** Get map of top windows. */
-  def windows(): immutable.Set[MWindow] = topWindowSet.toSet
-  /** Get top window by id. */
-  def window(id: String): Seq[MWindow] = topWindowSet.id(id)
   /** Validate resource leaks on shutdown. */
   def validateOnShutdown() {
-    if (menuSet.nonEmpty) log.fatal("Menu leaks: " + menuSet)
-    if (toolbarSet.nonEmpty) log.fatal("Toolbar leaks: " + menuSet)
-    if (topWindowSet.nonEmpty) log.fatal("Top window leaks: " + menuSet)
+    if (viewFactoriesMap.nonEmpty) log.fatal("View Factories leaks: " + viewFactoriesMap)
+    if (wizardsSet.nonEmpty) log.fatal("Wizards leaks: " + wizardsSet)
+  }
+  /** Get set of wizards. */
+  def wizards() = lock.synchronized { wizardsSet.toSet }
+  /** Remove view factory from the map of the application known views. */
+  def unregisterViewFactory(factory: ViewLayer.Factory) = lock.synchronized {
+    log.debug("Remove " + factory)
+    viewFactoriesMap -= factory
+  }
+  /** Unregister wizard. */
+  def unregisterWizard(clazz: Class[_ <: IWizard]) = lock.synchronized {
+    log.debug(s"Unregister wizard ${clazz.getName}.")
+    wizardsSet -= clazz
   }
 
   object Image {
@@ -160,214 +168,39 @@ object Resources extends Loggable {
     case object Light extends Resources.IconTheme { val name = "light" }
     case object Dark extends Resources.IconTheme { val name = "dark" }
   }
-  /**
-   * Trait for b4e.Addon that allow to track top level windows.
-   */
-  trait ResourceWatcher {
-    private val resourceLock = new Object
-    // Trait methods is invoked by Addon EventBroker Listener
-    /** Register new menu. */
-    protected def addMenu(menu: MMenu, widget: MenuManager): Unit = resourceLock.synchronized {
-      if (menu.getElementId() == null || menu.getElementId() == "") {
-        log.debug(s"Skip menu ${menu} with an empty id.")
-        return
-      }
-      log.debug(s"Add menu ${menu}.")
-      Resources.Message.publish(Message.MenuCreating(menu, widget))
-      DI.implementation.menuSet += menu
-    }
-    /** Register new toolbar. */
-    protected def addToolBar(toolbar: MToolBar, widget: ToolBarManager): Unit = resourceLock.synchronized {
-      if (toolbar.getElementId() == null || toolbar.getElementId() == "") {
-        log.debug(s"Skip toolbar ${toolbar} with an empty id.")
-        return
-      }
-      if (!DI.implementation.toolbarSet(toolbar)) {
-        log.debug(s"Add toolbar ${toolbar}.")
-        Resources.Message.publish(Message.ToolbarCreating(toolbar, widget))
-        DI.implementation.toolbarSet += toolbar
-      }
-    }
-    /** Register new top window. */
-    protected def addTopWindow(window: MWindow, widget: Shell): Unit = resourceLock.synchronized {
-      if (window.getElementId() == null || window.getElementId() == "") {
-        log.debug(s"Skip window ${window} with an empty id")
-        Resources.Message.publish(Message.TopWindowCreating(window, widget))
-        return
-      }
-      log.debug(s"Add top window ${window}.")
-      DI.implementation.topWindowSet += window
-    }
-    /** Unregister disposed menu. */
-    protected def removeMenu(menu: MMenu) = resourceLock.synchronized {
-      log.debug(s"Remove menu ${menu}")
-      processContainer(menu)
-      DI.implementation.menuSet -= menu
-    }
-    /** Unregister disposed toolbar. */
-    protected def removeToolBar(toolbar: MToolBar) = resourceLock.synchronized {
-      log.debug(s"Remove toolbar ${toolbar}.")
-      processContainer(toolbar)
-      DI.implementation.toolbarSet -= toolbar
-    }
-    /** Unregister disposed window. */
-    protected def removeTopWindow(window: MWindow) = resourceLock.synchronized {
-      log.debug(s"Remove top window ${window}.")
-      processContainer(window)
-      collectGarbage(window)
-      DI.implementation.topWindowSet -= window
-    }
-    /**
-     * Remove sub elements because Eclipse forget about shit that it is allocated.
-     * So dispose event may lost sporadically (for some elements).
-     */
-    protected def processContainer(window: MElementContainer[_]): Unit =
-      for (child <- window.getChildren()) child match {
-        case menu: MMenu =>
-          processContainer(menu)
-          DI.implementation.menu(menu.getElementId()).foreach {
-            case (menu) =>
-              log.debug("Remove menu " + menu)
-              DI.implementation.menuSet -= menu
-          }
-        case toolbar: MToolBar =>
-          processContainer(toolbar)
-          DI.implementation.toolbar(toolbar.getElementId()).foreach {
-            case (toolbar) =>
-              log.debug("Remove toolbar " + toolbar)
-              DI.implementation.toolbarSet -= toolbar
-          }
-        case window: MWindow =>
-          processContainer(window)
-          DI.implementation.window(window.getElementId()).foreach {
-            case (window) =>
-              log.debug("Remove window " + window)
-              DI.implementation.topWindowSet -= window
-          }
-        case other: MElementContainer[_] =>
-          processContainer(other)
-        case other =>
-      }
-    /** Collect all garbage from disposed shell. */
-    protected def collectGarbage(window: MWindow) {
-      val menusRemove = DI.implementation.menuSet.filter {
-        case (menu) => menu.getParent() == null
-      }.map {
-        case (menu) =>
-          log.debug("Remove menu " + menu)
-          menu
-      }
-      DI.implementation.menuSet --= menusRemove
-      val toolbarsRemove = DI.implementation.toolbarSet.filter {
-        case (toolbar) => toolbar.getParent == null
-      }.map {
-        case (toolbar) =>
-          log.debug("Remove toolbar " + toolbar)
-          toolbar
-      }
-      DI.implementation.toolbarSet --= toolbarsRemove
-    }
-  }
-  class MenuSet extends mutable.HashSet[MMenu]() with mutable.SynchronizedSet[MMenu] with ElementSet[MMenu]
-  class ToolBarSet extends mutable.HashSet[MToolBar]() with mutable.SynchronizedSet[MToolBar] with ElementSet[MToolBar]
-  class TopWindowSet extends mutable.HashSet[MWindow]() with mutable.SynchronizedSet[MWindow] with ElementSet[MWindow]
-  /** Resource map with id index. */
-  trait ElementSet[A <: MUIElement] extends mutable.Set[A] {
-    /** Map of id -> Seq[UI element in shell/part#1, UI element in shell/part#2 ... UI element in shell/part#N] */
-    protected val ids = new mutable.HashMap[String, Seq[A]]() with mutable.SynchronizedMap[String, Seq[A]]
+  /** Application view map. This class is responsible for action.View command update. */
+  class ViewFactoryMap extends mutable.WeakHashMap[ViewLayer.Factory, Boolean] {
+    /** Unique parser id within Core.context. */
+    @volatile protected var uniqueParserId: Option[UUID] = None
 
-    abstract override def +=(elem: A): this.type = {
-      val id = elem.getElementId()
-      assert(id != null && id != "")
-      ids.get(id) match {
-        case Some(values) =>
-          ids(id) = values :+ elem
-        case None =>
-          ids(id) = Seq(elem)
-      }
-      elem match {
-        case menu: MMenu => App.publish(Message.MenuCreated(menu))
-        case toolbar: MToolBar => App.publish(Message.ToolbarCreated(toolbar))
-        case window: MWindow => App.publish(Message.TopWindowCreated(window))
-      }
-      super.+=(elem)
+    override def +=(kv: (ViewLayer.Factory, Boolean)): this.type = {
+      val (key, value) = kv
+      if (keys.exists(_.name == key.name))
+        throw new IllegalArgumentException(s"View with name '${key.name}' is already exists.")
+      super.+=(kv)
+      // remove old parser if any
+      uniqueParserId.foreach(Command.removeFromContext(Core.context, _))
+      // add new parser
+      val enabled = filter { case (key, value) => value }.map(_._1).toSeq
+      val parser = action.View.parser(enabled)
+      uniqueParserId = Command.addToContext(Core.context, parser)
+      this
     }
-    abstract override def -=(elem: A): this.type = {
-      val id = elem.getElementId()
-      ids.get(id) foreach { seq =>
-        if (seq.size == 1 && seq.head == elem)
-          ids -= id // remove the only/last element
-        else
-          ids(id) = seq.filterNot { case (element) => element == elem }
-        elem match {
-          case menu: MMenu => App.publish(Message.MenuDisposed(menu))
-          case toolbar: MToolBar => App.publish(Message.ToolbarDisposed(toolbar))
-          case window: MWindow => App.publish(Message.TopWindowDisposed(window))
-        }
-      }
-      super.-=(elem)
-    }
-    abstract override def clear(): Unit = {
-      ids.clear
-      super.clear
-    }
-    def id(key: String): Seq[A] = ids.get(key).getOrElse(Seq[A]())
-  }
-  /** Menu listener. */
-  abstract class ResourceMenuSubscriber(id: String) extends Message.Sub {
-    assert(id != null && id.nonEmpty, "Invalid id.")
-    def notify(pub: Message.Pub, message: Message) = message match {
-      case Message.MenuCreating(element, widget) if element.getElementId() == id => onMenuCreating(element, widget)
-      case _ =>
-    }
-    protected def onMenuCreating(element: MMenu, widget: MenuManager)
-  }
-  /** ToolBar listener. */
-  abstract class ResourceToolBarSubscriber(id: String) extends Message.Sub {
-    assert(id != null && id.nonEmpty, "Invalid id.")
-    def notify(pub: Message.Pub, message: Message) = message match {
-      case Message.ToolbarCreating(element, widget) if element.getElementId() == id => onToolBarCreating(element, widget)
-      case _ =>
-    }
-    protected def onToolBarCreating(element: MToolBar, widget: ToolBarManager)
-  }
-  /** Window listener. */
-  abstract class ResourceWindowSubscriber(id: String) extends Message.Sub {
-    assert(id != null && id.nonEmpty, "Invalid id.")
-    def notify(pub: Message.Pub, message: Message) = message match {
-      case Message.TopWindowCreating(element, widget) if element.getElementId() == id => onTopWindowCreating(element, widget)
-      case _ =>
-    }
-    protected def onTopWindowCreating(element: MWindow, widget: Shell)
-  }
-  sealed trait Message extends App.Message {
-    /** Event model element. */
-    val element: MUIElement
-  }
-  object Message extends Publisher[Message] {
-    private val publishLock = new Object
-    // Published via Publisher within UI thread.
-    case class MenuCreating(val element: MMenu, widget: MenuManager) extends Message
-    case class MenuCreated(val element: MMenu) extends Message
-    case class MenuDisposed(val element: MMenu) extends Message
-    // Published via Publisher within UI thread.
-    case class ToolbarCreating(val element: MToolBar, widget: ToolBarManager) extends Message
-    case class ToolbarCreated(val element: MToolBar) extends Message
-    case class ToolbarDisposed(val element: MToolBar) extends Message
-    // Published via Publisher within UI thread.
-    case class TopWindowCreating(val element: MWindow, widget: Shell) extends Message
-    case class TopWindowCreated(val element: MWindow) extends Message
-    case class TopWindowDisposed(val element: MWindow) extends Message
 
-    /** Publish events to all registered subscribers */
-    override protected[Resources] def publish(message: Message) = publishLock.synchronized {
-      try {
-        super.publish(message)
-      } catch {
-        case e: Throwable =>
-          // catch all subscriber exceptions
-          log.error(e.getMessage(), e)
-      }
+    override def -=(key: ViewLayer.Factory): this.type = {
+      super.-=(key)
+      // remove old parser if any
+      uniqueParserId.foreach(Command.removeFromContext(Core.context, _))
+      // add new parser
+      val enabled = filter { case (key, value) => value }.map(_._1).toSeq
+      val parser = action.View.parser(enabled)
+      uniqueParserId = Command.addToContext(Core.context, parser)
+      this
+    }
+
+    override def clear() {
+      uniqueParserId.foreach(Command.removeFromContext(Core.context, _))
+      super.clear()
     }
   }
   /**

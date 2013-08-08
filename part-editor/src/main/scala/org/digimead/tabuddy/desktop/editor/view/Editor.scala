@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.view
+package org.digimead.tabuddy.desktop.editor.view
 
 import java.util.UUID
 import java.util.concurrent.TimeoutException
@@ -53,7 +53,6 @@ import scala.concurrent.Future
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.gui
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
@@ -71,7 +70,7 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 
-class Default(val contentId: UUID) extends Actor with Loggable {
+class Editor(val contentId: UUID) extends Actor with Loggable {
   /** Parent view widget. */
   @volatile protected var view: Option[VComposite] = None
   log.debug("Start actor " + self.path)
@@ -108,13 +107,8 @@ class Default(val contentId: UUID) extends Actor with Loggable {
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertUIThread(false)
     view = Option(parent)
-    App.execNGet {
-      val button = new org.eclipse.swt.widgets.Button(parent, SWT.PUSH)
-      button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
-      parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-      parent.layout(Array[Control](button), SWT.ALL)
-    }
-    Some(parent)
+    val content = App.execNGet { editor.TableView(parent, SWT.NONE) }
+    Some(content)
   }
   /** Destroy created window. */
   protected def destroy(sender: ActorRef) = this.view.foreach { view =>
@@ -129,7 +123,7 @@ class Default(val contentId: UUID) extends Actor with Loggable {
   }
 }
 
-object Default extends gui.ViewLayer.Factory with Loggable {
+object Editor extends gui.ViewLayer.Factory with Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** View name. */
@@ -145,7 +139,8 @@ object Default extends gui.ViewLayer.Factory with Loggable {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
     val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
-    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
+    val future = org.digimead.tabuddy.desktop.editor.Editor.actor ?
+      App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
     try {
       val newActorRef = Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration)
       activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
@@ -160,7 +155,7 @@ object Default extends gui.ViewLayer.Factory with Loggable {
         None
     }
   }
-  /** Default view actor reference configuration object. */
+  /** Editor view actor reference configuration object. */
   def props = DI.props
 
   /**
@@ -168,13 +163,13 @@ object Default extends gui.ViewLayer.Factory with Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** View name. */
-    lazy val name = injectOptional[String]("Core.View.Default.Name") getOrElse "Default"
+    lazy val name = injectOptional[String]("Editor.View.Editor.Name") getOrElse "Editor"
     /** View description. */
-    lazy val description = injectOptional[String]("Core.View.Default.Description") orElse Some("Default view description")
+    lazy val description = injectOptional[String]("Editor.View.Editor.Description") orElse Some("Editor view description")
     /** View image. */
-    lazy val image = injectOptional[Image]("Core.View.Default.Image")
-    /** Default view actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.View.Default") getOrElse Props(classOf[Default],
+    lazy val image = injectOptional[Image]("Editor.View.Editor.Image")
+    /** Editor view actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Editor.View.Editor") getOrElse Props(classOf[Editor],
       // content id == view layer id
       UUID.fromString("00000000-0000-0000-0000-000000000000"))
   }

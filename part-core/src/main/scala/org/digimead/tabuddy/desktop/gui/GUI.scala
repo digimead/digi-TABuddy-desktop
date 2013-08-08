@@ -66,8 +66,6 @@ import language.implicitConversions
 class GUI extends Loggable {
   /** Main loop exit code. */
   @volatile protected var exitCode: Option[AtomicReference[Option[GUI.Exit]]] = None
-  /** List of all application view factories. */
-  protected val viewFactories = new GUI.ViewFactoryMap with mutable.SynchronizedMap[ViewLayer.Factory, GUI.ViewFactoryInfo]
 
   /** Stop main loop with the specific exit code. */
   def stop(code: GUI.Exit) = {
@@ -112,19 +110,6 @@ class GUI extends Loggable {
     }
     exitCode.synchronized { exitCode.notifyAll() }
   }
-  /** Get factory by singleton class name. */
-  def factory(singletonClassName: String): Option[ViewLayer.Factory] =
-    viewFactories.find(_._1.getClass().getName() == singletonClassName).map(_._1)
-  /** Add view factory to the map of the application known views. */
-  def registerViewFactory(factory: ViewLayer.Factory, enabled: Boolean) = {
-    log.debug("Add " + factory)
-    viewFactories += factory -> GUI.ViewFactoryInfo(enabled)
-  }
-  /** Remove view factory from the map of the application known views. */
-  def unregisterViewFactory(factory: ViewLayer.Factory) = {
-    log.debug("Remove " + factory)
-    viewFactories -= factory
-  }
 }
 
 object GUI {
@@ -144,31 +129,6 @@ object GUI {
     case object Ok extends Exit
     case object Error extends Exit
     case object Restart extends Exit
-  }
-  /** Application view map. This class is responsible for action.View command update. */
-  class ViewFactoryMap extends mutable.WeakHashMap[ViewLayer.Factory, ViewFactoryInfo] {
-    override def +=(kv: (ViewLayer.Factory, ViewFactoryInfo)): this.type = {
-      val (key, value) = kv
-      get(key).foreach(_.uniqueActionParserId.foreach(Command.removeFromContext(Core.context, _)))
-      if (value.enabled)
-        value.uniqueActionParserId = Command.addToContext(Core.context, action.View.parser(key))
-      super.+=(kv)
-      this
-    }
-
-    override def -=(key: ViewLayer.Factory): this.type = {
-      get(key).foreach(_.uniqueActionParserId.foreach(Command.removeFromContext(Core.context, _)))
-      super.-=(key)
-    }
-
-    override def clear(): Unit = {
-      values.foreach(_.uniqueActionParserId.foreach(Command.removeFromContext(Core.context, _)))
-      super.clear()
-    }
-  }
-  /** ViewFactory information with unique action parser id if any. */
-  case class ViewFactoryInfo(enabled: Boolean) {
-    @volatile private[GUI] var uniqueActionParserId: Option[UUID] = None
   }
   /**
    * Dependency injection routines

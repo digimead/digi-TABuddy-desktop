@@ -43,20 +43,18 @@
 
 package org.digimead.tabuddy.desktop.core
 
-import scala.collection.immutable
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.eclipse.jface.wizard.IWizard
+import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.Resources.resources2implementation
+import org.digimead.tabuddy.desktop.support.wizard.IWizard
 import org.eclipse.jface.wizard.WizardDialog
 import org.eclipse.swt.widgets.Shell
 
 import language.implicitConversions
 
 class Wizards extends Loggable {
-  /** Set of application wizards. */
-  @volatile var wizards = immutable.HashSet[Class[_ <: IWizard]]()
   private val lock = new Object
 
   /** Show wizard by class. */
@@ -88,23 +86,13 @@ class Wizards extends Loggable {
   /** Show wizard by class name. */
   @log
   def open(name: String, shell: Shell, argument: Option[AnyRef]): AnyRef = lock.synchronized {
-    wizards.find(_.getName == name) match {
+    Resources.wizards.find(_.getName == name) match {
       case Some(clazz) =>
         open(clazz, shell, argument)
       case None =>
         log.warn(s"Wizard with name ${name} not found.")
         -1: Integer
     }
-  }
-  /** Register wizard. */
-  def register(clazz: Class[_ <: IWizard]) = lock.synchronized {
-    log.debug(s"Register wizard ${clazz.getName}.")
-    wizards += clazz
-  }
-  /** Unregister wizard. */
-  def unregister(clazz: Class[_ <: IWizard]) = lock.synchronized {
-    log.debug(s"Unregister wizard ${clazz.getName}.")
-    wizards -= clazz
   }
 }
 

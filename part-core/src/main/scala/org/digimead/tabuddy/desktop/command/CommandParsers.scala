@@ -114,9 +114,9 @@ class CommandParsers extends JavaTokenParsers with Loggable {
   }
   /** A parser that matches a regex string. */
   implicit def commandRegex(r: Regex)(implicit descriptor: Command.Descriptor): Parser[String] =
-    commandRegex(r, List(CompletionHint(descriptor.name, Some(descriptor.description))))
+    commandRegex(r, Seq(CompletionHint(descriptor.name, Some(descriptor.description))))
   /** A parser that matches a regex string. */
-  implicit def commandRegex(r: Regex, hints: List[CompletionHint]): Parser[String] = new Parser[String] {
+  implicit def commandRegex(r: Regex, hints: Seq[CompletionHint]): Parser[String] = new Parser[String] {
     def apply(in: Input) = {
       val source = in.source
       val offset = in.offset
@@ -129,9 +129,9 @@ class CommandParsers extends JavaTokenParsers with Loggable {
           val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
           if (start == source.length()) {
             val missing = "A"
-            MissingCompletionOrFailure(List((missing, hints)), "expected one of " + missing, in.drop(start - offset))
+            MissingCompletionOrFailure(Seq((missing, hints)), "expected one of " + missing, in.drop(start - offset))
           } else {
-            MissingCompletionOrFailure(List(), "string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
+            MissingCompletionOrFailure(Seq(), "string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
           }
       }
     }
@@ -143,7 +143,7 @@ class CommandParsers extends JavaTokenParsers with Loggable {
    *        1st arg - completion
    * @param next the input about to be read
    */
-  case class MissingCompletionOrFailure(val completions: List[(String, List[CompletionHint])],
+  case class MissingCompletionOrFailure(val completions: Seq[(String, Seq[CompletionHint])],
     override val msg: String,
     override val next: Input) extends Failure(msg, next) {
     /** The toString method of a Failure yields an error message. */

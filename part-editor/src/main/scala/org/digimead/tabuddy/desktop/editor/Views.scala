@@ -41,9 +41,43 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.editor
+
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.Resources.resources2implementation
+
+import language.implicitConversions
 
 /**
- * b4e - bridge for Eclipse. Package that provides various hooks & hacks for Eclipse stuff.
+ * Configurator responsible for configure/unconfigure application views.
  */
-package object b4e
+class Views extends Loggable {
+  /** Configure component views. */
+  @log
+  def configure() {
+    Resources.registerViewFactory(view.Editor, true)
+  }
+  /** Unconfigure component views. */
+  @log
+  def unconfigure() {
+    Resources.unregisterViewFactory(view.Editor)
+  }
+}
+
+object Views {
+  implicit def configurator2implementation(c: Views.type): Views = c.inner
+
+  /** Views implementation. */
+  def inner(): Views = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Views implementation */
+    lazy val implementation = injectOptional[Views] getOrElse new Views
+  }
+}

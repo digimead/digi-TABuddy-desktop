@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.editor
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.tabuddy.desktop.core
-import org.digimead.tabuddy.desktop.core.Wizards.registry2implementation
+import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.Resources.resources2implementation
 import org.digimead.tabuddy.desktop.editor.wizard.ModelCreationWizard
 
 import language.implicitConversions
@@ -55,11 +55,11 @@ class Wizards {
   /** Configure component wizards. */
   @log
   def configure() {
-    core.Wizards.register(classOf[ModelCreationWizard])
+    Resources.registerWizard(classOf[ModelCreationWizard])
   }
   @log /** Unconfigure component wizards. */
   def unconfigure() {
-    core.Wizards.unregister(classOf[ModelCreationWizard])
+    Resources.unregisterWizard(classOf[ModelCreationWizard])
   }
 }
 

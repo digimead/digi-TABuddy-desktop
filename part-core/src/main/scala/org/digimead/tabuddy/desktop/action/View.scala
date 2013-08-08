@@ -62,16 +62,19 @@ object View extends JFaceAction("view") with Loggable {
   /** Command description. */
   implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())("view", "Create the specific view.",
     (activeContext, parserContext, parserResult) => parserResult match {
-      case viewFactory: gui.ViewLayer.Factory => show(activeContext, viewFactory)
+      case Some(viewFactory: gui.ViewLayer.Factory) =>
+        show(activeContext, viewFactory)
       case unknown => log.fatal(s"Unknown parser result: ${unknown.getClass}/${unknown}.")
     })
 
   /** Command parser. */
-  def parser(viewFactory: gui.ViewLayer.Factory) = Command.CmdParser("view" ~ "." ~> viewNameParser(viewFactory))
-  /** Create parser for the specific view factory. */
-  protected def viewNameParser(viewFactory: gui.ViewLayer.Factory): Command.parser.Parser[Any] =
-    commandLiteral(viewFactory.name,
-      CompletionHint(viewFactory.name, viewFactory.description)) ^^ { result => viewFactory }
+  def parser(viewFactories: Seq[gui.ViewLayer.Factory]) =
+    Command.CmdParser("view" ~ "." ~> viewNameParser(viewFactories))
+  /** Create parser for the compound view factories. */
+  protected def viewNameParser(viewFactories: Seq[gui.ViewLayer.Factory]): Command.parser.Parser[Any] =
+    commandRegex(viewFactories.map(_.name).mkString("|").r,
+      viewFactories.map(vf => CompletionHint(vf.name, vf.description, Some(vf.name))).
+        sortBy(_.completionLabel)) ^^ { result => viewFactories.find(_.name == result) }
   @log
   override def run = log.___glance("SHOW")
   /** Create view from the view factory. */

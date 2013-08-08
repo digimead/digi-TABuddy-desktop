@@ -223,7 +223,7 @@ object Command extends Loggable {
 
   sealed trait Result
   case class Success(uniqueId: UUID, result: Any) extends Result
-  case class MissingCompletionOrFailure(completion: List[(String, List[parser.CompletionHint])], message: String) extends Result
+  case class MissingCompletionOrFailure(completion: Seq[(String, Seq[parser.CompletionHint])], message: String) extends Result
   case class Failure(message: String) extends Result
   case class Error(message: String) extends Result
   /** Information about command parser that is  added to specific context. */

@@ -153,6 +153,7 @@ class Editor extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIValid() = initializationLock.synchronized {
     App.afterStart("Desktop Editor", Timeout.normal.toMillis, Logic.getClass()) {
+      Views.configure
       Wizards.configure
       //Approver.start()
       App.markAsStarted(Editor.getClass)
@@ -163,6 +164,7 @@ class Editor extends akka.actor.Actor with Loggable {
   protected def onGUIInvalid() = initializationLock.synchronized {
     App.markAsStopped(Editor.getClass())
     Wizards.unconfigure
+    Views.unconfigure
     if (inconsistentSet.nonEmpty)
       log.fatal("Inconsistent elements detected: " + inconsistentSet)
     // The everything is stopped. Absolutely consistent.

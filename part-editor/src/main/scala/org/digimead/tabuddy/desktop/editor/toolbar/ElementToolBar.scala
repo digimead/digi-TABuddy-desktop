@@ -52,7 +52,6 @@ import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.desktop.Resources.resources2implementation
 import org.digimead.tabuddy.desktop.editor.Editor
-import org.digimead.tabuddy.desktop.editor.handler
 import org.digimead.tabuddy.desktop.editor.part.MainPart
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -80,11 +79,11 @@ import language.implicitConversions
 /**
  * ElementToolBar support class
  */
-class ElementToolBar extends Resources.ResourceToolBarSubscriber(classOf[ElementToolBar].getName()) with Actor with Loggable {
+class ElementToolBar extends Actor with Loggable {
   /** visibleWhen expression. */
   lazy val visibleWhen = new ConditionMap[Boolean] {
     protected def test(map: Map[String, Boolean]) {
-      Resources.toolbar(classOf[ElementToolBar].getName()).foreach {
+   /*   Resources.toolbar(classOf[ElementToolBar].getName()).foreach {
         case (toolbar) =>
           // Yes. We are really have this toolbar in Resources
           val trimBar = Option(toolbar.getParent().asInstanceOf[MTrimBar]) orElse trimBarCache.get(toolbar) match {
@@ -115,7 +114,7 @@ class ElementToolBar extends Resources.ResourceToolBarSubscriber(classOf[Element
             case None =>
               log.fatal(s"Unable to find trimbar for ${toolbar}.")
           }
-      }
+      }*/
     }
   }
   /** Map toolbar -> trimbar */
@@ -134,18 +133,19 @@ class ElementToolBar extends Resources.ResourceToolBarSubscriber(classOf[Element
   @log
   override def preStart() {
     super.preStart()
-    Resources.Message.subscribe(this)
+    //Resources.Message.subscribe(this)
   }
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   @log
   override def postStop() {
     super.postStop()
-    Resources.Message.removeSubscription(this)
+    //Resources.Message.removeSubscription(this)
 
   }
   /** Process application messages. */
   def receive = {
-    case message @ Resources.Message.ToolbarCreated(toolbar) if (toolbar.getElementId == classOf[EditorToolBar].getName()) =>
+    case message =>
+    //case message @ Resources.Message.ToolbarCreated(toolbar) if (toolbar.getElementId == classOf[EditorToolBar].getName()) =>
       log.debug(s"Process '${message}'.")
       App.exec { visibleWhen.test() }
 
@@ -153,7 +153,7 @@ class ElementToolBar extends Resources.ResourceToolBarSubscriber(classOf[Element
       //log.debug(s"Process '${message}'.")
       //ContextInjectionFactory.inject(this, App.workbench.getContext())
 
-    case message @ Resources.Message.ToolbarCreated(toolbar) => // skip
+    //case message @ Resources.Message.ToolbarCreated(toolbar) => // skip
   }
 
   /** Hide toolbar at the beginning. */
