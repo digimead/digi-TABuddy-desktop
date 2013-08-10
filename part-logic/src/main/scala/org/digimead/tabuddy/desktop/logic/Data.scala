@@ -269,6 +269,8 @@ object Data extends Loggable {
   object Id {
     /** Value of the various UI elements with model id value. */
     final val modelIdUserInput = "org.digimead.tabuddy.desktop.logic.Data/modelIdUserInput"
+    /** Value of the selected model element. */
+    final val selectedElementUserInput = "org.digimead.tabuddy.desktop.logic.Data/selectedElementUserInput"
   }
   /**
    * Dependency injection routines

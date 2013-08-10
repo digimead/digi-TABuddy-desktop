@@ -107,7 +107,7 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertUIThread(false)
     view = Option(parent)
-    val content = App.execNGet { editor.TableView(parent, SWT.NONE) }
+    val content = App.execNGet { editor.View(parent, SWT.NONE) }
     Some(content)
   }
   /** Destroy created window. */
@@ -118,6 +118,7 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
   protected def onStart(widget: Widget) = view match {
     case Some(view) =>
       log.debug("View started by focus event on " + widget)
+      App.exec { view.getChildren().head.asInstanceOf[editor.View].onStart() }
     case None =>
       log.fatal("Unable to start view without widget.")
   }

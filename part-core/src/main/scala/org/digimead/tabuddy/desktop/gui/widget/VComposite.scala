@@ -46,6 +46,9 @@ package org.digimead.tabuddy.desktop.gui.widget
 import java.util.UUID
 
 import org.digimead.tabuddy.desktop.gui.Configuration
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.AppContext
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Composite
 
@@ -57,6 +60,8 @@ import akka.actor.ActorRef
  */
 class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val factory: Configuration.Factory, parent: ScrolledComposite, style: Int)
   extends Composite(parent, style) with SComposite {
+  /** Get view context. */
+  def getContext(): AppContext = getData(App.widgetContextKey).asInstanceOf[AppContext]
   /** Returns the receiver's parent, which must be a ScrolledComposite. */
   override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
 }

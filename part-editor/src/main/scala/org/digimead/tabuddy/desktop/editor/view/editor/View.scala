@@ -53,11 +53,13 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
+import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.TreeProxy
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.model.Model
@@ -74,39 +76,41 @@ import org.eclipse.jface.action.IAction
 import org.eclipse.jface.action.MenuManager
 import org.eclipse.jface.action.Separator
 import org.eclipse.jface.databinding.swt.WidgetProperties
+import org.eclipse.jface.util.ConfigureColumns
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.TreeViewer
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.jface.viewers.ViewerFilter
+import org.eclipse.jface.window.SameShellProvider
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StyleRange
 import org.eclipse.swt.graphics.Point
+import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
-import org.eclipse.jface.util.ConfigureColumns
-import org.eclipse.jface.window.SameShellProvider
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
-import org.eclipse.swt.layout.GridData
+import org.eclipse.swt.widgets.Widget
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
+import com.escalatesoft.subcut.inject.Inject
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.e4.core.contexts.Active
+import javax.inject.Named
+import org.digimead.tabuddy.desktop.ResourceManager
 
-class TableView private (parent: Composite, style: Int)
-  extends TableViewSkel(parent, style) with Loggable {
-  TableView.viewMap(getShell) = this
+class View private (parent: VComposite, style: Int)
+  extends TableViewSkel(parent, style) with ViewActions with Loggable {
   lazy val title = Messages.tableView_text
   lazy val description = "Tree View"
   protected[editor] lazy val table = new Table(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
   protected[editor] lazy val tree = new Tree(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
-  //protected[editor] lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.content), tree.context.expandedItems)
-  /** Per shell context */
-  //protected[editor] val context = TableView.perShellContextInitialize(this)
+  protected[editor] lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.content), tree.expandedItems)
   /** Limit of refresh elements quantity */
   val maximumElementsPerRefresh = 1000
   /** Limit of refresh elements quantity that updated */
   val maximumFilteredElementsPerRefresh = 100
   /** Root navigation ranges */
-  var rootElementRanges = Seq[TableView.RootPathLinkRange[_ <: Element.Generic]]()
+  var rootElementRanges = Seq[View.RootPathLinkRange[_ <: Element.Generic]]()
   /** The table view menu */
   /*val tableViewMenu = {
     val menu = new MenuManager(Messages.tableView_text)
@@ -118,9 +122,13 @@ class TableView private (parent: Composite, style: Int)
     menu.add(context.ActionToggleExpand)
     menu
   }*/
-  // Initialize table view
+  // Initialize editor view
   initialize()
 
+  /** Returns the view's parent, which must be a VComposite. */
+  override def getParent(): VComposite = parent
+  /** Get selected element for current context. */
+  def getSelectedElementUserInput() = Option(parent.getContext.get(Data.Id.selectedElementUserInput).asInstanceOf[Element[Stash]])
   /** Clear root path */
   protected[editor] def clearRootElement() {
     getTextRootElement.setText("")
@@ -131,7 +139,7 @@ class TableView private (parent: Composite, style: Int)
   override protected[editor] def getCoolBarManager(): CoolBarManager = super.getCoolBarManager()
   /** Allow external access for scala classes */
   override protected[editor] def getSashForm() = super.getSashForm
-  /** Initialize table view */
+  /** Initialize editor view */
   protected def initialize() {
     setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
     // initialize tree
@@ -144,11 +152,11 @@ class TableView private (parent: Composite, style: Int)
     //getCoolBarManager.add(context.toolbarSecondary)
     //getCoolBarManager.update(true)
     // initialize miscellaneous elements
-    /*Data.fieldElement.addChangeListener { (element, event) => updateActiveElement(element) }
+    /*Data.fieldElement.addChangeListener { (element, event) => updateActiveElement(element) }*/
     getBtnResetActiveElement.addListener(SWT.Selection, new Listener() {
       def handleEvent(event: Event) = Option(tree.treeViewer.getInput().asInstanceOf[TreeProxy.Item]) match {
-        case Some(item) if item.hash != 0 => Data.fieldElement.value = item.element
-        case _ => Data.fieldElement.value = Model
+        case Some(item) if item.hash != 0 => setSelectedElementUserInput(item.element)
+        case _ => setSelectedElementUserInput(Model)
       }
     })
     getTextRootElement.addListener(SWT.MouseDown, new Listener() {
@@ -157,11 +165,11 @@ class TableView private (parent: Composite, style: Int)
         val style = getTextRootElement.getStyleRangeAtOffset(offset)
         if (style != null && style.underline && style.underlineStyle == SWT.UNDERLINE_LINK)
           rootElementRanges.find(range => offset >= range.index && offset <= range.index + range.length).foreach { range =>
-            Data.fieldElement.value = range.element
+            setSelectedElementUserInput(range.element)
             val item = TreeProxy.Item(range.element)
-            if (tree.treeViewer.getInput() != item) TableView.withRedrawDelayed(TableView.this) {
+            if (tree.treeViewer.getInput() != item) View.withRedrawDelayed(View.this) {
               tree.treeViewer.setInput(item)
-              context.ActionAutoResize(false)
+              ActionAutoResize(false)
             }
           }
       } catch {
@@ -169,22 +177,32 @@ class TableView private (parent: Composite, style: Int)
       }
     })
     // reload data
-    TableView.withRedrawDelayed(this) {
+    View.withRedrawDelayed(this) {
       reload
-      context.ActionAutoResize(false)
-    }*/
+      ActionAutoResize(false)
+    }
+    View.views += this -> {}
   }
-  /** onHide callback */
-   protected def onHide() {
+  /** Invoked at every modification of Data.Id.modelIdUserInput. */
+  @Inject @Optional // @log
+  def onModelIdUserInputChanged(@Named(Data.Id.selectedElementUserInput) element: Element[_ <: Stash]) =
+    App.exec { updateActiveElement(element) }
+  /** onStart callback */
+  def onStart() {
+    log.___gaze("ONSTART")
+    //    Window.getMenuTopLevel().add(tableViewMenu)
+    //    Window.getMenuTopLevel().update(false)
+    this.layout()
+  }
+  /** onStop callback */
+  def onStop() {
+    log.___gaze("ONSTOP")
     //    Window.getMenuTopLevel().remove(tableViewMenu)
     //    Window.getMenuTopLevel().update(false)
   }
-  /** onShow callback */
-  protected def onShow() {
-    //    Window.getMenuTopLevel().add(tableViewMenu)
-    //    Window.getMenuTopLevel().update(false)
-    //    this.layout()
-  }
+  /** Set selected element for current context. */
+  def setSelectedElementUserInput(element: Element[_ <: Stash]) = parent.getContext.set(Data.Id.selectedElementUserInput, element)
+
   /**
    * Refreshes this viewer starting with the given element. Labels are updated
    * as described in <code>refresh(boolean updateLabels)</code>.
@@ -195,13 +213,13 @@ class TableView private (parent: Composite, style: Int)
    * <code>update</code> methods.
    */
   protected def refresh(elementsForRefresh: Array[Element.Generic]) {
-    log.debug("refresh table view: structural changes")
+    log.debug("Refresh editor view: structural changes.")
     if (tree.treeViewer.getTree.getItemCount() == 0 || tree.treeViewer.getInput() == null) {
-      log.debug("skip refresh for empty table view")
+      log.debug("Skip refresh for empty editor view.")
       return
     }
     if (Model.eId == Payload.defaultModel.eId) {
-      log.debug("skip refresh for default model")
+      log.debug("Skip refresh for default model.")
       return
     }
     val elements = elementsForRefresh.distinct
@@ -249,7 +267,7 @@ class TableView private (parent: Composite, style: Int)
     if (topFiltered.size >= maximumFilteredElementsPerRefresh)
       return reload()
     // refresh
-    log.debug("refresh %d elements vs %d total: %s".format(topFiltered.size, elements.size, topFiltered.mkString(",")))
+    log.debug("Refresh %d elements vs %d total: %s.".format(topFiltered.size, elements.size, topFiltered.mkString(",")))
     /*
      * search for middle and bottom elements
      */
@@ -269,49 +287,49 @@ class TableView private (parent: Composite, style: Int)
      * refresh
      */
     var refreshVisible = false
-    /*TableView.withRedrawDelayed(this) {
+    View.withRedrawDelayed(this) {
       topFiltered.foreach { topElement =>
         val topItem = TreeProxy.Item(topElement)
-        val expanded = tree.context.expandedItems(topItem)
+        val expanded = tree.expandedItems(topItem)
         if (topItem != treeRoot && (topElement.eChildren.nonEmpty || expanded)) {
           val ancestors = topElement.eAncestors
           val visibleAncestors = ancestors.takeWhile(_ == treeRoot.element)
           if (ancestors.size != visibleAncestors.size) {
             // treeRoot discovered
-            if (ancestors.dropRight(1).forall(el => tree.context.expandedItems(TreeProxy.Item(el)))) {
+            if (ancestors.dropRight(1).forall(el => tree.expandedItems(TreeProxy.Item(el)))) {
               proxy.onRefresh(topItem, middleItems(topElement).distinct, bottomElements(topElement))
             } else {
-              log.debug("refresh invisible " + topElement)
+              log.debug(s"Refresh invisible ${topElement}.")
               tree.treeViewer.refresh(topItem, true)
               bottomElements(topElement).foreach(tree.treeViewer.refresh(_, true))
             }
           } else
-            log.debug(s"skip $topElement - the element is not belong to the current tree")
+            log.debug(s"Skip $topElement - the element is not belong to the current tree.")
         } else {
           proxy.onRefresh(topItem, middleItems(topElement).distinct, bottomElements(topElement))
         }
       }
-      context.ActionAutoResize(false)
-    }*/
+      ActionAutoResize(false)
+    }
   }
   /** Reload data */
   protected def reload() {
-    log.debug("update table view: major changes")
-    /*proxy.clearContent
-    if (Model.eId == Payload.defaultModelIdentifier) {
-      log.debug("update for defalt model")
+    log.debug("Update editor view: major changes.")
+    proxy.clearContent
+    if (Model.eId == Payload.defaultModel.eId) {
+      log.debug("Update for defalt model.")
       tree.treeViewer.setInput(null)
       tree.treeViewer.getTree.clearAll(true)
       table.tableViewer.setInput(null)
       table.tableViewer.getTable.clearAll()
       return
-    }*/
+    }
     /*
      * reload:
      *  Table.columnTemplate
      *  Table.columnLabelProvider
      */
-    /*    val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate.Interface]]()
+        val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
     val properties = Data.elementTemplates.values.flatMap { template =>
       template.properties.foreach {
         case (group, properties) => properties.foreach(property =>
@@ -319,12 +337,12 @@ class TableView private (parent: Composite, style: Int)
       }
       template.properties.flatMap(_._2)
     }.toList.groupBy(_.id.name.toLowerCase())
-    val columnIds = List(TableView.COLUMN_ID, TableView.COLUMN_NAME) ++ properties.keys.filterNot(_ == TableView.COLUMN_NAME).toSeq.sorted
+    val columnIds = List(View.COLUMN_ID, View.COLUMN_NAME) ++ properties.keys.filterNot(_ == View.COLUMN_NAME).toSeq.sorted
     Table.columnTemplate = immutable.HashMap((for (columnId <- columnIds) yield columnId match {
-      case id if id == TableView.COLUMN_ID =>
-        (TableView.COLUMN_ID, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]())
-      case id if id == TableView.COLUMN_NAME =>
-        (TableView.COLUMN_NAME, immutable.HashMap(properties.get(TableView.COLUMN_NAME).getOrElse(List()).map { property =>
+      case id if id == View.COLUMN_ID =>
+        (View.COLUMN_ID, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]())
+      case id if id == View.COLUMN_NAME =>
+        (View.COLUMN_NAME, immutable.HashMap(properties.get(View.COLUMN_NAME).getOrElse(List()).map { property =>
           propertyCache(property).map(template => (template.id, property))
         }.flatten: _*))
       case _ =>
@@ -334,7 +352,7 @@ class TableView private (parent: Composite, style: Int)
     }): _*)
     Table.columnLabelProvider = Table.columnTemplate.map {
       case (columnId, columnProperties) =>
-        if (columnId == TableView.COLUMN_ID)
+        if (columnId == View.COLUMN_ID)
           columnId -> new Table.TableLabelProviderID()
         else
           columnId -> new Table.TableLabelProvider(columnId, columnProperties)
@@ -343,8 +361,8 @@ class TableView private (parent: Composite, style: Int)
     // update content
     table.tableViewer.setInput(table.content.underlying)
     tree.treeViewer.setInput(TreeProxy.Item(Model.inner))
-    tree.treeViewer.setExpandedElements(tree.context.expandedItems.toArray)
-    table.tableViewer.refresh()*/
+    tree.treeViewer.setExpandedElements(tree.expandedItems.toArray)
+    table.tableViewer.refresh()
   }
   /** Recreate table columns with preserve table selected elements */
   protected def recreateSmart() {
@@ -364,27 +382,27 @@ class TableView private (parent: Composite, style: Int)
    * To handle structural changes, use the refresh methods instead.
    */
   protected def update(elements: Array[Element.Generic]) {
-    log.debug("update table view")
+    log.debug("Update editor view.")
     // The element new name may affect to tree item position, so handle it as structural change
     // tree.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null) is inapplicable
     val elementsPerParent = (elements.flatMap(el => el.eParent.map(p => (p, el))): Array[(Element.Generic, Element.Generic)]).
       groupBy(_._1): immutable.Map[Element.Generic, Array[(Element.Generic, Element.Generic)]]
-    /*elementsPerParent.foreach {
+    elementsPerParent.foreach {
       case (parent, parentAndElement) =>
         val parentItem = TreeProxy.Item(parent)
         proxy.onRefresh(parentItem, Seq(), parentAndElement.map(el => TreeProxy.Item(el._2)))
-    }*/
+    }
     table.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null)
   }
   /** Recreate table columns */
   protected def updateColumns() {
-    /*    val disposedColumnsWidth = table.disposeColumns()
-    val columnList = context.toolbarView.view.value.map(selected => mutable.LinkedHashSet(TableView.COLUMN_ID) ++
-      (selected.fields.map(_.name) - TableView.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(TableView.COLUMN_ID, TableView.COLUMN_NAME))
-    table.createColumns(columnList, disposedColumnsWidth)*/
+        val disposedColumnsWidth = table.disposeColumns()
+    //val columnList = context.toolbarView.view.value.map(selected => mutable.LinkedHashSet(TableView.COLUMN_ID) ++
+    //  (selected.fields.map(_.name) - TableView.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(TableView.COLUMN_ID, TableView.COLUMN_NAME))
+    //table.createColumns(columnList, disposedColumnsWidth)
   }
   /** Update active element status */
-  protected[editor] def updateActiveElement(element: Element.Generic) { //= Data.fieldElement.value) {
+  protected[editor] def updateActiveElement(element: Element.Generic) {
     val item = TreeProxy.Item(element)
     val ancestorsN = 8
     val ancestors = element.eAncestors
@@ -399,42 +417,42 @@ class TableView private (parent: Composite, style: Int)
       n += 1
       acc + separator + element.eId.name + ", " + element.eGet[String]('name).map(value => "\"%s\"".format(value.get)).getOrElse(Messages.untitled_text)
     }
-    /*if (tree.treeViewer.getInput() == item) {
+    if (tree.treeViewer.getInput() == item) {
       // root
       val prefix = element.toString + " "
       val suffix = "[root]"
       val style = new StyleRange()
       style.fontStyle ^= SWT.ITALIC | SWT.BOLD
-      style.foreground = SWTResourceManager.getColor(SWT.COLOR_DARK_YELLOW)
+      style.foreground = ResourceManager.getColor(SWT.COLOR_DARK_YELLOW)
       getTextActiveElement.setText(prefix + suffix)
       getTextActiveElement.setStyleRanges(Array(prefix.length(), suffix.length()), Array(style))
-      context.ActionElementNew.setEnabled(true)
-      context.ActionElementEdit.setEnabled(false)
-      context.ActionElementDelete.setEnabled(false)
+      ActionElementNew.setEnabled(true)
+      ActionElementEdit.setEnabled(false)
+      ActionElementDelete.setEnabled(false)
     } else if (proxy.getContent.exists(_ == item)) {
       getTextActiveElement.setText(element.toString)
-      context.ActionElementNew.setEnabled(true)
-      context.ActionElementEdit.setEnabled(true)
-      context.ActionElementDelete.setEnabled(true)
+      ActionElementNew.setEnabled(true)
+      ActionElementEdit.setEnabled(true)
+      ActionElementDelete.setEnabled(true)
     } else {
       // hidden
       val prefix = element.toString + " "
       val suffix = "[hidden]"
       val style = new StyleRange()
       style.fontStyle ^= SWT.ITALIC | SWT.BOLD
-      style.foreground = SWTResourceManager.getColor(SWT.COLOR_DARK_RED)
+      style.foreground = ResourceManager.getColor(SWT.COLOR_DARK_RED)
       getTextActiveElement.setText(prefix + suffix)
       getTextActiveElement.setStyleRanges(Array(prefix.length(), suffix.length()), Array(style))
-      context.ActionElementNew.setEnabled(false)
-      context.ActionElementEdit.setEnabled(false)
-      context.ActionElementDelete.setEnabled(false)
-    }*/
+      ActionElementNew.setEnabled(false)
+      ActionElementEdit.setEnabled(false)
+      ActionElementDelete.setEnabled(false)
+    }
     getTextActiveElement.setToolTipText(tooltip)
     getBtnResetActiveElement.setEnabled(TreeProxy.Item(element) != tree.treeViewer.getInput())
   }
   /** Update root path */
   protected[editor] def updateRootElement(element: Element.Generic) {
-    log.debug("update root element to " + element)
+    log.debug(s"Update root element to ${element}.")
     val ancestors = element.eAncestors
     val path = ancestors.reverse :+ element
     val style = new StyleRange()
@@ -444,12 +462,12 @@ class TableView private (parent: Composite, style: Int)
     val shift = separator.length
     var rangeIndex = 0
     var rangeShift = 0
-    var rootElementLinks = Seq[TableView.RootPathLinkRange[_ <: Element.Generic]]()
+    var rootElementLinks = Seq[View.RootPathLinkRange[_ <: Element.Generic]]()
     val ranges = path.map { element =>
       val name = element.eId.name
       val index = rangeIndex
       rangeIndex = rangeIndex + name.length + shift
-      rootElementLinks = rootElementLinks :+ TableView.RootPathLinkRange(element, index, name.length)
+      rootElementLinks = rootElementLinks :+ View.RootPathLinkRange(element, index, name.length)
       Array(index, name.length)
     }.flatten.toArray
     val styles = path.map(_ => style).toArray
@@ -459,7 +477,7 @@ class TableView private (parent: Composite, style: Int)
   }
 }
 
-object TableView extends Loggable {
+object View extends Loggable {
   /** The column special identifier */
   protected[editor] val COLUMN_ID = "id"
   /** The column special identifier */
@@ -476,8 +494,8 @@ object TableView extends Loggable {
   private val refreshEventsExpandAggregator = WritableValue(Set[Element[_ <: Stash]]())
   /** Minor changes(element modification) aggregator */
   private val updateEventsAggregator = WritableValue(Set[Element[_ <: Stash]]())
-  /** Shell -> View map */
-  val viewMap = new mutable.WeakHashMap[Shell, TableView] with mutable.SynchronizedMap[Shell, TableView]
+  /** All views. */
+  val views = new mutable.WeakHashMap[View, Unit] with mutable.SynchronizedMap[View, Unit]
   /** Global element events subscriber */
   private val elementEventsSubscriber = new Element.Event.Sub {
     def notify(pub: Element.Event.Pub, event: Element.Event) = event match {
@@ -521,22 +539,21 @@ object TableView extends Loggable {
     }
   }
 
-  /** Create table view */
-  def apply(parent: Composite, style: Int): TableView = {
-    assert(viewMap.get(parent.getShell()).isEmpty, "Tree already initialized")
-    val view = new TableView(parent, style)
+  /** Create editor view */
+  def apply(parent: VComposite, style: Int): View = {
+    val view = new View(parent, style)
 
     // handle data modification changes
     Data.modelName.addChangeListener { (_, _) => reloadEventsAggregator.value = System.currentTimeMillis() }
     Data.elementTemplates.addChangeListener { event => reloadEventsAggregator.value = System.currentTimeMillis() }
     Observables.observeDelayedValue(aggregatorDelay, reloadEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      def handleValueChange(event: ValueChangeEvent) = viewMap.values.foreach(view => withRedrawDelayed(view) {
+      def handleValueChange(event: ValueChangeEvent) = views.keys.foreach(view => withRedrawDelayed(view) {
         view.reload()
       })
     })
     // handle structural changes
     Observables.observeDelayedValue(aggregatorDelay, refreshEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      def handleValueChange(event: ValueChangeEvent) = viewMap.values.foreach(view => withRedrawDelayed(view) {
+      def handleValueChange(event: ValueChangeEvent) = views.keys.foreach(view => withRedrawDelayed(view) {
         val set = refreshEventsAggregator.value
         refreshEventsAggregator.value = Set()
         if (set.nonEmpty)
@@ -545,7 +562,7 @@ object TableView extends Loggable {
     })
     // handle presentation changes
     Observables.observeDelayedValue(aggregatorDelay, updateEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      def handleValueChange(event: ValueChangeEvent) = viewMap.values.foreach(view => withRedrawDelayed(view) {
+      def handleValueChange(event: ValueChangeEvent) = views.keys.foreach(view => withRedrawDelayed(view) {
         val set = updateEventsAggregator.value
         updateEventsAggregator.value = Set()
         if (set.nonEmpty)
@@ -570,18 +587,19 @@ object TableView extends Loggable {
       withRedrawDelayed(view) {
         view.table.tableViewer.refresh()
       }
-    }
-    // initial update of tree state
-    TableView.withRedrawDelayed(view) {
-      if (view.context.ActionToggleExpand.isChecked())
-        Tree.expandAll(view.getShell())
-      view.context.ActionToggleEmpty(view.getShell())
-      view.context.ActionToggleSystem(view.getShell())
-      view.context.ActionToggleIdentificators(view.getShell())
-      view.context.ActionAutoResize(true)
     }*/
+    // initial update of tree state
+    View.withRedrawDelayed(view) {
+      if (view.ActionToggleExpand.isChecked())
+        Tree.expandAll(view)
+      view.ActionToggleEmpty()
+      view.ActionToggleSystem()
+      view.ActionToggleIdentificators()
+      view.ActionAutoResize(true)
+    }
     view
   }
+  def get(widget: Widget): Option[View] = None
   /**
    * This function is invoked at application start
    */
@@ -591,7 +609,7 @@ object TableView extends Loggable {
    */
   def stop() = Element.Event.removeSubscription(elementEventsSubscriber)
   /** Disable the redraw while updating */
-  def withRedrawDelayed[T](view: TableView)(f: => T): T = {
+  def withRedrawDelayed[T](view: View)(f: => T): T = {
     view.getSashForm.setRedraw(false)
     view.table.tableViewer.getTable.setRedraw(false)
     view.tree.treeViewer.getTree.setRedraw(false)

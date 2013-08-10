@@ -101,14 +101,14 @@ import org.eclipse.jface.util.ConfigureColumns
 import org.eclipse.jface.window.SameShellProvider
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.editor.Default
 
-class Table(view: TableView, style: Int) extends Loggable {
+class Table(protected[editor] val view: View, style: Int)
+  extends TableActions with TableFields with Loggable {
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The actual table content. */
   protected[editor] lazy val content = WritableList[TreeProxy.Item]
-  /** Per shell context */
-  //protected[editor] val context = Table.perShellContextInitialize(view)
   /** The instance of filter that drops empty table rows */
   protected lazy val filterEmptyElements = new Table.FilterEmptyElements(view)
   /** On active listener flag */
@@ -137,19 +137,19 @@ class Table(view: TableView, style: Int) extends Loggable {
       autoresizeUpdateControls()
     else if (autoResizeLock.tryLock()) try {
       Thread.sleep(50)
-      //Main.execNGet {
-      //  if (!tableViewer.getTable.isDisposed())
-      //    TableView.withRedrawDelayed(view) { autoresizeUpdateControls() }
-      //}
+      App.execNGet {
+        if (!tableViewer.getTable.isDisposed())
+          View.withRedrawDelayed(view) { autoresizeUpdateControls() }
+      }
     } finally {
       autoResizeLock.unlock()
     }
   /** Auto resize control updater */
   protected def autoresizeUpdateControls() {
-//    if (view.context.ActionToggleIdentificators.isChecked())
-//      context.tableViewerColumns.dropRight(1).foreach(adjustColumnWidth(_, Default.columnPadding))
-//    else
-//      context.tableViewerColumns.tail.dropRight(1).foreach(adjustColumnWidth(_, Default.columnPadding))
+    if (view.ActionToggleIdentificators.isChecked())
+      tableViewerColumns.dropRight(1).foreach(adjustColumnWidth(_, Default.columnPadding))
+    else
+      tableViewerColumns.tail.dropRight(1).foreach(adjustColumnWidth(_, Default.columnPadding))
     tableViewer.refresh()
   }
   /** Create contents of the table. */
@@ -178,18 +178,18 @@ class Table(view: TableView, style: Int) extends Loggable {
     tableViewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          //Data.fieldElement.value = selection.getFirstElement().asInstanceOf[TreeProxy.Item].element
+        //Data.fieldElement.value = selection.getFirstElement().asInstanceOf[TreeProxy.Item].element
         case selection =>
       }
     })
     table.addPaintListener(onActiveListener)
     // update id column width
-//    if (context.saveWidthColumnID == 0) {
-//      context.saveWidthColumnID = table.getColumn(0).getWidth()
-//      table.getColumn(0).setWidth(0)
-//      table.getColumn(0).setResizable(false)
-//    }
-//    tableViewer.setComparator(new Table.TableComparator(-1, Default.sortingDirection, new WeakReference(this)))
+    if (saveWidthColumnID == 0) {
+      saveWidthColumnID = table.getColumn(0).getWidth()
+      table.getColumn(0).setWidth(0)
+      table.getColumn(0).setResizable(false)
+    }
+    tableViewer.setComparator(new Table.TableComparator(-1, Default.sortingDirection, new WeakReference(this)))
     tableViewer.setFilters(Array(new Table.TableFilter(view)))
     content.addChangeListener { (_) =>
       // reset sorting results on content change
@@ -221,15 +221,15 @@ class Table(view: TableView, style: Int) extends Loggable {
   protected[editor] def createColumns(columns: mutable.LinkedHashSet[String], columnsWidth: Map[String, Int]) {
     log.debug("create columns " + columns.mkString(","))
     var pos = 0
-/*    context.tableViewerColumns = columns.map { columnId =>
+    tableViewerColumns = columns.map { columnId =>
       Table.columnLabelProvider.get(columnId) match {
         case Some(labelProvider: Table.TableLabelProviderID) =>
-          val column = createColumn(Messages.identificator_text, TableView.COLUMN_ID, columnsWidth.get(columnId), labelProvider)
+          val column = createColumn(Messages.identificator_text, View.COLUMN_ID, columnsWidth.get(columnId), labelProvider)
           column.getColumn.addSelectionListener(new Table.TableSelectionAdapter(pos))
           pos += 1
           Some(column)
         case Some(labelProvider) =>
-          val column = if (columnId == TableView.COLUMN_NAME)
+          val column = if (columnId == View.COLUMN_NAME)
             createColumn(Messages.name_text, columnId, columnsWidth.get(columnId), labelProvider)
           else
             createColumn(columnId, columnId, columnsWidth.get(columnId), labelProvider)
@@ -240,18 +240,18 @@ class Table(view: TableView, style: Int) extends Loggable {
           log.fatal("unknown column " + columnId)
           None
       }
-    }.flatten*/
+    }.flatten
   }
   /** Create context menu for table element */
   protected def createMenu(manager: IMenuManager, selection: IStructuredSelection) {
-/*    val item = Option(selection.getFirstElement().asInstanceOf[TreeProxy.Item])
+    val item = Option(selection.getFirstElement().asInstanceOf[TreeProxy.Item])
     // tree menu
-    if (view.context.ActionHideTree.isChecked()) {
-      manager.add(context.ActionShowTree)
+    if (view.ActionHideTree.isChecked()) {
+      manager.add(ActionShowTree)
     } else {
       val treeMenu = new MenuManager(Messages.tree_text, null)
       treeMenu.add({
-        val action = new context.ActionSelectInTree(item.map(_.element).getOrElse(null))
+        val action = new ActionSelectInTree(item.map(_.element).getOrElse(null))
         if (item.nonEmpty) {
           val treeSelection = view.tree.treeViewer.getSelection().asInstanceOf[IStructuredSelection]
           action.setEnabled(treeSelection.getFirstElement() != selection.getFirstElement())
@@ -261,14 +261,14 @@ class Table(view: TableView, style: Int) extends Loggable {
         action
       })
       treeMenu.add(new Separator)
-      treeMenu.add(view.tree.context.ActionHideTree)
+      treeMenu.add(view.tree.ActionHideTree)
       manager.add(treeMenu)
     }
     // main menu
-    manager.add(context.ActionConfigureColumns)
-    manager.add(context.ActionResetSorting)
+    manager.add(ActionConfigureColumns)
+    manager.add(ActionResetSorting)
     manager.add(new Separator)
-    manager.add(context.ActionAutoResize)*/
+    manager.add(ActionAutoResize)
   }
   /** Dispose table viewer columns */
   def disposeColumns(): Map[String, Int] = {
@@ -293,24 +293,24 @@ object Table extends Loggable {
   protected[editor] var columnLabelProvider = immutable.HashMap[String, Table.TableLabelProvider]()
 
   /** Toggle the visibility of Id column */
-  def toggleColumnId(show: Boolean, shell: Shell) = {}/*withContext(shell) { (context, view) =>
+  def toggleColumnId(show: Boolean, view: View) = {
     if (show)
-      context.tableViewerColumns.headOption.foreach { column =>
-        if (context.saveWidthColumnID <= 0)
+      view.table.tableViewerColumns.headOption.foreach { column =>
+        if (view.table.saveWidthColumnID <= 0)
           view.table.adjustColumnWidth(column, Default.columnPadding)
         else
-          column.getColumn.setWidth(context.saveWidthColumnID)
+          column.getColumn.setWidth(view.table.saveWidthColumnID)
         column.getColumn.setResizable(true)
       }
     else
-      context.tableViewerColumns.headOption.foreach { column =>
-        context.saveWidthColumnID = column.getColumn.getWidth()
+      view.table.tableViewerColumns.headOption.foreach { column =>
+        view.table.saveWidthColumnID = column.getColumn.getWidth()
         column.getColumn.setWidth(0)
         column.getColumn.setResizable(false)
       }
-  }*/
+  }
   /** Toggle the visibility of empty rows */
-  def toggleEmptyRows(hideEmpty: Boolean, shell: Shell) = {} /*withContext(shell) { (context, view) =>
+  def toggleEmptyRows(hideEmpty: Boolean, view: View) = {
     val filters = view.table.tableViewer.getFilters()
     if (hideEmpty) {
       if (!filters.contains(view.table.filterEmptyElements))
@@ -319,23 +319,22 @@ object Table extends Loggable {
       if (filters.contains(view.table.filterEmptyElements))
         view.table.tableViewer.setFilters(filters.filterNot(_ == view.table.filterEmptyElements))
     }
-  }*/
+  }
 
   /** Filter empty rows from table (id row is not takes into consideration) */
-  class FilterEmptyElements(view: TableView) extends ViewerFilter {
+  class FilterEmptyElements(view: View) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: Object, element: Object): Boolean =
-      false
-//      !isEmpty(element.asInstanceOf[TreeProxy.Item].element)
-    protected def isEmpty(element: Element.Generic) = {}/*{
-      view.table.context.tableViewerColumns.tail.forall { column =>
+      !isEmpty(element.asInstanceOf[TreeProxy.Item].element)
+    protected def isEmpty(element: Element.Generic) = {
+      view.table.tableViewerColumns.tail.forall { column =>
         column.getColumn.getText() match {
           case id if id == Messages.name_text =>
-            Table.columnLabelProvider(TableView.COLUMN_NAME).isEmpty(element)
+            Table.columnLabelProvider(View.COLUMN_NAME).isEmpty(element)
           case columnId =>
             Table.columnLabelProvider(columnId).isEmpty(element)
         }
       }
-    }*/
+    }
   }
   class OnActiveListener(table: WeakReference[Table]) extends PaintListener {
     /** Sent when a paint event occurs for the control. */
@@ -373,7 +372,7 @@ object Table extends Loggable {
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
       val item1 = e1.asInstanceOf[TreeProxy.Item]
       val item2 = e2.asInstanceOf[TreeProxy.Item]
-      val view = viewer.asInstanceOf[TableViewer].getTable().getData().asInstanceOf[TableView]
+      val view = viewer.asInstanceOf[TableViewer].getTable().getData().asInstanceOf[View]
       val columnCount = viewer.asInstanceOf[TableViewer].getTable.getColumnCount()
       val rc: Int = if (column < 0) {
         /*sorted orElse {
@@ -421,10 +420,10 @@ object Table extends Loggable {
         } map { sorted =>
           sorted.indexOf(item1).compareTo(sorted.indexOf(item2))
         } getOrElse 0*/
-          0
+        0
       } else if (column < columnCount) {
         val columnId = viewer.asInstanceOf[TableViewer].getTable.getColumn(column).getData().asInstanceOf[String]
-        if (columnId == TableView.COLUMN_ID) {
+        if (columnId == View.COLUMN_ID) {
           item1.element.eId.name.compareTo(item2.element.eId.name)
         } else {
           val lprovider = viewer.asInstanceOf[TableViewer].getLabelProvider(column).asInstanceOf[ILabelProvider]
@@ -443,15 +442,15 @@ object Table extends Loggable {
       directionVar = !directionVar
     }
     /** Update ActionResetSorting state */
-    def updateActionResetSorting() = {}/*table.get.foreach(table =>
+    def updateActionResetSorting() = {} /*table.get.foreach(table =>
       table.context.ActionResetSorting.setEnabled(columnVar != -1 || directionVar != initialDirection))*/
   }
   /** Filter that apply user rules */
-  class TableFilter(view: TableView) extends ViewerFilter {
+  class TableFilter(view: View) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: Object, element: Object): Boolean = element match {
       case item: TreeProxy.Item =>
-/*        val view = viewer.asInstanceOf[TableViewer].getTable.getData.asInstanceOf[TableView]
-        view.context.toolbarView.filter.value match {
+        val view = viewer.asInstanceOf[TableViewer].getTable.getData.asInstanceOf[View]
+        /*        view.toolbarView.filter.value match {
           case Some(filter) =>
             val filterBy = filter.rules.toSeq.flatMap { rule =>
               val filterInstance = Filter.map.get(rule.filter): Option[Filter.Interface[_ <: Filter.Argument]]
@@ -479,8 +478,8 @@ object Table extends Loggable {
         propertyMap.get(item.element.eScope.modificator).foreach { property =>
           val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
           // as common unknown type
-//          property.ptype.adapter.cellLabelProvider.asInstanceOf[PropertyType.CellLabelProviderAdapter[AnyRef with java.io.Serializable]].
-//            update(cell, value)
+          //          property.ptype.adapter.cellLabelProvider.asInstanceOf[PropertyType.CellLabelProviderAdapter[AnyRef with java.io.Serializable]].
+          //            update(cell, value)
         }
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
@@ -501,7 +500,7 @@ object Table extends Loggable {
           // as common unknown type
 //          property.ptype.adapter.labelProvider.asInstanceOf[LabelProviderAdapter[AnyRef with java.io.Serializable]].getImage(value)
 //        } getOrElse null
-          null
+        null
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
         null
@@ -515,7 +514,7 @@ object Table extends Loggable {
      */
     def getText(element: AnyRef): String = element match {
       case item: TreeProxy.Item =>
-/*        propertyMap.get(item.element.eScope.modificator).map { property =>
+        /*        propertyMap.get(item.element.eScope.modificator).map { property =>
           val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
           // as common unknown type
           property.ptype.adapter.labelProvider.asInstanceOf[LabelProviderAdapter[AnyRef with java.io.Serializable]].getText(value)
@@ -562,10 +561,10 @@ object Table extends Loggable {
           case Some(property) =>
             item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get) match {
               case Some(value) if value.getClass() == property.ptype.typeClass =>
-//                Some(f(property.ptype.adapter.cellLabelProvider, value))
+                //                Some(f(property.ptype.adapter.cellLabelProvider, value))
                 None
               case _ =>
-//                Some(f(property.ptype.adapter.cellLabelProvider, null))
+                //                Some(f(property.ptype.adapter.cellLabelProvider, null))
                 None
             }
           case None =>
@@ -576,7 +575,7 @@ object Table extends Loggable {
         None
     }
   }
-  class TableLabelProviderID() extends TableLabelProvider(TableView.COLUMN_ID, immutable.HashMap()) {
+  class TableLabelProviderID() extends TableLabelProvider(View.COLUMN_ID, immutable.HashMap()) {
     val dfg = DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL)
 
     /** Update the label for cell. */
@@ -631,7 +630,7 @@ object Table extends Loggable {
     override def isEmpty(element: Element.Generic) = false
   }
   class TableSelectionAdapter(column: Int) extends SelectionAdapter {
-    override def widgetSelected(e: SelectionEvent) = {}/*App.findShell(e.widget).foreach(withContext(_) { (context, view) =>
+    override def widgetSelected(e: SelectionEvent) = {} /*App.findShell(e.widget).foreach(withContext(_) { (context, view) =>
       val comparator = view.table.tableViewer.getComparator().asInstanceOf[TableComparator]
       if (comparator.column == column) {
         comparator.switchDirection()

@@ -41,21 +41,69 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.widget
+package org.digimead.tabuddy.desktop.editor.view.editor
 
-import java.util.UUID
+import scala.concurrent.future
 
+import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.Composite
+import org.digimead.tabuddy.desktop.support.TreeProxy
+import org.digimead.tabuddy.model.element.Element
+import org.eclipse.jface.action.Action
+import org.eclipse.jface.action.IAction
+import org.eclipse.jface.viewers.StructuredSelection
 
-import akka.actor.ActorRef
+/**
+ * Tree actions.
+ */
+trait TreeActions {
+  this: Tree =>
 
-/** Window actual content container. */
-class WComposite(val id: UUID, val ref: ActorRef, parent: Composite, style: Int)
-  extends ScrolledComposite(parent, style) with SComposite {
-  /** Get window context. */
-  def getContext(): AppContext = getData(App.widgetContextKey).asInstanceOf[AppContext]
+  class ActionAsRoot(val element: Element.Generic) extends Action(Messages.markAsRoot_text) {
+    def apply() = View.withRedrawDelayed(view) {
+      treeViewer.setInput(TreeProxy.Item(element))
+      view.ActionAutoResize(false)
+    }
+    override def run() = apply()
+  }
+  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+    setChecked(true)
+
+    def apply(immediately: Boolean = false) = if (immediately)
+      autoresize(true)
+    else {
+      implicit val ec = App.system.dispatcher
+      future { autoresize(false) } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
+    }
+    override def run = if (isChecked()) apply()
+  }
+  class ActionCollapse(val element: Element.Generic) extends Action(Messages.collapseRecursively_text) {
+    def apply() = View.withRedrawDelayed(view) {
+      Tree.collapse(element, true, view)
+      view.ActionAutoResize(false)
+    }
+    override def run() = apply()
+  }
+  class ActionExpand(val element: Element.Generic) extends Action(Messages.expandRecursively_text) {
+    def apply() = View.withRedrawDelayed(view) {
+      Tree.expand(element, true, view)
+      view.ActionAutoResize(true)
+    }
+    override def run() = apply()
+  }
+  object ActionHideTree extends Action(Messages.hide_text) {
+    def apply() = {
+      view.ActionHideTree.setChecked(true)
+      view.ActionHideTree()
+    }
+    override def run() = apply()
+  }
+  class ActionSelectInTable(val element: Element.Generic) extends Action(Messages.select_text) {
+    def apply() = view.table.tableViewer.setSelection(new StructuredSelection(TreeProxy.Item(element)), true)
+    override def run() = apply()
+  }
 }

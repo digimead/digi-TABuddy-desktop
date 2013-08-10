@@ -41,21 +41,13 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.widget
+package org.digimead.tabuddy.desktop.editor.view.editor
 
-import java.util.UUID
+import scala.collection.mutable
 
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.Composite
+import org.digimead.tabuddy.desktop.support.TreeProxy
 
-import akka.actor.ActorRef
-
-/** Window actual content container. */
-class WComposite(val id: UUID, val ref: ActorRef, parent: Composite, style: Int)
-  extends ScrolledComposite(parent, style) with SComposite {
-  /** Get window context. */
-  def getContext(): AppContext = getData(App.widgetContextKey).asInstanceOf[AppContext]
+trait TreeFields {
+  /** List of expanded elements */
+  protected[editor] val expandedItems = mutable.HashSet[TreeProxy.Item]()
 }

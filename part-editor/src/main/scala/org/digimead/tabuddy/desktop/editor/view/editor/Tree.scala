@@ -94,11 +94,10 @@ import org.eclipse.swt.widgets.TreeItem
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.support.App
 
-class Tree(view: TableView, style: Int) extends Loggable {
+class Tree(protected[editor] val view: View, style: Int)
+  extends TreeActions with TreeFields with Loggable {
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
-  /** Per shell context */
-//  protected[editor] val context = Tree.perShellContextInitialize(view)
   /** On active listener flag */
   protected val onActiveCalled = new AtomicBoolean(false)
   /** On active listener */
@@ -186,16 +185,16 @@ class Tree(view: TableView, style: Int) extends Loggable {
     treeViewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          //Data.fieldElement.value = selection.getFirstElement().asInstanceOf[TreeProxy.Item].element
+          view.setSelectedElementUserInput(selection.getFirstElement().asInstanceOf[TreeProxy.Item].element)
         case selection =>
       }
     })
     // Add the expand/collapse listener
     tree.addListener(SWT.Collapse, new Listener() {
-      override def handleEvent(e: Event) = TableView.withRedrawDelayed(view) { onCollapse(e.item.asInstanceOf[TreeItem]) }
+      override def handleEvent(e: Event) = View.withRedrawDelayed(view) { onCollapse(e.item.asInstanceOf[TreeItem]) }
     })
     tree.addListener(SWT.Expand, new Listener() {
-      override def handleEvent(e: Event) = TableView.withRedrawDelayed(view) { onExpand(e.item.asInstanceOf[TreeItem]) }
+      override def handleEvent(e: Event) = View.withRedrawDelayed(view) { onExpand(e.item.asInstanceOf[TreeItem]) }
     })
     tree.addPaintListener(onActiveListener)
     treeViewer
@@ -205,24 +204,24 @@ class Tree(view: TableView, style: Int) extends Loggable {
     Option(selection.getFirstElement().asInstanceOf[TreeProxy.Item]) match {
       case Some(item) =>
         // table menu
-        /*val tableMenu = new MenuManager(Messages.table_text, null)
+        val tableMenu = new MenuManager(Messages.table_text, null)
         tableMenu.add({
-          val action = new context.ActionSelectInTable(item.element)
+          val action = new ActionSelectInTable(item.element)
           val tableSelection = view.table.tableViewer.getSelection().asInstanceOf[IStructuredSelection]
           action.setEnabled(tableSelection.getFirstElement() != selection.getFirstElement())
           action
         })
         manager.add(tableMenu)
         // main menu
-        manager.add(new context.ActionAsRoot(item.element))
-        manager.add(new context.ActionExpand(item.element))
-        manager.add(new context.ActionCollapse(item.element))
-        manager.add(new Separator)*/
+        manager.add(new ActionAsRoot(item.element))
+        manager.add(new ActionExpand(item.element))
+        manager.add(new ActionCollapse(item.element))
+        manager.add(new Separator)
       case None =>
     }
-//    manager.add(context.ActionAutoResize)
-  //  manager.add(new Separator)
-    //manager.add(context.ActionHideTree)
+    manager.add(ActionAutoResize)
+    manager.add(new Separator)
+    manager.add(ActionHideTree)
   }
   /** onActive callback */
   protected def onActive() {
@@ -233,7 +232,7 @@ class Tree(view: TableView, style: Int) extends Loggable {
       val privateSashesField = view.getSashForm.getClass.getDeclaredField("sashes")
       privateSashesField.setAccessible(true)
       privateSashesField.get(view.getSashForm).asInstanceOf[Array[Sash]].head.addListener(SWT.Selection, new Listener() {
-        def handleEvent(e: Event) = {}//context.ActionAutoResize.setChecked(false)
+        def handleEvent(e: Event) = ActionAutoResize.setChecked(false)
       })
     } catch {
       case e: Throwable =>
@@ -243,21 +242,21 @@ class Tree(view: TableView, style: Int) extends Loggable {
   /** onExpand callback */
   protected def onCollapse(treeItem: TreeItem) {
     val item = treeItem.getData().asInstanceOf[TreeProxy.Item]
-    /*if (context.expandedItems(item))
+    if (expandedItems(item))
       view.proxy.onCollapse(item)
-    view.updateActiveElement()
-    view.context.ActionAutoResize(false)*/
+    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.ActionAutoResize(false)
   }
   /** onExpand callback */
   protected def onExpand(treeItem: TreeItem) {
     val item = treeItem.getData.asInstanceOf[TreeProxy.Item]
-    /*if (!context.expandedItems(item))
+    if (!expandedItems(item))
       view.proxy.onExpand(item)
     // re expand children if needed
     val expand = treeItem.getItems().filter(child =>
-      child.getData() != null && context.expandedItems(child.getData().asInstanceOf[TreeProxy.Item]))
+      child.getData() != null && expandedItems(child.getData().asInstanceOf[TreeProxy.Item]))
     if (expand.nonEmpty) {
-      Main.exec {
+      App.exec {
         expand.foreach { item =>
           if (item.getItemCount() == 1 && item.getItems.head.getData() == null) {
             // expand invisible item after refresh
@@ -268,32 +267,32 @@ class Tree(view: TableView, style: Int) extends Loggable {
         }
       }
     }
-    view.updateActiveElement()
-    view.context.ActionAutoResize(false)*/
+    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.ActionAutoResize(false)
   }
   protected def onInputChanged(item: TreeProxy.Item) {
     if (treeViewer.getTree().isDisposed())
       return
-    //view.proxy.onInputChanged(item)
+    view.proxy.onInputChanged(item)
     if (item == null) {
       view.clearRootElement()
       return
     }
     Tree.FilterSystemElement.updateSystemElement()
-    /*Option(Tree.FilterSystemElement.systemElement).map(TreeProxy.Item(_)).foreach { systemItem =>
-      if (view.context.ActionToggleSystem.isChecked())
+    Option(Tree.FilterSystemElement.systemElement).map(TreeProxy.Item(_)).foreach { systemItem =>
+      if (view.ActionToggleSystem.isChecked())
         view.proxy.onUnfilter(systemItem)
       else
         view.proxy.onFilter(systemItem)
-    }*/
+    }
     view.updateRootElement(item.element)
-    //view.updateActiveElement()
+    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
   }
 }
 
 object Tree extends Loggable {
   /** Collapse the element. */
-  def collapse(element: Element.Generic, recursively: Boolean, shell: Shell): Unit = {} /*withContext(shell) { (context, view) =>
+  def collapse(element: Element.Generic, recursively: Boolean, view: View): Unit = {
     log.debug("collapse " + element)
     val item = TreeProxy.Item(element)
     if (recursively) {
@@ -303,17 +302,17 @@ object Tree extends Loggable {
       view.tree.treeViewer.collapseToLevel(item, 1)
       view.proxy.onCollapse(item)
     }
-    view.updateActiveElement()
-  }*/
+    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+  }
   /** Collapse all elements */
-  def collapseAll(shell: Shell) = {} /*withContext(shell) { (context, view) =>
+  def collapseAll(view: View) = {
     log.debug("collapse all elements")
     view.tree.treeViewer.collapseAll()
     view.proxy.onCollapseAll()
-    view.updateActiveElement()
-  }*/
+    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+  }
   /** Expand the element. */
-  def expand(element: Element.Generic, recursively: Boolean, shell: Shell): Unit = {}/*withContext(shell) { (context, view) =>
+  def expand(element: Element.Generic, recursively: Boolean, view: View): Unit = {
     log.debug("expand " + element)
     val item = TreeProxy.Item(element)
     if (recursively)
@@ -321,7 +320,7 @@ object Tree extends Loggable {
     else
       view.tree.treeViewer.expandToLevel(item, 1)
     def expandItem(item: TreeProxy.Item): Unit = {
-      if (!context.expandedItems(item)) {
+      if (!view.tree.expandedItems(item)) {
         if (recursively)
           view.proxy.onExpandRecursively(item)
         else
@@ -333,19 +332,19 @@ object Tree extends Loggable {
       }
     }
     expandItem(item)
-    view.updateActiveElement()
-  }*/
+    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+  }
   /** Expand all elements */
-  def expandAll(shell: Shell): Unit = {}/*withContext(shell) { (context, view) =>
+  def expandAll(view: View): Unit = {
     log.debug("expand all elements")
     val tableSelection = view.table.tableViewer.getSelection()
     view.tree.treeViewer.expandAll()
     view.proxy.onExpandAll()
     view.table.tableViewer.setSelection(tableSelection)
-    view.updateActiveElement()
-  }*/
+    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+  }
   /** Toggle system elements filter */
-  def toggleSystemElementsFilter(enableFilter: Boolean, shell: Shell) = {}/* withContext(shell) { (context, view) =>
+  def toggleSystemElementsFilter(enableFilter: Boolean, view: View) = {
     val filters = view.tree.treeViewer.getFilters()
     Tree.FilterSystemElement.updateSystemElement()
     if (enableFilter) {
@@ -363,15 +362,15 @@ object Tree extends Loggable {
         }
       }
     }
-    view.updateActiveElement()
-  }*/
+    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+  }
   /** Toggle auto expand */
-  def toggleAutoExpand(enable: Boolean, shell: Shell) = {}/*withContext(shell) { (context, view) =>
+  def toggleAutoExpand(enable: Boolean, view: View) = {
     if (enable)
       view.tree.treeViewer.setAutoExpandLevel(AbstractTreeViewer.ALL_LEVELS)
     else
       view.tree.treeViewer.setAutoExpandLevel(0)
-  }*/
+  }
 
   object FilterSystemElement extends ViewerFilter {
     var systemElement: Element.Generic = null // updated only from UI thread
@@ -411,7 +410,7 @@ object Tree extends Loggable {
      * has been switched to a different element.
      */
     def inputChanged(v: Viewer, oldInput: Object, newInput: Object) = {
-/*      Tree.withContext(v.getControl().getShell()) { (context, view) =>
+      /*      Tree.withContext(v.getControl().getShell()) { (context, view) =>
         Main.exec { // blow up with this bug without Main.exec
           assert(view.tree.treeViewer.getInput() == newInput, "JFace bug, WTF? event fired, but input is not changed")
           view.tree.onInputChanged(newInput.asInstanceOf[TreeProxy.Item])
@@ -484,7 +483,7 @@ object Tree extends Loggable {
         null
     }
     /** The time in milliseconds until the tool tip is displayed. */
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 0// Default.toolTipDisplayDelayTime
+    override def getToolTipDisplayDelayTime(obj: Object): Int = 0 // Default.toolTipDisplayDelayTime
     /**
      * Return the amount of pixels in x and y direction that the tool tip to
      * pop up from the mouse pointer.

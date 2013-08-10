@@ -41,21 +41,20 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.widget
+package org.digimead.tabuddy.desktop.editor.view.editor
 
-import java.util.UUID
+import scala.collection.mutable
 
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.Composite
+import org.digimead.tabuddy.desktop.editor.Default
+import org.eclipse.jface.viewers.TableViewerColumn
 
-import akka.actor.ActorRef
-
-/** Window actual content container. */
-class WComposite(val id: UUID, val ref: ActorRef, parent: Composite, style: Int)
-  extends ScrolledComposite(parent, style) with SComposite {
-  /** Get window context. */
-  def getContext(): AppContext = getData(App.widgetContextKey).asInstanceOf[AppContext]
+trait TableFields {
+  /** Actual sorting direction. */
+  @volatile private var sortingDirection = Default.sortingDirection
+  /** Actual sortBy column index. */
+  @volatile private var sortingColumn = 0
+  /** Table viewer column's instances. */
+  protected[editor] var tableViewerColumns = mutable.LinkedHashSet[TableViewerColumn]()
+  /** The property that contains id column width. */
+  protected[editor] var saveWidthColumnID = -1
 }

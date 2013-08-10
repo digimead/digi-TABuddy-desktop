@@ -41,21 +41,62 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.gui.widget
+package org.digimead.tabuddy.desktop.editor.view.editor
 
-import java.util.UUID
+import scala.concurrent.future
 
+import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.Composite
+import org.digimead.tabuddy.desktop.support.TreeProxy
+import org.digimead.tabuddy.model.element.Element
+import org.eclipse.jface.action.Action
+import org.eclipse.jface.action.IAction
+import org.eclipse.jface.util.ConfigureColumns
+import org.eclipse.jface.viewers.StructuredSelection
+import org.eclipse.jface.window.SameShellProvider
 
-import akka.actor.ActorRef
+/**
+ * Table actions
+ */
+trait TableActions {
+  this: Table =>
 
-/** Window actual content container. */
-class WComposite(val id: UUID, val ref: ActorRef, parent: Composite, style: Int)
-  extends ScrolledComposite(parent, style) with SComposite {
-  /** Get window context. */
-  def getContext(): AppContext = getData(App.widgetContextKey).asInstanceOf[AppContext]
+  object ActionConfigureColumns extends Action("Configure Columns...") {
+    def apply() = ConfigureColumns.forTable(tableViewer.getTable(), new SameShellProvider(view.getShell()))
+    override def run() = apply()
+  }
+  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+    setChecked(true)
+    def apply(immediately: Boolean = false) = if (immediately)
+      autoresize(true)
+    else {
+      implicit val ec = App.system.dispatcher
+      future { autoresize(false) } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
+    }
+    override def run = if (isChecked()) apply()
+  }
+  object ActionResetSorting extends Action(Messages.resetSorting_text) {
+    // column -1 is user defined sorting
+    def apply(immediately: Boolean = false) = {
+      val comparator = tableViewer.getComparator().asInstanceOf[Table.TableComparator]
+      comparator.column = -1
+      tableViewer.refresh()
+    }
+    override def run = apply()
+  }
+  class ActionSelectInTree(val element: Element.Generic) extends Action(Messages.select_text) {
+    def apply() = view.tree.treeViewer.setSelection(new StructuredSelection(TreeProxy.Item(element)), true)
+    override def run() = apply()
+  }
+  object ActionShowTree extends Action(Messages.tree_text) {
+    def apply() = {
+      view.ActionHideTree.setChecked(false)
+      view.ActionHideTree()
+    }
+    override def run() = apply()
+  }
 }
