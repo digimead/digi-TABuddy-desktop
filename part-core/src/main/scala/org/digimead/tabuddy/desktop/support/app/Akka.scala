@@ -159,15 +159,15 @@ trait Akka {
   /** Send argument to the actor. */
   def tellActor[A](path: Seq[String], argument: A): Unit =
     getActorRef(path: _*).map { _ ! argument }
-  def traceMessage[T](message: AnyRef)(f: => T)(implicit l: RichLogger): T = try {
+  def traceMessage[T](message: AnyRef)(f: => T)(implicit l: RichLogger): Option[T] = try {
     l.trace(s"enteringHandler '${message}'")
     val result = f
     l.trace(s"leavingHandler '${message}'")
-    result
+    Some(result)
   } catch {
     case e: Throwable =>
       l.error(e.getMessage, e)
-      throw e
+      None
   }
 }
 

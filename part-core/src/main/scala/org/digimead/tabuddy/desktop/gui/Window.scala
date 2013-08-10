@@ -85,7 +85,7 @@ class Window(val windowId: UUID, val windowContext: AppContext.Rich) extends Act
       close(sender)
     }
 
-    case message @ App.Message.Create(Left(Window.<>(windowId, configuration)), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Create(Left(Window.<>(windowId, configuration)), None) => App.traceMessage(message) {
       assert(windowId == this.windowId)
       create(configuration, sender) match {
         case Some(appWindow) =>
@@ -94,7 +94,7 @@ class Window(val windowId: UUID, val windowContext: AppContext.Rich) extends Act
         case None =>
           App.Message.Error("Unable to create ${viewConfiguration}.")
       }
-    }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Destroy => App.traceMessage(message) {
       destroy(sender)
@@ -104,19 +104,19 @@ class Window(val windowId: UUID, val windowContext: AppContext.Rich) extends Act
       open(sender)
     }
 
-    case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Start(Left(widget: Widget), None) => App.traceMessage(message) {
       onStart(widget)
       App.Message.Start(Right(widget))
-    }
+    } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Stop(Left(widget: Widget), None) => App.traceMessage(message) {
       onStop(widget)
       App.Message.Stop(Right(widget))
-    }
+    } foreach { sender ! _ }
 
-    case message @ Window.Message.Get => sender ! App.traceMessage(message) {
+    case message @ Window.Message.Get => App.traceMessage(message) {
       window
-    }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Create(Left(viewFactory: ViewLayer.Factory), None) =>
       stackSupervisor.forward(message)

@@ -82,7 +82,7 @@ class ViewLayer(viewId: UUID, viewContext: AppContext.Rich) extends Actor with L
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget)), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget)), None) => App.traceMessage(message) {
       create(viewConfiguration, parentWidget, sender) match {
         case Some(viewWidget) =>
           App.publish(App.Message.Create(Right(viewWidget), self))
@@ -90,15 +90,17 @@ class ViewLayer(viewId: UUID, viewContext: AppContext.Rich) extends Actor with L
         case None =>
           App.Message.Error(s"Unable to create ${viewConfiguration}.")
       }
-    }
-    case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+    } foreach { sender ! _ }
+
+    case message @ App.Message.Start(Left(widget: Widget), None) => App.traceMessage(message) {
       onStart(widget)
       App.Message.Start(Right(widget))
-    }
-    case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+    } foreach { sender ! _ }
+
+    case message @ App.Message.Stop(Left(widget: Widget), None) => App.traceMessage(message) {
       onStop(widget)
       App.Message.Stop(Right(widget))
-    }
+    } foreach { sender ! _ }
   }
 
   /** Create view. */

@@ -49,5 +49,5 @@ import org.digimead.tabuddy.desktop.support.TreeProxy
 
 trait TreeFields {
   /** List of expanded elements */
-  protected[editor] val expandedItems = mutable.HashSet[TreeProxy.Item]()
+  protected[view] val expandedItems = mutable.HashSet[TreeProxy.Item]()
 }

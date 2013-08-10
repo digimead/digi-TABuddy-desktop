@@ -125,7 +125,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: AppContext.Rich) ex
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Create(Left(viewFactory: ViewLayer.Factory), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Create(Left(viewFactory: ViewLayer.Factory), None) => App.traceMessage(message) {
       create(viewFactory) match {
         case Some(windowComposite) =>
           App.publish(App.Message.Create(Right(windowComposite)))
@@ -133,7 +133,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: AppContext.Rich) ex
         case None =>
           App.Message.Error(s"Unable to create ${viewFactory}.")
       }
-    }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Create(Right(stackLayer: SComposite), Some(publisher)) => App.traceMessage(message) {
       onCreated(stackLayer, publisher)
@@ -143,7 +143,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: AppContext.Rich) ex
       onDestroyed(stackLayer)
     }
 
-    case message @ App.Message.Restore(Left(content: WComposite), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Restore(Left(content: WComposite), None) => App.traceMessage(message) {
       restore(content) match {
         case Some(windowComposite) =>
           App.publish(App.Message.Create(Right(windowComposite)))
@@ -151,21 +151,21 @@ class StackSupervisor(val windowId: UUID, val parentContext: AppContext.Rich) ex
         case None =>
           App.Message.Error(s"Unable to restore content for ${content}.")
       }
-    }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Save => App.traceMessage(message) {
       save()
     }
 
-    case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Start(Left(widget: Widget), None) => App.traceMessage(message) {
       onStart(widget)
       App.Message.Start(Right(widget))
-    }
+    } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Stop(Left(widget: Widget), None) => App.traceMessage(message) {
       onStop(widget)
       App.Message.Stop(Right(widget))
-    }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Update(Right(stackLayer: SComposite), Some(publisher)) => App.traceMessage(message) {
       onUpdated(stackLayer)

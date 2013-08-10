@@ -45,11 +45,9 @@ package org.digimead.tabuddy.desktop.editor.view
 
 import java.util.UUID
 import java.util.concurrent.TimeoutException
-
 import scala.collection.immutable
 import scala.concurrent.Await
 import scala.concurrent.Future
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -63,20 +61,93 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Widget
-
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
+import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.desktop.support.WritableValue
+import org.digimead.tabuddy.model.element.Stash
+import org.eclipse.core.databinding.observable.Observables
+import org.eclipse.core.databinding.observable.value.IValueChangeListener
+import org.eclipse.core.databinding.observable.value.ValueChangeEvent
+import org.digimead.tabuddy.desktop.editor.view.editor.View
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.editor.view.editor.Tree
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.support.TreeProxy
 
 class Editor(val contentId: UUID) extends Actor with Loggable {
+  /** Aggregation listener delay */
+  protected val aggregatorDelay = 250 // msec
+  /** Significant changes(schema modification, model reloading,...) aggregator */
+  protected lazy val reloadEventsAggregator = WritableValue(Long.box(0L))
+  /** Structural changes(e.g. addition or removal of elements) aggregator */
+  protected lazy val refreshEventsAggregator = WritableValue(Set[Element[_ <: Stash]]())
+  /** Minor changes(element modification) aggregator */
+  protected lazy val updateEventsAggregator = WritableValue(Set[Element[_ <: Stash]]())
   /** Parent view widget. */
   @volatile protected var view: Option[VComposite] = None
   log.debug("Start actor " + self.path)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ValueUpdate[_ <: Element.Generic]])
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ValueRemove[_ <: Element.Generic]])
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ValueInclude[_ <: Element.Generic]])
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.StashReplace[_ <: Element.Generic]])
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ChildrenReset[_ <: Element.Generic]])
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ChildReplace[_ <: Element.Generic]])
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ChildRemove[_ <: Element.Generic]])
+    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ChildInclude[_ <: Element.Generic]])
+    log.debug(self.path.name + " actor is stopped.")
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ChildInclude[_ <: Element.Generic]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ChildRemove[_ <: Element.Generic]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ChildReplace[_ <: Element.Generic]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ChildrenReset[_ <: Element.Generic]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.StashReplace[_ <: Element.Generic]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ValueInclude[_ <: Element.Generic]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ValueRemove[_ <: Element.Generic]])
+    App.system.eventStream.subscribe(self, classOf[Element.Event.ValueUpdate[_ <: Element.Generic]])
+    App.exec {
+      // handle presentation changes
+      Observables.observeDelayedValue(aggregatorDelay, updateEventsAggregator).addValueChangeListener(new IValueChangeListener {
+        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view => View.withRedrawDelayed(view) {
+          val set = updateEventsAggregator.value
+          updateEventsAggregator.value = Set()
+          if (set.nonEmpty)
+            view.update(set.toArray)
+        })
+      })
+      // handle data modification changes
+      Data.modelName.addChangeListener { (_, _) => reloadEventsAggregator.value = System.currentTimeMillis() }
+      Data.elementTemplates.addChangeListener { event => reloadEventsAggregator.value = System.currentTimeMillis() }
+      Observables.observeDelayedValue(aggregatorDelay, reloadEventsAggregator).addValueChangeListener(new IValueChangeListener {
+        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view => View.withRedrawDelayed(view) {
+          view.reload()
+        })
+      })
+      // handle structural changes
+      Observables.observeDelayedValue(aggregatorDelay, refreshEventsAggregator).addValueChangeListener(new IValueChangeListener {
+        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view => View.withRedrawDelayed(view) {
+          val set = refreshEventsAggregator.value
+          refreshEventsAggregator.value = Set()
+          if (set.nonEmpty)
+            view.refresh(set.toArray)
+        })
+      })
+    }
+    log.debug(self.path.name + " actor is started.")
+  }
   def receive = {
-    case message @ App.Message.Create(Left(parentWidget: VComposite), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Create(Left(parentWidget: VComposite), None) => App.traceMessage(message) {
       create(parentWidget) match {
         case Some(contentWidget) =>
           App.publish(App.Message.Create(Right(contentWidget), self))
@@ -84,17 +155,73 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
         case None =>
           App.Message.Error(s"Unable to create ${this} for ${parentWidget}.")
       }
-    }
+    } foreach { sender ! _ }
+
     case message @ App.Message.Destroy => App.traceMessage(message) {
       App.execNGet { destroy(sender) }
       this.view = None
     }
-    case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+
+    case message @ App.Message.Start(Left(widget: Widget), None) => App.traceMessage(message) {
       onStart(widget)
       App.Message.Start(Right(widget))
-    }
-    case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+    } foreach { sender ! _ }
+
+    case message @ App.Message.Stop(Left(widget: Widget), None) => App.traceMessage(message) {
       App.Message.Stop(Right(widget))
+    } foreach { sender ! _ }
+
+    case message @ Element.Event.ChildInclude(element, newElement, _) => App.traceMessage(message) {
+      if (element.eStash.model.forall(_ eq Model.inner))
+        App.exec {
+          View.views.keys.foreach { view =>
+            if (view.ActionToggleExpand.isChecked())
+              if (element.eChildren.size == 1) // if 1st child
+                view.tree.expandedItems += TreeProxy.Item(element) // expand parent
+              else
+                view.tree.expandedItems ++= newElement.eChildren.iteratorRecursive().map(TreeProxy.Item(_)) // expand children
+          }
+          refreshEventsAggregator.value = refreshEventsAggregator.value + element
+        }
+    }
+
+    case message @ Element.Event.ChildRemove(element, _, _) => App.traceMessage(message) {
+      if (element.eStash.model.forall(_ eq Model.inner))
+        App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
+    }
+
+    case message @ Element.Event.ChildrenReset(element, _) => App.traceMessage(message) {
+      if (element.eStash.model.forall(_ eq Model.inner))
+        App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
+    }
+
+    case message @ Element.Event.ChildReplace(element, _, _, _) => App.traceMessage(message) {
+      if (element.eStash.model.forall(_ eq Model.inner))
+        App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
+    }
+
+    case message @ Element.Event.StashReplace(element, _, _, _) => App.traceMessage(message) {
+      if (element.eStash.model.forall(_ eq Model.inner))
+        App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
+    }
+
+    case message @ Element.Event.ValueInclude(element, _, _) => App.traceMessage(message) {
+      if (element.eStash.model.forall(_ eq Model.inner))
+        App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
+    }
+
+    case message @ Element.Event.ValueRemove(element, _, _) => App.traceMessage(message) {
+      if (element.eStash.model.forall(_ eq Model.inner))
+        App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
+    }
+
+    case message @ Element.Event.ValueUpdate(element, _, _, _) => App.traceMessage(message) {
+      if (element.eStash.model.forall(_ eq Model.inner))
+        App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
+    }
+
+    case message @ Element.Event.ModelReplace(_, _, _) => App.traceMessage(message) {
+      App.exec { Tree.FilterSystemElement.updateSystemElement }
     }
   }
 
@@ -164,9 +291,9 @@ object Editor extends gui.ViewLayer.Factory with Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** View name. */
-    lazy val name = injectOptional[String]("Editor.View.Editor.Name") getOrElse "Editor"
+    lazy val name = injectOptional[String]("Editor.View.Editor.Name") getOrElse Messages.tableView_text
     /** View description. */
-    lazy val description = injectOptional[String]("Editor.View.Editor.Description") orElse Some("Editor view description")
+    lazy val description = injectOptional[String]("Editor.View.Editor.Description") orElse Some("Generic model editor.")
     /** View image. */
     lazy val image = injectOptional[Image]("Editor.View.Editor.Image")
     /** Editor view actor reference configuration object. */

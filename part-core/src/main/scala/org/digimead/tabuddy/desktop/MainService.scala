@@ -87,6 +87,12 @@ class MainService extends api.Main with Disposable.Default with Loggable {
     log.debug("Start Akka ecosystem.")
     val config = ConfigFactory.parseString("""
       akka {
+        actor.debug.unhandled = true
+        actor.debug {
+          receive = on
+          autoreceive = on
+          lifecycle = on
+        }
         # Event handlers to register at boot time (Logging$DefaultLogger logs to STDOUT)
         loggers = ["org.digimead.tabuddy.desktop.support.AkkaLogBridge"]
         # Options: ERROR, WARNING, INFO, DEBUG

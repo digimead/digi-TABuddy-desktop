@@ -81,7 +81,7 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext, supervisorContext)), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext, supervisorContext)), None) => App.traceMessage(message) {
       create(stackConfiguration, parentWidget, parentContext, sender, supervisorContext) match {
         case Some(stack) =>
           App.publish(App.Message.Create(Right(stack), self))
@@ -89,7 +89,7 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
         case None =>
           App.Message.Error(s"Unable to create ${stackConfiguration}.")
       }
-    }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Create(Right(stack: SComposite), Some(publisher)) if (publisher == self && this.stack == None) => App.traceMessage(message) {
       log.debug(s"Update stack ${stack} composite.")

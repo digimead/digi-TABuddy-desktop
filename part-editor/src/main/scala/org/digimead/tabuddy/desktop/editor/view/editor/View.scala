@@ -97,14 +97,16 @@ import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.e4.core.contexts.Active
 import javax.inject.Named
 import org.digimead.tabuddy.desktop.ResourceManager
+import org.eclipse.swt.events.DisposeListener
+import org.eclipse.swt.events.DisposeEvent
 
 class View private (parent: VComposite, style: Int)
   extends TableViewSkel(parent, style) with ViewActions with Loggable {
-  lazy val title = Messages.tableView_text
-  lazy val description = "Tree View"
-  protected[editor] lazy val table = new Table(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
-  protected[editor] lazy val tree = new Tree(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
-  protected[editor] lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.content), tree.expandedItems)
+  lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.content), tree.expandedItems)
+  /** Table subview. */
+  lazy val table = new Table(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
+  /** Tree subview. */
+  lazy val tree = new Tree(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
   /** Limit of refresh elements quantity */
   val maximumElementsPerRefresh = 1000
   /** Limit of refresh elements quantity that updated */
@@ -200,9 +202,6 @@ class View private (parent: VComposite, style: Int)
     //    Window.getMenuTopLevel().remove(tableViewMenu)
     //    Window.getMenuTopLevel().update(false)
   }
-  /** Set selected element for current context. */
-  def setSelectedElementUserInput(element: Element[_ <: Stash]) = parent.getContext.set(Data.Id.selectedElementUserInput, element)
-
   /**
    * Refreshes this viewer starting with the given element. Labels are updated
    * as described in <code>refresh(boolean updateLabels)</code>.
@@ -212,7 +211,7 @@ class View private (parent: VComposite, style: Int)
    * given element needs updating, it is more efficient to use the
    * <code>update</code> methods.
    */
-  protected def refresh(elementsForRefresh: Array[Element.Generic]) {
+  def refresh(elementsForRefresh: Array[Element.Generic]) {
     log.debug("Refresh editor view: structural changes.")
     if (tree.treeViewer.getTree.getItemCount() == 0 || tree.treeViewer.getInput() == null) {
       log.debug("Skip refresh for empty editor view.")
@@ -312,8 +311,8 @@ class View private (parent: VComposite, style: Int)
       ActionAutoResize(false)
     }
   }
-  /** Reload data */
-  protected def reload() {
+  /** Reload data. */
+  def reload() {
     log.debug("Update editor view: major changes.")
     proxy.clearContent
     if (Model.eId == Payload.defaultModel.eId) {
@@ -329,7 +328,7 @@ class View private (parent: VComposite, style: Int)
      *  Table.columnTemplate
      *  Table.columnLabelProvider
      */
-        val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
+    val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
     val properties = Data.elementTemplates.values.flatMap { template =>
       template.properties.foreach {
         case (group, properties) => properties.foreach(property =>
@@ -364,15 +363,8 @@ class View private (parent: VComposite, style: Int)
     tree.treeViewer.setExpandedElements(tree.expandedItems.toArray)
     table.tableViewer.refresh()
   }
-  /** Recreate table columns with preserve table selected elements */
-  protected def recreateSmart() {
-    if (Table.columnLabelProvider.isEmpty)
-      return // there are not column definitions yet
-    val selection = table.tableViewer.getSelection()
-    updateColumns
-    table.tableViewer.refresh()
-    table.tableViewer.setSelection(selection)
-  }
+  /** Set selected element for current context. */
+  def setSelectedElementUserInput(element: Element[_ <: Stash]) = parent.getContext.set(Data.Id.selectedElementUserInput, element)
   /**
    * Updates the given elements' presentation when one or more of their properties change.
    * Only the given elements are updated.
@@ -381,7 +373,7 @@ class View private (parent: VComposite, style: Int)
    * and does not update any other related elements (e.g. child elements).
    * To handle structural changes, use the refresh methods instead.
    */
-  protected def update(elements: Array[Element.Generic]) {
+  def update(elements: Array[Element.Generic]) {
     log.debug("Update editor view.")
     // The element new name may affect to tree item position, so handle it as structural change
     // tree.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null) is inapplicable
@@ -394,9 +386,19 @@ class View private (parent: VComposite, style: Int)
     }
     table.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null)
   }
+
+  /** Recreate table columns with preserve table selected elements */
+  protected def recreateSmart() {
+    if (Table.columnLabelProvider.isEmpty)
+      return // there are not column definitions yet
+    val selection = table.tableViewer.getSelection()
+    updateColumns
+    table.tableViewer.refresh()
+    table.tableViewer.setSelection(selection)
+  }
   /** Recreate table columns */
   protected def updateColumns() {
-        val disposedColumnsWidth = table.disposeColumns()
+    val disposedColumnsWidth = table.disposeColumns()
     //val columnList = context.toolbarView.view.value.map(selected => mutable.LinkedHashSet(TableView.COLUMN_ID) ++
     //  (selected.fields.map(_.name) - TableView.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(TableView.COLUMN_ID, TableView.COLUMN_NAME))
     //table.createColumns(columnList, disposedColumnsWidth)
@@ -484,91 +486,15 @@ object View extends Loggable {
   protected[editor] val COLUMN_NAME = "name"
   /** Aggregation listener delay */
   private val aggregatorDelay = 250 // msec
-  /** Shell -> PerShellContext map */
-  //private val contextMap = new mutable.WeakHashMap[Shell, PerShellContext] with mutable.SynchronizedMap[Shell, PerShellContext]
-  /** Significant changes(schema modification, model reloading,...) aggregator */
-  private val reloadEventsAggregator = WritableValue(Long.box(0L))
   /** Structural changes(e.g. addition or removal of elements) aggregator */
-  private val refreshEventsAggregator = WritableValue(Set[Element[_ <: Stash]]())
-  /** Structural changes(e.g. addition or removal of elements) aggregator */
-  private val refreshEventsExpandAggregator = WritableValue(Set[Element[_ <: Stash]]())
-  /** Minor changes(element modification) aggregator */
-  private val updateEventsAggregator = WritableValue(Set[Element[_ <: Stash]]())
+  //private val refreshEventsExpandAggregator = WritableValue(Set[Element[_ <: Stash]]())
   /** All views. */
-  val views = new mutable.WeakHashMap[View, Unit] with mutable.SynchronizedMap[View, Unit]
-  /** Global element events subscriber */
-  private val elementEventsSubscriber = new Element.Event.Sub {
-    def notify(pub: Element.Event.Pub, event: Element.Event) = event match {
-      case Element.Event.ChildInclude(element, newElement, _) =>
-        if (element.eStash.model.forall(_ eq Model.inner))
-          App.exec {
-            /*            viewMap.values.foreach { view =>
-              if (view.context.ActionToggleExpand.isChecked())
-                if (element.eChildren.size == 1) // if 1st child
-                  view.tree.context.expandedItems += TreeProxy.Item(element) // expand parent
-                else
-                  view.tree.context.expandedItems ++=
-                    newElement.eChildren.iteratorRecursive().map(TreeProxy.Item(_)) // expand children
-            }
-            refreshEventsAggregator.value = refreshEventsAggregator.value + element*/
-          }
-      case Element.Event.ChildRemove(element, _, _) =>
-        if (element.eStash.model.forall(_ eq Model.inner))
-          App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
-      case Element.Event.ChildrenReset(element, _) =>
-        if (element.eStash.model.forall(_ eq Model.inner))
-          App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
-      case Element.Event.ChildReplace(element, _, _, _) =>
-        if (element.eStash.model.forall(_ eq Model.inner))
-          App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
-      case Element.Event.StashReplace(element, _, _, _) =>
-        if (element.eStash.model.forall(_ eq Model.inner))
-          App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
-      case Element.Event.ValueInclude(element, _, _) =>
-        if (element.eStash.model.forall(_ eq Model.inner))
-          App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
-      case Element.Event.ValueRemove(element, _, _) =>
-        if (element.eStash.model.forall(_ eq Model.inner))
-          App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
-      case Element.Event.ValueUpdate(element, _, _, _) =>
-        if (element.eStash.model.forall(_ eq Model.inner))
-          App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
-      case Element.Event.ModelReplace(_, _, _) =>
-        App.exec { Tree.FilterSystemElement.updateSystemElement }
-      case _ =>
-    }
-  }
+  val views = new ViewWeakHashMap with mutable.SynchronizedMap[View, Unit]
 
   /** Create editor view */
   def apply(parent: VComposite, style: Int): View = {
     val view = new View(parent, style)
 
-    // handle data modification changes
-    Data.modelName.addChangeListener { (_, _) => reloadEventsAggregator.value = System.currentTimeMillis() }
-    Data.elementTemplates.addChangeListener { event => reloadEventsAggregator.value = System.currentTimeMillis() }
-    Observables.observeDelayedValue(aggregatorDelay, reloadEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      def handleValueChange(event: ValueChangeEvent) = views.keys.foreach(view => withRedrawDelayed(view) {
-        view.reload()
-      })
-    })
-    // handle structural changes
-    Observables.observeDelayedValue(aggregatorDelay, refreshEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      def handleValueChange(event: ValueChangeEvent) = views.keys.foreach(view => withRedrawDelayed(view) {
-        val set = refreshEventsAggregator.value
-        refreshEventsAggregator.value = Set()
-        if (set.nonEmpty)
-          view.refresh(set.toArray)
-      })
-    })
-    // handle presentation changes
-    Observables.observeDelayedValue(aggregatorDelay, updateEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      def handleValueChange(event: ValueChangeEvent) = views.keys.foreach(view => withRedrawDelayed(view) {
-        val set = updateEventsAggregator.value
-        updateEventsAggregator.value = Set()
-        if (set.nonEmpty)
-          view.update(set.toArray)
-      })
-    })
     // handle view changes
     /*view.context.toolbarView.view.addChangeListener { (_, _) =>
       withRedrawDelayed(view) {
@@ -600,14 +526,6 @@ object View extends Loggable {
     view
   }
   def get(widget: Widget): Option[View] = None
-  /**
-   * This function is invoked at application start
-   */
-  def start() = Element.Event.subscribe(elementEventsSubscriber)
-  /**
-   * This function is invoked at application stop
-   */
-  def stop() = Element.Event.removeSubscription(elementEventsSubscriber)
   /** Disable the redraw while updating */
   def withRedrawDelayed[T](view: View)(f: => T): T = {
     view.getSashForm.setRedraw(false)
@@ -618,6 +536,17 @@ object View extends Loggable {
     view.table.tableViewer.getTable.setRedraw(true)
     view.getSashForm.setRedraw(true)
     result
+  }
+  class ViewWeakHashMap extends mutable.WeakHashMap[View, Unit] {
+    override def +=(kv: (View, Unit)): this.type = {
+      val (key, value) = kv
+      App.exec {
+        key.addDisposeListener(new DisposeListener {
+          def widgetDisposed(e: DisposeEvent) = ViewWeakHashMap.this -= key
+        })
+      }
+      super.+=(kv)
+    }
   }
   /** Range information about a link in the StyledTextRootElement */
   case class RootPathLinkRange[T <: Element.Generic](val element: T, val index: Int, val length: Int)

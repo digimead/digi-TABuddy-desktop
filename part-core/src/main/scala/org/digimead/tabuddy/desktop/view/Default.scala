@@ -77,7 +77,7 @@ class Default(val contentId: UUID) extends Actor with Loggable {
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(Left(parentWidget: VComposite), None) => sender ! App.traceMessage(message) {
+    case message @ App.Message.Create(Left(parentWidget: VComposite), None) => App.traceMessage(message) {
       create(parentWidget) match {
         case Some(contentWidget) =>
           App.publish(App.Message.Create(Right(contentWidget), self))
@@ -85,18 +85,21 @@ class Default(val contentId: UUID) extends Actor with Loggable {
         case None =>
           App.Message.Error(s"Unable to create ${this} for ${parentWidget}.")
       }
-    }
+    } foreach { sender ! _ }
+
     case message @ App.Message.Destroy => App.traceMessage(message) {
       App.execNGet { destroy(sender) }
       this.view = None
     }
-    case message @ App.Message.Start(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+
+    case message @ App.Message.Start(Left(widget: Widget), None) => App.traceMessage(message) {
       onStart(widget)
       App.Message.Start(Right(widget))
-    }
-    case message @ App.Message.Stop(Left(widget: Widget), None) => sender ! App.traceMessage(message) {
+    } foreach { sender ! _ }
+
+    case message @ App.Message.Stop(Left(widget: Widget), None) => App.traceMessage(message) {
       App.Message.Stop(Right(widget))
-    }
+    } foreach { sender ! _ }
   }
 
   /**

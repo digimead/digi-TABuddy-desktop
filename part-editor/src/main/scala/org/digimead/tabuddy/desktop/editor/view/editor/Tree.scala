@@ -409,13 +409,11 @@ object Tree extends Loggable {
      * Notifies this content provider that the given viewer's input
      * has been switched to a different element.
      */
-    def inputChanged(v: Viewer, oldInput: Object, newInput: Object) = {
-      /*      Tree.withContext(v.getControl().getShell()) { (context, view) =>
-        Main.exec { // blow up with this bug without Main.exec
-          assert(view.tree.treeViewer.getInput() == newInput, "JFace bug, WTF? event fired, but input is not changed")
-          view.tree.onInputChanged(newInput.asInstanceOf[TreeProxy.Item])
-        }
-      }*/
+    def inputChanged(v: Viewer, oldInput: Object, newInput: Object) = App.exec {
+      View.get(v.getControl()).foreach { view =>
+        assert(view.tree.treeViewer.getInput() == newInput, "JFace bug, WTF? event fired, but input is not changed")
+        view.tree.onInputChanged(newInput.asInstanceOf[TreeProxy.Item])
+      }
     }
     /** Returns the child elements of the given parent element. */
     def getChildren(parent: AnyRef): Array[AnyRef] = parent match {
