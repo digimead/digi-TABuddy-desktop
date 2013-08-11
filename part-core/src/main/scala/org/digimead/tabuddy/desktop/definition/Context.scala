@@ -41,12 +41,14 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.support
+package org.digimead.tabuddy.desktop.definition
 
 import scala.collection.JavaConversions._
 import scala.collection.immutable
 
 import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 
@@ -55,48 +57,48 @@ import language.implicitConversions
 /**
  * EclipseContext wrapper.
  */
-class AppContext(parent: EclipseContext) extends EclipseContext(parent) {
-  override def createChild(): IEclipseContext = new AppContext(this)
+class Context(parent: EclipseContext) extends EclipseContext(parent) {
+  override def createChild(): IEclipseContext = new Context(Context.this)
   override def createChild(name: String): IEclipseContext = {
     val result = createChild()
     result.set(EclipseContext.DEBUG_STRING, name)
     result
   }
   /** Get context parents. */
-  def getParents(): Seq[AppContext] = App.contextParents(this).asInstanceOf[Seq[AppContext]]
+  def getParents(): Seq[Context] = App.contextParents(Context.this).asInstanceOf[Seq[Context]]
   override def modify(name: String, value: AnyRef) = {
     super.modify(name, value)
-    AppContext.Event.publish(name, this)
+    Context.Event.publish(name, Context.this)
   }
   override def modify[T](clazz: Class[T], value: T) = {
     super.modify(clazz, value)
-    AppContext.Event.publish(clazz.getName, this)
+    Context.Event.publish(clazz.getName, Context.this)
   }
   override def remove(name: String) = {
     super.remove(name)
-    AppContext.Event.publish(name, this)
+    Context.Event.publish(name, Context.this)
   }
   override def remove(clazz: Class[_]) = {
     super.remove(clazz)
-    AppContext.Event.publish(clazz.getName, this)
+    Context.Event.publish(clazz.getName, Context.this)
   }
   override def set(name: String, value: AnyRef) = {
     super.set(name, value)
-    AppContext.Event.publish(name, this)
+    Context.Event.publish(name, Context.this)
   }
   override def set[T](clazz: Class[T], value: T) = {
     super.set(clazz, value)
-    AppContext.Event.publish(clazz.getName, this)
+    Context.Event.publish(clazz.getName, Context.this)
   }
 }
 
-object AppContext {
-  implicit def appContext2rich(a: AppContext): Rich = new Rich(a)
-  implicit def rich2appContext(r: Rich): AppContext = r.context
+object Context {
+  implicit def appContext2rich(a: Context): Rich = new Rich(a)
+  implicit def rich2appContext(r: Rich): Context = r.context
 
   /** Create new context. */
-  def apply(name: String): AppContext = {
-    val result = new AppContext(null)
+  def apply(name: String): Context = {
+    val result = new Context(null)
     result.set(EclipseContext.DEBUG_STRING, name)
     result
   }
@@ -105,31 +107,31 @@ object AppContext {
    * Most important is readability. Speed and memory is not significant.
    * Reduce technical debt of original EclipseContext implementation.
    */
-  class Rich(val context: AppContext = new AppContext(null)) {
-    def createChild(): AppContext = context.createChild().asInstanceOf[AppContext]
-    def createChild(name: String): AppContext = context.createChild(name).asInstanceOf[AppContext]
-    def getActiveChild(): Option[AppContext] = Option(context.getActiveChild().asInstanceOf[AppContext])
-    def getActiveLeaf(): AppContext = context.getActiveLeaf().asInstanceOf[AppContext]
+  class Rich(val context: Context = new Context(null)) {
+    def createChild(): Context = context.createChild().asInstanceOf[Context]
+    def createChild(name: String): Context = context.createChild(name).asInstanceOf[Context]
+    def getActiveChild(): Option[Context] = Option(context.getActiveChild().asInstanceOf[Context])
+    def getActiveLeaf(): Context = context.getActiveLeaf().asInstanceOf[Context]
     def getActive[T](clazz: Class[T]): T = context.getActive(clazz)
     def getActive[T](name: String): T = context.getActive(name).asInstanceOf[T]
-    def getChildren(): Set[AppContext] = context.getChildren.asInstanceOf[java.util.Set[AppContext]].toSet
+    def getChildren(): Set[Context] = (context.getChildren.asInstanceOf[java.util.Set[Context]]).toSet
     def getLocal[T](name: String): Option[T] = Option(context.getLocal(name).asInstanceOf[T])
-    def getParent(): Option[AppContext] = Option(context.getParent()).map(p => p.asInstanceOf[AppContext])
+    def getParent(): Option[Context] = Option(context.getParent()).map(p => p.asInstanceOf[Context])
     def get[T](name: String): Option[T] = Option(context.get(name).asInstanceOf[T])
   }
 
   /** Everything is based on string. Erasure is out of scope :-( Do we need rewrite EclipseContext completely? */
-  class Listener(val name: String, val f: (String, AppContext) => Any)
+  class Listener(val name: String, val f: (String, Context) => Any)
   class Event {
     /** Key listeners. */
     @volatile protected var listeners = immutable.HashMap[String, Seq[Listener]]()
 
     /** Publish context event. */
-    def publish(name: String, context: AppContext) { listeners.get(name).foreach { value => value.foreach(_.f(name, context)) } }
+    def publish(name: String, context: Context) { listeners.get(name).foreach { value => value.foreach(_.f(name, context)) } }
     /** Publish context event. */
-    def publish[T](clazz: Class[T], context: AppContext) { publish(clazz.getName, context) }
+    def publish[T](clazz: Class[T], context: Context) { publish(clazz.getName, context) }
     /** Subscribe to name events. */
-    def subscribe[T](name: String, f: (String, AppContext) => T): Listener = synchronized {
+    def subscribe[T](name: String, f: (String, Context) => T): Listener = synchronized {
       val listener = new Listener(name, f)
       listeners.get(name) match {
         case Some(seq) =>
@@ -141,7 +143,7 @@ object AppContext {
       }
     }
     /** Subscribe to class events. */
-    def subscribe[T](clazz: Class[T], f: (String, AppContext) => T): Listener =
+    def subscribe[T](clazz: Class[T], f: (String, Context) => T): Listener =
       subscribe(clazz.getName(), f)
     /** Unsubscribe listener. */
     def unsubscribe[T](listener: Listener) = synchronized {

@@ -53,8 +53,8 @@ import scala.collection.mutable
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.support.AppContext
-import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
+import org.digimead.tabuddy.desktop.definition.Context
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.eclipse.e4.core.contexts.ContextFunction
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.e4.core.contexts.RunAndTrack
@@ -93,7 +93,7 @@ class Command extends Loggable {
    * So lately we may retrieve result and additional information.
    * @return unique id of the commandParserTemplate copy
    */
-  def addToContext(context: AppContext, commandParserTemplate: Command.CmdParser): Option[UUID] = contextCommandsAccessLock.synchronized {
+  def addToContext(context: Context, commandParserTemplate: Command.CmdParser): Option[UUID] = contextCommandsAccessLock.synchronized {
     val commandId = commandParserTemplate.uniqueId
     val commandDescriptor = registry.get(commandId) match {
       case Some(commandDescriptor) => commandDescriptor
@@ -156,7 +156,7 @@ class Command extends Loggable {
     registry += (commandDescriptor.commandId -> commandDescriptor)
   }
   /** Remove all actual parser that have specific unique Id from the context. */
-  def removeFromContext(context: AppContext, uniqueId: UUID) = contextCommandsAccessLock.synchronized {
+  def removeFromContext(context: Context, uniqueId: UUID) = contextCommandsAccessLock.synchronized {
     log.debug(s"Remove parser ${uniqueId} from context ${context}.")
     Option(context.get(Command.contextKey)) match {
       case Some(commandsGeneric: immutable.HashMap[_, _]) =>
@@ -169,7 +169,7 @@ class Command extends Loggable {
     listener.changed(Core.context)
   }
   /** Remove all actual parser that have specific command Id from the context. */
-  def removeFromContext(context: AppContext, commandParserTemplate: Command.CmdParser) {
+  def removeFromContext(context: Context, commandParserTemplate: Command.CmdParser) {
     val commandId = commandParserTemplate.uniqueId
     if (!registry.contains(commandId))
       throw new IllegalArgumentException(s"Unable to add parser to context: command id ${commandId} not found")
@@ -227,9 +227,9 @@ object Command extends Loggable {
   case class Failure(message: String) extends Result
   case class Error(message: String) extends Result
   /** Information about command parser that is  added to specific context. */
-  case class ActualInformation private[Command] (commandId: UUID, parser: Command.parser.Parser[Any], context: AppContext)
+  case class ActualInformation private[Command] (commandId: UUID, parser: Command.parser.Parser[Any], context: Context)
   /** Command descriptor where callback is (active context, parser context, parser result) => Unit */
-  case class Descriptor(val commandId: UUID)(val name: String, val description: String, val callback: (AppContext, AppContext, Any) => Unit)
+  case class Descriptor(val commandId: UUID)(val name: String, val description: String, val callback: (Context, Context, Any) => Unit)
   /** Command parser that wraps base parser combinator with 'phrase' sentence. */
   class CmdParser(val uniqueId: UUID, base: parser.Parser[Any])
     extends parser.CmdParser(uniqueId, base) {

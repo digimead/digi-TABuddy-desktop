@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional

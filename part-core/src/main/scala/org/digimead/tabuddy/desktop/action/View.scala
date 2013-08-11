@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.gui
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.definition.Context
 import org.eclipse.jface.action.{ Action => JFaceAction }
 
 import akka.actor.actorRef2Scala
@@ -78,7 +78,7 @@ object View extends JFaceAction("view") with Loggable {
   @log
   override def run = log.___glance("SHOW")
   /** Create view from the view factory. */
-  protected def show(activeContext: AppContext, viewFactory: gui.ViewLayer.Factory) {
+  protected def show(activeContext: Context, viewFactory: gui.ViewLayer.Factory) {
     log.debug("Create new view from " + viewFactory)
     activeContext.get(gui.GUI.windowContextKey) match {
       case window: AppWindow =>

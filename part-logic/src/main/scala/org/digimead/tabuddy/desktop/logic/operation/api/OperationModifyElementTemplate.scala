@@ -47,7 +47,7 @@ import org.digimead.tabuddy.desktop.definition.api.Operation
 import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
 
 /**
- * JobModifyElementTemplate base trait.
+ * OperationModifyElementTemplate base trait.
  */
 trait OperationModifyElementTemplate {
   this: Operation[ElementTemplate] =>

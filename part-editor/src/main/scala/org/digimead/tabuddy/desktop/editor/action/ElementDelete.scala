@@ -52,7 +52,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.jface.action.{ Action => JFaceAction }
 import org.eclipse.jface.action.IAction

@@ -54,8 +54,8 @@ import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
-import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
+import org.digimead.tabuddy.desktop.definition.Context
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.swt.widgets.Widget
 
@@ -73,7 +73,7 @@ import akka.util.Timeout.durationToTimeout
  * - start window
  * - close/destroy window
  */
-class Window(val windowId: UUID, val windowContext: AppContext.Rich) extends Actor with AppWindow.Controller with Loggable {
+class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor with AppWindow.Controller with Loggable {
   /** Window JFace instance. */
   var window: Option[AppWindow] = None
   /** Window views supervisor. */

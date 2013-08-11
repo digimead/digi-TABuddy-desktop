@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.gui.builder.StackViewBuilder.builder2impleme
 import org.digimead.tabuddy.desktop.gui.widget.SComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.definition.Context
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
@@ -68,7 +68,7 @@ import language.implicitConversions
 class StackBuilder extends Loggable {
   /** Creates stack content. */
   @log
-  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: AppContext, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
+  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
     stack match {
       case tab: Configuration.Stack.Tab =>
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }

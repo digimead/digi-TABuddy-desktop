@@ -342,7 +342,7 @@ object EnumerationList extends Loggable {
       val newEnumerationID = Payload.generateNew("NewEnumeration", "", newId => dialog.actual.exists(_.id.name == newId))
       val newEnumerationElement = Enumeration.factory(Symbol(newEnumerationID))
       val newEnumeration = new Enumeration(newEnumerationElement, PropertyType.defaultType)(Manifest.classType(PropertyType.defaultType.typeClass))
-      /*JobModifyEnumeration(newEnumeration, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
+      /*OperationModifyEnumeration(newEnumeration, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
         job.getValue.foreach { case (enumeration) => Main.exec { dialog.actual += enumeration } }
       }.execute)*/
     }
@@ -360,14 +360,14 @@ object EnumerationList extends Loggable {
       val newEnumeration = new Enumeration(to, selected.ptype)(Manifest.classType(selected.ptype.typeClass)).
         asInstanceOf[Enumeration[_ <: AnyRef with java.io.Serializable]]*/
       // start job
-      /*JobModifyEnumeration(newEnumeration, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
+      /*OperationModifyEnumeration(newEnumeration, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
         job.getValue.foreach { case (enumeration) => Main.exec { dialog.actual += enumeration } }
       }.execute)*/
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = EnumerationList.enumeration { (dialog, before) =>
-      /*JobModifyEnumeration(before, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
+      /*OperationModifyEnumeration(before, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
         job.getValue.foreach { case (after) => Main.exec { dialog.updateActualEnumeration(before, after) } }
       }.execute)*/
     }

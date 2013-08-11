@@ -47,7 +47,7 @@ import org.digimead.tabuddy.desktop.definition.api.Operation
 import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
 
 /**
- * JobModifyTypeSchemaList base trait.
+ * OperationModifyTypeSchemaList base trait.
  */
 trait OperationModifyTypeSchemaList {
   this: Operation[(Set[TypeSchema], TypeSchema)] =>

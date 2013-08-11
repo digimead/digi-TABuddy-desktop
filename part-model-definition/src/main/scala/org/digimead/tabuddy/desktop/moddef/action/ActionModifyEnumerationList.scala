@@ -52,7 +52,7 @@ import org.eclipse.jface.action.Action
   setText(Messages.enumerations_text + "@" + "Ctrl+W")
 
   @log
-  override def run = JobModifyEnumerationList(Data.enumerations.values.toSet).foreach(_.setOnSucceeded { job =>
+  override def run = OperationModifyEnumerationList(Data.enumerations.values.toSet).foreach(_.setOnSucceeded { job =>
     job.getValue.foreach { case (enumerations) => Enumeration.save(enumerations) }
   }.execute)
 }

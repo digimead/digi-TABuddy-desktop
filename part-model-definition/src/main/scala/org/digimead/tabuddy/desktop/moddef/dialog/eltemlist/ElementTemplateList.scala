@@ -324,7 +324,7 @@ object ElementTemplateList extends Loggable {
       // create a template for a 'to' element
       val newTemplate = new ElementTemplate(to, before.factory).copy(name = before.name + " " + Messages.copy_item_text)
       // start job
-      /*JobModifyElementTemplate(newTemplate, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
+      /*OperationModifyElementTemplate(newTemplate, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
         job.getValue.foreach {
           case (after) => Main.exec {
             assert(!dialog.actual.exists(_.id == after.id), "Element template %s already exists".format(after))
@@ -336,7 +336,7 @@ object ElementTemplateList extends Loggable {
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = ElementTemplateList.template { (dialog, before) =>
-   /*   JobModifyElementTemplate(before, dialog.actual.toSet).
+   /*   OperationModifyElementTemplate(before, dialog.actual.toSet).
         foreach(_.setOnSucceeded { job =>
           job.getValue.foreach {
             case (after) => Main.exec { dialog.updateActualTemplate(before, after) }

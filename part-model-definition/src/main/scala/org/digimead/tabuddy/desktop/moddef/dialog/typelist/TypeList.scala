@@ -347,7 +347,7 @@ object TypeList extends Loggable {
     override def run = TypeList.dialog.foreach { dialog =>
       /*val newSchemaName = Payload.generateNew(Messages.newTypeSchema_text, " ", newName => dialog.actual.exists(_.name == newName))
       val newSchema = TypeSchema(UUID.randomUUID(), newSchemaName, "", immutable.HashMap(TypeSchema.entities.map(e => (e.ptypeId, e)).toSeq: _*))
-      JobModifyTypeSchema(newSchema, dialog.actual.toSet, newSchema == dialog.actualActiveSchema.value).
+      OperationModifyTypeSchema(newSchema, dialog.actual.toSet, newSchema == dialog.actualActiveSchema.value).
         foreach(_.setOnSucceeded { job =>
           job.getValue.foreach {
             case (schema, active) => Main.exec {
@@ -367,7 +367,7 @@ object TypeList extends Loggable {
       assert(!dialog.actual.exists(_.name == toName),
         s"Unable to create the type schema copy. The schema $toName is already exists")
       val to = TypeSchema(UUID.randomUUID(), toName, from.description, from.entity.map(e => (e._1, e._2.copy())))
-      JobModifyTypeSchema(to, dialog.actual.toSet, to == dialog.actualActiveSchema.value).
+      OperationModifyTypeSchema(to, dialog.actual.toSet, to == dialog.actualActiveSchema.value).
         foreach(_.setOnSucceeded { job =>
           job.getValue.foreach {
             case (schema, active) => Main.exec {
@@ -381,7 +381,7 @@ object TypeList extends Loggable {
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = TypeList.schema { (dialog, before) =>
-      /*JobModifyTypeSchema(before, dialog.actual.toSet, before == dialog.actualActiveSchema.value).
+      /*OperationModifyTypeSchema(before, dialog.actual.toSet, before == dialog.actualActiveSchema.value).
         foreach(_.setOnSucceeded { job =>
           job.getValue.foreach {
             case (after, active) => Main.exec {

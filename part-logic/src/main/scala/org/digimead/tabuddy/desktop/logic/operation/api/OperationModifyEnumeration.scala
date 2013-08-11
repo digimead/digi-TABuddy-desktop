@@ -47,7 +47,7 @@ import org.digimead.tabuddy.desktop.definition.api.Operation
 import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration
 
 /**
- * JobModifyEnumeration base trait.
+ * OperationModifyEnumeration base trait.
  */
 trait OperationModifyEnumeration {
   this: Operation[Enumeration[_ <: AnyRef with java.io.Serializable]] =>

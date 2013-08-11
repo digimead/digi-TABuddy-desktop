@@ -51,7 +51,7 @@ import org.eclipse.jface.action.Action
   setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
 
   @log
-  override def run = JobModifyTypeSchemaList(Data.typeSchemas.values.toSet, Data.typeSchema.value).foreach(_.setOnSucceeded { job =>
+  override def run = OperationModifyTypeSchemaList(Data.typeSchemas.values.toSet, Data.typeSchema.value).foreach(_.setOnSucceeded { job =>
     job.getValue.foreach {
       case (schemas, activeSchema) => Main.exec {
         TypeSchema.save(schemas)

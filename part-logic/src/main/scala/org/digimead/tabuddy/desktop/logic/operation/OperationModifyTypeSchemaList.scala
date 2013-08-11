@@ -62,7 +62,7 @@ object OperationModifyTypeSchemaList extends Loggable {
       case Some(factory) =>
         Option(factory(schemaList, activeSchema, modelId))
       case None =>
-        log.error("JobModifyTypeSchemaList implementation is not defined.")
+        log.error("OperationModifyTypeSchemaList implementation is not defined.")
         None
     }
   }

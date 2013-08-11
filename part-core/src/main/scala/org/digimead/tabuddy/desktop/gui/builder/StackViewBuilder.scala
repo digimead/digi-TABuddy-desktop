@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.definition.Context
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
@@ -79,11 +79,11 @@ class StackViewBuilder extends Loggable {
    * @param pAContext parent ActorContext
    * @return Option[VComposite]
    */
-  def apply(configuration: Configuration.View, pWidget: ScrolledComposite, pEContext: AppContext.Rich, pAContext: ActorContext): Option[VComposite] = {
+  def apply(configuration: Configuration.View, pWidget: ScrolledComposite, pEContext: Context.Rich, pAContext: ActorContext): Option[VComposite] = {
     val viewName = ViewLayer.id + "_%08X".format(configuration.id.hashCode())
     log.debug(s"Build view layer ${viewName}.")
     App.assertUIThread(false)
-    val viewContext = pEContext.createChild("Context_" + viewName): AppContext.Rich
+    val viewContext = pEContext.createChild("Context_" + viewName): Context.Rich
     val view = pAContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
     // Block until view is created.
     implicit val sender = pAContext.self
@@ -109,7 +109,7 @@ class StackViewBuilder extends Loggable {
    * @param pWidget parent widget
    * @return Option[VComposite]
    */
-  def apply(configuration: Configuration.View, ref: ActorRef, context: AppContext, pWidget: ScrolledComposite): Option[VComposite] = {
+  def apply(configuration: Configuration.View, ref: ActorRef, context: Context, pWidget: ScrolledComposite): Option[VComposite] = {
     log.debug(s"Build content for ${configuration}.")
     App.assertUIThread(false)
     // Create view widget.

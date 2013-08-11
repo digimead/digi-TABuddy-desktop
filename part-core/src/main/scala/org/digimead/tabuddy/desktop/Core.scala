@@ -54,8 +54,8 @@ import org.digimead.tabuddy.desktop.core.Views.configurator2implementation
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
-import org.digimead.tabuddy.desktop.support.AppContext.appContext2rich
+import org.digimead.tabuddy.desktop.definition.Context
+import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
 
 import akka.actor.ActorRef
 import akka.actor.Props
@@ -157,7 +157,7 @@ object Core {
   /** Core actor path. */
   lazy val actorPath = actor.path
   /** Root context. */
-  val context = AppContext("Core"): AppContext.Rich
+  val context = Context("Core"): Context.Rich
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   // Initialize descendant actor singletons

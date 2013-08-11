@@ -66,7 +66,7 @@ object OperationModifyElementTemplate extends Loggable {
       case Some(factory) =>
         Option(factory(template, templateList, modelId))
       case None =>
-        log.error("JobModifyElementTemplate implementation is not defined.")
+        log.error("OperationModifyElementTemplate implementation is not defined.")
         None
     }
   }

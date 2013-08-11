@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.logic.operation.api
 import org.digimead.tabuddy.desktop.definition.api.Operation
 
 /**
- * JobModifyElement base trait.
+ * OperationModifyElement base trait.
  */
 trait OperationModifyElement {
   this: Operation[Boolean] =>

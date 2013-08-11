@@ -48,7 +48,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.desktop.Resources.resources2implementation
-import org.digimead.tabuddy.desktop.support.wizard.IWizard
+import org.digimead.tabuddy.desktop.definition.IWizard
 import org.eclipse.jface.wizard.WizardDialog
 import org.eclipse.swt.widgets.Shell
 
@@ -66,7 +66,7 @@ class Wizards extends Loggable {
     val instance = clazz.newInstance()
     argument.foreach { argument =>
       instance match {
-        case wizard: org.digimead.tabuddy.desktop.support.wizard.IWizard =>
+        case wizard: org.digimead.tabuddy.desktop.definition.IWizard =>
           wizard.init(argument)
         case wizard =>
       }
@@ -75,7 +75,7 @@ class Wizards extends Loggable {
     wd.setTitle(instance.getWindowTitle())
     val result = wd.open(): Integer
     instance match {
-      case wizard: org.digimead.tabuddy.desktop.support.wizard.IWizard =>
+      case wizard: org.digimead.tabuddy.desktop.definition.IWizard =>
         wizard.result getOrElse result
       case wizard =>
         result

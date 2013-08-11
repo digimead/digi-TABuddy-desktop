@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.support.wizard
+package org.digimead.tabuddy.desktop.definition
 
 /** Base application wizard with init(arg) method */
 trait IWizard extends org.eclipse.jface.wizard.IWizard {

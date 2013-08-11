@@ -64,8 +64,8 @@ import org.digimead.tabuddy.desktop.gui.WindowConfiguration.windowConfiguration2
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
-import org.digimead.tabuddy.desktop.support.AppContext.appContext2rich
+import org.digimead.tabuddy.desktop.definition.Context
+import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
@@ -200,7 +200,7 @@ class WindowSupervisor extends Actor with Loggable {
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
     App.assertUIThread(false)
     val windowName = Window.id + "_%08X".format(windowId.hashCode())
-    val windowContext = Core.context.createChild("Context_" + windowName): AppContext.Rich
+    val windowContext = Core.context.createChild("Context_" + windowName): Context.Rich
     val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), windowName)
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
     // Block supervisor until window is created

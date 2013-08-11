@@ -47,7 +47,7 @@ import java.util.UUID
 
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.definition.Context
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Composite
 
@@ -57,5 +57,5 @@ import akka.actor.ActorRef
 class WComposite(val id: UUID, val ref: ActorRef, parent: Composite, style: Int)
   extends ScrolledComposite(parent, style) with SComposite {
   /** Get window context. */
-  def getContext(): AppContext = getData(App.widgetContextKey).asInstanceOf[AppContext]
+  def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
 }

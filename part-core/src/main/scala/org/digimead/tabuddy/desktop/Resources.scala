@@ -54,8 +54,8 @@ import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
 import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext.rich2appContext
-import org.digimead.tabuddy.desktop.support.wizard.IWizard
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.digimead.tabuddy.desktop.definition.IWizard
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry
 import org.eclipse.swt.graphics.Font
 import org.eclipse.swt.graphics.Image

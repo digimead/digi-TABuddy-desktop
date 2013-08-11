@@ -83,7 +83,7 @@ trait ViewActions {
     override def run() = {} //OperationCreateElement(Data.fieldElement.value).foreach(_.execute)
   }
   object ActionElementEdit extends Action(Messages.edit_text) {
-    override def run() = {} //JobModifyElement(Data.fieldElement.value).foreach(_.execute)
+    override def run() = {} //OperationModifyElement(Data.fieldElement.value).foreach(_.execute)
   }
   object ActionElementDelete extends Action(Messages.delete_text) {
     override def run = {}

@@ -52,8 +52,11 @@ import scala.Option.option2Iterable
 import scala.annotation.tailrec
 
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.gui.widget.SComposite
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.gui.widget.WComposite
+import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
 import org.eclipse.swt.custom.CTabItem
 import org.eclipse.swt.custom.TableTreeItem
 import org.eclipse.swt.dnd.DragSource
@@ -231,6 +234,10 @@ trait GUI {
         None
     }.flatten.headOption
   }
+  /** Get active view. */
+  def getActiveView(): Option[VComposite] = Core.context.getActiveLeaf.get(org.digimead.tabuddy.desktop.gui.GUI.viewContextKey)
+  /** Get active window. */
+  def getActiveWindow(): Option[WComposite] = Core.context.getActiveLeaf.get(org.digimead.tabuddy.desktop.gui.GUI.windowContextKey)
   /** Get all GUI components from the current widget to top level parent(shell). */
   def widgetHierarchy(widget: Widget): Seq[Widget] = Option(widget) match {
     case Some(composite: SComposite) =>

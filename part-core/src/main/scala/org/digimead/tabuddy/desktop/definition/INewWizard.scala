@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.support.wizard
+package org.digimead.tabuddy.desktop.definition
 
 /** Wizard that creates something new. */
 trait INewWizard extends IWizard

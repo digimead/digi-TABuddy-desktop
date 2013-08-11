@@ -74,7 +74,7 @@ import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.AppContext
+import org.digimead.tabuddy.desktop.definition.Context
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Composite
@@ -97,7 +97,7 @@ import language.implicitConversions
  * - provide view configuration
  * - save all views configuration
  */
-class StackSupervisor(val windowId: UUID, val parentContext: AppContext.Rich) extends Actor with Loggable {
+class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) extends Actor with Loggable {
   /** Stack configuration. */
   val configuration = new StackSupervisor.AtomicConfiguration(StackConfiguration.default)
   /** Reference to configurations save process future. */

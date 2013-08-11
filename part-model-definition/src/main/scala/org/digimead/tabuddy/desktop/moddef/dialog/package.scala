@@ -47,20 +47,20 @@ package org.digimead.tabuddy.desktop.ui.dialog
 import org.digimead.tabuddy.desktop.job.OperationCreateElementFromTemplate
 import org.digimead.tabuddy.desktop.job.OperationCreateElementFromTemplateImplementation
 import org.digimead.tabuddy.desktop.job.OperationCreateElementImplementation
-import org.digimead.tabuddy.desktop.job.JobModifyElement
-import org.digimead.tabuddy.desktop.job.JobModifyElementImplementation
-import org.digimead.tabuddy.desktop.job.JobModifyElementTemplate
-import org.digimead.tabuddy.desktop.job.JobModifyElementTemplateImplementation
+import org.digimead.tabuddy.desktop.job.OperationModifyElement
+import org.digimead.tabuddy.desktop.job.OperationModifyElementImplementation
+import org.digimead.tabuddy.desktop.job.OperationModifyElementTemplate
+import org.digimead.tabuddy.desktop.job.OperationModifyElementTemplateImplementation
 import org.digimead.tabuddy.desktop.job.OperationModifyElementTemplateList
 import org.digimead.tabuddy.desktop.job.OperationModifyElementTemplateListImplementation
-import org.digimead.tabuddy.desktop.job.JobModifyEnumeration
-import org.digimead.tabuddy.desktop.job.JobModifyEnumerationImplementation
-import org.digimead.tabuddy.desktop.job.JobModifyEnumerationList
-import org.digimead.tabuddy.desktop.job.JobModifyEnumerationListImplementation
-import org.digimead.tabuddy.desktop.job.JobModifyTypeSchema
-import org.digimead.tabuddy.desktop.job.JobModifyTypeSchemaImplementation
-import org.digimead.tabuddy.desktop.job.JobModifyTypeSchemaList
-import org.digimead.tabuddy.desktop.job.JobModifyTypeSchemaListImplementation
+import org.digimead.tabuddy.desktop.job.OperationModifyEnumeration
+import org.digimead.tabuddy.desktop.job.OperationModifyEnumerationImplementation
+import org.digimead.tabuddy.desktop.job.OperationModifyEnumerationList
+import org.digimead.tabuddy.desktop.job.OperationModifyEnumerationListImplementation
+import org.digimead.tabuddy.desktop.job.OperationModifyTypeSchema
+import org.digimead.tabuddy.desktop.job.OperationModifyTypeSchemaImplementation
+import org.digimead.tabuddy.desktop.job.OperationModifyTypeSchemaList
+import org.digimead.tabuddy.desktop.job.OperationModifyTypeSchemaListImplementation
 import org.digimead.tabuddy.desktop.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.payload.Enumeration
 import org.digimead.tabuddy.desktop.payload.TypeSchema
@@ -79,41 +79,41 @@ package object model {
     module.bind[(ElementTemplate.Interface, Element[_ <: Stash], Symbol) => OperationCreateElementFromTemplate] toSingle {
       (template: ElementTemplate.Interface, container: Element.Generic, modelID: Symbol) => new OperationCreateElementFromTemplateImplementation(template, container, modelID)
     }
-    // JobModifyElementImplementation
-    module.bind[(Element[_ <: Stash], Symbol) => JobModifyElement] toSingle {
-      (element: Element.Generic, modelID: Symbol) => new JobModifyElementImplementation(element, modelID)
+    // OperationModifyElementImplementation
+    module.bind[(Element[_ <: Stash], Symbol) => OperationModifyElement] toSingle {
+      (element: Element.Generic, modelID: Symbol) => new OperationModifyElementImplementation(element, modelID)
     }
-    // JobModifyElementTemplateImplementation
-    module.bind[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate] toSingle {
-      (template: ElementTemplate.Interface, templateList: Set[ElementTemplate.Interface], modelID: Symbol) => new JobModifyElementTemplateImplementation(template, templateList, modelID)
+    // OperationModifyElementTemplateImplementation
+    module.bind[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => OperationModifyElementTemplate] toSingle {
+      (template: ElementTemplate.Interface, templateList: Set[ElementTemplate.Interface], modelID: Symbol) => new OperationModifyElementTemplateImplementation(template, templateList, modelID)
     }
     // OperationModifyElementTemplateListImplementation
     module.bind[(Set[ElementTemplate.Interface], Symbol) => OperationModifyElementTemplateList] toSingle {
       (templateList: Set[ElementTemplate.Interface], modelID: Symbol) => new OperationModifyElementTemplateListImplementation(templateList, modelID)
     }
-    // JobModifyEnumerationImplementation
-    module.bind[(Enumeration.Interface[_ <: AnyRef with java.io.Serializable], Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => JobModifyEnumeration] toSingle {
+    // OperationModifyEnumerationImplementation
+    module.bind[(Enumeration.Interface[_ <: AnyRef with java.io.Serializable], Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => OperationModifyEnumeration] toSingle {
       (enumeration: Enumeration.Interface[_ <: AnyRef with java.io.Serializable],
       enumerationList: Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]],
-      modelID: Symbol) => new JobModifyEnumerationImplementation(enumeration, enumerationList, modelID)
+      modelID: Symbol) => new OperationModifyEnumerationImplementation(enumeration, enumerationList, modelID)
     }
-    // JobModifyEnumerationListImplementation
-    module.bind[(Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => JobModifyEnumerationList] toSingle {
+    // OperationModifyEnumerationListImplementation
+    module.bind[(Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => OperationModifyEnumerationList] toSingle {
       (enumerationList: Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]],
-      modelID: Symbol) => new JobModifyEnumerationListImplementation(enumerationList, modelID)
+      modelID: Symbol) => new OperationModifyEnumerationListImplementation(enumerationList, modelID)
     }
-    // JobModifyTypeSchemaImplementation
-    module.bind[(TypeSchema.Interface, Set[TypeSchema.Interface], Boolean, Symbol) => JobModifyTypeSchema] toSingle {
+    // OperationModifyTypeSchemaImplementation
+    module.bind[(TypeSchema.Interface, Set[TypeSchema.Interface], Boolean, Symbol) => OperationModifyTypeSchema] toSingle {
       (schema: TypeSchema.Interface,
       schemaList: Set[TypeSchema.Interface],
       isActive: Boolean,
-      modelID: Symbol) => new JobModifyTypeSchemaImplementation(schema, schemaList, isActive, modelID)
+      modelID: Symbol) => new OperationModifyTypeSchemaImplementation(schema, schemaList, isActive, modelID)
     }
-    // JobModifyTypeSchemaListImplementation
-    module.bind[(Set[TypeSchema.Interface], TypeSchema.Interface, Symbol) => JobModifyTypeSchemaList] toSingle {
+    // OperationModifyTypeSchemaListImplementation
+    module.bind[(Set[TypeSchema.Interface], TypeSchema.Interface, Symbol) => OperationModifyTypeSchemaList] toSingle {
       (before: Set[TypeSchema.Interface],
       active: TypeSchema.Interface,
-      modelID: Symbol) => new JobModifyTypeSchemaListImplementation(before, active, modelID)
+      modelID: Symbol) => new OperationModifyTypeSchemaListImplementation(before, active, modelID)
     }
   })*/
 }

@@ -60,7 +60,7 @@ object OperationModifyElement extends Loggable {
       case Some(factory) =>
         Option(factory(element, modelId))
       case None =>
-        log.error("JobModifyElement implementation is not defined.")
+        log.error("OperationModifyElement implementation is not defined.")
         None
     }
   }

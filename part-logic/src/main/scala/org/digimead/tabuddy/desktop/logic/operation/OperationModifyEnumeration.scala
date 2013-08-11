@@ -59,7 +59,7 @@ object OperationModifyEnumeration extends Loggable {
       case Some(factory) =>
         Option(factory(enumeration, enumerationList, modelId))
       case None =>
-        log.error("JobModifyEnumeration implementation is not defined.")
+        log.error("OperationModifyEnumeration implementation is not defined.")
         None
     }
   }
