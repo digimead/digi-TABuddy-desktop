@@ -47,31 +47,31 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Job
+import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
 
-object JobCreateElement extends Loggable {
+object JobModifyEnumeration extends Loggable {
   @log
-  def apply(container: Element.Generic): Option[Abstract] = {
+  def apply(enumeration: Enumeration[_ <: AnyRef with java.io.Serializable], enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]]): Option[Abstract] = {
     val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Element[_ <: Stash], Symbol) => Abstract]] match {
+    DI.jobFactory.asInstanceOf[Option[(Enumeration[_ <: AnyRef with java.io.Serializable], Set[Enumeration[_ <: AnyRef with java.io.Serializable]], Symbol) => Abstract]] match {
       case Some(factory) =>
-        Option(factory(container, modelId))
+        Option(factory(enumeration, enumerationList, modelId))
       case None =>
-        log.error("JobCreateElement implementation is not defined.")
+        log.error("JobModifyEnumeration implementation is not defined.")
         None
     }
   }
 
-  abstract class Abstract(val container: Element.Generic, val modelID: Symbol)
-    extends Job[Element.Generic](s"Create a new element for $container") with api.JobCreateElement
+  abstract class Abstract(val enumeration: Enumeration[_ <: AnyRef with java.io.Serializable],
+    val enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]], val modelID: Symbol)
+    extends Job[Enumeration[_ <: AnyRef with java.io.Serializable]]("Edit %s for model %s".format(enumeration, modelID)) with api.JobModifyEnumeration
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.JobCreateElement]
+    lazy val jobFactory = injectOptional[(Enumeration[_ <: AnyRef with java.io.Serializable], Set[Enumeration[_ <: AnyRef with java.io.Serializable]], Symbol) => api.JobModifyEnumeration]
   }
 }

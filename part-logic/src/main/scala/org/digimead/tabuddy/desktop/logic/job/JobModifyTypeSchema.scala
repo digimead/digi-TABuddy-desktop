@@ -47,31 +47,33 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Job
+import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
 
-object JobCreateElement extends Loggable {
+object JobModifyTypeSchema extends Loggable {
   @log
-  def apply(container: Element.Generic): Option[Abstract] = {
+  def apply(schema: TypeSchema, schemaList: Set[TypeSchema], isSchemaActive: Boolean): Option[Abstract] = {
     val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Element[_ <: Stash], Symbol) => Abstract]] match {
+    DI.jobFactory.asInstanceOf[Option[(TypeSchema, Set[TypeSchema], Boolean, Symbol) => Abstract]] match {
       case Some(factory) =>
-        Option(factory(container, modelId))
+        Option(factory(schema, schemaList, isSchemaActive, modelId))
       case None =>
-        log.error("JobCreateElement implementation is not defined.")
+        log.error("JobModifyTypeSchema implementation is not defined.")
         None
     }
   }
 
-  abstract class Abstract(val container: Element.Generic, val modelID: Symbol)
-    extends Job[Element.Generic](s"Create a new element for $container") with api.JobCreateElement
+  abstract class Abstract(
+    val schema: TypeSchema,
+    val schemaList: Set[TypeSchema],
+    val isActive: Boolean,
+    val modelID: Symbol) extends Job[(TypeSchema, Boolean)]("Edit %s for model %s".format(schema, modelID)) with api.JobModifyTypeSchema
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.JobCreateElement]
+    lazy val jobFactory = injectOptional[(TypeSchema, Set[TypeSchema], Boolean, Symbol) => api.JobModifyTypeSchema]
   }
 }

@@ -47,31 +47,33 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Job
+import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
 
-object JobCreateElement extends Loggable {
+/**
+ * Modify an immutable type schema list
+ */
+object JobModifyTypeSchemaList extends Loggable {
   @log
-  def apply(container: Element.Generic): Option[Abstract] = {
+  def apply(schemaList: Set[TypeSchema], activeSchema: TypeSchema): Option[Abstract] = {
     val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Element[_ <: Stash], Symbol) => Abstract]] match {
+    DI.jobFactory.asInstanceOf[Option[(Set[TypeSchema], TypeSchema, Symbol) => Abstract]] match {
       case Some(factory) =>
-        Option(factory(container, modelId))
+        Option(factory(schemaList, activeSchema, modelId))
       case None =>
-        log.error("JobCreateElement implementation is not defined.")
+        log.error("JobModifyTypeSchemaList implementation is not defined.")
         None
     }
   }
 
-  abstract class Abstract(val container: Element.Generic, val modelID: Symbol)
-    extends Job[Element.Generic](s"Create a new element for $container") with api.JobCreateElement
+  abstract class Abstract(val before: Set[TypeSchema], val active: TypeSchema, val modelID: Symbol)
+    extends Job[(Set[TypeSchema], TypeSchema)]("Edit type schema list of model " + Model.eId) with api.JobModifyTypeSchemaList
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.JobCreateElement]
+    lazy val jobFactory = injectOptional[(Set[TypeSchema], TypeSchema, Symbol) => api.JobModifyTypeSchemaList]
   }
 }

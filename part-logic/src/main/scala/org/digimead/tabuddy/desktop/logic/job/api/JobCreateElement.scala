@@ -49,4 +49,6 @@ import org.digimead.tabuddy.model.element.Element
 /**
  * JobCreateElement base trait.
  */
-trait JobCreateElement extends Job[Element.Generic]
+trait JobCreateElement {
+  this: Job[Element.Generic] =>
+}

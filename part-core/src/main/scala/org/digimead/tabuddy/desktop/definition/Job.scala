@@ -45,26 +45,79 @@ package org.digimead.tabuddy.desktop.definition
 
 import org.eclipse.core.runtime.IStatus
 import org.digimead.digi.lib.log.api.Loggable
+import org.eclipse.core.runtime.IProgressMonitor
+import java.lang.ref.WeakReference
+
+import language.implicitConversions
 
 /**
  * Job base class.
  */
 abstract class Job[A](
   /** The property representing the job label. */
-  label: String) extends org.eclipse.core.runtime.jobs.Job(label) with api.Job[A]
+  label: String) extends api.Job[A] {
+  /** Original job instance from Eclipse platform */
+  lazy val unsafe = Job.Unsafe[A](label, new WeakReference(this))
+
+  /**
+   * Jobs that complete their execution asynchronously must indicate when they
+   * are finished by calling this method.  This method must not be called by
+   * a job that has not indicated that it is executing asynchronously.
+   * <p>
+   * This method must not be called from within the scope of a job's <code>run</code>
+   * method.  Jobs should normally indicate completion by returning an appropriate
+   * status from the <code>run</code> method.  Jobs that return a status of
+   * <code>ASYNC_FINISH</code> from their run method must later call
+   * <code>done</code> to indicate completion.
+   *
+   * @param result a status object indicating the result of the job's execution.
+   * @see #ASYNC_FINISH
+   * @see #run(IProgressMonitor)
+   */
+  def done(result: Job.Result[A]) = unsafe.done(result)
+  /**
+   * Executes this job.  Returns the result of the execution.
+   * <p>
+   * The provided monitor can be used to report progress and respond to
+   * cancellation.  If the progress monitor has been canceled, the job
+   * should finish its execution at the earliest convenience and return a result
+   * status of severity {@link IStatus#CANCEL}.  The singleton
+   * cancel status {@link Status#CANCEL_STATUS} can be used for
+   * this purpose.  The monitor is only valid for the duration of the invocation
+   * of this method.
+   * <p>
+   * This method must not be called directly by clients.  Clients should call
+   * <code>schedule</code>, which will in turn cause this method to be called.
+   * <p>
+   * Jobs can optionally finish their execution asynchronously (in another thread) by
+   * returning a result status of Job.Result.AsyncFinish[A].  Jobs that finish
+   * asynchronously <b>must</b> specify the execution thread by calling
+   * <code>setThread</code>, and must indicate when they are finished by calling
+   * the method <code>done</code>.
+   *
+   * @param monitor the monitor to be used for reporting progress and
+   * responding to cancelation.
+   * @return resulting status of the run.
+   * @see #Job.Result.AsyncFinish[A]
+   * @see #done(IStatus)
+   */
+  protected def run(monitor: IProgressMonitor): Job.Result[A]
+}
 
 object Job extends Loggable {
+  implicit def job2unsafe[A](j: Job[A]): Unsafe[A] = j.unsafe
+
   /**
    * Job result
    */
-  sealed trait Result[T] extends IStatus {
+  sealed trait Result[A] extends IStatus {
     val exception: Throwable
     val message: String
-    val result: Option[T]
+    val result: Option[A]
     val severity: Int
 
     /** Returns the operation/job result */
-    def get(): Option[T] = result
+    def get(): Option[A] = result
     /**
      * Returns a list of status object immediately contained in this
      * multi-status, or an empty list if this is not a multi-status.
@@ -115,12 +168,23 @@ object Job extends Loggable {
     def matches(severityMask: Int) = (severityMask & severity) != 0
   }
   object Result {
-    case class Cancel[T](val message: String = "operation cancel") extends Result[T] {
+    case class AsyncFinish[A](val result: Option[A] = None, val message: String = "operation complete") extends Result[A] {
+      val severity = IStatus.OK
+      val exception = null
+      /** Returns the plug-in-specific status code describing the outcome. */
+      override def getCode() = 1
+      /**
+       * Returns the unique identifier of the plug-in associated with this status
+       * (this is the plug-in that defines the meaning of the status code).
+       */
+      override def getPlugin() = org.eclipse.core.internal.jobs.JobManager.PI_JOBS
+    }
+    case class Cancel[A](val message: String = "operation cancel") extends Result[A] {
       val exception = null
       val result = None
       val severity = IStatus.CANCEL
     }
-    case class Error[T](val message: String, logAsFatal: Boolean = true) extends Result[T] {
+    case class Error[A](val message: String, logAsFatal: Boolean = true) extends Result[A] {
       val exception = null
       val result = None
       val severity = IStatus.ERROR
@@ -130,7 +194,7 @@ object Job extends Loggable {
       else
         log.warn(message)
     }
-    case class Exception[T](override val exception: Throwable, logAsFatal: Boolean = true) extends Result[T] {
+    case class Exception[A](override val exception: Throwable, logAsFatal: Boolean = true) extends Result[A] {
       val message = "Error: " + exception
       val severity = IStatus.ERROR
       val result = None
@@ -140,9 +204,15 @@ object Job extends Loggable {
       else
         log.warn(exception.toString())
     }
-    case class OK[T](val result: Option[T] = None, val message: String = "operation complete") extends Result[T] {
+    case class OK[A](val result: Option[A] = None, val message: String = "operation complete") extends Result[A] {
       val severity = IStatus.OK
       val exception = null
     }
+  }
+  /**
+   * Wrapper for unsafe, dirty implementation from framework.
+   */
+  case class Unsafe[A](label: String, safeWrapper: WeakReference[Job[A]]) extends org.eclipse.core.runtime.jobs.Job(label) {
+    override protected def run(monitor: IProgressMonitor): Job.Result[A] = safeWrapper.get.run(monitor)
   }
 }

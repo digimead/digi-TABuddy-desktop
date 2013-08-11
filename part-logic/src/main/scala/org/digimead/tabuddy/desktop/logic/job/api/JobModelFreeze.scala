@@ -41,37 +41,15 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.job
+package org.digimead.tabuddy.desktop.logic.job.api
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Job
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
+import java.net.URI
 
-object JobCreateElement extends Loggable {
-  @log
-  def apply(container: Element.Generic): Option[Abstract] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Element[_ <: Stash], Symbol) => Abstract]] match {
-      case Some(factory) =>
-        Option(factory(container, modelId))
-      case None =>
-        log.error("JobCreateElement implementation is not defined.")
-        None
-    }
-  }
+import org.digimead.tabuddy.desktop.definition.api.Job
 
-  abstract class Abstract(val container: Element.Generic, val modelID: Symbol)
-    extends Job[Element.Generic](s"Create a new element for $container") with api.JobCreateElement
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.JobCreateElement]
-  }
+/**
+ * JobModelFreeze base trait.
+ */
+trait JobModelFreeze {
+  this: Job[URI] =>
 }

@@ -43,35 +43,74 @@
 
 package org.digimead.tabuddy.desktop.logic.job
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Job
+import java.net.URI
+
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
+import org.eclipse.core.runtime.IAdaptable
+import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.core.runtime.IAdaptable
+import org.eclipse.core.runtime.IProgressMonitor
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.definition.Job
 
-object JobCreateElement extends Loggable {
+class JobModelFreeze private (modelID: Symbol)
+  extends JobModelFreeze.Abstract(modelID) {
+  @volatile protected var allowExecute = true
+
+  def canExecute() = allowExecute
+  def canRedo() = false
+  def canUndo() = false
+
+  protected def run(monitor: IProgressMonitor): Job.Result[URI] = {
+    Job.Result.OK()
+  }
+
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[URI] = {
+    // process the job
+    val result: Job.Result[URI] = if (canExecute) {
+      assert(Model.eId == modelID, "An unexpected model %s, expect %s".format(Model.eId, modelID))
+      val model = Model
+      //      Job.Result.OK(Payload.freezeModel(model))
+      Job.Result.OK()
+    } else
+      Job.Result.Error(s"Unable to process $this: execute are prohibited")
+    // update the job state
+    allowExecute = false
+    // return the result
+    result
+  }
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[URI] =
+    throw new UnsupportedOperationException
+}
+
+object JobModelFreeze extends Loggable {
   @log
-  def apply(container: Element.Generic): Option[Abstract] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Element[_ <: Stash], Symbol) => Abstract]] match {
+  def apply(modelId: Symbol): Option[JobModelFreeze] = {
+    DI.jobFactory.asInstanceOf[Option[(Symbol) => JobModelFreeze]] match {
       case Some(factory) =>
-        Option(factory(container, modelId))
+        if (modelId != Payload.defaultModel.eId && modelId != Symbol(""))
+          Option(factory(modelId))
+        else {
+          log.warn("Unable to freeze model with default name")
+          None
+        }
       case None =>
-        log.error("JobCreateElement implementation is not defined.")
+        log.error("JobModelFreeze implementation is not defined.")
         None
     }
   }
 
-  abstract class Abstract(val container: Element.Generic, val modelID: Symbol)
-    extends Job[Element.Generic](s"Create a new element for $container") with api.JobCreateElement
+  abstract class Abstract(val modelId: Symbol)
+    extends Job[URI](s"Freeze model ${modelId}.") with api.JobModelFreeze
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.JobCreateElement]
+    lazy val jobFactory = injectOptional[(Symbol) => api.JobModelFreeze]
   }
 }

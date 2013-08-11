@@ -43,35 +43,58 @@
 
 package org.digimead.tabuddy.desktop.logic.job
 
+import org.eclipse.core.runtime.IAdaptable
+import org.eclipse.core.runtime.IProgressMonitor
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.definition.Job
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
 
-object JobCreateElement extends Loggable {
+class JobModelDelete private (modelId: Symbol)
+  extends JobModelDelete.Abstract(modelId) {
+  @volatile protected var allowExecute = true
+
+  def canExecute() = allowExecute
+  def canRedo() = false
+  def canUndo() = false
+
+  protected def run(monitor: IProgressMonitor): Job.Result[Unit] = {
+    Job.Result.OK()
+  }
+
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Unit] = {
+    // TODO delete
+    Job.Result.Error("Unimplemented")
+  }
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Unit] =
+    throw new UnsupportedOperationException
+}
+
+object JobModelDelete extends Loggable {
   @log
-  def apply(container: Element.Generic): Option[Abstract] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Element[_ <: Stash], Symbol) => Abstract]] match {
+  def apply(modelId: Symbol): Option[JobModelDelete] = {
+    DI.jobFactory.asInstanceOf[Option[(Symbol) => JobModelDelete]] match {
       case Some(factory) =>
-        Option(factory(container, modelId))
+        if (modelId != Payload.defaultModel.eId && modelId != Symbol(""))
+          Option(factory(modelId))
+        else {
+          log.warn("Unable to delete model with the default name")
+          None
+        }
       case None =>
-        log.error("JobCreateElement implementation is not defined.")
+        log.error("JobModelDelete implementation is not defined.")
         None
     }
   }
 
-  abstract class Abstract(val container: Element.Generic, val modelID: Symbol)
-    extends Job[Element.Generic](s"Create a new element for $container") with api.JobCreateElement
+  abstract class Abstract(val modelId: Symbol)
+    extends Job[Unit](s"Delete model ${modelId}.") with api.JobModelDelete
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.JobCreateElement]
+    lazy val jobFactory = injectOptional[(Symbol) => api.JobModelDelete]
   }
 }

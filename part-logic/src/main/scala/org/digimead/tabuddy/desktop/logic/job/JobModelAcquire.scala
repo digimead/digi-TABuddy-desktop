@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,62 +41,53 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.moddef.job
+package org.digimead.tabuddy.desktop.logic.job
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Job
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.core.runtime.IStatus
-import org.eclipse.core.runtime.Status
+import org.digimead.tabuddy.desktop.definition.Job
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.payload.Payload
 
-/**
- * JobCreateElement implementation.
- */
-class JobCreateElement(container: Element.Generic, modelID: Symbol)
-  extends org.digimead.tabuddy.desktop.logic.job.JobCreateElement.Abstract(container, modelID) with Loggable {
+class JobModelAcquire private (oldModelID: Option[Symbol], newModelID: Symbol)
+  extends JobModelAcquire.Abstract(oldModelID, newModelID) {
   @volatile protected var allowExecute = true
   @volatile protected var allowRedo = false
   @volatile protected var allowUndo = false
+  @volatile protected var before: Option[Model.Interface[_ <: Model.Stash]] = None
+  @volatile protected var after: Option[Model.Interface[_ <: Model.Stash]] = None
 
   def canExecute() = allowExecute
   def canRedo() = allowRedo
   def canUndo() = allowUndo
 
-  protected def run(monitor: IProgressMonitor): Job.Result[Element.Generic] = {
-    /*monitor.beginTask("My job is working...", 100)
-        for (i <- 0 until 100) {
-          try {
-            Thread.sleep(200)
-          }
-          monitor.worked(1)
-        }
-        monitor.done()*/
-    log.___gaze("JobCreateElement")
+  protected def run(monitor: IProgressMonitor): Job.Result[Model.Interface[_ <: Model.Stash]] = {
     Job.Result.OK()
   }
 
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Element.Generic] = {
-    assert(Model.eId == modelID, "An unexpected model %s, expect %s".format(Model.eId, modelID))
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Model.Interface[_ <: Model.Stash]] = {
     // process the job
-    val result: Job.Result[Element.Generic] = if (canRedo) {
-      // TODO replay history, modify elementTemplate: before -> after
-      Job.Result.Error("Unimplemented")
-    } else if (canExecute) {
-      // TODO save modification history
-      App.execNGet {
-        /*        val customShell = new Shell(Main.display, SWT.NO_TRIM | SWT.ON_TOP)
-        val dialog = new ElementCreate(customShell, container)
-        if (dialog.open() == org.eclipse.jface.window.Window.OK)
-          Job.Result.OK(dialog.getCreatedElement)
-        else*/
-        Job.Result.Cancel()
+    val result: Job.Result[Model.Interface[_ <: Model.Stash]] = if (canRedo) {
+      assert(Model.eId == newModelID, "An unexpected model %s, expect %s".format(Model.eId, newModelID))
+      after match {
+        case Some(redoModel) =>
+          Model.reset(redoModel)
+          Job.Result.OK(after)
+        case None =>
+          Job.Result.Error(s"Lost redo model for $this")
       }
+    } else if (canExecute) {
+      oldModelID.foreach(id => assert(Model.eId == id, "An unexpected model %s, expect %s".format(Model.eId, id)))
+      before = Some(Model.inner)
+      //after = Payload.acquireModel(newModelID)
+      if (after.nonEmpty)
+        Job.Result.OK(after)
+      else
+        Job.Result.Error(s"Unable to aquire model")
     } else
       Job.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state
@@ -117,8 +108,41 @@ class JobCreateElement(container: Element.Generic, modelID: Symbol)
     // return the result
     result
   }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Element.Generic] = {
-    // TODO revert history, modify elementTemplate: after -> before
-    Job.Result.Error("Unimplemented")
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Job.Result[Model.Interface[_ <: Model.Stash]] = {
+    assert(canUndo, "undo is prohibited")
+    allowExecute = false
+    allowRedo = true
+    allowUndo = false
+    before match {
+      case Some(undoModel) =>
+        Model.reset(undoModel)
+        Job.Result.OK(before)
+      case None =>
+        Job.Result.Error(s"Lost undo model for $this")
+    }
+  }
+}
+
+object JobModelAcquire extends Loggable {
+  @log
+  def apply(oldModelId: Option[Symbol], newModelId: Symbol): Option[JobModelAcquire] = {
+    val modelId = Model.eId
+    DI.jobFactory.asInstanceOf[Option[(Option[Symbol], Symbol) => JobModelAcquire]] match {
+      case Some(factory) =>
+        Option(factory(oldModelId, newModelId))
+      case None =>
+        log.error("JobModelAcquire implementation is not defined.")
+        None
+    }
+  }
+
+  abstract class Abstract(val oldModelID: Option[Symbol], val newModelID: Symbol)
+    extends Job[Model.Interface[_ <: Model.Stash]](s"Acquire model ${newModelID}.") with api.JobModelAcquire
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+    lazy val jobFactory = injectOptional[(Option[Symbol], Symbol) => api.JobModelAcquire]
   }
 }

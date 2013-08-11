@@ -52,26 +52,26 @@ import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
 
-object JobCreateElement extends Loggable {
+object JobModifyElement extends Loggable {
   @log
-  def apply(container: Element.Generic): Option[Abstract] = {
+  def apply(element: Element.Generic): Option[Abstract] = {
     val modelId = Model.eId
     DI.jobFactory.asInstanceOf[Option[(Element[_ <: Stash], Symbol) => Abstract]] match {
       case Some(factory) =>
-        Option(factory(container, modelId))
+        Option(factory(element, modelId))
       case None =>
-        log.error("JobCreateElement implementation is not defined.")
+        log.error("JobModifyElement implementation is not defined.")
         None
     }
   }
 
-  abstract class Abstract(val container: Element.Generic, val modelID: Symbol)
-    extends Job[Element.Generic](s"Create a new element for $container") with api.JobCreateElement
+  abstract class Abstract(val element: Element.Generic, val modelID: Symbol)
+    extends Job[Boolean](s"Modify $element") with api.JobModifyElement
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.JobCreateElement]
+    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.JobModifyElement]
   }
 }
