@@ -204,6 +204,6 @@ object ElementToolBar {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** ElementToolBar actor reference configuration object. */
-    lazy val props = injectOptional[Props]("ElementToolBar") getOrElse Props[ElementToolBar]
+    lazy val props = injectOptional[Props]("Editor.ToolBar.ElementToolBar") getOrElse Props[ElementToolBar]
   }
 }
