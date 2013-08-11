@@ -41,11 +41,10 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.moddef
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
-
 import org.digimead.configgy.Configgy
 import org.digimead.configgy.Configgy.getImplementation
 import org.digimead.digi.lib.aop.log
@@ -68,19 +67,19 @@ import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
 import org.eclipse.jface.commands.ToggleState
-
 import akka.actor.ActorRef
 import akka.actor.Inbox
 import akka.actor.Props
 import akka.actor.ScalaActorRef
 import akka.actor.actorRef2Scala
-
 import language.implicitConversions
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.Logic
 
 /**
- * Root actor of the Logic component.
+ * Root actor of the Model Definition component.
  */
-class Logic extends akka.actor.Actor with Loggable {
+class ModDef extends akka.actor.Actor with Loggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef]()
   /** Flag indicating whether GUI is valid. */
@@ -117,22 +116,22 @@ class Logic extends akka.actor.Actor with Loggable {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
-    case message @ App.Message.Inconsistent(element, _) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
+    case message @ App.Message.Inconsistent(element, _) if element != ModDef && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
-        context.system.eventStream.publish(App.Message.Inconsistent(Logic, self))
+        context.system.eventStream.publish(App.Message.Inconsistent(ModDef, self))
       }
       inconsistentSet = inconsistentSet + element
     }
-    case message @ App.Message.Consistent(element, _) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
+    case message @ App.Message.Consistent(element, _) if element != ModDef && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
-        context.system.eventStream.publish(App.Message.Consistent(Logic, self))
+        context.system.eventStream.publish(App.Message.Consistent(ModDef, self))
       }
     }
     case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
-      if (fGUIStarted) onModelInitialization(oldModel, newModel, modified)
+      if (fGUIStarted) log.___gaze("Close all/Reload all")
     }
     case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
       fGUIStarted = true
@@ -152,103 +151,36 @@ class Logic extends akka.actor.Actor with Loggable {
     case message @ App.Message.Consistent(element, _) => // skip
   }
 
-  /** Close infrastructure wide container. */
-  @log
-  protected def closeContainer() {
-    log.info(s"Close infrastructure wide container '${Logic.container.getName()}' ")
-    App.publish(App.Message.Inconsistent(this, self))
-    val progressMonitor = new NullProgressMonitor()
-    if (Logic.container.isOpen()) {
-      Payload.getModelMarker(Model).foreach(_.save)
-      Logic.container.close(progressMonitor)
-    }
-    App.publish(App.Message.Consistent(this, self))
-  }
-  /** This callback is invoked when UI initialization complete */
-  @log
-  def onApplicationStartup() {
-    // load last active model at startup
-    Configgy.getString("payload.model").foreach(lastModelID =>
-      Payload.listModels.find(m => m.isValid && m.id.name == lastModelID).foreach { marker =>
-        Payload.acquireModel(marker)
-        //TODO OperationModelAcquire
-        //OperationModelAcquire(None, Symbol(lastModelID)).foreach(_.execute)
-      })
-  }
-  /** This callback is invoked at an every model initialization. */
-  @log
-  protected def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = try {
-    TypeSchema.onModelInitialization(oldModel, newModel, modified)
-    ElementTemplate.onModelInitialization(oldModel, newModel, modified)
-    Data.onModelInitialization(oldModel, newModel, modified)
-    Config.save()
-  } catch {
-    case e: Throwable =>
-      log.error(e.getMessage, e)
-  }
   /** This callback is invoked when GUI is valid. */
   @log
   protected def onGUIValid() = initializationLock.synchronized {
-    App.afterStart("Desktop Logic", Timeout.normal.toMillis, Core.getClass()) {
+    App.afterStart("Desktop Model Definition", Timeout.normal.toMillis, Logic.getClass()) {
       val context = thisBundle.getBundleContext()
-      openContainer()
-      // Prepare for startup.
-      // Reset for sure. There is maybe still something in memory after the bundle reload.
-      Model.reset(Payload.defaultModel)
-      // Startup sequence.
-      Config.start(context) // Initialize the application configuration based on Configgy
-      //Transport.start() // Initialize the network transport(s)
-      //Job.start()           // Initialize the job handler
-      //Approver.start()           // Initialize the job approver
-      Actions.configure
-      App.markAsStarted(Logic.getClass)
-      future { onApplicationStartup() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
-      }
+      //Actions.configure
+      App.markAsStarted(ModDef.getClass)
     }
   }
   /** This callback is invoked when GUI is invalid. */
   @log
   protected def onGUIInvalid() = initializationLock.synchronized {
     val context = thisBundle.getBundleContext()
-    App.markAsStopped(Logic.getClass())
+    App.markAsStopped(ModDef.getClass())
     // Prepare for shutdown.
-    Actions.unconfigure
-    //Approver.stop()
-    //Job.stop()
-    //Transport.stop()
-    Config.stop(context)
-    closeContainer()
-    // Avoid deadlock.
-    App.system.eventStream.unsubscribe(self, classOf[org.digimead.tabuddy.model.element.Element.Event.ModelReplace[_ <: org.digimead.tabuddy.model.Model.Interface[_ <: org.digimead.tabuddy.model.Model.Stash], _ <: org.digimead.tabuddy.model.Model.Interface[_ <: org.digimead.tabuddy.model.Model.Stash]]])
-    Model.reset(Payload.defaultModel)
+    //Actions.unconfigure
     if (inconsistentSet.nonEmpty)
       log.fatal("Inconsistent elements detected: " + inconsistentSet)
     // The everything is stopped. Absolutely consistent.
-    App.publish(App.Message.Consistent(Logic, self))
+    App.publish(App.Message.Consistent(ModDef, self))
   }
-  /** Open infrastructure wide container. */
-  @log
-  protected def openContainer() {
-    log.info(s"Open infrastructure wide container '${Logic.container.getName()}' ")
-    App.publish(App.Message.Inconsistent(this, self))
-    val progressMonitor = new NullProgressMonitor()
-    if (!Logic.container.exists())
-      Logic.container.create(progressMonitor)
-    Logic.container.open(progressMonitor)
-    App.publish(App.Message.Consistent(this, self))
-  }
-
 }
 
-object Logic {
-  implicit def logic2actorRef(c: Logic.type): ActorRef = c.actor
-  implicit def logic2actorSRef(c: Logic.type): ScalaActorRef = c.actor
-  /** Logic actor reference. */
+object ModDef {
+  implicit def moddef2actorRef(m: ModDef.type): ActorRef = m.actor
+  implicit def moddef2actorSRef(m: ModDef.type): ScalaActorRef = m.actor
+  /** ModDef actor reference. */
   lazy val actor = {
     val inbox = Inbox.create(App.system)
-    inbox.send(Core, App.Message.Attach(props, id))
+    inbox.send(Logic, App.Message.Attach(props, id))
     inbox.receive(Timeout.long) match {
       case actorRef: ActorRef =>
         actorRef
@@ -256,38 +188,22 @@ object Logic {
         throw new IllegalStateException(s"Unable to attach actor ${id} to ${Core.path}.")
     }
   }
-  /** Logic actor path. */
-  lazy val actorPath = Core.path / id
+  /** ModDef actor path. */
+  lazy val actorPath = Logic.path / id
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** Logic actor reference configuration object. */
+  /** ModDef actor reference configuration object. */
   lazy val props = DI.props
-  /** Infrastructure wide container. */
-  lazy val container = {
-    val root = ResourcesPlugin.getWorkspace().getRoot()
-    root.getProject(Logic.containerName)
-  }
   // Initialize descendant actor singletons
   action.Action
 
-  def containerName() = DI.infrastructureWideProjectName
-  override def toString = "Logic[Singleton]"
-
-  /*
-   * Explicit import for runtime components/bundle manifest generation.
-   */
-  private def explicitToggleState: ToggleState = ???
+  override def toString = "ModDef[Singleton]"
 
   /**
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Logic actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Logic") getOrElse Props[Logic]
-    /**
-     * Infrastructure wide container name that required for minimization of resources complexity.
-     * It is IProject singleton label.
-     */
-    lazy val infrastructureWideProjectName = "tabuddy"
+    /** ModDef actor reference configuration object. */
+    lazy val props = injectOptional[Props]("ModDef") getOrElse Props[ModDef]
   }
 }

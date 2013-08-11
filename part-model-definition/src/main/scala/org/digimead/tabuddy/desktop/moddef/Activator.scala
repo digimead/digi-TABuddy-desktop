@@ -48,8 +48,17 @@ import scala.ref.WeakReference
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.moddef.ModDef.moddef2actorRef
+import org.digimead.tabuddy.desktop.moddef.ModDef.moddef2actorSRef
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.support.Timeout
 import org.osgi.framework.BundleActivator
 import org.osgi.framework.BundleContext
+
+import akka.actor.Inbox
+import akka.actor.PoisonPill
+import akka.actor.Terminated
 
 /**
  * OSGi entry point.
@@ -74,11 +83,25 @@ class Activator extends BundleActivator with Loggable {
           log.warn("DI service not found.")
       }
     DependencyInjection.inject()
+    ModDef.actor // Start component actors hierarchy
     System.out.println("Module definition component is started.")
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TABuddy Desktop module definition component.")
+    try {
+      // Stop component actors.
+      val inbox = Inbox.create(App.system)
+      inbox.watch(ModDef)
+      ModDef ! PoisonPill
+      if (inbox.receive(Timeout.long).isInstanceOf[Terminated])
+        log.debug("Logic actors hierarchy is terminated.")
+      else
+        log.fatal("Unable to shutdown Logic actors hierarchy.")
+    } catch {
+      case e if App.system == null =>
+        log.debug("Skip Akka cleanup: ecosystem is already shut down.")
+    }
     Activator.dispose()
     System.out.println("Module definition component is stopped.")
   }

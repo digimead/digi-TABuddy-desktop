@@ -41,45 +41,39 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.logic.operation
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
 
-import language.implicitConversions
-
-/**
- * Configurator responsible for configure/unconfigure logic actions.
- */
-class Actions extends Loggable {
-  /** Configure component actions. */
+object OperationModifyTypeSchema extends Loggable {
   @log
-  def configure() {
-    Command.register(action.ActionCloseModel.descriptor)
-    Command.addToContext(Core.context, action.ActionCloseModel.parser)
+  def apply(schema: TypeSchema, schemaList: Set[TypeSchema], isSchemaActive: Boolean): Option[Abstract] = {
+    val modelId = Model.eId
+    DI.jobFactory.asInstanceOf[Option[(TypeSchema, Set[TypeSchema], Boolean, Symbol) => Abstract]] match {
+      case Some(factory) =>
+        Option(factory(schema, schemaList, isSchemaActive, modelId))
+      case None =>
+        log.error("JobModifyTypeSchema implementation is not defined.")
+        None
+    }
   }
-  /** Unconfigure component actions. */
-  @log
-  def unconfigure() {
-    Command.unregister(action.ActionCloseModel.descriptor)
-  }
-}
 
-object Actions {
-  implicit def configurator2implementation(c: Actions.type): Actions = c.inner
-
-  /** Actions implementation. */
-  def inner(): Actions = DI.implementation
-
+  abstract class Abstract(
+    val schema: TypeSchema,
+    val schemaList: Set[TypeSchema],
+    val isActive: Boolean,
+    val modelID: Symbol) extends Operation[(TypeSchema, Boolean)]("Edit %s for model %s".format(schema, modelID)) with api.OperationModifyTypeSchema
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Actions] getOrElse new Actions
+    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
+    lazy val jobFactory = injectOptional[(TypeSchema, Set[TypeSchema], Boolean, Symbol) => api.OperationModifyTypeSchema]
   }
 }

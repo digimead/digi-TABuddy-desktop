@@ -220,7 +220,7 @@ object ElementCreate {
   class ButtonListener(dialog: ElementCreate, template: ElementTemplate, container: Element.Generic) extends Listener {
     def handleEvent(event: Event) = {
       dialog.close()
-      /*JobCreateElementFromTemplate(template, container).foreach(_.setOnSucceeded { job =>
+      /*OperationCreateElementFromTemplate(template, container).foreach(_.setOnSucceeded { job =>
         job.getValue.foreach {
           case (element) => Main.exec {
             assert(dialog.element.isEmpty)

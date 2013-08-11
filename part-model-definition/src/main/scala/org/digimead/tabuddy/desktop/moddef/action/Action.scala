@@ -41,12 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.action
+package org.digimead.tabuddy.desktop.moddef.action
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop
+import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.gui.WindowMenu
 import org.digimead.tabuddy.desktop.gui.WindowToolbar
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
@@ -65,12 +65,9 @@ class Action extends Actor with Loggable {
   log.debug("Start actor " + self.path)
 
   /*
-   * Logic component action actors.
+   * Model definition component action actors.
    */
-  val closeModelActionRef = context.actorOf(ActionCloseModel.props, ActionCloseModel.id)
-  val deleteModelActionRef = context.actorOf(ActionDeleteModel.props, ActionDeleteModel.id)
-  val lockModelActionRef = context.actorOf(ActionLockModel.props, ActionLockModel.id)
-  val saveModelActionRef = context.actorOf(ActionSaveModel.props, ActionSaveModel.id)
+  val modifyElementTemplateListActionRef = context.actorOf(ActionModifyElementTemplateList.props, ActionModifyElementTemplateList.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -84,7 +81,7 @@ class Action extends Actor with Loggable {
   }
   def receive = {
     // Adjust menu and toolbar after Core component.
-    case message @ App.Message.Create(Right((action: desktop.action.Action.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
+    case message @ App.Message.Create(Right((action: logic.action.Action.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
       onCreated(window, publisher)
     }
 
@@ -93,6 +90,7 @@ class Action extends Actor with Loggable {
 
   /** Register actions in new window. */
   protected def onCreated(window: AppWindow, sender: ActorRef) = {
+    log.___gaze("!!!!!!!!!!!!!!")
     // block actor
     App.execNGet {
       log.debug(s"Update window ${window} composite.")
@@ -105,21 +103,16 @@ class Action extends Actor with Loggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(window, desktop.action.Action.fileMenu)
-    file.add(ActionSaveModel())
-    file.add(ActionDeleteModel())
-    file.add(ActionCloseModel())
+    val model = WindowMenu(window, logic.action.Action.modelMenu)
+    model.add(ActionModifyElementTemplateList())
+    //    file.add(ActionSaveModel())
+    //    file.add(ActionDeleteModel())
+    //    file.add(ActionCloseModel())
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val modelToolBar = WindowToolbar(window, Action.modelToolbar)
-    modelToolBar.getToolBarManager().add(new ContributionSelectModel)
-    modelToolBar.getToolBarManager().add(ActionLockModel())
-    modelToolBar.getToolBarManager().add(ActionSaveModel())
-    modelToolBar.getToolBarManager().add(ActionDeleteModel())
-    window.getCoolBarManager2().update(true)
   }
 }
 
@@ -128,13 +121,8 @@ object Action {
   val id = getClass.getSimpleName().dropRight(1)
   /** Model toolbar descriptor. */
   val modelToolbar = WindowToolbar.Descriptor(getClass.getName() + "#model")
-  /** Model menu descriptor. */
-  val modelMenu = WindowMenu.Descriptor("&Model", None, getClass.getName() + "#model")
   // Initialize descendant actor singletons
-  ActionCloseModel
-  ActionDeleteModel
-  ActionLockModel
-  ActionSaveModel
+  ActionModifyElementTemplateList
 
   /** Action actor reference configuration object. */
   def props = DI.props

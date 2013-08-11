@@ -43,16 +43,16 @@
 
 package org.digimead.tabuddy.desktop.ui.dialog
 
-/*import org.digimead.tabuddy.desktop.job.JobCreateElement
-import org.digimead.tabuddy.desktop.job.JobCreateElementFromTemplate
-import org.digimead.tabuddy.desktop.job.JobCreateElementFromTemplateImplementation
-import org.digimead.tabuddy.desktop.job.JobCreateElementImplementation
+/*import org.digimead.tabuddy.desktop.job.OperationCreateElement
+import org.digimead.tabuddy.desktop.job.OperationCreateElementFromTemplate
+import org.digimead.tabuddy.desktop.job.OperationCreateElementFromTemplateImplementation
+import org.digimead.tabuddy.desktop.job.OperationCreateElementImplementation
 import org.digimead.tabuddy.desktop.job.JobModifyElement
 import org.digimead.tabuddy.desktop.job.JobModifyElementImplementation
 import org.digimead.tabuddy.desktop.job.JobModifyElementTemplate
 import org.digimead.tabuddy.desktop.job.JobModifyElementTemplateImplementation
-import org.digimead.tabuddy.desktop.job.JobModifyElementTemplateList
-import org.digimead.tabuddy.desktop.job.JobModifyElementTemplateListImplementation
+import org.digimead.tabuddy.desktop.job.OperationModifyElementTemplateList
+import org.digimead.tabuddy.desktop.job.OperationModifyElementTemplateListImplementation
 import org.digimead.tabuddy.desktop.job.JobModifyEnumeration
 import org.digimead.tabuddy.desktop.job.JobModifyEnumerationImplementation
 import org.digimead.tabuddy.desktop.job.JobModifyEnumerationList
@@ -71,13 +71,13 @@ import com.escalatesoft.subcut.inject.NewBindingModule
 
 package object model {
 /*  lazy val default = new NewBindingModule(module => {
-    // JobCreateElementImplementation
-    module.bind[(Element[_ <: Stash], Symbol) => JobCreateElement] toSingle {
-      (container: Element.Generic, modelID: Symbol) => new JobCreateElementImplementation(container, modelID)
+    // OperationCreateElementImplementation
+    module.bind[(Element[_ <: Stash], Symbol) => OperationCreateElement] toSingle {
+      (container: Element.Generic, modelID: Symbol) => new OperationCreateElementImplementation(container, modelID)
     }
-    // JobCreateElementFromTemplateImplementation
-    module.bind[(ElementTemplate.Interface, Element[_ <: Stash], Symbol) => JobCreateElementFromTemplate] toSingle {
-      (template: ElementTemplate.Interface, container: Element.Generic, modelID: Symbol) => new JobCreateElementFromTemplateImplementation(template, container, modelID)
+    // OperationCreateElementFromTemplateImplementation
+    module.bind[(ElementTemplate.Interface, Element[_ <: Stash], Symbol) => OperationCreateElementFromTemplate] toSingle {
+      (template: ElementTemplate.Interface, container: Element.Generic, modelID: Symbol) => new OperationCreateElementFromTemplateImplementation(template, container, modelID)
     }
     // JobModifyElementImplementation
     module.bind[(Element[_ <: Stash], Symbol) => JobModifyElement] toSingle {
@@ -87,9 +87,9 @@ package object model {
     module.bind[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplate] toSingle {
       (template: ElementTemplate.Interface, templateList: Set[ElementTemplate.Interface], modelID: Symbol) => new JobModifyElementTemplateImplementation(template, templateList, modelID)
     }
-    // JobModifyElementTemplateListImplementation
-    module.bind[(Set[ElementTemplate.Interface], Symbol) => JobModifyElementTemplateList] toSingle {
-      (templateList: Set[ElementTemplate.Interface], modelID: Symbol) => new JobModifyElementTemplateListImplementation(templateList, modelID)
+    // OperationModifyElementTemplateListImplementation
+    module.bind[(Set[ElementTemplate.Interface], Symbol) => OperationModifyElementTemplateList] toSingle {
+      (templateList: Set[ElementTemplate.Interface], modelID: Symbol) => new OperationModifyElementTemplateListImplementation(templateList, modelID)
     }
     // JobModifyEnumerationImplementation
     module.bind[(Enumeration.Interface[_ <: AnyRef with java.io.Serializable], Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => JobModifyEnumeration] toSingle {

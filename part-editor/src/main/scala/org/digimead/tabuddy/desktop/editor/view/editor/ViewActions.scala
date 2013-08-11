@@ -80,7 +80,7 @@ trait ViewActions {
     override def run() = apply()
   }
   object ActionElementNew extends Action(Messages.new_text) {
-    override def run() = {} //JobCreateElement(Data.fieldElement.value).foreach(_.execute)
+    override def run() = {} //OperationCreateElement(Data.fieldElement.value).foreach(_.execute)
   }
   object ActionElementEdit extends Action(Messages.edit_text) {
     override def run() = {} //JobModifyElement(Data.fieldElement.value).foreach(_.execute)

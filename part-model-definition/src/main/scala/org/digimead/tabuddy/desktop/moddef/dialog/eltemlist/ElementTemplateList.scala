@@ -50,6 +50,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload.api
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
@@ -91,7 +92,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.moddef.Default
 import org.digimead.tabuddy.desktop.support.App
 
-class ElementTemplateList(val parentShell: Shell, val initial: Set[ElementTemplate])
+class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTemplate])
   extends org.digimead.tabuddy.desktop.res.dialog.model.ElementTemplateList(parentShell) with Loggable {
   /** The actual content */
   // replace initial elements with copies that will be modified in the progress
@@ -101,9 +102,9 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[ElementTempla
   /** The property representing a selected element template */
   protected[eltemlist] val selected = WritableValue[ElementTemplate]
   assert(ElementTemplateList.dialog.isEmpty, "ElementTemplateList dialog is already active")
-
+log.___gaze("!!!!!!!!!!!@@@@@@@@@@@@@@@?")
   /** Get modified type templates */
-  def getModifiedTemplates(): Set[ElementTemplate] = actual.toSet
+  def getModifiedTemplates(): Set[api.ElementTemplate] = actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {

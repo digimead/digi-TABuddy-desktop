@@ -90,8 +90,6 @@ class Activator extends BundleActivator with Loggable {
       }
     DependencyInjection.inject()
     Logic.actor // Start component actors hierarchy
-    //    App.system.eventStream.subscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-    //    App.system.eventStream.subscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
     Element.Event.subscribe(elementEventsSubscriber)
     System.out.println("Logic component is started.")
   }
@@ -100,8 +98,6 @@ class Activator extends BundleActivator with Loggable {
     log.debug("Stop TABuddy Desktop logic.")
     Element.Event.removeSubscription(elementEventsSubscriber)
     try {
-      //App.system.eventStream.unsubscribe(handler.Delete, classOf[WorkbenchAdvisor.Message.PostStartup])
-      //App.system.eventStream.unsubscribe(handler.Lock, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
       // Stop component actors.
       val inbox = Inbox.create(App.system)
       inbox.watch(Logic)

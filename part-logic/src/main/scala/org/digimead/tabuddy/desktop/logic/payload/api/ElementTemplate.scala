@@ -69,7 +69,7 @@ trait ElementTemplate extends Equals {
   val properties: ElementTemplate.propertyMap
 
   /** The copy constructor */
-  def copy(availability: Boolean,
+  def copy(availability: Boolean = this.availability,
     name: String = this.name,
     element: Element.Generic = this.element,
     factory: (Element.Generic, Symbol, Symbol) => Element.Generic = this.factory,

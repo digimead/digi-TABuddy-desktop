@@ -41,45 +41,9 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
-
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
-
-import language.implicitConversions
+package org.digimead.tabuddy.desktop.definition.api
 
 /**
- * Configurator responsible for configure/unconfigure logic actions.
+ * Operation base trait.
  */
-class Actions extends Loggable {
-  /** Configure component actions. */
-  @log
-  def configure() {
-    Command.register(action.ActionCloseModel.descriptor)
-    Command.addToContext(Core.context, action.ActionCloseModel.parser)
-  }
-  /** Unconfigure component actions. */
-  @log
-  def unconfigure() {
-    Command.unregister(action.ActionCloseModel.descriptor)
-  }
-}
-
-object Actions {
-  implicit def configurator2implementation(c: Actions.type): Actions = c.inner
-
-  /** Actions implementation. */
-  def inner(): Actions = DI.implementation
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Actions] getOrElse new Actions
-  }
-}
+trait Operation[A]

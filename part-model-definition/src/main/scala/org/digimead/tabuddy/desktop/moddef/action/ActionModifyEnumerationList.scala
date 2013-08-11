@@ -41,45 +41,19 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.moddef.action
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.eclipse.jface.action.Action
 
-import language.implicitConversions
+/*object ActionModifyEnumerationList extends Action(Messages.enumerations_text) with Loggable {
+  Data.modelName.addChangeListener { (name, event) => setEnabled(name != Payload.defaultModelIdentifier.name) }
+  setEnabled(Data.modelName.value != Payload.defaultModelIdentifier.name)
+  setText(Messages.enumerations_text + "@" + "Ctrl+W")
 
-/**
- * Configurator responsible for configure/unconfigure logic actions.
- */
-class Actions extends Loggable {
-  /** Configure component actions. */
   @log
-  def configure() {
-    Command.register(action.ActionCloseModel.descriptor)
-    Command.addToContext(Core.context, action.ActionCloseModel.parser)
-  }
-  /** Unconfigure component actions. */
-  @log
-  def unconfigure() {
-    Command.unregister(action.ActionCloseModel.descriptor)
-  }
+  override def run = JobModifyEnumerationList(Data.enumerations.values.toSet).foreach(_.setOnSucceeded { job =>
+    job.getValue.foreach { case (enumerations) => Enumeration.save(enumerations) }
+  }.execute)
 }
-
-object Actions {
-  implicit def configurator2implementation(c: Actions.type): Actions = c.inner
-
-  /** Actions implementation. */
-  def inner(): Actions = DI.implementation
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Actions] getOrElse new Actions
-  }
-}
+*/

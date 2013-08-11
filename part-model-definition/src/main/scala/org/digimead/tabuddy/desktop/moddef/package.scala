@@ -46,12 +46,17 @@ package org.digimead.tabuddy.desktop
 import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.tabuddy.model.element.Stash
 import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
 
 package object moddef {
   lazy val default = new NewBindingModule(module => {
-    // implementation of logic.job.JobCreateElement
-    module.bind[(Element[_ <: Stash], Symbol) => org.digimead.tabuddy.desktop.logic.job.api.JobCreateElement] toSingle {
-      (container: Element.Generic, modelID: Symbol) => new job.JobCreateElement(container, modelID)
+    // implementation of logic.job.OperationCreateElement
+    module.bind[(Element[_ <: Stash], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationCreateElement] toSingle {
+      (container: Element.Generic, modelId: Symbol) => new job.OperationCreateElement(container, modelId)
+    }
+    // implementation of logic.job.OperationModifyElementTemplateList
+    module.bind[(Set[ElementTemplate], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyElementTemplateList] toSingle {
+      (elementTemplates: Set[ElementTemplate], modelId: Symbol) => new job.OperationModifyElementTemplateList(elementTemplates, modelId)
     }
   })
 }
