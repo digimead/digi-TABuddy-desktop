@@ -53,10 +53,12 @@ import scala.annotation.tailrec
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
+import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.gui.widget.SComposite
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.gui.widget.WComposite
-import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
+import org.eclipse.jface.viewers.TableViewerColumn
 import org.eclipse.swt.custom.CTabItem
 import org.eclipse.swt.custom.TableTreeItem
 import org.eclipse.swt.dnd.DragSource
@@ -83,6 +85,13 @@ import org.eclipse.swt.widgets.Widget
 
 trait GUI {
   this: Generic with Loggable =>
+  /** Adjust table viewer column width. */
+  def adjustTableViewerColumnWidth(viewerColumn: TableViewerColumn, padding: Int, n: Int = 3) {
+    val bounds = viewerColumn.getViewer.getControl.getBounds()
+    val column = viewerColumn.getColumn()
+    column.pack()
+    column.setWidth(math.min(column.getWidth() + padding, bounds.width / n))
+  }
   /** Execute runnable in UI thread. */
   def exec[T](f: => T): Unit =
     if (thread.eq(Thread.currentThread())) { f } else execAsync({ f })
@@ -237,7 +246,7 @@ trait GUI {
   /** Get active view. */
   def getActiveView(): Option[VComposite] = Core.context.getActiveLeaf.get(org.digimead.tabuddy.desktop.gui.GUI.viewContextKey)
   /** Get active window. */
-  def getActiveWindow(): Option[WComposite] = Core.context.getActiveLeaf.get(org.digimead.tabuddy.desktop.gui.GUI.windowContextKey)
+  def getActiveWindow(): Option[AppWindow] = Core.context.getActiveLeaf.get(org.digimead.tabuddy.desktop.gui.GUI.windowContextKey)
   /** Get all GUI components from the current widget to top level parent(shell). */
   def widgetHierarchy(widget: Widget): Seq[Widget] = Option(widget) match {
     case Some(composite: SComposite) =>

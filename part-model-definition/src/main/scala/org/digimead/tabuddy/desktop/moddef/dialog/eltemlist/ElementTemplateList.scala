@@ -91,9 +91,10 @@ import org.eclipse.swt.widgets.TableItem
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.moddef.Default
 import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.definition.Dialog
 
 class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTemplate])
-  extends org.digimead.tabuddy.desktop.res.dialog.model.ElementTemplateList(parentShell) with Loggable {
+  extends org.digimead.tabuddy.desktop.res.dialog.model.ElementTemplateList(parentShell) with Dialog with Loggable {
   /** The actual content */
   // replace initial elements with copies that will be modified in the progress
   protected[eltemlist] val actual = WritableList(initial.map(template => template.copy(element = template.element.eCopy)).toList.sortBy(_.id.name))
@@ -102,7 +103,7 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTe
   /** The property representing a selected element template */
   protected[eltemlist] val selected = WritableValue[ElementTemplate]
   assert(ElementTemplateList.dialog.isEmpty, "ElementTemplateList dialog is already active")
-log.___gaze("!!!!!!!!!!!@@@@@@@@@@@@@@@?")
+  log.___gaze("!!!!!!!!!!!@@@@@@@@@@@@@@@?")
   /** Get modified type templates */
   def getModifiedTemplates(): Set[api.ElementTemplate] = actual.toSet
 
@@ -222,7 +223,7 @@ log.___gaze("!!!!!!!!!!!@@@@@@@@@@@@@@@?")
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selected)
   }
   /** On dialog active */
-   protected def onActive = {
+  override protected def onActive = {
     updateOK()
     if (ElementTemplateList.ActionAutoResize.isChecked())
       future { autoresize() } onFailure {
@@ -336,7 +337,7 @@ object ElementTemplateList extends Loggable {
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = ElementTemplateList.template { (dialog, before) =>
-   /*   OperationModifyElementTemplate(before, dialog.actual.toSet).
+      /*   OperationModifyElementTemplate(before, dialog.actual.toSet).
         foreach(_.setOnSucceeded { job =>
           job.getValue.foreach {
             case (after) => Main.exec { dialog.updateActualTemplate(before, after) }

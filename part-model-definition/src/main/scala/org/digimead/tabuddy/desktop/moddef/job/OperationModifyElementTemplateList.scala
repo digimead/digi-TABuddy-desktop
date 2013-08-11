@@ -8,6 +8,7 @@ import org.eclipse.core.runtime.IAdaptable
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.moddef.dialog.eltemlist.ElementTemplateList
+import org.digimead.tabuddy.desktop.definition.Dialog
 
 class OperationModifyElementTemplateList(elementTemplates: Set[ElementTemplate], modelID: Symbol)
   extends org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplateList.Abstract(elementTemplates, modelID) with Loggable {
@@ -20,18 +21,6 @@ class OperationModifyElementTemplateList(elementTemplates: Set[ElementTemplate],
   override def canUndo() = allowUndo
 
   protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[ElementTemplate]] = redo(monitor, info)
-  protected def run(monitor: IProgressMonitor): Operation.Result[Set[ElementTemplate]] = {
-    /*monitor.beginTask("My job is working...", 100)
-        for (i <- 0 until 100) {
-          try {
-            Thread.sleep(200)
-          }
-          monitor.worked(1)
-        }
-        monitor.done()*/
-    log.___gaze("OperationModifyElementTemplateList")
-    Operation.Result.OK()
-  }
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[ElementTemplate]] = {
     assert(Model.eId == modelID, "An unexpected model %s, expect %s".format(Model.eId, modelID))
     // process the job
@@ -41,7 +30,11 @@ class OperationModifyElementTemplateList(elementTemplates: Set[ElementTemplate],
     } else if (canExecute) {
       // TODO save modification history
       App.execNGet {
-        val dialog = new ElementTemplateList(null, elementTemplates)
+        App.getActiveWindow.foreach { wcomposite =>
+          val dialog = new ElementTemplateList(wcomposite.getShell(), elementTemplates)
+          Dialog.openOrFocus(dialog)
+        }
+
         /*Window.currentShell.withValue(Some(dialog.getShell)) {
           dialog.open() == org.eclipse.jface.window.Window.OK
         } match {
