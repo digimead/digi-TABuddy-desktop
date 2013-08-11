@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,22 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view
+package org.digimead.tabuddy.desktop.logic.job.api
 
-import java.util.UUID
+import org.digimead.tabuddy.desktop.definition.api.Job
+import org.digimead.tabuddy.model.element.Element
 
-import scala.collection.immutable
-
-import org.digimead.digi.lib.DependencyInjection
-
-import com.escalatesoft.subcut.inject.NewBindingModule
-
-package object comparator {
-  lazy val default = new NewBindingModule(module => {
-    module.bind[UUID] identifiedBy "Comparator.Default" toSingle { ByPropertyText.id }
-    module.bind[immutable.HashMap[UUID, api.Comparator[_ <: api.Comparator.Argument]]] toSingle {
-      immutable.HashMap(ByPropertyText.id -> ByPropertyText)
-    }
-  })
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.view.comparator.Comparator$DI$")
-}
+/**
+ * JobCreateElement base trait.
+ */
+trait JobCreateElement extends Job[Element.Generic]

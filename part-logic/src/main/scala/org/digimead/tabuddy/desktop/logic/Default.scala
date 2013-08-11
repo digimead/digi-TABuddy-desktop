@@ -43,17 +43,18 @@
 
 package org.digimead.tabuddy.desktop.logic
 
+import org.digimead.digi.lib.api.DependencyInjection
 import org.eclipse.swt.graphics.Point
 
 object Default {
   /** Ascending sort constant */
-  val ASCENDING = false
+  val ASCENDING = DI.ASCENDING
   /** Descending sort constant */
-  val DESCENDING = true
+  val DESCENDING = DI.DESCENDING
   /** Auto resize column padding */
-  val columnPadding = 10
+  val columnPadding = DI.columnPadding
   /** Default sort direction */
-  val sortingDirection = Default.ASCENDING
+  val sortingDirection = DI.sortingDirection
   /**
    * Return the amount of pixels in x and y direction you want the tool tip to
    * pop up from the mouse pointer. The default shift is 10px right and 0px
@@ -61,9 +62,34 @@ object Default {
    * position the tool tip 1px right to your mouse cursor else click events
    * may not get propagated properly.
    */
-  val toolTipShift = new Point(5, 5)
+  val toolTipShift = DI.toolTipShift
   /** The time in milliseconds until the tool tip is displayed. */
-  val toolTipDisplayDelayTime = 100 //msec
+  val toolTipDisplayDelayTime = DI.toolTipDisplayDelayTime
   /** The time in milliseconds the tool tip is shown for. */
-  val toolTipTimeDisplayed = 5000 //msec
+  val toolTipTimeDisplayed = DI.toolTipTimeDisplayed
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Ascending sort constant */
+    lazy val ASCENDING = injectOptional[Boolean]("Editor.Sorting.ASCENDING") getOrElse false
+    /** Descending sort constant */
+    lazy val DESCENDING = injectOptional[Boolean]("Editor.Sorting.DESCENDING") getOrElse true
+    /** Auto resize column padding */
+    lazy val columnPadding = injectOptional[Int]("Editor.columnPadding") getOrElse 10
+    /** Default sort direction */
+    lazy val sortingDirection = injectOptional[Boolean]("Editor.Sorting.Direction") getOrElse Default.ASCENDING
+    /**
+     * Return the amount of pixels in x and y direction you want the tool tip to
+     * pop up from the mouse pointer. The default shift is 10px right and 0px
+     * below your mouse cursor. Be aware of the fact that you should at least
+     * position the tool tip 1px right to your mouse cursor else click events
+     * may not get propagated properly.
+     */
+    lazy val toolTipShift = injectOptional[Point]("Editor.ToolTip.Shift") getOrElse new Point(5, 5)
+    /** The time in milliseconds until the tool tip is displayed. */
+    lazy val toolTipDisplayDelayTime = injectOptional[Int]("Editor.ToolTip.DisplayDelayTime") getOrElse 100 //msec
+    /** The time in milliseconds the tool tip is shown for. */
+    lazy val toolTipTimeDisplayed = injectOptional[Int]("Editor.ToolTip.TimeDisplayed") getOrElse 5000 //msec
+  }
 }

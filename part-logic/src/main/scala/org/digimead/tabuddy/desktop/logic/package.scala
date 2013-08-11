@@ -70,8 +70,8 @@ package object logic {
       payload.default ~
       payload.view.default ~
       payload.view.comparator.default ~
-      payload.view.filter.default
-  //job.default ~
+      payload.view.filter.default ~
+      job.default
   //approver.default ~
   //debug.default
 }

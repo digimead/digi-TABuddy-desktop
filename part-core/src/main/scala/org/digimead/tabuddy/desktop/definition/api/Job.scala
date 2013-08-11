@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,37 +41,9 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.support.app.menu
+package org.digimead.tabuddy.desktop.definition.api
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.tabuddy.desktop.support.app.MenuItemTemplate
-
-import language.implicitConversions
-
-/** Base class for menu item. */
-abstract class Item[A](
-  /** Original menu element. */
-  override val element: A) extends Base[A] {
-  /** Contains uniform menu element. */
-  val uniform: Item.Uniform[A]
-
-  /** Adjust exists item with template values. */
-  def adjust[T](template: MenuItemTemplate)(f: Item[_] => T)
-}
-
-object Item {
-  trait Uniform[A] extends Base.Uniform[A] {
-    /** Element wrapper. */
-    val wrapper: Item[A]
-
-    /**
-     * This field is a reference to this element's container. Note that while this field is valid
-     * for most UIElements there are a few (such as TrimBars and the Windows associated
-     * with top level windows and perspectives) where this will return 'None'
-     */
-    def parent: Option[Base[_]]
-  }
-  object Uniform {
-    implicit def uniform2wrapper[T](u: Uniform[T]) = u.wrapper
-  }
-}
+/**
+ * Job base trait.
+ */
+trait Job[A]

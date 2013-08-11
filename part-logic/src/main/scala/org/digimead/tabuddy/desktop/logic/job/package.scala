@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,22 +41,26 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view
-
-import java.util.UUID
-
-import scala.collection.immutable
-
-import org.digimead.digi.lib.DependencyInjection
+package org.digimead.tabuddy.desktop.logic
 
 import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
 
-package object comparator {
-  lazy val default = new NewBindingModule(module => {
-    module.bind[UUID] identifiedBy "Comparator.Default" toSingle { ByPropertyText.id }
-    module.bind[immutable.HashMap[UUID, api.Comparator[_ <: api.Comparator.Argument]]] toSingle {
-      immutable.HashMap(ByPropertyText.id -> ByPropertyText)
-    }
-  })
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.view.comparator.Comparator$DI$")
+package object job {
+  lazy val default = new NewBindingModule(module => {})
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.api.JobCreateElement$DI$")
+  /*  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.JobCreateElementFromTemplate$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.JobModifyElement$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.JobModifyElementTemplate$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.JobModifyElementTemplateList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.JobModifyEnumeration$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.JobModifyEnumerationList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.JobModifyTypeSchema$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.JobModifyTypeSchemaList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.view.JobModifyFilter$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.view.JobModifyFilterList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.view.JobModifySorting$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.view.JobModifySortingList$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.view.JobModifyView$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.job.view.JobModifyViewList$")*/
 }

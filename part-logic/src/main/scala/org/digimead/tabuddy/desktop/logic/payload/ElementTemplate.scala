@@ -441,7 +441,7 @@ object ElementTemplate extends Loggable {
     override def toString() = "ElementTemplate(%s based on %s)".format(element.eId, element.eStash.scope)
   }
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     lazy val definition = inject[Record.Interface[_ <: Record.Stash]]("eElementTemplate")

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,26 +41,17 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.toolbar
+package org.digimead.tabuddy.desktop
 
-import org.digimead.digi.lib.aop.log
-import org.eclipse.jface.action.ToolBarManager
-import org.digimead.digi.lib.log.api.Loggable
-import org.eclipse.jface.action.Action
+import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.tabuddy.model.element.Stash
+import org.digimead.tabuddy.model.element.Element
 
-object MainCommon extends ToolBarManager with Loggable {
-  add(ActionUndo)
-  add(ActionRedo)
-
-  @log
-  override def dispose() {
-    getItems().foreach(_.dispose())
-    super.dispose()
-  }
-  object ActionUndo extends Action("aaaaaaaaa") {
-
-  }
-  object ActionRedo extends Action("bbbbbbbbbb") {
-
-  }
+package object moddef {
+  lazy val default = new NewBindingModule(module => {
+    // implementation of logic.job.JobCreateElement
+    module.bind[(Element[_ <: Stash], Symbol) => org.digimead.tabuddy.desktop.logic.job.api.JobCreateElement] toSingle {
+      (container: Element.Generic, modelID: Symbol) => new job.JobCreateElement(container, modelID)
+    }
+  })
 }
