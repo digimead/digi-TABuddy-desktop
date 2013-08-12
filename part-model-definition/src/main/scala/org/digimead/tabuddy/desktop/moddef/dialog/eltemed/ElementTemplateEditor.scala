@@ -44,20 +44,22 @@
 package org.digimead.tabuddy.desktop.moddef.dialog.eltemed
 
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 import scala.collection.immutable
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.Resources
-import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.Enumeration
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.TemplateProperty
-import org.digimead.tabuddy.desktop.logic.payload.TemplatePropertyGroup
-import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
+import org.digimead.tabuddy.desktop.moddef.Default
+import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
@@ -90,16 +92,13 @@ import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Shell
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.moddef.Default
 
 class ElementTemplateEditor(val parentShell: Shell,
   /** The initial element template */
-  val initial: ElementTemplate,
+  val initial: payload.api.ElementTemplate,
   /** The list of element template identifier */
-  val templateList: Set[ElementTemplate])
-  extends org.digimead.tabuddy.desktop.res.dialog.model.ElementTemplateEditor(parentShell) with Loggable {
+  val templateList: Set[payload.api.ElementTemplate])
+  extends ElementTemplateEditorSkel(parentShell) with Dialog with Loggable {
   /** The actual template properties */
   protected[eltemed] val actualProperties = WritableList(initialProperties)
   /** The auto resize lock */
@@ -109,8 +108,8 @@ class ElementTemplateEditor(val parentShell: Shell,
   /** The property representing current template label */
   protected val nameField = WritableValue[String]
   /** List of available enumerations */
-  protected[eltemed] val enumerations: Array[Enumeration[_ <: AnyRef with java.io.Serializable]] = Array()
-    //Data.getAvailableEnumerations.sortBy(_.id.name).toArray
+  protected[eltemed] val enumerations: Array[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] =
+    Data.getAvailableEnumerations.sortBy(_.id.name).toArray
   /** The property representing current template id */
   protected val idField = WritableValue[String]
   /** The initial template properties */
@@ -118,26 +117,28 @@ class ElementTemplateEditor(val parentShell: Shell,
   /** Used to create new propery */
   protected val newPropertySample = newProperty()
   /** The property that indicates whether the template is predefined */
-  protected val predefined = ElementTemplate.original.find(_.id == initial.id)
-  /** The property that contains predefined preorties if any */
-  protected val predefinedProperties = Array[ElementTemplateEditor.Item]()
-    //predefined.map(getTemplateProperties(_).sortBy(_.id))
+  protected val predefined = payload.ElementTemplate.original.find(_.id == initial.id)
+  /** The property that contains predefined properties if any */
+  protected val predefinedProperties = predefined.map(getTemplateProperties(_).sortBy(_.id))
   /** The property representing a selected template property */
   protected val selected = WritableValue[ElementTemplateEditor.Item]
   /** List of available types */
-  protected[eltemed] val types: Array[PropertyType[_ <: AnyRef with java.io.Serializable]] = Array()
-    //Data.getAvailableTypes().sortBy(_.id.name).toArray
-  assert(ElementTemplateEditor.dialog.isEmpty, "ElementTemplateEditor dialog is already active")
+  protected[eltemed] val types: Array[payload.api.PropertyType[_ <: AnyRef with java.io.Serializable]] =
+    Data.getAvailableTypes().sortBy(_.id.name).toArray
+  /** Actual sortBy column index */
+  @volatile protected var sortColumn = 0 // by an id
+  /** Actual sort direction */
+  @volatile protected var sortDirection = Default.sortingDirection
 
   /** Get the modified type schema */
-  def getModifiedTemplate(): ElementTemplate = {
+  def getModifiedTemplate(): payload.api.ElementTemplate = {
     val id = idField.value.trim
     val name = nameField.value.trim
     initial.copy(
       availability = availabilityField.value,
       name = if (name.isEmpty()) id else name,
-      id = Symbol(id))
-      //properties = getTemplateProperties(actualProperties.toList))
+      id = Symbol(id),
+      properties = getTemplateProperties(actualProperties.toList))
   }
 
   /** Auto resize tableviewer columns */
@@ -145,10 +146,10 @@ class ElementTemplateEditor(val parentShell: Shell,
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-//        adjustColumnWidth(getTableViewerColumnId, Default.columnPadding)
-//        adjustColumnWidth(getTableViewerColumnRequired, Default.columnPadding)
-//        adjustColumnWidth(getTableViewerColumnType, Default.columnPadding)
-//        adjustColumnWidth(getTableViewerColumnDefault, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnRequired, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnType, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnDefault, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -160,8 +161,8 @@ class ElementTemplateEditor(val parentShell: Shell,
     // Create dialog elements
     val result = super.createDialogArea(parent)
     initTableTemplateProperties
-    new ActionContributionItem(ElementTemplateEditor.ActionAdd).fill(getCompositeFooter())
-    new ActionContributionItem(ElementTemplateEditor.ActionDelete).fill(getCompositeFooter())
+    new ActionContributionItem(ActionAdd).fill(getCompositeFooter())
+    new ActionContributionItem(ActionDelete).fill(getCompositeFooter())
     // Add reset action for predefined template
     if (predefined.nonEmpty) {
       new Composite(getCompositeFooter(), SWT.NONE) {
@@ -169,11 +170,11 @@ class ElementTemplateEditor(val parentShell: Shell,
         // Disable the check that prevents subclassing of SWT components
         override protected def checkSubclass() {}
       }
-      new ActionContributionItem(ElementTemplateEditor.ActionReset).fill(getCompositeFooter())
+      new ActionContributionItem(ActionReset).fill(getCompositeFooter())
     }
-    ElementTemplateEditor.ActionAdd.setEnabled(true)
-    ElementTemplateEditor.ActionDelete.setEnabled(false)
-    ElementTemplateEditor.ActionReset.setEnabled(false)
+    ActionAdd.setEnabled(true)
+    ActionDelete.setEnabled(false)
+    ActionReset.setEnabled(false)
     // Bind the template info: an id
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observe(getTextTemplateId()), idField)
     val idFieldListener = idField.addChangeListener { (id, event) =>
@@ -193,7 +194,7 @@ class ElementTemplateEditor(val parentShell: Shell,
     availabilityField.value = initial.availability
     // The complex content listener
     val actualPropertiesListener = actualProperties.addChangeListener { event =>
-      if (ElementTemplateEditor.ActionAutoResize.isChecked())
+      if (ActionAutoResize.isChecked())
         future { autoresize() } onFailure {
           case e: Exception => log.error(e.getMessage(), e)
           case e => log.error(e.toString())
@@ -207,43 +208,41 @@ class ElementTemplateEditor(val parentShell: Shell,
         nameField.removeChangeListener(nameFieldListener)
         availabilityField.removeChangeListener(availabilityFieldListener)
         actualProperties.removeChangeListener(actualPropertiesListener)
-        ElementTemplateEditor.dialog = None
       }
     })
     // Disable getTextTemplateID if the template is a predefined element
     getTextTemplateId().setEditable(predefined.isEmpty)
     // Set the dialog window title
     getShell().setText(Messages.elementTemplateEditorDialog_text.format(initial.id))
-    ElementTemplateEditor.dialog = Some(this)
     result
   }
   /** Convert ElementTemplate.Interface.property map to ElementTemplateEditor.Item list */
-  protected def getTemplateProperties(template: ElementTemplate): List[ElementTemplateEditor.Item] = {
+  protected def getTemplateProperties(template: payload.api.ElementTemplate): List[ElementTemplateEditor.Item] = {
     val nested = template.properties.map {
       case (group, properties) =>
         properties.map(property =>
           ElementTemplateEditor.Item(property.id.name, None, // id column
             property.required, None, // required column
-            property.enumeration.flatMap(Data.enumerations.get).asInstanceOf[Option[Enumeration[AnyRef with java.io.Serializable]]],
-            property.ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]], None, // type column
+            property.enumeration.flatMap(Data.enumerations.get).asInstanceOf[Option[payload.api.Enumeration[AnyRef with java.io.Serializable]]],
+            property.ptype.asInstanceOf[payload.api.PropertyType[AnyRef with java.io.Serializable]], None, // type column
             property.defaultValue, None, // default column
             group.id.name, None)) // group column
     }
     nested.flatten.toList
   }
   /** Convert ElementTemplate.Interface.property map to ElementTemplateEditor.Item list */
-  /*protected def getTemplateProperties(items: List[ElementTemplateEditor.Item]): ElementTemplate.propertyMap = {
-    var properties = immutable.HashMap[TemplatePropertyGroup, Seq[TemplateProperty[_ <: AnyRef with java.io.Serializable]]]()
+  protected def getTemplateProperties(items: List[ElementTemplateEditor.Item]): payload.api.ElementTemplate.propertyMap = {
+    var properties = immutable.HashMap[payload.api.TemplatePropertyGroup, Seq[payload.api.TemplateProperty[_ <: AnyRef with java.io.Serializable]]]()
     actualProperties.foreach { item =>
-      val group = TemplatePropertyGroup.default // TODO
+      val group = payload.TemplatePropertyGroup.default // TODO
       if (!properties.isDefinedAt(group))
         properties = properties.updated(group, Seq())
       properties = properties.updated(group, properties(group) :+
-        new TemplateProperty(Symbol(item.id.trim), item.required, item.enumeration.map(_.id), item.ptype,
+        new payload.TemplateProperty(Symbol(item.id.trim), item.required, item.enumeration.map(_.id), item.ptype,
           item.default)(Manifest.classType(item.ptype.typeClass)))
     }
     properties
-  }*/
+  }
   /** Initialize table */
   protected def initTableTemplateProperties() {
     val viewer = getTableViewer()
@@ -273,7 +272,7 @@ class ElementTemplateEditor(val parentShell: Shell,
     val menu = menuMgr.createContextMenu(viewer.getControl)
     menuMgr.addMenuListener(new IMenuListener() {
       override def menuAboutToShow(manager: IMenuManager) {
-        manager.add(ElementTemplateEditor.ActionAutoResize)
+        manager.add(ActionAutoResize)
       }
     })
     menuMgr.setRemoveAllWhenShown(true)
@@ -282,12 +281,12 @@ class ElementTemplateEditor(val parentShell: Shell,
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          ElementTemplateEditor.ActionDelete.setEnabled(true)
+          ActionDelete.setEnabled(true)
         case selection =>
-          ElementTemplateEditor.ActionDelete.setEnabled(false)
+          ActionDelete.setEnabled(false)
       }
     })
-    viewer.setComparator(new ElementTemplateEditor.TemplateComparator)
+    viewer.setComparator(new ElementTemplateEditor.TemplateComparator(new WeakReference(this)))
     viewer.setInput(actualProperties.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selected)
   }
@@ -296,12 +295,12 @@ class ElementTemplateEditor(val parentShell: Shell,
     val newPropertyID = Payload.generateNew("property", "", newId => actualProperties.exists(_.id == newId))
     ElementTemplateEditor.Item(newPropertyID, None, // id column
       false, None, // required column
-      None, PropertyType.defaultType.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]], None, // type column
+      None, payload.PropertyType.defaultType.asInstanceOf[payload.api.PropertyType[AnyRef with java.io.Serializable]], None, // type column
       None, None, // default column
-      TemplatePropertyGroup.default.id.name, None) // group column
+      payload.TemplatePropertyGroup.default.id.name, None) // group column
   }
   /** On dialog active */
-   protected def onActive = {
+  override protected def onActive = {
     updateButtons()
     autoresize()
   }
@@ -324,7 +323,7 @@ class ElementTemplateEditor(val parentShell: Shell,
     for {
       predefined <- predefined if (nameField.value != null)
       predefinedProperties <- predefinedProperties
-    } ElementTemplateEditor.ActionReset.setEnabled(predefined.name != nameField.value.trim || predefinedProperties != actualProperties)
+    } ActionReset.setEnabled(predefined.name != nameField.value.trim || predefinedProperties != actualProperties)
     // update Ok
     Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(
       // prevent the empty id
@@ -369,45 +368,58 @@ class ElementTemplateEditor(val parentShell: Shell,
     }
     item.copy(idError = idError, requiredError = requiredError, typeError = typeError, defaultError = defaultError, groupError = groupError)
   }
+
+  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+    setChecked(true)
+    override def run = if (isChecked()) autoresize
+  }
+  object ActionAdd extends Action(Messages.add_text) {
+    override def run = actualProperties += newProperty
+  }
+  object ActionDelete extends Action(Messages.delete_text) {
+    override def run = Option(selected.value) foreach { (selected) => actualProperties -= selected }
+  }
+  object ActionReset extends Action(Messages.reset_text) {
+    setToolTipText(Messages.resetPredefinedTemplate_text)
+    override def run = {
+      for {
+        predefined <- predefined
+        predefinedProperties <- predefinedProperties
+      } {
+        nameField.value = predefined.name
+        actualProperties.clear
+        actualProperties ++= predefinedProperties
+      }
+    }
+  }
 }
 
 object ElementTemplateEditor extends Loggable {
-  /** There is may be only one dialog instance at time */
-  @volatile private var dialog: Option[ElementTemplateEditor] = None
-  /** Default sort direction */
-  private val defaultDirection = Default.ASCENDING
-  /** Actual sortBy column index */
-  @volatile private var sortColumn = 0 // by an id
-  /** Actual sort direction */
-  @volatile private var sortDirection = defaultDirection
-
-  /** Apply a f(x) to the selected property if any */
-  def property[T](f: (ElementTemplateEditor, Item) => T): Option[T] =
-    dialog.flatMap(d => Option(d.selected.value).map(f(d, _)))
-
   case class Item(val id: String,
     val idError: Option[(String, Image)],
     val required: Boolean,
     val requiredError: Option[(String, Image)],
-    val enumeration: Option[Enumeration[AnyRef with java.io.Serializable]],
-    val ptype: PropertyType[AnyRef with java.io.Serializable],
+    val enumeration: Option[payload.api.Enumeration[AnyRef with java.io.Serializable]],
+    val ptype: payload.api.PropertyType[AnyRef with java.io.Serializable],
     val typeError: Option[(String, Image)],
     val default: Option[AnyRef with java.io.Serializable],
     val defaultError: Option[(String, Image)],
     val group: String,
     val groupError: Option[(String, Image)])
-  class TemplateComparator extends ViewerComparator {
-    private var _column = ElementTemplateEditor.sortColumn
-    private var _direction = ElementTemplateEditor.sortDirection
+  class TemplateComparator(dialog: WeakReference[ElementTemplateEditor]) extends ViewerComparator {
+    private var _column = dialog.get.map(_.sortColumn) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
+    private var _direction = dialog.get.map(_.sortDirection) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
 
     /** Active column getter */
     def column = _column
     /** Active column setter */
     def column_=(arg: Int) {
       _column = arg
-      ElementTemplateEditor.sortColumn = _column
-      _direction = ElementTemplateEditor.defaultDirection
-      ElementTemplateEditor.sortDirection = _direction
+      dialog.get.foreach(_.sortColumn = _column)
+      _direction = Default.sortingDirection
+      dialog.get.foreach(_.sortDirection = _direction)
     }
     /** Sorting direction */
     def direction = _direction
@@ -438,7 +450,7 @@ object ElementTemplateEditor extends Loggable {
     /** Switch comparator direction */
     def switchDirection() {
       _direction = !_direction
-      ElementTemplateEditor.sortDirection = _direction
+      dialog.get.foreach(_.sortDirection = _direction)
     }
   }
   class TemplateSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
@@ -452,36 +464,6 @@ object ElementTemplateEditor extends Loggable {
           viewer.refresh()
         case _ =>
       })
-    }
-  }
-  /*
-   * Actions
-   */
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-    override def run = if (isChecked()) ElementTemplateEditor.dialog.foreach(_.autoresize)
-  }
-  object ActionAdd extends Action(Messages.add_text) {
-    override def run = dialog.foreach { dialog =>
-      dialog.actualProperties += dialog.newProperty
-    }
-  }
-  object ActionDelete extends Action(Messages.delete_text) {
-    override def run = property { (dialog, selected) =>
-      dialog.actualProperties -= selected
-    }
-  }
-  object ActionReset extends Action(Messages.reset_text) {
-    setToolTipText(Messages.resetPredefinedTemplate_text)
-    override def run = dialog.foreach { dialog =>
-      for {
-        predefined <- dialog.predefined
-        predefinedProperties <- dialog.predefinedProperties
-      } {
-        dialog.nameField.value = predefined.name
-        dialog.actualProperties.clear
-        //dialog.actualProperties ++= predefinedProperties
-      }
     }
   }
 }

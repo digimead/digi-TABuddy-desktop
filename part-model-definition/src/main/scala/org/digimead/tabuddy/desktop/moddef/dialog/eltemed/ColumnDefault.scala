@@ -66,7 +66,7 @@ object ColumnDefault extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item =>
-        item.ptype.adapter.cellLabelProvider.update(cell, item.default)
+        item.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider.update(cell, item.default)
         item.defaultError.foreach(err => cell.setImage(err._2))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
@@ -97,8 +97,10 @@ object ColumnDefault extends Loggable {
     protected def withElement[T](element: AnyRef)(f: (PropertyType.CellLabelProviderAdapter[_], AnyRef, Option[(String, Image)]) => T): Option[T] = element match {
       case item: ElementTemplateEditor.Item =>
         item.default match {
-          case Some(value) if value.getClass() == item.ptype.typeClass => Some(f(item.ptype.adapter.cellLabelProvider, value, item.defaultError))
-          case _ => Some(f(item.ptype.adapter.cellLabelProvider, null, item.defaultError))
+          case Some(value) if value.getClass() == item.ptype.typeClass =>
+            Some(f(item.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider, value, item.defaultError))
+          case _ =>
+            Some(f(item.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider, null, item.defaultError))
         }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
@@ -111,12 +113,12 @@ object ColumnDefault extends Loggable {
         item.enumeration match {
           case Some(enumeration) =>
             val cellEditor = new ComboBoxViewerCellEditor(viewer.getControl().asInstanceOf[Composite], SWT.READ_ONLY)
-            cellEditor.setLabelProvider(item.ptype.adapter.createEnumerationLabelProvider)
+            cellEditor.setLabelProvider(item.ptype.adapter.as[PropertyType.genericAdapter].createEnumerationLabelProvider)
             cellEditor.setContentProvider(new ObservableListContentProvider())
-            //cellEditor.setInput(WritableList(enumeration.constants.toList.sortBy(_.view)).underlying)
+            cellEditor.setInput(WritableList(enumeration.constants.toList.sortBy(_.view)).underlying)
             cellEditor
           case None =>
-            item.ptype.adapter.createCellEditor(viewer.getControl().asInstanceOf[Composite])
+            item.ptype.adapter.as[PropertyType.genericAdapter].createCellEditor(viewer.getControl().asInstanceOf[Composite])
         }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
@@ -127,8 +129,7 @@ object ColumnDefault extends Loggable {
       case item: ElementTemplateEditor.Item =>
         item.enumeration match {
           case Some(enumeration) =>
-            //enumeration.constants.find(c => Some(c.value) == item.default) getOrElse (enumeration.constants.toList.sortBy(_.view).head)
-            null
+            enumeration.constants.find(c => Some(c.value) == item.default) getOrElse (enumeration.constants.toList.sortBy(_.view).head)
           case None =>
             item.default match {
               case Some(default) =>

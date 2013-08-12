@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.res.dialog.model;
+package org.digimead.tabuddy.desktop.moddef.dialog;
 
 import org.digimead.tabuddy.desktop.ResourceManager;
 import org.eclipse.jface.dialogs.Dialog;
@@ -58,7 +58,7 @@ import swing2swt.layout.BorderLayout;
  *
  * @author ezh
  */
-public class ElementCreate extends Dialog {
+public class ElementCreateSkel extends Dialog {
 	private Composite container;
 	private Label lblStatusBar;
 
@@ -67,7 +67,7 @@ public class ElementCreate extends Dialog {
 	 *
 	 * @param parentShell
 	 */
-	public ElementCreate(Shell parentShell) {
+	public ElementCreateSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.APPLICATION_MODAL);
 	}

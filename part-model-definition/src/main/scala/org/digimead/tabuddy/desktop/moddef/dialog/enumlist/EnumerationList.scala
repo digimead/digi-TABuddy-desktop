@@ -45,22 +45,31 @@ package org.digimead.tabuddy.desktop.moddef.dialog.enumlist
 
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
+
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload.Enumeration
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumeration
+import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.PropertyType
-import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.moddef.Default
+import org.digimead.tabuddy.desktop.moddef.dialog.enumed.EnumerationEditor
+import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.moddef.dialog.enumed.EnumerationEditor
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.ActionContributionItem
 import org.eclipse.jface.action.IMenuListener
@@ -89,31 +98,31 @@ import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.TableItem
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
 
-class EnumerationList(val parentShell: Shell, val initial: List[Enumeration[_ <: AnyRef with java.io.Serializable]])
-  extends org.digimead.tabuddy.desktop.res.dialog.model.EnumerationList(parentShell) with Loggable {
+class EnumerationList(val parentShell: Shell, val initial: List[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]])
+  extends EnumerationListSkel(parentShell) with Dialog with Loggable {
   /** The actual enumeration list */
-  protected[enumlist] val actual = // WritableList[Enumeration[_ <: AnyRef with java.io.Serializable]](initial.map(enumeration =>
-    WritableList(initial.map(enumeration =>
+  protected[enumlist] val actual = WritableList[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]](initial.map(enumeration =>
     enumeration.generic.copy(element = enumeration.element.eCopy)))
   /** The auto resize lock */
   protected lazy val autoResizeLock = new ReentrantLock()
   /** The property representing enumeration in current UI field(s) that available for user */
-  protected lazy val enumerationField = WritableValue[Enumeration[_ <: AnyRef with java.io.Serializable]]
-  assert(EnumerationList.dialog.isEmpty, "EnumerationList dialog is already active")
+  protected lazy val enumerationField = WritableValue[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]
+  /** Actual sortBy column index */
+  @volatile private var sortColumn = 1
+  /** Actual sort direction */
+  @volatile private var sortDirection = Default.sortingDirection
 
   /** Get actual enumerations */
-  def getModifiedEnumerations(): Set[Enumeration[_ <: AnyRef with java.io.Serializable]] = Set() //actual.toSet
+  def getModifiedEnumerations(): Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = Set() //actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-//        adjustColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
-//        adjustColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -123,17 +132,17 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration[_ <:
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
-    new ActionContributionItem(EnumerationList.ActionCreate).fill(getCompositeFooter())
-    new ActionContributionItem(EnumerationList.ActionCreateFrom).fill(getCompositeFooter())
-    new ActionContributionItem(EnumerationList.ActionEdit).fill(getCompositeFooter())
-    new ActionContributionItem(EnumerationList.ActionRemove).fill(getCompositeFooter())
-    EnumerationList.ActionCreate.setEnabled(true)
-    EnumerationList.ActionCreateFrom.setEnabled(false)
-    EnumerationList.ActionEdit.setEnabled(false)
-    EnumerationList.ActionRemove.setEnabled(false)
+    new ActionContributionItem(ActionCreate).fill(getCompositeFooter())
+    new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
+    new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
+    new ActionContributionItem(ActionRemove).fill(getCompositeFooter())
+    ActionCreate.setEnabled(true)
+    ActionCreateFrom.setEnabled(false)
+    ActionEdit.setEnabled(false)
+    ActionRemove.setEnabled(false)
     initTableEnumerations()
     val actualListener = actual.addChangeListener { event =>
-      if (EnumerationEditor.ActionAutoResize.isChecked())
+      if (ActionAutoResize.isChecked())
         future { autoresize() } onFailure {
           case e: Exception => log.error(e.getMessage(), e)
           case e => log.error(e.toString())
@@ -144,15 +153,24 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration[_ <:
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         actual.removeChangeListener(actualListener)
-        EnumerationList.dialog = None
       }
     })
     // set dialog message
     setMessage(Messages.enumerationListDescription_text.format(Model.eId.name))
     // set dialog window title
     getShell().setText(Messages.enumerationListDialog_text.format(Model.eId.name))
-    EnumerationList.dialog = Some(this)
     result
+  }
+  /** Generate new ID: old ID + 'Copy' + N */
+  protected def getNewEnumerationCopyID(id: Symbol, enumerations: List[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]): Symbol = {
+    val sameIds = immutable.HashSet(enumerations.filter(_.id.name.startsWith(id.name)).map(_.id.name).toSeq: _*)
+    var n = 0
+    var newId = id.name + Messages.copy_item_text
+    while (sameIds(newId)) {
+      n += 1
+      newId = id.name + Messages.copy_item_text + n
+    }
+    Symbol(newId)
   }
   /** Initialize tableEnumerationList */
   protected def initTableEnumerations() {
@@ -174,7 +192,7 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration[_ <:
           case tableItem: TableItem =>
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: Enumeration[_] =>
+              case before: payload.api.Enumeration[_] =>
                 updateActualEnumeration(before, before.copy(availability = tableItem.getChecked()))
               case element =>
                 log.fatal(s"unknown element $element")
@@ -190,7 +208,7 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration[_ <:
     val menu = menuMgr.createContextMenu(viewer.getControl)
     menuMgr.addMenuListener(new IMenuListener() {
       override def menuAboutToShow(manager: IMenuManager) {
-        manager.add(EnumerationList.ActionAutoResize)
+        manager.add(ActionAutoResize)
       }
     })
     menuMgr.setRemoveAllWhenShown(true)
@@ -199,36 +217,37 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration[_ <:
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          EnumerationList.ActionCreateFrom.setEnabled(true)
-          EnumerationList.ActionEdit.setEnabled(true)
-          EnumerationList.ActionRemove.setEnabled(true)
+          ActionCreateFrom.setEnabled(true)
+          ActionEdit.setEnabled(true)
+          ActionRemove.setEnabled(true)
         case selection =>
-          EnumerationList.ActionCreateFrom.setEnabled(false)
-          EnumerationList.ActionEdit.setEnabled(false)
-          EnumerationList.ActionRemove.setEnabled(false)
+          ActionCreateFrom.setEnabled(false)
+          ActionEdit.setEnabled(false)
+          ActionRemove.setEnabled(false)
       }
     })
     actual.addChangeListener(event => future {
-      if (EnumerationList.ActionAutoResize.isChecked())
+      if (ActionAutoResize.isChecked())
         App.exec { if (!viewer.getTable.isDisposed()) autoresize() }
     } onFailure {
       case e: Exception => log.error(e.getMessage(), e)
       case e => log.error(e.toString())
     })
-    val comparator = new EnumerationList.EnumerationComparator
+    val comparator = new EnumerationList.EnumerationComparator(new WeakReference(this))
     viewer.setComparator(comparator)
     viewer.setInput(actual.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), enumerationField)
   }
   /** On dialog active */
-   protected def onActive = {
+  override protected def onActive = {
     updateOK()
     autoresize()
   }
-  /** Updates an actual enumearion */
-  protected[enumlist] def updateActualEnumeration(before: Enumeration[_ <: AnyRef with java.io.Serializable], after: Enumeration[_ <: AnyRef with java.io.Serializable]) {
+  /** Updates an actual enumeration */
+  protected[enumlist] def updateActualEnumeration(before: payload.api.Enumeration[_ <: AnyRef with java.io.Serializable],
+    after: payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]) {
     val index = actual.indexOf(before)
-    //actual.update(index, after)
+    actual.update(index, after)
     if (index == actual.size - 1)
       getTableViewer.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewer.setSelection(new StructuredSelection(after), true)
@@ -244,53 +263,121 @@ class EnumerationList(val parentShell: Shell, val initial: List[Enumeration[_ <:
           initial.id == actual.id &&
           initial.ptype == actual.ptype &&
           initial.constants.size == actual.constants.size &&
-          (initial.constants, actual.constants).zipped.forall(Enumeration.compareDeep(_, _)))
+          (initial.constants, actual.constants).zipped.forall(payload.Enumeration.compareDeep(_, _)))
       }))
+
+  object ActionAutoResize extends Action(Messages.autoresize_key) {
+    setChecked(true)
+    override def run = autoresize
+  }
+  object ActionCreate extends Action(Messages.create_text) with Loggable {
+    override def run = {
+      val newEnumerationID = Payload.generateNew("NewEnumeration", "", newId => actual.exists(_.id.name == newId))
+      val newEnumerationElement = payload.Enumeration.factory(Symbol(newEnumerationID))
+      val newEnumeration = new payload.Enumeration(newEnumerationElement, PropertyType.defaultType)(Manifest.classType(PropertyType.defaultType.typeClass))
+      OperationModifyEnumeration(newEnumeration, actual.toSet).foreach { operation =>
+        val job = if (operation.canRedo())
+          Some(operation.redoJob())
+        else if (operation.canExecute())
+          Some(operation.executeJob())
+        else
+          None
+        job foreach { job =>
+          job.setPriority(Job.SHORT)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) =>
+              log.info(s"Operation completed successfully: ${result}")
+              result.foreach { case (enumeration) => App.exec { actual += enumeration } }
+            case Operation.Result.Cancel(message) =>
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other =>
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+        }
+      }
+    }
+  }
+  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
+    override def run = Option(enumerationField.value) foreach { (selected) =>
+      val from = selected.element
+      // create new ID
+      val toId = getNewEnumerationCopyID(from.eId, actual.toList)
+      assert(!actual.exists(_.id == toId),
+        s"Unable to create the enumeration copy. The element $toId is already exists")
+      // create an element for the new template
+      val to = from.asInstanceOf[Element[Stash]].eCopy(from.eStash.copy(id = toId, unique = UUID.randomUUID))
+      // create an enumeration for the 'to' element
+      val newEnumeration = new payload.Enumeration(to, selected.ptype)(Manifest.classType(selected.ptype.typeClass)).
+        asInstanceOf[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]
+      // start job
+      OperationModifyEnumeration(newEnumeration, actual.toSet).foreach { operation =>
+        val job = if (operation.canRedo())
+          Some(operation.redoJob())
+        else if (operation.canExecute())
+          Some(operation.executeJob())
+        else
+          None
+        job foreach { job =>
+          job.setPriority(Job.SHORT)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) =>
+              log.info(s"Operation completed successfully: ${result}")
+              result.foreach { case (enumeration) => App.exec { actual += enumeration } }
+            case Operation.Result.Cancel(message) =>
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other =>
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+        }
+      }
+    }
+  }
+  object ActionEdit extends Action(Messages.edit_text) {
+    override def run = Option(enumerationField.value) foreach { (before) =>
+      OperationModifyEnumeration(before, actual.toSet).foreach { operation =>
+        val job = if (operation.canRedo())
+          Some(operation.redoJob())
+        else if (operation.canExecute())
+          Some(operation.executeJob())
+        else
+          None
+        job foreach { job =>
+          job.setPriority(Job.SHORT)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) =>
+              log.info(s"Operation completed successfully: ${result}")
+              result.foreach { case (after) => App.exec { updateActualEnumeration(before, after) } }
+            case Operation.Result.Cancel(message) =>
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other =>
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+        }
+      }
+    }
+  }
+  object ActionRemove extends Action(Messages.remove_text) {
+    override def run = Option(enumerationField.value) foreach { (selected) =>
+      App.exec { actual -= selected }
+    }
+  }
 }
 
 object EnumerationList extends Loggable {
-  /** There is may be only one dialog instance at time */
-  @volatile private var dialog: Option[EnumerationList] = None
-  /** Auto resize column padding */
-  private val columnPadding = 10
-  /** Ascending sort constant */
-  private val ASCENDING = 0
-  /** Descending sort constant */
-  private val DESCENDING = 1
-  /** Actual sortBy column index */
-  @volatile private var sortColumn = 1
-  /** Default sort direction */
-  private val defaultDirection = ASCENDING
-  /** Actual sort direction */
-  @volatile private var sortDirection = defaultDirection
-
-  /** Apply a f(x) to the selected enumeration if any */
-  protected def enumeration[T](f: (EnumerationList, Enumeration[_ <: AnyRef with java.io.Serializable]) => T): Option[T] =
-    dialog.flatMap(d => Option(d.enumerationField.value).map(f(d, _)))
-  /** Generate new ID: old ID + 'Copy' + N */
-  protected def getNewEnumerationCopyID(id: Symbol, enumerations: List[Enumeration[_ <: AnyRef with java.io.Serializable]]): Symbol = {
-    val sameIds = immutable.HashSet(enumerations.filter(_.id.name.startsWith(id.name)).map(_.id.name).toSeq: _*)
-    var n = 0
-    var newId = id.name + Messages.copy_item_text
-    while (sameIds(newId)) {
-      n += 1
-      newId = id.name + Messages.copy_item_text + n
-    }
-    Symbol(newId)
-  }
-
-  class EnumerationComparator extends ViewerComparator {
-    private var _column = EnumerationList.sortColumn
-    private var _direction = EnumerationList.sortDirection
+  class EnumerationComparator(dialog: WeakReference[EnumerationList]) extends ViewerComparator {
+    private var _column = dialog.get.map(_.sortColumn) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
+    private var _direction = dialog.get.map(_.sortDirection) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
 
     /** Active column getter */
     def column = _column
     /** Active column setter */
     def column_=(arg: Int) {
       _column = arg
-      EnumerationList.sortColumn = _column
-      _direction = EnumerationList.defaultDirection
-      EnumerationList.sortDirection = _direction
+      dialog.get.foreach(_.sortColumn = _column)
+      _direction = Default.sortingDirection
+      dialog.get.foreach(_.sortDirection = _direction)
     }
     /** Sorting direction */
     def direction = _direction
@@ -300,8 +387,8 @@ object EnumerationList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val enum1 = e1.asInstanceOf[Enumeration[_]]
-      val enum2 = e2.asInstanceOf[Enumeration[_]]
+      val enum1 = e1.asInstanceOf[payload.api.Enumeration[_]]
+      val enum2 = e2.asInstanceOf[payload.api.Enumeration[_]]
       val rc = column match {
         case 0 => enum1.availability.compareTo(enum2.availability)
         case 1 => enum1.id.name.compareTo(enum2.id.name)
@@ -309,12 +396,12 @@ object EnumerationList extends Loggable {
         case index =>
           log.fatal(s"unknown column with index $index"); 0
       }
-      if (_direction == EnumerationList.DESCENDING) -rc else rc
+      if (_direction) -rc else rc
     }
     /** Switch comparator direction */
     def switchDirection() {
-      _direction = 1 - _direction
-      EnumerationList.sortDirection = _direction
+      _direction = !_direction
+      dialog.get.foreach(_.sortDirection = _direction)
     }
   }
   class EnumerationSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
@@ -328,53 +415,6 @@ object EnumerationList extends Loggable {
           viewer.refresh()
         case _ =>
       })
-    }
-  }
-  /*
-   * Actions
-   */
-  object ActionAutoResize extends Action(Messages.autoresize_key) {
-    setChecked(true)
-    override def run = EnumerationList.dialog.foreach(_.autoresize)
-  }
-  object ActionCreate extends Action(Messages.create_text) with Loggable {
-    override def run = EnumerationList.dialog.foreach { dialog =>
-      val newEnumerationID = Payload.generateNew("NewEnumeration", "", newId => dialog.actual.exists(_.id.name == newId))
-      val newEnumerationElement = Enumeration.factory(Symbol(newEnumerationID))
-      val newEnumeration = new Enumeration(newEnumerationElement, PropertyType.defaultType)(Manifest.classType(PropertyType.defaultType.typeClass))
-      /*OperationModifyEnumeration(newEnumeration, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach { case (enumeration) => Main.exec { dialog.actual += enumeration } }
-      }.execute)*/
-    }
-  }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
-    override def run = EnumerationList.enumeration { (dialog, selected) =>
-      val from = selected.element
-      // create new ID
-      /*val toId = getNewEnumerationCopyID(from.eId, dialog.actual.toList)
-      assert(!dialog.actual.exists(_.id == toId),
-        s"Unable to create the enumeration copy. The element $toId is already exists")
-      // create an element for the new template
-      val to = from.asInstanceOf[Element[Stash]].eCopy(from.eStash.copy(id = toId, unique = UUID.randomUUID))
-      // create an enumeration for the 'to' element
-      val newEnumeration = new Enumeration(to, selected.ptype)(Manifest.classType(selected.ptype.typeClass)).
-        asInstanceOf[Enumeration[_ <: AnyRef with java.io.Serializable]]*/
-      // start job
-      /*OperationModifyEnumeration(newEnumeration, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach { case (enumeration) => Main.exec { dialog.actual += enumeration } }
-      }.execute)*/
-    }
-  }
-  object ActionEdit extends Action(Messages.edit_text) {
-    override def run = EnumerationList.enumeration { (dialog, before) =>
-      /*OperationModifyEnumeration(before, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach { case (after) => Main.exec { dialog.updateActualEnumeration(before, after) } }
-      }.execute)*/
-    }
-  }
-  object ActionRemove extends Action(Messages.remove_text) {
-    override def run = EnumerationList.enumeration { (dialog, selected) =>
-      //App.exec { dialog.actual -= selected }
     }
   }
 }

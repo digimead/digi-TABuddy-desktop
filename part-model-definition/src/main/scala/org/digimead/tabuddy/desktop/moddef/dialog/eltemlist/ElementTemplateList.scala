@@ -45,13 +45,22 @@ package org.digimead.tabuddy.desktop.moddef.dialog.eltemlist
 
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
-import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.api
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
+import org.digimead.tabuddy.desktop.moddef.Default
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
 import org.digimead.tabuddy.desktop.support.WritableValue
@@ -60,6 +69,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.ActionContributionItem
 import org.eclipse.jface.action.IAction
@@ -88,32 +98,31 @@ import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.TableItem
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.moddef.Default
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.definition.Dialog
 
-class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTemplate])
-  extends org.digimead.tabuddy.desktop.res.dialog.model.ElementTemplateList(parentShell) with Dialog with Loggable {
+class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.ElementTemplate])
+  extends ElementTemplateListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
   // replace initial elements with copies that will be modified in the progress
   protected[eltemlist] val actual = WritableList(initial.map(template => template.copy(element = template.element.eCopy)).toList.sortBy(_.id.name))
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing a selected element template */
-  protected[eltemlist] val selected = WritableValue[ElementTemplate]
-  assert(ElementTemplateList.dialog.isEmpty, "ElementTemplateList dialog is already active")
-  log.___gaze("!!!!!!!!!!!@@@@@@@@@@@@@@@?")
+  protected[eltemlist] val selected = WritableValue[payload.api.ElementTemplate]
+  /** Actual sortBy column index */
+  @volatile protected var sortColumn = 1 // by an id
+  /** Actual sort direction */
+  @volatile protected var sortDirection = Default.sortingDirection
+
   /** Get modified type templates */
-  def getModifiedTemplates(): Set[api.ElementTemplate] = actual.toSet
+  def getModifiedTemplates(): Set[payload.api.ElementTemplate] = actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        //adjustColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
-        //adjustColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -123,15 +132,15 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTe
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
-    new ActionContributionItem(ElementTemplateList.ActionCreateFrom).fill(getCompositeFooter())
-    new ActionContributionItem(ElementTemplateList.ActionEdit).fill(getCompositeFooter())
-    new ActionContributionItem(ElementTemplateList.ActionRemove).fill(getCompositeFooter())
-    ElementTemplateList.ActionCreateFrom.setEnabled(false)
-    ElementTemplateList.ActionEdit.setEnabled(false)
-    ElementTemplateList.ActionRemove.setEnabled(false)
+    new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
+    new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
+    new ActionContributionItem(ActionRemove).fill(getCompositeFooter())
+    ActionCreateFrom.setEnabled(false)
+    ActionEdit.setEnabled(false)
+    ActionRemove.setEnabled(false)
     initTableElementTemplates()
     val actualListener = actual.addChangeListener { event =>
-      if (ElementTemplateList.ActionAutoResize.isChecked())
+      if (ActionAutoResize.isChecked())
         future { autoresize() }
       updateOK()
     }
@@ -139,14 +148,12 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTe
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         actual.removeChangeListener(actualListener)
-        ElementTemplateList.dialog = None
       }
     })
     // Set the dialog message
     setMessage(Messages.elementTemplateListDescription_text.format(Model.eId.name))
     // Set the dialog window title
     getShell().setText(Messages.elementTemplateListDialog_text.format(Model.eId.name))
-    ElementTemplateList.dialog = Some(this)
     result
   }
   /** Generate new ID: old ID + 'Copy' + N */
@@ -199,7 +206,7 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTe
     val menu = menuMgr.createContextMenu(viewer.getControl)
     menuMgr.addMenuListener(new IMenuListener() {
       override def menuAboutToShow(manager: IMenuManager) {
-        manager.add(ElementTemplateList.ActionAutoResize)
+        manager.add(ActionAutoResize)
       }
     })
     menuMgr.setRemoveAllWhenShown(true)
@@ -209,30 +216,30 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTe
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
           val template = selection.getFirstElement().asInstanceOf[ElementTemplate]
-          ElementTemplateList.ActionCreateFrom.setEnabled(true)
-          ElementTemplateList.ActionEdit.setEnabled(true)
-          ElementTemplateList.ActionRemove.setEnabled(!ElementTemplate.predefined.exists(_.id == template.id)) // exclude predefined
+          ActionCreateFrom.setEnabled(true)
+          ActionEdit.setEnabled(true)
+          ActionRemove.setEnabled(!ElementTemplate.predefined.exists(_.id == template.id)) // exclude predefined
         case selection =>
-          ElementTemplateList.ActionCreateFrom.setEnabled(false)
-          ElementTemplateList.ActionEdit.setEnabled(false)
-          ElementTemplateList.ActionRemove.setEnabled(false)
+          ActionCreateFrom.setEnabled(false)
+          ActionEdit.setEnabled(false)
+          ActionRemove.setEnabled(false)
       }
     })
-    viewer.setComparator(new ElementTemplateList.TemplateComparator)
+    viewer.setComparator(new ElementTemplateList.TemplateComparator(new WeakReference(this)))
     viewer.setInput(actual.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selected)
   }
   /** On dialog active */
-  override protected def onActive = {
+  override protected def onActive() = {
     updateOK()
-    if (ElementTemplateList.ActionAutoResize.isChecked())
+    if (ActionAutoResize.isChecked())
       future { autoresize() } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
         case e => log.error(e.toString())
       }
   }
   /** Updates an actual element template */
-  protected[eltemlist] def updateActualTemplate(before: ElementTemplate, after: ElementTemplate) {
+  protected[eltemlist] def updateActualTemplate(before: payload.api.ElementTemplate, after: payload.api.ElementTemplate) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -241,34 +248,95 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[api.ElementTe
   }
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(initial != actual))
+
+  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+    setChecked(true)
+    override def run = if (isChecked()) autoresize
+  }
+  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
+    override def run = Option(selected.value) foreach { (before) =>
+      val from = before.element
+      // create new ID
+      val toID = getNewTemplateCopyID(from.eId)
+      // create an element for a new template
+      val to = from.asInstanceOf[Element[Stash]].eCopy(from.eStash.copy(id = toID, unique = UUID.randomUUID))
+      // create a template for a 'to' element
+      val newTemplate = new ElementTemplate(to, before.factory).copy(name = before.name + " " + Messages.copy_item_text)
+      // start job
+      OperationModifyElementTemplate(newTemplate, actual.toSet).foreach { operation =>
+        val job = if (operation.canRedo())
+          Some(operation.redoJob())
+        else if (operation.canExecute())
+          Some(operation.executeJob())
+        else
+          None
+        job foreach { job =>
+          job.setPriority(Job.SHORT)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) =>
+              log.info(s"Operation completed successfully: ${result}")
+              result.foreach {
+                case (after) => App.exec {
+                  assert(!actual.exists(_.id == after.id), "Element template %s already exists".format(after))
+                  actual += after
+                }
+              }
+            case Operation.Result.Cancel(message) =>
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other =>
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+        }
+      }
+    }
+  }
+  object ActionEdit extends Action(Messages.edit_text) {
+    override def run = Option(selected.value) foreach { (before) =>
+      OperationModifyElementTemplate(before, actual.toSet).foreach { operation =>
+        val job = if (operation.canRedo())
+          Some(operation.redoJob())
+        else if (operation.canExecute())
+          Some(operation.executeJob())
+        else
+          None
+        job foreach { job =>
+          job.setPriority(Job.SHORT)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) =>
+              log.info(s"Operation completed successfully: ${result}")
+              result.foreach { case (after) => App.exec { updateActualTemplate(before, after) } }
+            case Operation.Result.Cancel(message) =>
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other =>
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+        }
+      }
+    }
+  }
+  object ActionRemove extends Action(Messages.remove_text) {
+    override def run = Option(selected.value) foreach { (selected) =>
+      if (!ElementTemplate.predefined.exists(_.id == selected.id))
+        actual -= selected
+    }
+  }
 }
 
 object ElementTemplateList extends Loggable {
-  /** There is may be only one dialog instance at time */
-  @volatile private var dialog: Option[ElementTemplateList] = None
-  /** Default sort direction */
-  private val defaultDirection = Default.ASCENDING
-  /** Actual sortBy column index */
-  @volatile private var sortColumn = 1 // by an id
-  /** Actual sort direction */
-  @volatile private var sortDirection = defaultDirection
-
-  /** Apply a f(x) to the selected template if any */
-  def template[T](f: (ElementTemplateList, ElementTemplate) => T): Option[T] =
-    dialog.flatMap(d => Option(d.selected.value).map(f(d, _)))
-
-  class TemplateComparator extends ViewerComparator {
-    private var _column = ElementTemplateList.sortColumn
-    private var _direction = ElementTemplateList.sortDirection
+  class TemplateComparator(dialog: WeakReference[ElementTemplateList]) extends ViewerComparator {
+    private var _column = dialog.get.map(_.sortColumn) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
+    private var _direction = dialog.get.map(_.sortDirection) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
 
     /** Active column getter */
     def column = _column
     /** Active column setter */
     def column_=(arg: Int) {
       _column = arg
-      ElementTemplateList.sortColumn = _column
-      _direction = ElementTemplateList.defaultDirection
-      ElementTemplateList.sortDirection = _direction
+      dialog.get.foreach(_.sortColumn = _column)
+      _direction = Default.sortingDirection
+      dialog.get.foreach(_.sortDirection = _direction)
     }
     /** Sorting direction */
     def direction = _direction
@@ -292,7 +360,7 @@ object ElementTemplateList extends Loggable {
     /** Switch comparator direction */
     def switchDirection() {
       _direction = !_direction
-      ElementTemplateList.sortDirection = _direction
+      dialog.get.foreach(_.sortDirection = _direction)
     }
   }
   class TemplateSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
@@ -306,49 +374,6 @@ object ElementTemplateList extends Loggable {
           viewer.refresh()
         case _ =>
       })
-    }
-  }
-  /*
-   * Actions
-   */
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-    override def run = if (isChecked()) ElementTemplateList.dialog.foreach(_.autoresize)
-  }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
-    override def run = ElementTemplateList.template { (dialog, before) =>
-      val from = before.element
-      // create new ID
-      val toID = dialog.getNewTemplateCopyID(from.eId)
-      // create an element for a new template
-      val to = from.asInstanceOf[Element[Stash]].eCopy(from.eStash.copy(id = toID, unique = UUID.randomUUID))
-      // create a template for a 'to' element
-      val newTemplate = new ElementTemplate(to, before.factory).copy(name = before.name + " " + Messages.copy_item_text)
-      // start job
-      /*OperationModifyElementTemplate(newTemplate, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach {
-          case (after) => Main.exec {
-            assert(!dialog.actual.exists(_.id == after.id), "Element template %s already exists".format(after))
-            dialog.actual += after
-          }
-        }
-      }.execute())*/
-    }
-  }
-  object ActionEdit extends Action(Messages.edit_text) {
-    override def run = ElementTemplateList.template { (dialog, before) =>
-      /*   OperationModifyElementTemplate(before, dialog.actual.toSet).
-        foreach(_.setOnSucceeded { job =>
-          job.getValue.foreach {
-            case (after) => Main.exec { dialog.updateActualTemplate(before, after) }
-          }
-        }.execute)*/
-    }
-  }
-  object ActionRemove extends Action(Messages.remove_text) {
-    override def run = ElementTemplateList.template { (dialog, selected) =>
-      if (!ElementTemplate.predefined.exists(_.id == selected.id))
-        dialog.actual -= selected
     }
   }
 }

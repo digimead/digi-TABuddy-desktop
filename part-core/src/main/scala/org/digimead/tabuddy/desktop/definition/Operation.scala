@@ -43,28 +43,81 @@
 
 package org.digimead.tabuddy.desktop.definition
 
-import org.eclipse.core.runtime.IStatus
+import scala.reflect.runtime.universe
+
 import org.digimead.digi.lib.log.api.Loggable
-import org.eclipse.core.runtime.IProgressMonitor
-import java.lang.ref.WeakReference
-import language.implicitConversions
 import org.eclipse.core.commands.operations.AbstractOperation
 import org.eclipse.core.commands.operations.OperationHistoryFactory
 import org.eclipse.core.runtime.IAdaptable
+import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.core.runtime.IStatus
+import org.eclipse.core.runtime.jobs.IJobChangeEvent
+import org.eclipse.core.runtime.jobs.JobChangeAdapter
 
 /**
  * Operation base class.
  */
-abstract class Operation[A](label: String) extends AbstractOperation(label) with api.Operation[A] {
+abstract class Operation[A: universe.TypeTag](label: String) extends AbstractOperation(label) with api.Operation[A] {
+  this: Loggable =>
+
   override protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[A]
   override protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[A]
   override protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[A]
+
+  /** Create execute job for this operation. */
+  def executeJob(info: Option[IAdaptable] = None): Operation.Job[A] = {
+    new Operation.Job[A](getLabel()) {
+      protected def run(monitor: IProgressMonitor): IStatus = {
+        log.debug("""Run "execute" operation's job.""")
+        Operation.history.execute(Operation.this, monitor, info.getOrElse(null))
+      }
+    }
+  }
+  /** Create redo job for this operation. */
+  def redoJob(info: Option[IAdaptable] = None): Operation.Job[A] = {
+    new Operation.Job[A](getLabel()) {
+      protected def run(monitor: IProgressMonitor): IStatus = {
+        log.debug("""Run "redo" operation's job.""")
+        Operation.history.redoOperation(Operation.this, monitor, info.getOrElse(null))
+      }
+    }
+  }
+  /** Create undo job for this operation. */
+  def undoJob(info: Option[IAdaptable] = None): Operation.Job[A] = {
+    new Operation.Job[A](getLabel()) {
+      protected def run(monitor: IProgressMonitor): IStatus = {
+        log.debug("""Run "undo" operation's job.""")
+        Operation.history.undoOperation(Operation.this, monitor, info.getOrElse(null))
+      }
+    }
+  }
 }
 
 object Operation extends Loggable {
   /** Operation history. */
   lazy val history = OperationHistoryFactory.getOperationHistory()
 
+  /** Operation job wrapper. */
+  abstract class Job[A: universe.TypeTag](label: String) extends org.eclipse.core.runtime.jobs.Job(label) {
+    def onComplete[B](f: Result[A] => B): this.type = {
+      addJobChangeListener(new JobChangeAdapter() {
+        override def done(event: IJobChangeEvent) = event.getResult() match {
+          case result: Result[A] =>
+            f(result)
+          case other =>
+            val error = s"Unexpected job result: ${other}."
+            Option(other.getException()) match {
+              case Some(exception) =>
+                log.error(error, exception)
+              case None =>
+                log.fatal(error)
+            }
+            f(Result.Error[A](error))
+        }
+      })
+      this
+    }
+  }
   /**
    * Job result
    */
@@ -73,6 +126,7 @@ object Operation extends Loggable {
     val message: String
     val result: Option[A]
     val severity: Int
+    val tt: universe.TypeTag[_ <: Result[A]]
 
     /** Returns the operation/job result */
     def get(): Option[A] = result
@@ -126,9 +180,10 @@ object Operation extends Loggable {
     def matches(severityMask: Int) = (severityMask & severity) != 0
   }
   object Result {
-    case class AsyncFinish[A](val result: Option[A] = None, val message: String = "operation complete") extends Result[A] {
+    case class AsyncFinish[A](val result: Option[A] = None, val message: String = "operation complete")(implicit val tt: universe.TypeTag[AsyncFinish[A]]) extends Result[A] {
       val severity = IStatus.OK
       val exception = null
+
       /** Returns the plug-in-specific status code describing the outcome. */
       override def getCode() = 1
       /**
@@ -137,12 +192,12 @@ object Operation extends Loggable {
        */
       override def getPlugin() = org.eclipse.core.internal.jobs.JobManager.PI_JOBS
     }
-    case class Cancel[A](val message: String = "operation cancel") extends Result[A] {
+    case class Cancel[A](val message: String = "operation cancel")(implicit val tt: universe.TypeTag[Cancel[A]]) extends Result[A] {
       val exception = null
       val result = None
       val severity = IStatus.CANCEL
     }
-    case class Error[A](val message: String, logAsFatal: Boolean = true) extends Result[A] {
+    case class Error[A](val message: String, logAsFatal: Boolean = true)(implicit val tt: universe.TypeTag[Error[A]]) extends Result[A] {
       val exception = null
       val result = None
       val severity = IStatus.ERROR
@@ -152,7 +207,7 @@ object Operation extends Loggable {
       else
         log.warn(message)
     }
-    case class Exception[A](override val exception: Throwable, logAsFatal: Boolean = true) extends Result[A] {
+    case class Exception[A](override val exception: Throwable, logAsFatal: Boolean = true)(implicit val tt: universe.TypeTag[Exception[A]]) extends Result[A] {
       val message = "Error: " + exception
       val severity = IStatus.ERROR
       val result = None
@@ -162,7 +217,7 @@ object Operation extends Loggable {
       else
         log.warn(exception.toString())
     }
-    case class OK[A](val result: Option[A] = None, val message: String = "operation complete") extends Result[A] {
+    case class OK[A](val result: Option[A] = None, val message: String = "operation complete")(implicit val tt: universe.TypeTag[OK[A]]) extends Result[A] {
       val severity = IStatus.OK
       val exception = null
     }

@@ -66,6 +66,9 @@ trait Dialog extends org.eclipse.jface.dialogs.Dialog {
   /** On active listener */
   protected val onActiveListener = new Dialog.OnActiveListener(this)
 
+  def openOrFocus(): Int = {
+    Dialog.openOrFocus(this)
+  }
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
@@ -115,12 +118,10 @@ trait Dialog extends org.eclipse.jface.dialogs.Dialog {
 }
 
 object Dialog {
-  def open(dialog: Dialog) {
+  def openOrFocus(dialog: Dialog): Int = {
     dialog.open()
   }
-  def openOrFocus(dialog: Dialog) {
-    dialog.open()
-  }
+  /** OnActive listener. */
   class OnActiveListener(dialog: Dialog) extends Listener() {
     def handleEvent(event: Event) = event.widget match {
       case control: Control if control.getShell.eq(dialog.getShell) =>

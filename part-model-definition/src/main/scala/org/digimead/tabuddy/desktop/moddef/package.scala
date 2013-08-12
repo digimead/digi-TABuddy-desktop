@@ -44,19 +44,38 @@
 package org.digimead.tabuddy.desktop
 
 import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.tabuddy.model.element.Stash
-import org.digimead.tabuddy.model.element.Element
+
 import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration
+import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
+import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.element.Stash
 
 package object moddef {
   lazy val default = new NewBindingModule(module => {
-    // implementation of logic.job.OperationCreateElement
+    // implementation of logic.operation.OperationCreateElement
     module.bind[(Element[_ <: Stash], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationCreateElement] toSingle {
-      (container: Element.Generic, modelId: Symbol) => new job.OperationCreateElement(container, modelId)
+      (container, modelId) => new operation.OperationCreateElement(container, modelId)
     }
-    // implementation of logic.job.OperationModifyElementTemplateList
+    // implementation of logic.operation.OperationModifyElementTemplate
+    module.bind[(ElementTemplate, Set[ElementTemplate], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyElementTemplate] toSingle {
+      (template, templateList, modelId) => new operation.OperationModifyElementTemplate(template, templateList, modelId)
+    }
+    // implementation of logic.operation.OperationModifyElementTemplateList
     module.bind[(Set[ElementTemplate], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyElementTemplateList] toSingle {
-      (elementTemplates: Set[ElementTemplate], modelId: Symbol) => new job.OperationModifyElementTemplateList(elementTemplates, modelId)
+      (elementTemplates, modelId) => new operation.OperationModifyElementTemplateList(elementTemplates, modelId)
+    }
+    // implementation of logic.operation.OperationModifyEnumeration
+    module.bind[(Enumeration[_ <: AnyRef with java.io.Serializable], Set[Enumeration[_ <: AnyRef with java.io.Serializable]], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyEnumeration] toSingle {
+      (enumeration, enumerationList, modelId) => new operation.OperationModifyEnumeration(enumeration, enumerationList, modelId)
+    }
+    // implementation of logic.operation.OperationModifyEnumerationList
+    module.bind[(Set[Enumeration[_ <: AnyRef with java.io.Serializable]], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyEnumerationList] toSingle {
+      (enumerationList, modelId) => new operation.OperationModifyEnumerationList(enumerationList, modelId)
+    }
+    // implementation of logic.operation.OperationModifyTypeSchemaList
+    module.bind[(Set[TypeSchema], TypeSchema, Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyTypeSchemaList] toSingle {
+      (before, active, modelId) => new operation.OperationModifyTypeSchemaList(before, active, modelId)
     }
   })
 }

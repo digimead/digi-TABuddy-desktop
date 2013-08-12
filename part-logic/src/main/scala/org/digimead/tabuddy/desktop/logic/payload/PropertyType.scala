@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.payload
 
 import scala.collection.immutable
+import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -123,6 +124,8 @@ trait PropertyType[T <: AnyRef with java.io.Serializable] extends api.PropertyTy
 }
 
 object PropertyType extends Loggable {
+  type genericAdapter = Adapter[AnyRef with java.io.Serializable]
+
   /** Get the default type class (for new element property, for example) */
   def defaultType(): api.PropertyType[_ <: AnyRef with java.io.Serializable] = DI.types.get('String).getOrElse(DI.types.head._2)
   /** Get type wrapper map */
@@ -133,11 +136,11 @@ object PropertyType extends Loggable {
   /**
    * Element property adapter
    */
-  trait Adapter[T <: AnyRef with java.io.Serializable] extends api.PropertyType.Adapter[T] {
+  abstract class Adapter[A <: AnyRef with java.io.Serializable: universe.TypeTag] extends api.PropertyType.Adapter[A] {
     /** Cell label provider singleton with limited API for proxy use case */
-    val cellLabelProvider: CellLabelProviderAdapter[T]
+    val cellLabelProvider: CellLabelProviderAdapter[A]
     /** Label provider singleton with limited API for proxy use case */
-    val labelProvider: LabelProviderAdapter[T]
+    val labelProvider: LabelProviderAdapter[A]
 
     /** Get a cell editor */
     def createCellEditor(parent: Composite): CellEditor = createCellEditor(parent, SWT.NONE)

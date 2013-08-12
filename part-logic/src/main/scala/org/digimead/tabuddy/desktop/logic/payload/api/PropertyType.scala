@@ -43,23 +43,25 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.api
 
+import scala.reflect.runtime.universe
 import org.digimead.tabuddy.model.element.Element
+import org.digimead.digi.lib.log.api.Loggable
 
 /**
  * Base class of the handler for the property of the particular type
  * The equality is based on id: Symbol
  */
-trait PropertyType[T <: AnyRef with java.io.Serializable] extends Equals {
+trait PropertyType[A <: AnyRef with java.io.Serializable] extends Equals {
   /** The property that determines that enumeration is supported */
   val enumerationSupported: Boolean
   /** The property type name */
   val id: Symbol
   /** The type class */
-  val typeClass: Class[T]
+  val typeClass: Class[A]
   /** The type symbol */
   val typeSymbol: Symbol
   /** The property that contains an adapter for the given type */
-  def adapter(): PropertyType.Adapter[T]
+  def adapter(): PropertyType.Adapter[A]
 
   /**
    * Result of comparing 'value1' with 'value2'.
@@ -68,34 +70,57 @@ trait PropertyType[T <: AnyRef with java.io.Serializable] extends Equals {
    * x == 0 iff value1 == value2
    * x > 0 iff value1 > value2
    */
-  def compare(value1: T, value2: T): Int
+  def compare(value1: A, value2: A): Int
   /** Create an editor for the given type */
-  def createEditor(initial: Option[T], propertyId: Symbol, element: Element.Generic): PropertyType.Editor[T]
+  def createEditor(initial: Option[A], propertyId: Symbol, element: Element.Generic): PropertyType.Editor[A]
   /** Returns the new value */
-  def createValue: T
+  def createValue: A
   /** Returns an iterator for the new value generation */
-  def createValues: Iterator[T]
+  def createValues: Iterator[A]
   /** Create a viewer for the given type */
-  def createViewer(initial: Option[T], propertyId: Symbol, element: Element.Generic): PropertyType.Viewer[T]
+  def createViewer(initial: Option[A], propertyId: Symbol, element: Element.Generic): PropertyType.Viewer[A]
   /** Get name of the ptype from the type schema */
   def name: String
   /** Convert value to string */
-  def valueToString(value: T): String
+  def valueToString(value: A): String
   /** Convert string to value */
-  def valueFromString(value: String): T
+  def valueFromString(value: String): A
 }
 
-object PropertyType {
+object PropertyType extends Loggable {
   /**
    * Element property adapter
    */
-  trait Adapter[T <: AnyRef with java.io.Serializable]
+  abstract class Adapter[A <: AnyRef with java.io.Serializable] {
+    /** Adapter type tag. */
+    val tt: universe.TypeTag[_ <: Adapter[A]]
+
+    /** Alias asInstanceOf. */
+    def as[B <: Adapter[_ >: A]: universe.TypeTag](): B =
+      if (tt.tpe.erasure weak_<:< universe.typeOf[B].erasure)
+        this.asInstanceOf[B]
+      else
+        throw new IllegalArgumentException(s"Unable to convert type from ${tt.tpe} to ${universe.typeOf[B]}.")
+  }
   /**
    * Element property trait that provides an editor widget
    */
-  trait Editor[T <: AnyRef with java.io.Serializable] extends Viewer[T]
+  trait Editor[A <: AnyRef with java.io.Serializable] extends Viewer[A] {
+    /** Editor type tag. */
+    val tt: universe.TypeTag[_ <: Editor[A]]
+  }
   /**
    * Element property trait that provides a viewer widget
    */
-  trait Viewer[T <: AnyRef with java.io.Serializable]
+  trait Viewer[A <: AnyRef with java.io.Serializable] {
+    /** Viewer type tag. */
+    val tt: universe.TypeTag[_ <: Viewer[A]]
+
+    /** Alias asInstanceOf. */
+    def as[B <: Adapter[_ >: A]: universe.TypeTag](): B =
+      if (tt.tpe.erasure weak_<:< universe.typeOf[B].erasure)
+        this.asInstanceOf[B]
+      else
+        throw new IllegalArgumentException(s"Unable to convert type from ${tt.tpe} to ${universe.typeOf[B]}.")
+  }
 }

@@ -64,7 +64,7 @@ package object logic {
         new File(configurationPath, configName)
       }
       module.bind[api.Config] toModuleSingle { implicit module => new Config }
-      // Dialog settings factory
+      // Dialog persist settings class factory
       module.bind[(String, String) => org.digimead.tabuddy.desktop.definition.api.Dialog.Settings] toSingle {
         (sectionName, prefix) => new support.Dialog.Settings(sectionName, prefix)
       }

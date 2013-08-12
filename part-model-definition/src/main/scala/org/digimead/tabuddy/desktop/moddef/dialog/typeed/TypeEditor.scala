@@ -91,7 +91,7 @@ import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.moddef.Default
 
 class TypeEditor(val parentShell: Shell, val initial: TypeSchema, val typeSchemas: List[TypeSchema], isSchemaActive: Boolean)
-  extends org.digimead.tabuddy.desktop.res.dialog.model.TypeEditor(parentShell) with Loggable {
+  extends TypeEditorSkel(parentShell) with Loggable {
   /** Actual schema entities */
   protected[typeed] lazy val actualEntities = WritableList(initialEntities)
   /** The property representing the current schema 'active' flag state */

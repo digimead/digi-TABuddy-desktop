@@ -67,8 +67,10 @@ object OperationModifyTypeSchemaList extends Loggable {
     }
   }
 
-  abstract class Abstract(val before: Set[TypeSchema], val active: TypeSchema, val modelID: Symbol)
-    extends Operation[(Set[TypeSchema], TypeSchema)]("Edit type schema list of model " + Model.eId) with api.OperationModifyTypeSchemaList
+  abstract class Abstract(val before: Set[TypeSchema], val active: TypeSchema, val modelId: Symbol)
+    extends Operation[(Set[TypeSchema], TypeSchema)]("Edit type schema list of model " + Model.eId) with api.OperationModifyTypeSchemaList {
+    this: Loggable =>
+  }
   /**
    * Dependency injection routines.
    */

@@ -46,16 +46,17 @@ package org.digimead.tabuddy.desktop.moddef.action
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.gui.WindowMenu
 import org.digimead.tabuddy.desktop.gui.WindowToolbar
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
+import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
+import org.digimead.tabuddy.desktop.logic
 
 /**
  * Register action in new windows.
@@ -65,9 +66,11 @@ class Action extends Actor with Loggable {
   log.debug("Start actor " + self.path)
 
   /*
-   * Model definition component action actors.
+   * Model definition component action's actors.
    */
   val modifyElementTemplateListActionRef = context.actorOf(ActionModifyElementTemplateList.props, ActionModifyElementTemplateList.id)
+  val modifyEnumerationListActionRef = context.actorOf(ActionModifyEnumerationList.props, ActionModifyEnumerationList.id)
+  val modifyTypeSchemaListActionRef = context.actorOf(ActionModifyTypeSchemaList.props, ActionModifyTypeSchemaList.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -90,7 +93,6 @@ class Action extends Actor with Loggable {
 
   /** Register actions in new window. */
   protected def onCreated(window: AppWindow, sender: ActorRef) = {
-    log.___gaze("!!!!!!!!!!!!!!")
     // block actor
     App.execNGet {
       log.debug(s"Update window ${window} composite.")
@@ -105,9 +107,8 @@ class Action extends Actor with Loggable {
   protected def adjustMenu(window: AppWindow) {
     val model = WindowMenu(window, logic.action.Action.modelMenu)
     model.add(ActionModifyElementTemplateList())
-    //    file.add(ActionSaveModel())
-    //    file.add(ActionDeleteModel())
-    //    file.add(ActionCloseModel())
+    model.add(ActionModifyEnumerationList())
+    model.add(ActionModifyTypeSchemaList())
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
@@ -123,6 +124,8 @@ object Action {
   val modelToolbar = WindowToolbar.Descriptor(getClass.getName() + "#model")
   // Initialize descendant actor singletons
   ActionModifyElementTemplateList
+  ActionModifyEnumerationList
+  ActionModifyTypeSchemaList
 
   /** Action actor reference configuration object. */
   def props = DI.props

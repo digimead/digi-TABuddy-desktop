@@ -52,7 +52,7 @@ import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.definition.Operation
 
 class OperationModelDelete private (modelId: Symbol)
-  extends OperationModelDelete.Abstract(modelId) {
+  extends OperationModelDelete.Abstract(modelId) with Loggable {
   @volatile protected var allowExecute = true
 
   override def canExecute() = allowExecute
@@ -91,7 +91,9 @@ object OperationModelDelete extends Loggable {
   }
 
   abstract class Abstract(val modelId: Symbol)
-    extends Operation[Unit](s"Delete model ${modelId}.") with api.OperationModelDelete
+    extends Operation[Unit](s"Delete model ${modelId}.") with api.OperationModelDelete {
+    this: Loggable =>
+  }
   /**
    * Dependency injection routines.
    */

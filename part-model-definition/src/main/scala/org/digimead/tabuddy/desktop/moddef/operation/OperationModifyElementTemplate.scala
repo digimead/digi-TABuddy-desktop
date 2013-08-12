@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,50 +41,64 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation
+package org.digimead.tabuddy.desktop.moddef.operation
 
+import scala.reflect.runtime.universe
+
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.moddef.dialog.eltemed.ElementTemplateEditor
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.payload.Payload
 
-class OperationModelAcquire private (oldModelID: Option[Symbol], newModelID: Symbol)
-  extends OperationModelAcquire.Abstract(oldModelID, newModelID) with Loggable {
+/**
+ * Modify elementTemplate
+ */
+class OperationModifyElementTemplate(
+  /** The initial element template */
+  template: payload.api.ElementTemplate,
+  /** The list of element template */
+  templateList: Set[payload.api.ElementTemplate],
+  modelId: Symbol)
+  extends org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplate.Abstract(template, templateList, modelId) with Loggable {
   @volatile protected var allowExecute = true
   @volatile protected var allowRedo = false
   @volatile protected var allowUndo = false
-  @volatile protected var before: Option[Model.Interface[_ <: Model.Stash]] = None
-  @volatile protected var after: Option[Model.Interface[_ <: Model.Stash]] = None
 
   override def canExecute() = allowExecute
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Model.Interface[_ <: Model.Stash]] = redo(monitor, info)
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Model.Interface[_ <: Model.Stash]] = {
+  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] = redo(monitor, info)
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] = {
+    assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
     // process the job
-    val result: Operation.Result[Model.Interface[_ <: Model.Stash]] = if (canRedo) {
-      assert(Model.eId == newModelID, "An unexpected model %s, expect %s".format(Model.eId, newModelID))
-      after match {
-        case Some(redoModel) =>
-          Model.reset(redoModel)
-          Operation.Result.OK(after)
-        case None =>
-          Operation.Result.Error(s"Lost redo model for $this")
-      }
+    val result: Operation.Result[payload.api.ElementTemplate] = if (canRedo) {
+      // TODO replay history, modify elementTemplate: before -> after
+      Operation.Result.Error("Unimplemented")
     } else if (canExecute) {
-      oldModelID.foreach(id => assert(Model.eId == id, "An unexpected model %s, expect %s".format(Model.eId, id)))
-      before = Some(Model.inner)
-      //after = Payload.acquireModel(newModelID)
-      if (after.nonEmpty)
-        Operation.Result.OK(after)
-      else
-        Operation.Result.Error(s"Unable to aquire model")
+      // TODO save modification history
+      App.execNGet {
+        App.getActiveWindow.map { window =>
+          val dialog = new ElementTemplateEditor(window.getShell(), template, templateList)
+          if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
+            Operation.Result.OK({
+              val after = dialog.getModifiedTemplate
+              // compare templates and deep compare template properties
+              if (templateList.exists(template => payload.ElementTemplate.compareDeep(template, after)))
+                None // nothing changes, and template is already exists
+              else
+                Some(after)
+            })
+          else
+            Operation.Result.Cancel[payload.api.ElementTemplate]()
+        } getOrElse { Operation.Result.Error("Unable to find active window.") }
+      }
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state
@@ -105,43 +119,8 @@ class OperationModelAcquire private (oldModelID: Option[Symbol], newModelID: Sym
     // return the result
     result
   }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Model.Interface[_ <: Model.Stash]] = {
-    assert(canUndo, "undo is prohibited")
-    allowExecute = false
-    allowRedo = true
-    allowUndo = false
-    before match {
-      case Some(undoModel) =>
-        Model.reset(undoModel)
-        Operation.Result.OK(before)
-      case None =>
-        Operation.Result.Error(s"Lost undo model for $this")
-    }
-  }
-}
-
-object OperationModelAcquire extends Loggable {
-  @log
-  def apply(oldModelId: Option[Symbol], newModelId: Symbol): Option[OperationModelAcquire] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Option[Symbol], Symbol) => OperationModelAcquire]] match {
-      case Some(factory) =>
-        Option(factory(oldModelId, newModelId))
-      case None =>
-        log.error("OperationModelAcquire implementation is not defined.")
-        None
-    }
-  }
-
-  abstract class Abstract(val oldModelID: Option[Symbol], val newModelID: Symbol)
-    extends Operation[Model.Interface[_ <: Model.Stash]](s"Acquire model ${newModelID}.") with api.OperationModelAcquire {
-    this: Loggable =>
-  }
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Option[Symbol], Symbol) => api.OperationModelAcquire]
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] = {
+    // TODO revert history, modify elementTemplate: after -> before
+    Operation.Result.Error("Unimplemented")
   }
 }

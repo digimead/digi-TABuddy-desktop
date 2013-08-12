@@ -64,10 +64,12 @@ object OperationModifyEnumeration extends Loggable {
     }
   }
 
-  abstract class Abstract(val enumeration: Enumeration[_ <: AnyRef with java.io.Serializable], 
-    val enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]], val modelID: Symbol)
-    extends Operation[Enumeration[_ <: AnyRef with java.io.Serializable]]("Edit %s for model %s".format(enumeration, modelID)) with api.OperationModifyEnumeration
-  
+  abstract class Abstract(val enumeration: Enumeration[_ <: AnyRef with java.io.Serializable],
+    val enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]], val modelId: Symbol)
+    extends Operation[Enumeration[_ <: AnyRef with java.io.Serializable]]("Edit %s for model %s".format(enumeration, modelId)) with api.OperationModifyEnumeration {
+    this: Loggable =>
+  }
+
   /**
    * Dependency injection routines.
    */

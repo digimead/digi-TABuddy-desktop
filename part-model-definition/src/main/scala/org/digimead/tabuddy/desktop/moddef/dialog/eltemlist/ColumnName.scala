@@ -52,6 +52,7 @@ import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.graphics.Point
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.moddef.Default
 
 object ColumnName extends Loggable {
   class TLabelProvider extends CellLabelProvider {
@@ -74,9 +75,11 @@ object ColumnName extends Loggable {
      * Return the amount of pixels in x and y direction that the tool tip to
      * pop up from the mouse pointer.
      */
-    override def getToolTipShift(obj: Object): Point = new Point(5, 5)
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
-    override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
+    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
+    /** The time in milliseconds until the tool tip is displayed. */
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
+    /** The time in milliseconds until the tool tip is displayed. */
+    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: ElementTemplateList) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())

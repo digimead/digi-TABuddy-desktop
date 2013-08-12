@@ -66,8 +66,10 @@ object OperationCreateElementFromTemplate extends Loggable {
     }
   }
 
-  abstract class Abstract(val template: ElementTemplate, val container: Element.Generic, val modelID: Symbol)
-    extends Operation[Element.Generic](s"Create a new element from $template for $container") with api.OperationCreateElementFromTemplate
+  abstract class Abstract(val template: ElementTemplate, val container: Element.Generic, val modelId: Symbol)
+    extends Operation[Element.Generic](s"Create a new element from $template for $container") with api.OperationCreateElementFromTemplate {
+    this: Loggable =>
+  }
   /**
    * Dependency injection routines.
    */

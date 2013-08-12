@@ -73,47 +73,47 @@ package object model {
 /*  lazy val default = new NewBindingModule(module => {
     // OperationCreateElementImplementation
     module.bind[(Element[_ <: Stash], Symbol) => OperationCreateElement] toSingle {
-      (container: Element.Generic, modelID: Symbol) => new OperationCreateElementImplementation(container, modelID)
+      (container: Element.Generic, modelId: Symbol) => new OperationCreateElementImplementation(container, modelId)
     }
     // OperationCreateElementFromTemplateImplementation
     module.bind[(ElementTemplate.Interface, Element[_ <: Stash], Symbol) => OperationCreateElementFromTemplate] toSingle {
-      (template: ElementTemplate.Interface, container: Element.Generic, modelID: Symbol) => new OperationCreateElementFromTemplateImplementation(template, container, modelID)
+      (template: ElementTemplate.Interface, container: Element.Generic, modelId: Symbol) => new OperationCreateElementFromTemplateImplementation(template, container, modelId)
     }
     // OperationModifyElementImplementation
     module.bind[(Element[_ <: Stash], Symbol) => OperationModifyElement] toSingle {
-      (element: Element.Generic, modelID: Symbol) => new OperationModifyElementImplementation(element, modelID)
+      (element: Element.Generic, modelId: Symbol) => new OperationModifyElementImplementation(element, modelId)
     }
     // OperationModifyElementTemplateImplementation
     module.bind[(ElementTemplate.Interface, Set[ElementTemplate.Interface], Symbol) => OperationModifyElementTemplate] toSingle {
-      (template: ElementTemplate.Interface, templateList: Set[ElementTemplate.Interface], modelID: Symbol) => new OperationModifyElementTemplateImplementation(template, templateList, modelID)
+      (template: ElementTemplate.Interface, templateList: Set[ElementTemplate.Interface], modelId: Symbol) => new OperationModifyElementTemplateImplementation(template, templateList, modelId)
     }
     // OperationModifyElementTemplateListImplementation
     module.bind[(Set[ElementTemplate.Interface], Symbol) => OperationModifyElementTemplateList] toSingle {
-      (templateList: Set[ElementTemplate.Interface], modelID: Symbol) => new OperationModifyElementTemplateListImplementation(templateList, modelID)
+      (templateList: Set[ElementTemplate.Interface], modelId: Symbol) => new OperationModifyElementTemplateListImplementation(templateList, modelId)
     }
     // OperationModifyEnumerationImplementation
     module.bind[(Enumeration.Interface[_ <: AnyRef with java.io.Serializable], Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => OperationModifyEnumeration] toSingle {
       (enumeration: Enumeration.Interface[_ <: AnyRef with java.io.Serializable],
       enumerationList: Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]],
-      modelID: Symbol) => new OperationModifyEnumerationImplementation(enumeration, enumerationList, modelID)
+      modelId: Symbol) => new OperationModifyEnumerationImplementation(enumeration, enumerationList, modelId)
     }
     // OperationModifyEnumerationListImplementation
     module.bind[(Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]], Symbol) => OperationModifyEnumerationList] toSingle {
       (enumerationList: Set[Enumeration.Interface[_ <: AnyRef with java.io.Serializable]],
-      modelID: Symbol) => new OperationModifyEnumerationListImplementation(enumerationList, modelID)
+      modelId: Symbol) => new OperationModifyEnumerationListImplementation(enumerationList, modelId)
     }
     // OperationModifyTypeSchemaImplementation
     module.bind[(TypeSchema.Interface, Set[TypeSchema.Interface], Boolean, Symbol) => OperationModifyTypeSchema] toSingle {
       (schema: TypeSchema.Interface,
       schemaList: Set[TypeSchema.Interface],
       isActive: Boolean,
-      modelID: Symbol) => new OperationModifyTypeSchemaImplementation(schema, schemaList, isActive, modelID)
+      modelId: Symbol) => new OperationModifyTypeSchemaImplementation(schema, schemaList, isActive, modelId)
     }
     // OperationModifyTypeSchemaListImplementation
     module.bind[(Set[TypeSchema.Interface], TypeSchema.Interface, Symbol) => OperationModifyTypeSchemaList] toSingle {
       (before: Set[TypeSchema.Interface],
       active: TypeSchema.Interface,
-      modelID: Symbol) => new OperationModifyTypeSchemaListImplementation(before, active, modelID)
+      modelId: Symbol) => new OperationModifyTypeSchemaListImplementation(before, active, modelId)
     }
   })*/
 }

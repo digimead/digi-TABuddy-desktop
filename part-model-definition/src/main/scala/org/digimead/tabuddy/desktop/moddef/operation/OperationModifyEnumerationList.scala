@@ -41,64 +41,51 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.moddef.job
+package org.digimead.tabuddy.desktop.moddef.operation
+
+import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration
+import org.digimead.tabuddy.desktop.moddef.dialog.enumlist.EnumerationList
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.core.runtime.IStatus
-import org.eclipse.core.runtime.Status
 
 /**
- * OperationCreateElement implementation.
+ * Modify an enumeration list
  */
-class OperationCreateElement(container: Element.Generic, modelID: Symbol)
-  extends org.digimead.tabuddy.desktop.logic.operation.OperationCreateElement.Abstract(container, modelID) with Loggable {
+class OperationModifyEnumerationList(enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]], modelId: Symbol)
+  extends org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumerationList.Abstract(enumerationList, modelId) with Loggable {
   @volatile protected var allowExecute = true
   @volatile protected var allowRedo = false
   @volatile protected var allowUndo = false
 
   override def canExecute() = allowExecute
   override def canRedo() = allowRedo
-
   override def canUndo() = allowUndo
 
-  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] = redo(monitor, info)
-
-  protected def run(monitor: IProgressMonitor): Operation.Result[Element.Generic] = {
-    /*monitor.beginTask("My job is working...", 100)
-        for (i <- 0 until 100) {
-          try {
-            Thread.sleep(200)
-          }
-          monitor.worked(1)
-        }
-        monitor.done()*/
-    log.___gaze("OperationCreateElement")
-    Operation.Result.OK()
-  }
-
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] = {
-    assert(Model.eId == modelID, "An unexpected model %s, expect %s".format(Model.eId, modelID))
+  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = redo(monitor, info)
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = {
+    assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
     // process the job
-    val result: Operation.Result[Element.Generic] = if (canRedo) {
-      // TODO replay history, modify elementTemplate: before -> after
+    val result: Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = if (canRedo) {
+      // TODO replay history, modify Enumeration.container: before -> after
       Operation.Result.Error("Unimplemented")
     } else if (canExecute) {
       // TODO save modification history
       App.execNGet {
-        /*        val customShell = new Shell(Main.display, SWT.NO_TRIM | SWT.ON_TOP)
-        val dialog = new ElementCreate(customShell, container)
-        if (dialog.open() == org.eclipse.jface.window.Window.OK)
-          Operation.Result.OK(dialog.getCreatedElement)
-        else*/
-        Operation.Result.Cancel()
+        App.getActiveWindow.map { window =>
+          val dialog = new EnumerationList(window.getShell(), enumerationList.toList)
+          if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
+            Operation.Result.OK(Some(dialog.getModifiedEnumerations()))
+          else
+            Operation.Result.Cancel[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]()
+        } getOrElse { Operation.Result.Error("Unable to find active window.") }
       }
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
@@ -120,8 +107,8 @@ class OperationCreateElement(container: Element.Generic, modelID: Symbol)
     // return the result
     result
   }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] = {
-    // TODO revert history, modify elementTemplate: after -> before
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = {
+    // TODO revert history, modify Enumeration.container: after -> before
     Operation.Result.Error("Unimplemented")
   }
 }

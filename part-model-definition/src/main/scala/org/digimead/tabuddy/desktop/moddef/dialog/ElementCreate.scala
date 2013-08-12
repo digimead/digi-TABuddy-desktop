@@ -70,7 +70,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.support.App
 
 class ElementCreate(val parentShell: Shell, container: Element.Generic)
-  extends org.digimead.tabuddy.desktop.res.dialog.model.ElementCreate(parentShell) with Loggable {
+  extends ElementCreateSkel(parentShell) with Loggable {
   /** Newly created element */
   protected var element: Option[Element.Generic] = None
   /** Close dialog on mouse over */

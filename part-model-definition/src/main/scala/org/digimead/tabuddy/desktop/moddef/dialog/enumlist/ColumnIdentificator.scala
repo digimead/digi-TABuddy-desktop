@@ -43,8 +43,10 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.enumlist
 
-import org.digimead.tabuddy.desktop.logic.payload.Enumeration
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.logic.payload.Enumeration
+import org.digimead.tabuddy.desktop.moddef.Default
 import org.digimead.tabuddy.desktop.support.SymbolValidator
 import org.digimead.tabuddy.desktop.support.Validator
 import org.eclipse.core.databinding.observable.ChangeEvent
@@ -64,7 +66,6 @@ import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Text
-import org.digimead.digi.lib.log.api.Loggable
 
 object ColumnIdentificator extends Loggable {
   class TLabelProvider extends CellLabelProvider {
@@ -83,13 +84,9 @@ object ColumnIdentificator extends Loggable {
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
-    /**
-     * Return the amount of pixels in x and y direction that the tool tip to
-     * pop up from the mouse pointer.
-     */
-    override def getToolTipShift(obj: Object): Point = new Point(5, 5)
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
-    override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
+    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
+    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: EnumerationList) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = new IdentifierTextCellEditor(viewer.getTable(), container, element.asInstanceOf[Enumeration[_]])

@@ -43,8 +43,9 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.eltemlist
 
-import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.CheckboxCellEditor
@@ -54,7 +55,6 @@ import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.TableItem
-import org.digimead.digi.lib.log.api.Loggable
 
 object ColumnAvailability extends Loggable {
   class TLabelProvider extends CellLabelProvider {

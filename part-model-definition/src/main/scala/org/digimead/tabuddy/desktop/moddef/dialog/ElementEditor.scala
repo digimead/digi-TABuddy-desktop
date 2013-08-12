@@ -87,7 +87,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.support.App
 
 class ElementEditor(val parentShell: Shell, element: Element.Generic, template: ElementTemplate, newElement: Boolean)
-  extends org.digimead.tabuddy.desktop.res.dialog.model.ElementEditor(parentShell) with Loggable {
+  extends ElementEditorSkel(parentShell) with Loggable {
   /** The property representing the current element id */
   protected lazy val idField = WritableValue[String]
   /** Element properties (property, control, editor). Available only from the UI thread */

@@ -41,10 +41,11 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.res.dialog.model;
+package org.digimead.tabuddy.desktop.moddef.dialog.typelist;
 
 import org.digimead.tabuddy.desktop.Messages;
 import org.digimead.tabuddy.desktop.ResourceManager;
+import org.digimead.tabuddy.desktop.moddef.dialog.eltemlist.ElementTemplateListSkel;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
@@ -69,7 +70,7 @@ import swing2swt.layout.FlowLayout;
  *
  * @author ezh
  */
-public class TypeList extends TitleAreaDialog {
+public class TypeListSkel extends TitleAreaDialog {
 	private TableViewer tableViewer;
 	private TableViewerColumn tblclmnViewerName;
 	private TableViewerColumn tblclmnViewerDescription;
@@ -83,7 +84,7 @@ public class TypeList extends TitleAreaDialog {
 	 *
 	 * @param parentShell
 	 */
-	public TypeList(Shell parentShell) {
+	public TypeListSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
 	}
@@ -95,7 +96,7 @@ public class TypeList extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setTitleImage(ResourceManager.getImage(ElementTemplateList.class,
+		setTitleImage(ResourceManager.getImage(ElementTemplateListSkel.class,
 				"/icons/full/message_info.gif"));
 		setTitle(Messages.typeListTitle_text);
 		setMessage(Messages.typeListDescription_text);

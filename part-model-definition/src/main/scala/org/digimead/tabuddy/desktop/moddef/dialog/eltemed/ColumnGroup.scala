@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.eltemed
 
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.moddef.Default
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.EditingSupport
@@ -50,8 +52,6 @@ import org.eclipse.jface.viewers.TableViewer
 import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.graphics.Point
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.moddef.Default
 
 object ColumnGroup extends Loggable {
   class TLabelProvider extends CellLabelProvider {

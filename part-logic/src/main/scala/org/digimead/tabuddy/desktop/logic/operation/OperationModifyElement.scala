@@ -65,8 +65,10 @@ object OperationModifyElement extends Loggable {
     }
   }
 
-  abstract class Abstract(val element: Element.Generic, val modelID: Symbol)
-    extends Operation[Boolean](s"Modify $element") with api.OperationModifyElement
+  abstract class Abstract(val element: Element.Generic, val modelId: Symbol)
+    extends Operation[Boolean](s"Modify $element") with api.OperationModifyElement {
+    this: Loggable =>
+  }
   /**
    * Dependency injection routines.
    */

@@ -44,8 +44,11 @@
 package org.digimead.tabuddy.desktop.moddef.dialog.eltemed
 
 import scala.Array.canBuildFrom
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.logic.payload.Enumeration
 import org.digimead.tabuddy.desktop.logic.payload.PropertyType
+import org.digimead.tabuddy.desktop.moddef.Default
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.viewers.CellEditor
@@ -58,8 +61,6 @@ import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.moddef.Default
 
 object ColumnType extends Loggable {
   class TLabelProvider extends CellLabelProvider {
@@ -91,7 +92,7 @@ object ColumnType extends Loggable {
   }
   class TEditingSupport(viewer: TableViewer, container: ElementTemplateEditor) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = {
-/*      val types = container.types.sortBy(_.name)
+      val types = container.types.sortBy(_.name)
       val enumerations = container.enumerations.sortBy(_.name)
       val cellEditor = new ComboBoxViewerCellEditor(viewer.getControl().asInstanceOf[Composite], SWT.READ_ONLY)
       cellEditor.setLabelProvider(new LabelProvider {
@@ -103,14 +104,13 @@ object ColumnType extends Loggable {
       })
       cellEditor.setContentProvider(new ObservableListContentProvider())
       cellEditor.setInput(WritableList((types ++ enumerations).toList).underlying)
-      cellEditor*/
-      null
+      cellEditor
     }
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
       case item: ElementTemplateEditor.Item =>
         item.enumeration match {
-          case Some(enumeration) => null//enumeration
+          case Some(enumeration) => enumeration
           case None => item.ptype
         }
       case unknown => log.fatal("Unknown item " + unknown.getClass()); ""

@@ -44,14 +44,19 @@
 package org.digimead.tabuddy.desktop.moddef.dialog.enumed
 
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload.Enumeration
-import org.digimead.tabuddy.desktop.logic.payload.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.moddef.Default
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.SymbolValidator
 import org.digimead.tabuddy.desktop.support.Validator
 import org.digimead.tabuddy.desktop.support.WritableList
@@ -90,13 +95,10 @@ import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.Text
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.moddef.Default
 
-class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: AnyRef with java.io.Serializable],
-  val enumerations: List[Enumeration[_ <: AnyRef with java.io.Serializable]])
-  extends org.digimead.tabuddy.desktop.res.dialog.model.EnumerationEditor(parentShell) with Loggable {
+class EnumerationEditor(val parentShell: Shell, val initial: payload.api.Enumeration[_ <: AnyRef with java.io.Serializable],
+  val enumerations: List[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]])
+  extends EnumerationEditorSkel(parentShell) with Dialog with Loggable {
   /** Actual enumeration constants */
   protected[enumed] lazy val actualConstants = WritableList(initialConstants)
   /** The auto resize lock */
@@ -109,32 +111,33 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
   protected val idField = WritableValue[String]
   /** Actual enumeration constants */
   protected val initialConstants = getInitialContent(initial)
+  /** Actual sortBy column index */
+  @volatile protected var sortColumn = 0
+  /** Actual sort direction */
+  @volatile protected var sortDirection = Default.sortingDirection
   /** The property representing current enumeration type */
   protected val typeField = WritableValue[java.lang.Integer]
   /** List of available types */
-  protected val types: Array[PropertyType[_ <: AnyRef with java.io.Serializable]] = Array()
-  /*{
+  protected val types: Array[payload.api.PropertyType[_ <: AnyRef with java.io.Serializable]] = {
     val userTypes = Data.getAvailableTypes().filter(_.enumerationSupported)
     // add an initial enumeration if absent
     (if (userTypes.contains(initial.ptype)) userTypes else (userTypes :+ initial.ptype)).sortBy(_.id.name).toArray
-  }*/
-  assert(EnumerationEditor.dialog.isEmpty, "EnumerationEditor dialog is already active")
+  }
 
   /** Get an actual enumeration */
-  def getModifiedEnumeration(): Enumeration[_ <: AnyRef with java.io.Serializable] = {
+  def getModifiedEnumeration(): payload.api.Enumeration[_ <: AnyRef with java.io.Serializable] = {
     val newId = Symbol(idField.value.trim)
     val newElement: Element.Generic = if (initial.id == newId)
       initial.element
     else
       initial.element.asInstanceOf[Element[Stash]].eCopy(initial.element.eStash.copy(id = newId)).asInstanceOf[Element.Generic]
-    val newType = types(typeField.value).asInstanceOf[PropertyType[AnyRef with java.io.Serializable]]
+    val newType = types(typeField.value).asInstanceOf[payload.api.PropertyType[AnyRef with java.io.Serializable]]
     val newConstants = actualConstants.map {
       case EnumerationEditor.Item(value, alias, description) =>
-        Enumeration.Constant(newType.valueFromString(value), alias, description)(newType, Manifest.classType(newType.typeClass))
-    }.toSet: Set[Enumeration.Constant[AnyRef with java.io.Serializable]]
+        payload.Enumeration.Constant(newType.valueFromString(value), alias, description)(newType, Manifest.classType(newType.typeClass))
+    }.toSet: Set[payload.api.Enumeration.Constant[AnyRef with java.io.Serializable]]
     val name = nameField.value.trim
-    new Enumeration(newElement, newType, availabilityField.value, if (name.isEmpty()) newId.name else name, null)(Manifest.classType(newType.typeClass))
-//    new Enumeration(newElement, newType, availabilityField.value, if (name.isEmpty()) newId.name else name, newConstants)(Manifest.classType(newType.typeClass))
+    new payload.Enumeration(newElement, newType, availabilityField.value, if (name.isEmpty()) newId.name else name, newConstants)(Manifest.classType(newType.typeClass))
   }
 
   /** Auto resize tableviewer columns */
@@ -142,8 +145,8 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-//        adjustColumnWidth(getTableViewerColumnValue(), Default.columnPadding)
-//        adjustColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnValue(), Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -162,10 +165,10 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
   override protected def createDialogArea(parent: Composite): Control = {
     // create dialog elements
     val result = super.createDialogArea(parent)
-    new ActionContributionItem(EnumerationEditor.ActionAdd).fill(getCompositeFooter())
-    new ActionContributionItem(EnumerationEditor.ActionDelete).fill(getCompositeFooter())
-    EnumerationEditor.ActionAdd.setEnabled(true)
-    EnumerationEditor.ActionDelete.setEnabled(false)
+    new ActionContributionItem(ActionAdd).fill(getCompositeFooter())
+    new ActionContributionItem(ActionDelete).fill(getCompositeFooter())
+    ActionAdd.setEnabled(true)
+    ActionDelete.setEnabled(false)
     initTableEnumerations
     // bind the enumeration info: an id
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextEnumerationId()), idField)
@@ -192,10 +195,10 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
     getComboType.setContentProvider(ArrayContentProvider.getInstance())
     getComboType.setLabelProvider(new EnumerationEditor.TypeLabelProvider())
     getComboType.setInput(types)
-    typeField.value = math.max(types.indexWhere(_ == PropertyType.defaultType), 0)
+    typeField.value = math.max(types.indexWhere(_ == payload.PropertyType.defaultType), 0)
     // complex content listener
     val actualConstantsListener = actualConstants.addChangeListener { event =>
-      if (EnumerationEditor.ActionAutoResize.isChecked())
+      if (ActionAutoResize.isChecked())
         future { autoresize() } onFailure {
           case e: Exception => log.error(e.getMessage(), e)
           case e => log.error(e.toString())
@@ -210,17 +213,15 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
         nameField.removeChangeListener(nameFieldListener)
         idField.removeChangeListener(idFieldListener)
         typeField.removeChangeListener(typeFieldListener)
-        EnumerationEditor.dialog = None
       }
     })
     // set dialog window title
     getShell().setText(Messages.elementTemplateEditorDialog_text.format(initial.id.name))
     validateID(idFieldValidator, idField.value, true)
-    EnumerationEditor.dialog = Some(this)
     result
   }
   /** Get table content */
-  protected def getInitialContent(enumeration: Enumeration[_ <: AnyRef with java.io.Serializable]): List[EnumerationEditor.Item] =
+  protected def getInitialContent(enumeration: payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]): List[EnumerationEditor.Item] =
     enumeration.constants.map(constant => EnumerationEditor.Item(constant.ptype.valueToString(constant.value), constant.alias, constant.description)).toList
   /** Allow external access for scala classes */
   override protected def getTableViewer() = super.getTableViewer
@@ -245,7 +246,7 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
     val menu = menuMgr.createContextMenu(viewer.getControl)
     menuMgr.addMenuListener(new IMenuListener() {
       override def menuAboutToShow(manager: IMenuManager) {
-        manager.add(EnumerationEditor.ActionAutoResize)
+        manager.add(ActionAutoResize)
       }
     })
     menuMgr.setRemoveAllWhenShown(true)
@@ -254,13 +255,13 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          EnumerationEditor.ActionDelete.setEnabled(true)
+          ActionDelete.setEnabled(true)
         case selection =>
-          EnumerationEditor.ActionDelete.setEnabled(false)
+          ActionDelete.setEnabled(false)
       }
     })
     // Add the comparator
-    viewer.setComparator(new EnumerationEditor.EnumerationComparator)
+    viewer.setComparator(new EnumerationEditor.EnumerationComparator(new WeakReference(this)))
     viewer.setInput(actualConstants.underlying)
   }
   /** Return the stub for the new enumeration */
@@ -279,7 +280,7 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
     }
   }
   /** On dialog active */
-   protected def onActive = {
+  override protected def onActive = {
     updateOK()
     future { autoresize() } onFailure {
       case e: Exception => log.error(e.getMessage(), e)
@@ -337,30 +338,41 @@ class EnumerationEditor(val parentShell: Shell, val initial: Enumeration[_ <: An
     validator.withDecoration(validator.showDecorationRequired(_))
   else
     validator.withDecoration(_.hide)
+
+  object ActionAdd extends Action(Messages.add_text) {
+    override def run = actualConstants += newEnumeration
+  }
+  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+    setChecked(true)
+    override def run = if (isChecked()) future { autoresize } onFailure {
+      case e: Exception => log.error(e.getMessage(), e)
+      case e => log.error(e.toString())
+    }
+  }
+  object ActionDelete extends Action(Messages.delete_text) {
+    override def run = getTableViewer.getSelection() match {
+      case selection: IStructuredSelection if !selection.isEmpty() =>
+        actualConstants -= selection.getFirstElement().asInstanceOf[EnumerationEditor.Item]
+      case selection =>
+    }
+  }
 }
 
 object EnumerationEditor extends Loggable {
-  /** There is may be only one dialog instance at time */
-  @volatile private var dialog: Option[EnumerationEditor] = None
-  /** Default sort direction */
-  private val defaultDirection = Default.ASCENDING
-  /** Actual sortBy column index */
-  @volatile private var sortColumn = 0
-  /** Actual sort direction */
-  @volatile private var sortDirection = defaultDirection
-
-  class EnumerationComparator extends ViewerComparator {
-    private var _column = EnumerationEditor.sortColumn
-    private var _direction = EnumerationEditor.sortDirection
+  class EnumerationComparator(dialog: WeakReference[EnumerationEditor]) extends ViewerComparator {
+    private var _column = dialog.get.map(_.sortColumn) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
+    private var _direction = dialog.get.map(_.sortDirection) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
 
     /** Active column getter */
     def column = _column
     /** Active column setter */
     def column_=(arg: Int) {
       _column = arg
-      EnumerationEditor.sortColumn = _column
-      _direction = EnumerationEditor.defaultDirection
-      EnumerationEditor.sortDirection = _direction
+      dialog.get.foreach(_.sortColumn = _column)
+      _direction = Default.sortingDirection
+      dialog.get.foreach(_.sortDirection = _direction)
     }
     /** Sorting direction */
     def direction = _direction
@@ -384,7 +396,7 @@ object EnumerationEditor extends Loggable {
     /** Switch comparator direction */
     def switchDirection() {
       _direction = !_direction
-      EnumerationEditor.sortDirection = _direction
+      dialog.get.foreach(_.sortDirection = _direction)
     }
   }
   class EnumerationSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
@@ -404,34 +416,11 @@ object EnumerationEditor extends Loggable {
   class TypeLabelProvider extends LabelProvider {
     /** Returns the type name */
     override def getText(element: AnyRef): String = element match {
-      case item: PropertyType[_] =>
+      case item: payload.api.PropertyType[_] =>
         item.name
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         ""
-    }
-  }
-  /*
-   * Actions
-   */
-  object ActionAdd extends Action(Messages.add_text) {
-    override def run = EnumerationEditor.dialog.foreach { dialog => dialog.actualConstants += dialog.newEnumeration }
-  }
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-    override def run = if (isChecked()) EnumerationEditor.dialog.foreach(dialog =>
-      future { dialog.autoresize } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
-      })
-  }
-  object ActionDelete extends Action(Messages.delete_text) {
-    override def run = EnumerationEditor.dialog.foreach { dialog =>
-      dialog.getTableViewer.getSelection() match {
-        case selection: IStructuredSelection if !selection.isEmpty() =>
-          dialog.actualConstants -= selection.getFirstElement().asInstanceOf[EnumerationEditor.Item]
-        case selection =>
-      }
     }
   }
 }

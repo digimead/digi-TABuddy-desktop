@@ -43,8 +43,9 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.eltemlist
 
-import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.support.SymbolValidator
 import org.digimead.tabuddy.desktop.support.Validator
 import org.eclipse.core.databinding.observable.ChangeEvent
@@ -62,7 +63,6 @@ import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Text
-import org.digimead.digi.lib.log.api.Loggable
 
 object ColumnId extends Loggable {
   class TLabelProvider extends CellLabelProvider {

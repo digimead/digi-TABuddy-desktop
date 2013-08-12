@@ -76,8 +76,10 @@ object OperationModifyElementTemplate extends Loggable {
     val template: ElementTemplate,
     /** The list of element template */
     val templateList: Set[ElementTemplate],
-    val modelID: Symbol)
-    extends Operation[ElementTemplate](s"Edit $template for model $modelID") with api.OperationModifyElementTemplate
+    val modelId: Symbol)
+    extends Operation[ElementTemplate](s"Edit $template for model $modelId") with api.OperationModifyElementTemplate {
+    this: Loggable =>
+  }
   /**
    * Dependency injection routines.
    */

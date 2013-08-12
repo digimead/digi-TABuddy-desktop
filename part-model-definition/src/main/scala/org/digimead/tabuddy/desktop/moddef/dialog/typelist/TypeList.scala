@@ -45,15 +45,20 @@ package org.digimead.tabuddy.desktop.moddef.dialog.typelist
 
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.logic.payload.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.logic.payload.PropertyType
+import org.digimead.tabuddy.desktop.moddef.Default
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
 import org.digimead.tabuddy.desktop.support.WritableValue
@@ -87,12 +92,9 @@ import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.moddef.Default
-import org.digimead.tabuddy.desktop.support.App
 
-class TypeList(val parentShell: Shell, val initial: List[TypeSchema], val initialActiveSchema: TypeSchema)
-  extends org.digimead.tabuddy.desktop.res.dialog.model.TypeList(parentShell) with Loggable {
+class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema], val initialActiveSchema: payload.api.TypeSchema)
+  extends TypeListSkel(parentShell) with Dialog with Loggable {
   /** The actual schemas value */
   protected[typelist] val actual = WritableList(initial)
   /** The property representing active schema */
@@ -100,7 +102,7 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema], val initia
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing selected schema */
-  protected val schemaField = WritableValue[TypeSchema]
+  protected val schemaField = WritableValue[payload.api.TypeSchema]
   assert(TypeList.dialog.isEmpty, "TypeList dialog is already active")
 
   /** Auto resize tableviewer columns */
@@ -108,7 +110,7 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema], val initia
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        //adjustColumnWidth(getTableViewerColumnName, Default.columnPadding)
+        App.adjustTableViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -116,9 +118,9 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema], val initia
     autoResizeLock.unlock()
   }
   /** Get active type schema */
-  def getActiveSchema(): TypeSchema = actual.find(_.id == actualActiveSchema.value).getOrElse(initialActiveSchema)
+  def getActiveSchema(): payload.api.TypeSchema = actual.find(_.id == actualActiveSchema.value).getOrElse(initialActiveSchema)
   /** Get modified type schemas */
-  def getSchemaSet(): Set[TypeSchema] = actual.toSet
+  def getSchemaSet(): Set[payload.api.TypeSchema] = actual.toSet
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
@@ -196,12 +198,12 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema], val initia
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          val selected = selection.getFirstElement().asInstanceOf[TypeSchema]
+          val selected = selection.getFirstElement().asInstanceOf[payload.api.TypeSchema]
           TypeList.ActionActivate.setEnabled(selected ne actualActiveSchema.value)
           TypeList.ActionCreateFrom.setEnabled(true)
           TypeList.ActionEdit.setEnabled(true)
-          TypeList.ActionRemove.setEnabled(!TypeSchema.predefined.exists(_.id == selected.id)) // exclude predefined
-          TypeList.ActionReset.setEnabled(TypeSchema.predefined.find(_.id == selected.id) match {
+          TypeList.ActionRemove.setEnabled(!payload.TypeSchema.predefined.exists(_.id == selected.id)) // exclude predefined
+          TypeList.ActionReset.setEnabled(payload.TypeSchema.predefined.find(_.id == selected.id) match {
             case Some(predefined) =>
               TypeList.ActionReset.setToolTipText(Messages.typeSchemaPredefinedResetToDefault_text)
               selected ne predefined
@@ -223,7 +225,7 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema], val initia
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), schemaField)
   }
   /** On dialog active */
-   protected def onActive = {
+  override protected def onActive = {
     updateOK()
     future { autoresize() } onFailure {
       case e: Exception => log.error(e.getMessage(), e)
@@ -231,7 +233,7 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema], val initia
     }
   }
   /** Updates an actual schema */
-  protected[typelist] def updateActualSchema(before: TypeSchema, after: TypeSchema) {
+  protected[typelist] def updateActualSchema(before: payload.api.TypeSchema, after: payload.api.TypeSchema) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -247,7 +249,7 @@ class TypeList(val parentShell: Shell, val initial: List[TypeSchema], val initia
           initial.name == actual.name &&
           initial.description == actual.description &&
           initial.entity.size == actual.entity.size &&
-          (initial.entity, actual.entity).zipped.forall((a, b) => TypeSchema.compareDeep(a._2, b._2)))
+          (initial.entity, actual.entity).zipped.forall((a, b) => payload.TypeSchema.compareDeep(a._2, b._2)))
       }))
 }
 
@@ -262,7 +264,7 @@ object TypeList extends Loggable {
   @volatile private var sortDirection = defaultDirection
 
   /** Apply a f(x) to the selected type schema if any */
-  def schema[T](f: (TypeList, TypeSchema) => T): Option[T] =
+  def schema[T](f: (TypeList, payload.api.TypeSchema) => T): Option[T] =
     dialog.flatMap(d => Option(d.schemaField.value).map(f(d, _)))
   /** Generate the new name: old name + ' Copy' + N */
   def getNewTypeSchemaCopyName(name: String, dialog: TypeList): String = {
@@ -297,8 +299,8 @@ object TypeList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val schema1 = e1.asInstanceOf[TypeSchema]
-      val schema2 = e2.asInstanceOf[TypeSchema]
+      val schema1 = e1.asInstanceOf[payload.api.TypeSchema]
+      val schema2 = e2.asInstanceOf[payload.api.TypeSchema]
       val rc = column match {
         case 0 => schema1.name.compareTo(schema2.name)
         case 1 => schema1.description.compareTo(schema2.description)
@@ -363,7 +365,7 @@ object TypeList extends Loggable {
     override def run = TypeList.schema { (dialog, selected) =>
       val from = selected
       // create a new ID
-/*      val toName = getNewTypeSchemaCopyName(from.name, dialog)
+      /*      val toName = getNewTypeSchemaCopyName(from.name, dialog)
       assert(!dialog.actual.exists(_.name == toName),
         s"Unable to create the type schema copy. The schema $toName is already exists")
       val to = TypeSchema(UUID.randomUUID(), toName, from.description, from.entity.map(e => (e._1, e._2.copy())))
@@ -398,15 +400,15 @@ object TypeList extends Loggable {
   }
   object ActionRemove extends Action(Messages.remove_text) {
     override def run = TypeList.schema { (dialog, selected) =>
-      if (!TypeSchema.predefined.exists(_.id == selected.id))
+      if (!payload.TypeSchema.predefined.exists(_.id == selected.id))
         dialog.actual -= selected
     }
   }
   object ActionReset extends Action(Messages.reset_text) {
     override def run = TypeList.schema { (dialog, selected) =>
-      TypeSchema.predefined.find(_.id == selected.id) match {
+      payload.TypeSchema.predefined.find(_.id == selected.id) match {
         case Some(predefined) =>
-          //dialog.updateActualSchema(selected, predefined)
+          dialog.updateActualSchema(selected, predefined)
         case None => // remove unknown or invalid entities
           val fixed = selected.entity.filter(entity => PropertyType.container.contains(entity._2.ptypeId))
           if (fixed.size != selected.entity.size)

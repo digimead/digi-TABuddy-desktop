@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,79 +41,72 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation
+package org.digimead.tabuddy.desktop.moddef.operation
 
-import java.net.URI
-
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.core.runtime.IAdaptable
-import org.eclipse.core.runtime.IProgressMonitor
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.definition.Operation
+import org.eclipse.core.runtime.IStatus
+import org.eclipse.core.runtime.Status
 
-class OperationModelFreeze private (modelId: Symbol)
-  extends OperationModelFreeze.Abstract(modelId) with Loggable {
+/**
+ * OperationCreateElement implementation.
+ */
+class OperationCreateElement(container: Element.Generic, modelId: Symbol)
+  extends org.digimead.tabuddy.desktop.logic.operation.OperationCreateElement.Abstract(container, modelId) with Loggable {
   @volatile protected var allowExecute = true
+  @volatile protected var allowRedo = false
+  @volatile protected var allowUndo = false
 
   override def canExecute() = allowExecute
-  override def canRedo() = false
-  override def canUndo() = false
+  override def canRedo() = allowRedo
+  override def canUndo() = allowUndo
 
-  protected def run(monitor: IProgressMonitor): Operation.Result[URI] = {
-    Operation.Result.OK()
-  }
-  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] = redo(monitor, info)
-
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] = {
+  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] = redo(monitor, info)
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] = {
+    assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
     // process the job
-    val result: Operation.Result[URI] = if (canExecute) {
-      assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
-      val model = Model
-      //      Operation.Result.OK(Payload.freezeModel(model))
-      Operation.Result.OK()
+    val result: Operation.Result[Element.Generic] = if (canRedo) {
+      // TODO replay history, modify elementTemplate: before -> after
+      Operation.Result.Error("Unimplemented")
+    } else if (canExecute) {
+      // TODO save modification history
+      App.execNGet {
+        /*        val customShell = new Shell(Main.display, SWT.NO_TRIM | SWT.ON_TOP)
+        val dialog = new ElementCreate(customShell, container)
+        if (dialog.open() == org.eclipse.jface.window.Window.OK)
+          Operation.Result.OK(dialog.getCreatedElement)
+        else*/
+        Operation.Result.Cancel()
+      }
     } else
-      Operation.Result.Error(s"Unable to process $this: execute are prohibited")
+      Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state
-    allowExecute = false
+    result match {
+      case Operation.Result.OK(_, _) =>
+        allowExecute = false
+        allowRedo = false
+        allowUndo = true
+      case Operation.Result.Cancel(_) =>
+        allowExecute = true
+        allowRedo = false
+        allowUndo = false
+      case _ =>
+        allowExecute = false
+        allowRedo = false
+        allowUndo = false
+    }
     // return the result
     result
   }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] =
-    throw new UnsupportedOperationException
-}
-
-object OperationModelFreeze extends Loggable {
-  @log
-  def apply(modelId: Symbol): Option[OperationModelFreeze] = {
-    DI.jobFactory.asInstanceOf[Option[(Symbol) => OperationModelFreeze]] match {
-      case Some(factory) =>
-        if (modelId != Payload.defaultModel.eId && modelId != Symbol(""))
-          Option(factory(modelId))
-        else {
-          log.warn("Unable to freeze model with default name")
-          None
-        }
-      case None =>
-        log.error("OperationModelFreeze implementation is not defined.")
-        None
-    }
-  }
-
-  abstract class Abstract(val modelId: Symbol)
-    extends Operation[URI](s"Freeze model ${modelId}.") with api.OperationModelFreeze {
-    this: Loggable =>
-  }
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Symbol) => api.OperationModelFreeze]
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] = {
+    // TODO revert history, modify elementTemplate: after -> before
+    Operation.Result.Error("Unimplemented")
   }
 }

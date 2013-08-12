@@ -68,7 +68,9 @@ object OperationModifyTypeSchema extends Loggable {
     val schema: TypeSchema,
     val schemaList: Set[TypeSchema],
     val isActive: Boolean,
-    val modelID: Symbol) extends Operation[(TypeSchema, Boolean)]("Edit %s for model %s".format(schema, modelID)) with api.OperationModifyTypeSchema
+    val modelId: Symbol) extends Operation[(TypeSchema, Boolean)]("Edit %s for model %s".format(schema, modelId)) with api.OperationModifyTypeSchema {
+    this: Loggable =>
+  }
   /**
    * Dependency injection routines.
    */

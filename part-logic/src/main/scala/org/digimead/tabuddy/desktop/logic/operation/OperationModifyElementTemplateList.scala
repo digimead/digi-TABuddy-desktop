@@ -58,7 +58,6 @@ object OperationModifyElementTemplateList extends Loggable {
   @log
   def apply(elementTemplateList: Set[ElementTemplate]): Option[Abstract] = {
     val modelId = Model.eId
-    log.___glance("HERE")
     DI.jobFactory.asInstanceOf[Option[(Set[ElementTemplate], Symbol) => Abstract]] match {
       case Some(factory) =>
         Option(factory(elementTemplateList, modelId))
@@ -68,8 +67,10 @@ object OperationModifyElementTemplateList extends Loggable {
     }
   }
 
-  abstract class Abstract(val elementTemplates: Set[ElementTemplate], val modelID: Symbol)
-    extends Operation[Set[ElementTemplate]]("Edit the element template list of %s model".format(Model.eId)) with api.OperationModifyElementTemplateList
+  abstract class Abstract(val elementTemplates: Set[ElementTemplate], val modelId: Symbol)
+    extends Operation[Set[ElementTemplate]]("Edit the element template list of %s model".format(Model.eId)) with api.OperationModifyElementTemplateList {
+    this: Loggable =>
+  }
   /**
    * Dependency injection routines.
    */
