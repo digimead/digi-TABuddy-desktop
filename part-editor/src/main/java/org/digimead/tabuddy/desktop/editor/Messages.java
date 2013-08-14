@@ -88,11 +88,13 @@ public class Messages extends NLS {
 					field.setAccessible(true);
 				try {
 					final String rawValue = (String) field.get(null);
-					field.set(
-							null,
-							new String(rawValue.getBytes("ISO-8859-1"), "UTF-8")
-									.replaceAll("\\\\n", "\n").replaceAll(
-											"\\\\t", "\t"));
+//					final String optValue = org.digimead.tabuddy.desktop.Resources$.MODULE$
+//							.getMessage(Messages.class, field.getName());
+//					if (optValue == null)
+//						field.set(null,
+//								new String(rawValue.getBytes("ISO-8859-1"),
+//										"UTF-8").replaceAll("\\\\n", "\n")
+//										.replaceAll("\\\\t", "\t"));
 				} catch (Exception e) {
 					// skip field modification
 				}

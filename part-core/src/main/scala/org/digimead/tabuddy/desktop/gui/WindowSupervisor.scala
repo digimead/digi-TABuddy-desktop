@@ -59,13 +59,14 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Core.core2actorRef
+import org.digimead.tabuddy.desktop.definition.Context
+import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
 import org.digimead.tabuddy.desktop.gui.WindowConfiguration.windowConfiguration2implementation
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context
-import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
@@ -77,6 +78,7 @@ import org.eclipse.jface.window.{ Window => JWindow }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
+import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.Widget
 
 import akka.actor.Actor
@@ -324,6 +326,8 @@ class WindowSupervisor extends Actor with Loggable {
         event.getObservableValue().asInstanceOf[DelayedObservableValue].getValue().asInstanceOf[FocusEvent].fire()
     })
     def handleEvent(event: Event) {
+      if (event.widget != null && event.widget.isInstanceOf[Shell])
+        Core.context.set(GUI.shellContextKey, event.widget)
       App.findShell(event.widget).foreach { shell =>
         Option(shell.getData(GUI.swtId).asInstanceOf[UUID]).foreach { id =>
           event.`type` match {

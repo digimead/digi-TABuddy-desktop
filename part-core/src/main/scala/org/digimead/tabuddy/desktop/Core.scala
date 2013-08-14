@@ -46,16 +46,15 @@ package org.digimead.tabuddy.desktop
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Actions.configurator2implementation
 import org.digimead.tabuddy.desktop.core.Views.configurator2implementation
+import org.digimead.tabuddy.desktop.definition.Context
+import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context
-import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
 
 import akka.actor.ActorRef
 import akka.actor.Props
@@ -120,6 +119,10 @@ class Core extends akka.actor.Actor with Loggable {
 
     case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
       future {
+        // Wait for translationService in future
+        definition.NLS.translationService
+        // Lock UI and translate all messages
+        App.execNGet { Core.initializeBundleMessages }
         App.verifyApplicationEnvironment
         core.Actions.configure
         core.Views.configure
@@ -165,8 +168,13 @@ object Core {
 
   /** Core actor reference configuration object. */
   def props = DI.props
+
   override def toString = "Core[Singleton]"
 
+  /** Initialize translation. */
+  protected def initializeBundleMessages {
+    Mess
+  }
   /**
    * Dependency injection routines
    */

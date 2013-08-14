@@ -45,9 +45,7 @@ package org.digimead.tabuddy.desktop.api
 
 import java.util.concurrent.Callable
 
-import org.eclipse.equinox.app.IApplication
-
 /**
  * Interface for the main entry point of the application
  */
-trait Main extends IApplication with Callable[Int]
+trait Main extends Callable[Int]

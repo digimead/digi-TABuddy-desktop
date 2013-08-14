@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.moddef.dialog.eltemlist
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
+import org.digimead.tabuddy.desktop.moddef.Default
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.CheckboxCellEditor
@@ -83,13 +84,9 @@ object ColumnAvailability extends Loggable {
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
-    /**
-     * Return the amount of pixels in x and y direction that the tool tip to
-     * pop up from the mouse pointer.
-     */
-    override def getToolTipShift(obj: Object): Point = new Point(5, 5)
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
-    override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
+    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
+    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: ElementTemplateList) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = new CheckboxCellEditor(null, SWT.CHECK | SWT.READ_ONLY)

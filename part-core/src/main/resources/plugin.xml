@@ -2,7 +2,7 @@
 <?eclipse version="3.4"?>
 <plugin id="org.digimead.tabuddy.desktop" name="Core" version="0.0.1.0-SNAPSHOT" provider-name="Digimead team">
   <extension id="default" point="org.eclipse.core.runtime.products">
-    <product application="org.eclipse.e4.ui.workbench.swt.E4Application" description="TA Buddy Desktop Application" name="TA Buddy Desktop">
+    <product application="org.eclipse.e4.ui.workbench.swt.E4Application" description="Mock that initiate E4 initialization." name="NoName">
       <property name="clearPersistedState" value="true"/>
       <property name="preferenceCustomization" value="plugin_customization.ini"/>
       <property name="applicationXMI" value="org.eclipse.platform/LegacyIDE.e4xmi"/>

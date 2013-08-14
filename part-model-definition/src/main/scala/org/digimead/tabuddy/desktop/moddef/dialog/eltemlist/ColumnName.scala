@@ -71,14 +71,8 @@ object ColumnName extends Loggable {
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
-    /**
-     * Return the amount of pixels in x and y direction that the tool tip to
-     * pop up from the mouse pointer.
-     */
     override def getToolTipShift(obj: Object): Point = Default.toolTipShift
-    /** The time in milliseconds until the tool tip is displayed. */
     override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
-    /** The time in milliseconds until the tool tip is displayed. */
     override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: ElementTemplateList) extends EditingSupport(viewer) {

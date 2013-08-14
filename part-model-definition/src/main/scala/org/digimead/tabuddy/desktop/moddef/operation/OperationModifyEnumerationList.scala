@@ -55,6 +55,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.swt.widgets.Shell
 
 /**
  * Modify an enumeration list
@@ -69,6 +70,13 @@ class OperationModifyEnumerationList(enumerationList: Set[Enumeration[_ <: AnyRe
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
+  protected def dialog(shell: Shell): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = {
+    val dialog = new EnumerationList(shell, enumerationList.toList)
+    if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
+      Operation.Result.OK(Some(dialog.getModifiedEnumerations()))
+    else
+      Operation.Result.Cancel[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]()
+  }
   protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = redo(monitor, info)
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = {
     assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
@@ -79,13 +87,8 @@ class OperationModifyEnumerationList(enumerationList: Set[Enumeration[_ <: AnyRe
     } else if (canExecute) {
       // TODO save modification history
       App.execNGet {
-        App.getActiveWindow.map { window =>
-          val dialog = new EnumerationList(window.getShell(), enumerationList.toList)
-          if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
-            Operation.Result.OK(Some(dialog.getModifiedEnumerations()))
-          else
-            Operation.Result.Cancel[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]()
-        } getOrElse { Operation.Result.Error("Unable to find active window.") }
+        App.getActiveShell.map(dialog) getOrElse
+          { Operation.Result.Error("Unable to find active shell.") }
       }
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")

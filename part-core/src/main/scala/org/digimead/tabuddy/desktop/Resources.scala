@@ -43,19 +43,20 @@
 
 package org.digimead.tabuddy.desktop
 
+import java.util.Locale
 import java.util.UUID
 
 import scala.collection.mutable
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.digimead.tabuddy.desktop.definition.IWizard
 import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
-import org.digimead.tabuddy.desktop.definition.IWizard
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry
 import org.eclipse.swt.graphics.Font
 import org.eclipse.swt.graphics.Image
@@ -71,17 +72,6 @@ class Resources extends BundleActivator with Loggable {
   val small = 0.315
   val medium = 0.7
   val large = 1
-  /** List of all application view factories. */
-  protected val viewFactoriesMap = new Resources.ViewFactoryMap with mutable.SynchronizedMap[ViewLayer.Factory, Boolean]
-  /** Application wizards set. */
-  protected val wizardsSet = new mutable.HashSet[Class[_ <: IWizard]]() with mutable.SynchronizedSet[Class[_ <: IWizard]]
-  private val lock = new Object
-
-  /** Get factory by singleton class name. */
-  def factory(singletonClassName: String): Option[ViewLayer.Factory] =
-    viewFactoriesMap.find(_._1.getClass().getName() == singletonClassName).map(_._1)
-  /** Get map of factories. */
-  def factories() = viewFactoriesMap.toMap
   /** the large font */
   lazy val fontLarge = {
     val fD = App.display.getSystemFont().getFontData()
@@ -94,13 +84,25 @@ class Resources extends BundleActivator with Loggable {
     fD.head.setHeight(fD.head.getHeight - 1)
     new Font(App.display, fD.head)
   }
+  /** List of all application view factories. */
+  protected val viewFactoriesMap = new Resources.ViewFactoryMap with mutable.SynchronizedMap[ViewLayer.Factory, Boolean]
+  /** Application wizards set. */
+  protected val wizardsSet = new mutable.HashSet[Class[_ <: IWizard]]() with mutable.SynchronizedSet[Class[_ <: IWizard]]
+  private val lock = new Object
+
+  /** Get factory by singleton class name. */
+  def factory(singletonClassName: String): Option[ViewLayer.Factory] =
+    viewFactoriesMap.find(_._1.getClass().getName() == singletonClassName).map(_._1)
+  /** Get map of factories. */
+  def factories() = viewFactoriesMap.toMap
+  /** Get image at the specific path and scale to k. */
   def getImage(path: String, k: Double) = {
     val image = ResourceManager.getImage(getClass, path)
     scale(image, k)
   }
-  /** Add view factory to the map of the application known views. */
+  /** Register view factory in the map of the application views. */
   def registerViewFactory(factory: ViewLayer.Factory, enabled: Boolean) = lock.synchronized {
-    log.debug("Add " + factory)
+    log.debug(s"Register view factory ${factory}.")
     viewFactoriesMap += factory -> enabled
   }
   /** Register wizard. */
@@ -119,13 +121,18 @@ class Resources extends BundleActivator with Loggable {
     fD.head.setStyle(style)
     new Font(App.display, fD.head)
   }
+  @log
   def start(context: BundleContext) {
+    log.debug("Initialize application SWT resources.")
+    // NEVER Reinitialize decoration registry.
+    // FieldDecorationRegistry.setDefault(new FieldDecorationRegistry())
     fontLarge
     fontSmall
+    Locale.setDefault(Resources.initialLocale)
   }
+  @log
   def stop(context: BundleContext) = {
-    Image.error.dispose()
-    Image.required.dispose()
+    log.debug("Dispose application SWT resources.")
     ResourceManager.dispose()
   }
   /** Validate resource leaks on shutdown. */
@@ -147,6 +154,22 @@ class Resources extends BundleActivator with Loggable {
   }
 
   object Image {
+    // We are unable to dispose this resources:
+    // This resources initialized only once in static block of org.eclipse.jface.fieldassist.FieldDecorationRegistry
+    // If we dispose it at shutdown that after bundle restart we would have pack of disposed garbage.
+    // Someone may want to restart org.eclipse.jface bundle and all dependencies ;-) lol.
+    // So org.eclipse.jface must control it life cycle itself in better world.
+
+    /*
+     * From org.eclipse.jface.fieldassist.FieldDecorationRegistry:
+     *
+     * Registers a field decoration using the specified id. The lifecyle of the
+	 * supplied image should be managed by the client. That is, it will never be
+	 * disposed by this registry and the decoration should be removed from the
+	 * registry if the image is ever disposed elsewhere.
+	 *
+	 * fucking Eclipse code monkey...
+     */
     lazy val error = FieldDecorationRegistry.getDefault().getFieldDecoration(FieldDecorationRegistry.DEC_ERROR).getImage()
     lazy val required = FieldDecorationRegistry.getDefault().getFieldDecoration(FieldDecorationRegistry.DEC_REQUIRED).getImage()
   }
@@ -160,6 +183,8 @@ object Resources extends Loggable {
 
   /** Resources implementation. */
   def inner() = DI.implementation
+  /** Application initial locale that is used for Locale.setDefault. */
+  def initialLocale() = DI.locale
 
   sealed trait IconTheme {
     val name: String
@@ -209,6 +234,8 @@ object Resources extends Loggable {
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Resources implementation. */
     lazy val implementation = injectOptional[Resources] getOrElse new Resources()
+    /** Application locale. */
+    lazy val locale = injectOptional[Locale] getOrElse Locale.getDefault()
     /** Icon theme. */
     lazy val theme = injectOptional[Resources.IconTheme] getOrElse IconTheme.Light
   }

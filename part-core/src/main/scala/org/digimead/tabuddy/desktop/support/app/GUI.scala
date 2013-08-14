@@ -247,6 +247,8 @@ trait GUI {
   def getActiveView(): Option[VComposite] = Core.context.getActiveLeaf.get(org.digimead.tabuddy.desktop.gui.GUI.viewContextKey)
   /** Get active window. */
   def getActiveWindow(): Option[AppWindow] = Core.context.getActiveLeaf.get(org.digimead.tabuddy.desktop.gui.GUI.windowContextKey)
+  /** Get active shell (from window or dialog). */
+  def getActiveShell(): Option[Shell] = Core.context.getActiveLeaf.get(org.digimead.tabuddy.desktop.gui.GUI.shellContextKey)
   /** Get all GUI components from the current widget to top level parent(shell). */
   def widgetHierarchy(widget: Widget): Seq[Widget] = Option(widget) match {
     case Some(composite: SComposite) =>

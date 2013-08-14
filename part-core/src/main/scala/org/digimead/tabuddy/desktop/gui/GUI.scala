@@ -43,18 +43,14 @@
 
 package org.digimead.tabuddy.desktop.gui
 
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
-
-import scala.collection.mutable
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.action
-import org.digimead.tabuddy.desktop.command.Command
-import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
+import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.Resources.resources2implementation
+import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowSupervisor2actorSRef
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 
@@ -84,6 +80,7 @@ class GUI extends Loggable {
     log.debug("Main loop is running.")
     this.exitCode = Some(exitCode)
     val display = App.display
+    Resources.start(App.bundle(getClass).getBundleContext())
     App.publish(App.Message.Start(Right(GUI)))
     WindowSupervisor ! App.Message.Restore
     while (exitCode.get.isEmpty) try {
@@ -103,6 +100,8 @@ class GUI extends Loggable {
       case e: Throwable =>
         log.error(e.getMessage, e)
     }
+    Resources.validateOnShutdown()
+    Resources.stop(App.bundle(getClass).getBundleContext())
     log.debug("Main loop is finished.")
     exitCode.get.getOrElse {
       log.fatal("Unexpected termination without exit code.")
@@ -116,9 +115,11 @@ object GUI {
   implicit def gui2implementation(g: GUI.type): GUI = g.inner
   /** SWT Data ID key */
   val swtId = getClass.getName() + "#ID"
+  /** Context key with the current shell. */
+  lazy val shellContextKey = DI.shellContextKey
   /** Context key with current view. */
   lazy val viewContextKey = DI.viewContextKey
-  /** Context key with current view. */
+  /** Context key with current window. */
   lazy val windowContextKey = DI.windowContextKey
 
   def inner(): GUI = DI.implementation
@@ -134,9 +135,11 @@ object GUI {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Context key with current view. */
+    /** Context key with the current shell. */
+    lazy val shellContextKey = injectOptional[String]("GUI.Context.ShellKey") getOrElse "shell"
+    /** Context key with the current view. */
     lazy val viewContextKey = injectOptional[String]("GUI.Context.ViewKey") getOrElse "view"
-    /** Context key with current view. */
+    /** Context key with the current window. */
     lazy val windowContextKey = injectOptional[String]("GUI.Context.WindowKey") getOrElse "window"
     /** GUI implementation */
     lazy val implementation = injectOptional[GUI] getOrElse new GUI

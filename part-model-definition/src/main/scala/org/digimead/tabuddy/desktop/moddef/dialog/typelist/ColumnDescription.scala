@@ -43,8 +43,10 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.typelist
 
-import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
+import org.digimead.tabuddy.desktop.moddef.Default
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.EditingSupport
@@ -52,7 +54,6 @@ import org.eclipse.jface.viewers.TableViewer
 import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.graphics.Point
-import org.digimead.digi.lib.log.api.Loggable
 
 object ColumnDescription extends Loggable {
   class TLabelProvider extends CellLabelProvider {
@@ -71,13 +72,9 @@ object ColumnDescription extends Loggable {
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
-    /**
-     * Return the amount of pixels in x and y direction that the tool tip to
-     * pop up from the mouse pointer.
-     */
-    override def getToolTipShift(obj: Object): Point = new Point(5, 5)
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 100 //msec
-    override def getToolTipTimeDisplayed(obj: Object): Int = 5000 //msec
+    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
+    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
   }
   class TEditingSupport(viewer: TableViewer, container: TypeList) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())
@@ -92,8 +89,8 @@ object ColumnDescription extends Loggable {
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
       case before: TypeSchema =>
         val description = value.asInstanceOf[String].trim
-        //if (before.description != description && !container.actual.exists(_.description == description))
-        //  container.updateActualSchema(before, before.copy(description = description))
+        if (before.description != description && !container.actual.exists(_.description == description))
+          container.updateActualSchema(before, before.copy(description = description))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }

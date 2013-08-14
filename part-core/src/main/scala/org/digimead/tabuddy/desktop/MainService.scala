@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.lib.Disposable
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
@@ -56,9 +57,9 @@ import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.core.databinding.DataBindingContext
 import org.eclipse.core.databinding.observable.Realm
+import org.eclipse.core.runtime.Platform
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.e4.ui.internal.workbench.E4Workbench
-import org.eclipse.e4.ui.model.application.MApplication
 import org.eclipse.equinox.app.IApplication
 import org.eclipse.equinox.app.IApplicationContext
 import org.eclipse.jface.databinding.swt.SWTObservables
@@ -108,24 +109,18 @@ class MainService extends api.Main with Disposable.Default with Loggable {
    */
   def call(): Int = try {
     log.info("Run core.")
-    updateDI()
+    // Waiting for IApplicationContext service.
+    // Assume that platform is started when IApplicationContext is available.
     val applicationContextServiceTracker = new ServiceTracker[IApplicationContext, IApplicationContext](App.bundle(getClass).getBundleContext(), classOf[IApplicationContext], null)
     applicationContextServiceTracker.open()
     log.debug("Get global application context.")
     val exitCode = Option(applicationContextServiceTracker.waitForService(applicationContextTimeout.toMillis)) match {
       case Some(appContext) =>
-        log.debug("Prepare global application context for new iteration.")
+        if (!Platform.isRunning)
+          throw new IllegalStateException("Eclipse platform is not running.")
+        updateDI()
         try {
-          // adjust arguments
-          val arguments = appContext.getArguments().asInstanceOf[java.util.Map[String, AnyRef]]
-          arguments.clear()
-          arguments.put("application.args", Array[String]())
-        } catch {
-          case e: Throwable =>
-            log.error(s"Unable to prepare ${appContext}:" + e.getMessage, e)
-        }
-        try {
-          start(null).asInstanceOf[Int]
+          start().asInstanceOf[Int]
         } catch {
           case e: Throwable =>
             log.error(s"Application terminated: " + e.getMessage(), e)
@@ -154,7 +149,7 @@ class MainService extends api.Main with Disposable.Default with Loggable {
    * @param context the application context to pass to the application
    * @exception Exception if there is a problem running this application.
    */
-  def start(context: IApplicationContext): AnyRef = digiStart(): java.lang.Integer
+  def start(): AnyRef = digiStart(): java.lang.Integer
   /**
    * Forces this running application to exit.  This method should wait until the
    * running application is ready to exit.  The {@link #start(IApplicationContext)}
@@ -340,7 +335,7 @@ object MainService extends Loggable {
   implicit def main2implementation(c: MainService.type): MainService = c.inner
   private val disposeableLock = new Object
 
-  /** Main implementation. */
+  /** Main service implementation. */
   def inner() = DI.implementation
 
   /**
@@ -359,17 +354,14 @@ object MainService extends Loggable {
     def thread = MainService.thread
   }
   class UIThread extends Thread("GUI Thread") {
-    // Initialized by call()
     /** The global application data binding context */
     lazy val bindingContext = new DataBindingContext(realm)
     // There is no display dispose because I don't want to read huge pack of exception reports
     // from Eclipse shit (spreading across bundles widely) that completely ignores bundles restart possibility.
     // We save display with all allocated garbage even between bundle restarts. Many thanks to Eclipse developers for this crap.
     //   Ezh
-    // Initialized by call()
     /** The default display, available from ui.Window */
     lazy val display = PlatformUI.createDisplay()
-    // Initialized by call()
     /** The realm representing the UI thread for the given display */
     lazy val realm = SWTObservables.getRealm(display)
     /** Thread result. */
@@ -390,10 +382,10 @@ object MainService extends Loggable {
     }
   }
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Main implementation. */
+    /** Main service implementation. */
     lazy val implementation = injectOptional[MainService] getOrElse new MainService()
   }
 }

@@ -112,8 +112,8 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
 
   /** Add window ID to shell. */
   override protected def configureShell(shell: Shell) {
+    shell.setData(GUI.swtId, id) // order is important
     super.configureShell(shell)
-    shell.setData(GUI.swtId, id)
     // The onPaintListener solution is not sufficient
     App.display.addFilter(SWT.Paint, onActiveListener)
     shell.addDisposeListener(new DisposeListener {

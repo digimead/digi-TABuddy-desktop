@@ -279,12 +279,13 @@ object PropertyType extends Loggable {
     private def injectTypes(): immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]] = {
       val types = inject[Seq[api.PropertyType[_ <: AnyRef with java.io.Serializable]]]
       val result = immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]](types.map(n => (n.id, n)): _*)
-      assert(result.nonEmpty, "unable to start application with empty properyTypes map")
+      assert(result.nonEmpty, "Unable to start application with empty properyTypes map.")
+
       result.values.foreach(ptype => try {
-        log.debug("register property handler %s -> %s".format(ptype.typeSymbol, ptype.id.name))
+        log.debug("Register property handler [type symbol:%s -> id:%s].".format(ptype.typeSymbol, ptype.id.name))
       } catch {
         case e: NoSuchElementException =>
-          log.error(s"unable to register $ptype, DSL type not found", e)
+          log.error(s"Unable to register $ptype, DSL type not found.", e)
           throw e
       })
       result

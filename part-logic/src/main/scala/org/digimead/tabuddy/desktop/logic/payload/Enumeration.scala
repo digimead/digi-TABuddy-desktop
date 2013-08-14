@@ -47,7 +47,9 @@ import scala.collection.immutable
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.definition.NLS
 import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.support.App
@@ -208,8 +210,8 @@ object Enumeration extends Loggable {
   }
   /** Get translation by alias */
   def getConstantTranslation(constant: Constant[_ <: AnyRef with java.io.Serializable]): String =
-    /*if (constant.alias.startsWith("*"))
-      Resources.messages.get(constant.alias.substring(1)).getOrElse {
+    if (constant.alias.startsWith("*"))
+      NLS.consolidated.get(constant.alias.substring(1)).getOrElse {
         val result = constant.alias.substring(1)
         val trimmed = if (result.endsWith("_text"))
           result.substring(0, result.length - 5)
@@ -220,8 +222,7 @@ object Enumeration extends Loggable {
     else if (constant.alias.isEmpty())
       constant.ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]].valueToString(constant.value)
     else
-      constant.alias*/
-    ""
+      constant.alias
   /** Get all enumerations. */
   def load(): Set[api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
     log.debug("load enumerations list for model " + Model.eId)

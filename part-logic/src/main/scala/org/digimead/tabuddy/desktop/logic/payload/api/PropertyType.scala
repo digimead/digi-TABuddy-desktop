@@ -44,8 +44,9 @@
 package org.digimead.tabuddy.desktop.logic.payload.api
 
 import scala.reflect.runtime.universe
-import org.digimead.tabuddy.model.element.Element
+
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.model.element.Element
 
 /**
  * Base class of the handler for the property of the particular type

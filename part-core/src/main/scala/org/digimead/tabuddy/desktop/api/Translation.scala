@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,38 +41,36 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.moddef.dialog.typeed
+package org.digimead.tabuddy.desktop.api
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.logic.payload.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
-import org.digimead.tabuddy.desktop.moddef.Default
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.ViewerCell
-import org.eclipse.swt.graphics.Point
+import java.util.Locale
 
-object ColumnView extends Loggable {
-  class TLabelProvider extends CellLabelProvider {
-    /** Update the label for cell. */
-    override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: TypeSchema.Entity[_] =>
-        cell.setText(item.view)
-      case unknown =>
-        log.fatal("Unknown item " + unknown.getClass())
+import scala.collection.immutable
+
+/** Translation service. */
+trait Translation {
+  /** Translate the specific singleton. */
+  def translate(instance: Translation.NLS, locale: Locale, resourceNames: Seq[String]): Unit
+}
+
+object Translation {
+  /** Trait for object with messages. */
+  trait NLS {
+    val T: Translation
+    trait Translation {
+      /** Message map accessor. */
+      def messages(): immutable.ListMap[String, String]
+      /** Translate the current singleton. */
+      def translate(resourceName: String): Unit =
+        translate(Seq(resourceName), Locale.getDefault())
+      /** Translate the current singleton. */
+      def translate(resourceName: String, locale: Locale): Unit =
+        translate(Seq(resourceName), locale)
+      /** Translate the current singleton. */
+      def translate(resourceNames: Seq[String]): Unit =
+        translate(resourceNames, Locale.getDefault())
+      /** Translate the current singleton. */
+      def translate(resourceNames: Seq[String], locale: Locale)
     }
-    /** Get the text displayed in the tool tip for object. */
-    override def getToolTipText(element: Object): String = element match {
-      case item: TypeSchema.Entity[_] if PropertyType.container.contains(item.ptypeId) =>
-        Messages.typeInternalRepresentaion_text.format(PropertyType.container(item.ptypeId).typeClass.getName())
-      case item: TypeSchema.Entity[_] =>
-        Messages.typeIsUnknown_text
-      case unknown =>
-        log.fatal("Unknown item " + unknown.getClass())
-        null
-    }
-    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
-    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
-    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
   }
 }

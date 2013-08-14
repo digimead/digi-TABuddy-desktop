@@ -73,6 +73,10 @@ package object moddef {
     module.bind[(Set[Enumeration[_ <: AnyRef with java.io.Serializable]], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyEnumerationList] toSingle {
       (enumerationList, modelId) => new operation.OperationModifyEnumerationList(enumerationList, modelId)
     }
+    // implementation of logic.operation.OperationModifyTypeSchema
+    module.bind[(TypeSchema, Set[TypeSchema], Boolean, Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyTypeSchema] toSingle {
+      (schema, schemaList, isActive, modelId) => new operation.OperationModifyTypeSchema(schema, schemaList, isActive, modelId)
+    }
     // implementation of logic.operation.OperationModifyTypeSchemaList
     module.bind[(Set[TypeSchema], TypeSchema, Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyTypeSchemaList] toSingle {
       (before, active, modelId) => new operation.OperationModifyTypeSchemaList(before, active, modelId)

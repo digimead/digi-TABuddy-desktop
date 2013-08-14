@@ -54,4 +54,10 @@ trait TypeSchemaEntity[T <: AnyRef with java.io.Serializable] extends Equals {
   val description: String
   /** The type schema entity user's representation */
   val view: String
+
+  /** The copy constructor */
+  def copy(ptypeId: Symbol = this.ptypeId,
+    alias: String = this.alias,
+    availability: Boolean = this.availability,
+    description: String = this.description): this.type
 }

@@ -154,8 +154,10 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   /** User start interaction with window. Focus is gained. */
   protected def onStart(widget: Widget) = window match {
     case Some(window) =>
-      Core.context.set(GUI.windowContextKey, window)
-      windowContext.activateBranch()
+      App.execNGet {
+        Core.context.set(GUI.windowContextKey, window)
+        windowContext.activateBranch()
+      }
       Await.ready(ask(stackSupervisor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
     case None =>
       log.fatal("Unable to start unexists window.")

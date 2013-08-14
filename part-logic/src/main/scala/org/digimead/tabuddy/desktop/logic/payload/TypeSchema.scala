@@ -46,16 +46,19 @@ package org.digimead.tabuddy.desktop.logic.payload
 import java.util.UUID
 
 import scala.Option.option2Iterable
-import scala.collection.JavaConversions._
+import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConversions.seqAsJavaList
 import scala.collection.immutable
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.NLS
 import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
@@ -72,6 +75,10 @@ import org.yaml.snakeyaml.nodes.Tag
 import org.yaml.snakeyaml.representer.Represent
 import org.yaml.snakeyaml.representer.Representer
 
+/**
+ * The TypeSchema
+ * The equality is based on id: UUID
+ */
 class TypeSchema(
   /** A type schema name */
   val id: UUID,
@@ -80,7 +87,7 @@ class TypeSchema(
   /** The type schema description */
   val description: String,
   /** Type schema entities */
-  val entity: immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]) extends TypeSchema.Interface {
+  val entity: immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]) extends api.TypeSchema {
   assert(entity.nonEmpty, "Type schema contain no entities")
 
   /** The copy constructor */
@@ -89,6 +96,19 @@ class TypeSchema(
     description: String = this.description,
     entity: immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]] = this.entity) =
     new TypeSchema(id, name, description, entity).asInstanceOf[this.type]
+
+  def canEqual(other: Any) =
+    other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema]
+  override def equals(other: Any) = other match {
+    case that: org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema =>
+      (this eq that) || {
+        that.canEqual(this) &&
+          id == that.id
+      }
+    case _ => false
+  }
+  override def hashCode() = id.hashCode
+  override def toString() = "TypeSchema %s \"%s\"".format(id, name)
 }
 
 /**
@@ -112,11 +132,11 @@ object TypeSchema extends Loggable {
   def default() = predefinedSchemas.find(_.id == DI.default).get
   /** Get entities set */
   def entities = immutable.HashSet[api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]](
-    PropertyType.container.values.toSeq.map(ptype => TypeSchema.Entity(ptype.id, "", true,
+    PropertyType.container.values.toSeq.map(ptype => new TypeSchema.Entity(ptype.id, "", true,
       Messages.typeSchemaDefaultDescription_text.format(getEntityTranslation(ptype.id, "")))): _*)
   /** Get translation by alias */
-  def getEntityTranslation(entityTypeId: Symbol, entityAlias: String): String = "" /*if (entityAlias.startsWith("*"))
-    Resources.messages.get(entityAlias.substring(1)).getOrElse {
+  def getEntityTranslation(entityTypeId: Symbol, entityAlias: String): String = if (entityAlias.startsWith("*"))
+    NLS.consolidated.get(entityAlias.substring(1)).getOrElse {
       val result = entityAlias.substring(1)
       val trimmed = if (result.endsWith("_text"))
         result.substring(0, result.length - 5)
@@ -125,9 +145,9 @@ object TypeSchema extends Loggable {
       trimmed(0).toString.toUpperCase + trimmed.substring(1)
     }
   else if (entityAlias.isEmpty())
-    Resources.messages.get(entityTypeId.name.toLowerCase() + "_text").getOrElse(entityTypeId.name)
+    NLS.consolidated.get(entityTypeId.name.toLowerCase() + "_text").getOrElse(entityTypeId.name)
   else
-    entityAlias*/
+    entityAlias
   /** Get type name*/
   def getTypeName(ptypeId: Symbol) = App.execNGet {
     Data.typeSchema.value.entity.get(ptypeId) match {
@@ -187,7 +207,7 @@ object TypeSchema extends Loggable {
    * The type schema entity. It is a tuple templateTypeSymbol -> context information
    * The equality is based on ptypeId: Symbol
    */
-  case class Entity[T <: AnyRef with java.io.Serializable](
+  class Entity[T <: AnyRef with java.io.Serializable](
     /** The property type id */
     val ptypeId: Symbol,
     /** typeSymbol alias */
@@ -198,6 +218,13 @@ object TypeSchema extends Loggable {
     val description: String) extends api.TypeSchemaEntity[T] {
     /** The type schema entity user's representation */
     lazy val view: String = TypeSchema.getEntityTranslation(ptypeId, alias)
+
+    /** The copy constructor */
+    def copy(ptypeId: Symbol = this.ptypeId,
+      alias: String = this.alias,
+      availability: Boolean = this.availability,
+      description: String = this.description): this.type =
+      new Entity(ptypeId, alias, availability, description).asInstanceOf[this.type]
 
     def canEqual(other: Any) =
       other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.api.TypeSchemaEntity[_]]
@@ -210,39 +237,6 @@ object TypeSchema extends Loggable {
       case _ => false
     }
     override def hashCode() = ptypeId.hashCode
-  }
-  /**
-   * The base TypeSchema interface
-   * The equality is based on id: UUID
-   */
-  private[TypeSchema] trait Interface extends api.TypeSchema {
-    /** The type schema id */
-    val id: UUID
-    /** The type schema name */
-    val name: String
-    /** The type schema description */
-    val description: String
-    /** Type schema entities */
-    val entity: immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]
-
-    /** The copy constructor */
-    def copy(id: UUID = this.id,
-      name: String = this.name,
-      description: String = this.description,
-      entity: immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]] = this.entity): this.type
-
-    def canEqual(other: Any) =
-      other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema]
-    override def equals(other: Any) = other match {
-      case that: org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema =>
-        (this eq that) || {
-          that.canEqual(this) &&
-            id == that.id
-        }
-      case _ => false
-    }
-    override def hashCode() = id.hashCode
-    override def toString() = "TypeSchema %s \"%s\"".format(id, name)
   }
   object YAML extends api.Payload.YAMLProcessor[api.TypeSchema] {
     /** Convert JSON to the object */
@@ -258,8 +252,8 @@ object TypeSchema extends Loggable {
       yaml.dump(value)
     }
 
-    class TypeSchemaConstructor extends Constructor(classOf[Interface]) {
-      val interfaceTag = new Tag(classOf[Interface])
+    class TypeSchemaConstructor extends Constructor(classOf[api.TypeSchema]) {
+      val interfaceTag = new Tag(classOf[api.TypeSchema])
       val entityTag = new Tag(classOf[Entity[_]])
       this.yamlConstructors.put(interfaceTag, new InterfaceConstruct())
       this.yamlConstructors.put(entityTag, new EntityConstruct())
@@ -329,7 +323,7 @@ object TypeSchema extends Loggable {
               alias <- alias
               availability <- availability
               description <- description
-            } yield TypeSchema.Entity(Symbol(ptypeId), alias, availability, description)
+            } yield new TypeSchema.Entity(Symbol(ptypeId), alias, availability, description)
             entity.getOrElse {
               log.error(s"Unable to load TypeSchema.Entity ptype:$ptypeId, alias:$alias, availability:$availability, description:$description")
               null
@@ -341,7 +335,7 @@ object TypeSchema extends Loggable {
     }
 
     class TypeSchemaRepresenter extends Representer {
-      multiRepresenters.put(classOf[Interface], new InterfaceRepresent)
+      multiRepresenters.put(classOf[api.TypeSchema], new InterfaceRepresent)
       multiRepresenters.put(classOf[Entity[_]], new EntityRepresent)
 
       class InterfaceRepresent extends Represent {

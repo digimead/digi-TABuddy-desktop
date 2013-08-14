@@ -48,13 +48,14 @@ import scala.reflect.runtime.universe
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.moddef.dialog.typelist.TypeList
+import org.digimead.tabuddy.desktop.moddef.dialog.typeed.TypeEditor
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.swt.widgets.Shell
 
 class OperationModifyTypeSchema(schema: payload.api.TypeSchema, schemaList: Set[payload.api.TypeSchema], isActive: Boolean, modelId: Symbol)
   extends org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchema.Abstract(schema, schemaList, isActive, modelId) with Loggable {
@@ -67,6 +68,19 @@ class OperationModifyTypeSchema(schema: payload.api.TypeSchema, schemaList: Set[
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
+  protected def dialog(shell: Shell): Operation.Result[(payload.api.TypeSchema, Boolean)] = {
+    val dialog = new TypeEditor(shell, schema, schemaList.toList, isActive)
+    if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
+      Operation.Result.OK({
+        val schema = dialog.getModifiedSchema
+        if (dialog.getModifiedSchemaActiveFlag == isActive && schemaList.contains(schema) && payload.TypeSchema.compareDeep(this.schema, schema))
+          None // nothing changes, and schema is already exists
+        else
+          Some(schema, dialog.getModifiedSchemaActiveFlag)
+      })
+    else
+      Operation.Result.Cancel[(payload.api.TypeSchema, Boolean)]()
+  }
   protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(payload.api.TypeSchema, Boolean)] = redo(monitor, info)
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(payload.api.TypeSchema, Boolean)] = {
     assert(Model.eId == modelId, "unexpected model %s, expect %s".format(Model.eId, modelId))
@@ -74,22 +88,10 @@ class OperationModifyTypeSchema(schema: payload.api.TypeSchema, schemaList: Set[
     val result: Operation.Result[(payload.api.TypeSchema, Boolean)] = if (canRedo) {
       jobResult.get
     } else if (canExecute) {
-      /*  Main.execNGet {
-        val dialog = new TypeEditor(Window.currentShell(), schema, schemaList.toList, isActive)
-        Window.currentShell.withValue(Some(dialog.getShell)) {
-          dialog.open() == org.eclipse.jface.window.Window.OK
-        } match {
-          case true => Operation.Result.OK({
-            val schema = dialog.getModifiedSchema
-            if (dialog.getModifiedSchemaActiveFlag == isActive && schemaList.contains(schema) && TypeSchema.compareDeep(this.schema, schema))
-              None // nothing changes, and schema is already exists
-            else
-              Some(schema, dialog.getModifiedSchemaActiveFlag)
-          })
-          case false => Operation.Result.Cancel()
-        }
-      }*/
-      Operation.Result.Error("")
+      App.execNGet {
+        App.getActiveShell.map(dialog) getOrElse
+          { Operation.Result.Error("Unable to find active shell.") }
+      }
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state

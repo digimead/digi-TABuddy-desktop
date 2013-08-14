@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.moddef.operation
 
 import scala.reflect.runtime.universe
+
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.definition.Operation
@@ -60,7 +61,7 @@ import org.eclipse.core.runtime.IProgressMonitor
 import org.eclipse.core.runtime.IStatus
 import org.eclipse.core.runtime.Status
 import org.eclipse.jface.dialogs.ErrorDialog
-import org.digimead.tabuddy.desktop.gui.widget.AppWindow
+import org.eclipse.swt.widgets.Shell
 
 /**
  * Modify an enumeration list
@@ -77,14 +78,13 @@ class OperationModifyEnumeration(enumeration: payload.api.Enumeration[_ <: AnyRe
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = redo(monitor, info)
-  protected def openDialog(window: AppWindow): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
+  protected def dialog(shell: Shell): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
     if (Data.getAvailableTypes().isEmpty) {
-      ErrorDialog.openError(window.getShell(), null, Messages.enumerationUnableToCreate_text,
+      ErrorDialog.openError(shell, null, Messages.enumerationUnableToCreate_text,
         new Status(IStatus.INFO, "unknown", IStatus.OK, Messages.enumerationUnableToCreateNoTypes_text, null))
       Operation.Result.Error(Messages.enumerationUnableToCreate_text, false)
     } else {
-      val dialog = new EnumerationEditor(window.getShell(), enumeration, enumerationList.toList)
+      val dialog = new EnumerationEditor(shell, enumeration, enumerationList.toList)
       if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
         Operation.Result.OK({
           val enumeration = dialog.getModifiedEnumeration
@@ -97,6 +97,7 @@ class OperationModifyEnumeration(enumeration: payload.api.Enumeration[_ <: AnyRe
         Operation.Result.Cancel()
     }
   }
+  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = redo(monitor, info)
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
     assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
     // process the job
@@ -105,8 +106,8 @@ class OperationModifyEnumeration(enumeration: payload.api.Enumeration[_ <: AnyRe
       Operation.Result.Error[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]("Unimplemented")
     } else if (canExecute) {
       // TODO save modification history
-      App.getActiveWindow.map { window => App.execNGet { openDialog(window) } } getOrElse
-        { Operation.Result.Error("Unable to find active window.") }
+      App.execNGet { App.getActiveShell.map(dialog) } getOrElse
+        { Operation.Result.Error("Unable to find active shell.") }
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state

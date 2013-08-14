@@ -55,6 +55,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.swt.widgets.Shell
 
 /**
  * Modify an immutable type schema list
@@ -70,6 +71,13 @@ class OperationModifyTypeSchemaList(before: Set[TypeSchema], active: TypeSchema,
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
+  protected def dialog(shell: Shell): Operation.Result[(Set[TypeSchema], TypeSchema)] = {
+    val dialog = new TypeList(shell, before.toList, active)
+    if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
+      Operation.Result.OK(Some(dialog.getSchemaSet, dialog.getActiveSchema))
+    else
+      Operation.Result.Cancel[(Set[TypeSchema], TypeSchema)]()
+  }
   protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[TypeSchema], TypeSchema)] = redo(monitor, info)
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[TypeSchema], TypeSchema)] = {
     assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
@@ -78,13 +86,8 @@ class OperationModifyTypeSchemaList(before: Set[TypeSchema], active: TypeSchema,
       jobResult.get
     } else if (canExecute) {
       App.execNGet {
-        App.getActiveWindow.map { window =>
-          val dialog = new TypeList(window.getShell(), before.toList, active)
-          if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
-            Operation.Result.OK(Some(dialog.getSchemaSet, dialog.getActiveSchema))
-          else
-            Operation.Result.Cancel[(Set[TypeSchema], TypeSchema)]()
-        } getOrElse { Operation.Result.Error("Unable to find active window.") }
+        App.getActiveShell.map(dialog) getOrElse
+          { Operation.Result.Error("Unable to find active shell.") }
       }
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
