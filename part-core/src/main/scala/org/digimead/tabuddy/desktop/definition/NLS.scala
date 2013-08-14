@@ -76,7 +76,7 @@ abstract class NLS extends Translation.NLS {
     /** Message map accessor. */
     def messages() = messageMap
     /** Translate the current singleton. */
-    def translate(resourceNames: Seq[String], locale: Locale): Unit = {
+    def ranslate(resourceNames: Seq[String], locale: Locale): Unit = {
       val context = App.bundle(NLS.this.getClass).getBundleContext()
       NLS.translationService match {
         case Some(service) =>
@@ -172,7 +172,7 @@ object NLS {
   /** Reload translations. */
   def reload(locale: Locale = Locale.getDefault()) = App.exec { // Translation must be visible for UI
     registry.synchronized {
-      registry.foreach { case (nls, resourceName) => nls.T.translate(resourceName, locale) }
+      registry.foreach { case (nls, resourceName) => nls.T.ranslate(resourceName, locale) }
       cache = None
     }
   }

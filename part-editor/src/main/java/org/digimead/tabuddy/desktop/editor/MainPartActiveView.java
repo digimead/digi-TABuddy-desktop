@@ -113,7 +113,7 @@ public class MainPartActiveView extends Composite {
 		btnResetActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
 				false, false, 1, 1));
 		btnResetActiveElement
-				.setText(org.digimead.tabuddy.desktop.Messages.reset_text);
+				.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.reset_text());
 
 	}
 

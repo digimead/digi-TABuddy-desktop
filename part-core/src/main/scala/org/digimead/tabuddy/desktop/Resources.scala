@@ -47,13 +47,15 @@ import java.util.Locale
 import java.util.UUID
 
 import scala.collection.mutable
+import scala.language.implicitConversions
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.command.Command.cmdLine2implementation
-import org.digimead.tabuddy.desktop.definition.IWizard
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.digimead.tabuddy.desktop.definition.NLS
 import org.digimead.tabuddy.desktop.gui.ViewLayer
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -129,6 +131,10 @@ class Resources extends BundleActivator with Loggable {
     fontLarge
     fontSmall
     Locale.setDefault(Resources.initialLocale)
+    // Wait for translationService
+    NLS.translationService
+    // Translate all messages
+    Messages
   }
   @log
   def stop(context: BundleContext) = {

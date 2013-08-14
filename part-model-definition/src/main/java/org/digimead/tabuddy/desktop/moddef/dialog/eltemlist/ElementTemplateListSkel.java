@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.eltemlist;
 
-import org.digimead.tabuddy.desktop.Messages;
 import org.digimead.tabuddy.desktop.ResourceManager;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
@@ -93,8 +92,8 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	protected Control createDialogArea(Composite parent) {
 		setTitleImage(ResourceManager.getImage(ElementTemplateList.class,
 				"/icons/full/message_info.gif"));
-		setTitle(Messages.elementTemplateListTitle_text);
-		setMessage(Messages.elementTemplateListDescription_text);
+		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplateListTitle_text());
+		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplateListDescription_text());
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new GridLayout(1, true));
@@ -103,7 +102,7 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 		Label lblElementTemplates = new Label(container, SWT.NONE);
 		lblElementTemplates.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER,
 				false, false, 1, 1));
-		lblElementTemplates.setText(Messages.elementTemplates_text);
+		lblElementTemplates.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplates_text());
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK | SWT.FULL_SELECTION);
 		Table table_templates = tableViewer.getTable();
@@ -118,13 +117,13 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 				.getColumn();
 		tblclmnAvailability.setWidth(100);
 		tblclmnAvailability
-				.setText(Messages.availability_text);
+				.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.availability_text());
 
 		tableViewerColumnId = new TableViewerColumn(tableViewer,
 				SWT.NONE);
 		TableColumn tblclmnId = tableViewerColumnId.getColumn();
 		tblclmnId.setWidth(100);
-		tblclmnId.setText(Messages.identificator_text);
+		tblclmnId.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text());
 
 		tableViewerColumnName = new TableViewerColumn(
 				tableViewer, SWT.NONE);
@@ -132,7 +131,7 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 				.getColumn();
 		tblclmnName.setWidth(100);
 		tblclmnName
-				.setText(Messages.name_text);
+				.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text());
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,

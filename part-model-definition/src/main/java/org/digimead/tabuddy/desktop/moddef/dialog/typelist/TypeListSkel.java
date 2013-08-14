@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.typelist;
 
-import org.digimead.tabuddy.desktop.Messages;
 import org.digimead.tabuddy.desktop.ResourceManager;
 import org.digimead.tabuddy.desktop.moddef.dialog.eltemlist.ElementTemplateListSkel;
 import org.eclipse.jface.dialogs.IDialogConstants;
@@ -98,8 +97,8 @@ public class TypeListSkel extends TitleAreaDialog {
 	protected Control createDialogArea(Composite parent) {
 		setTitleImage(ResourceManager.getImage(ElementTemplateListSkel.class,
 				"/icons/full/message_info.gif"));
-		setTitle(Messages.typeListTitle_text);
-		setMessage(Messages.typeListDescription_text);
+		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeListTitle_text());
+		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeListDescription_text());
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new GridLayout(2, false));
@@ -108,7 +107,7 @@ public class TypeListSkel extends TitleAreaDialog {
 		Label lblEnumerations = new Label(container, SWT.NONE);
 		lblEnumerations.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER,
 				false, false, 2, 1));
-		lblEnumerations.setText(Messages.typeSchemas_text);
+		lblEnumerations.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeSchemas_text());
 
 		Composite compositeHeader = new Composite(container, SWT.NONE);
 		compositeHeader.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false,
@@ -117,7 +116,7 @@ public class TypeListSkel extends TitleAreaDialog {
 
 		Label lblActiveScheme = new Label(compositeHeader, SWT.NONE);
 		lblActiveScheme.setLayoutData(BorderLayout.WEST);
-		lblActiveScheme.setText(Messages.activeSchema_text);
+		lblActiveScheme.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.activeSchema_text());
 
 		textActiveSchema = new Text(compositeHeader, SWT.BORDER | SWT.READ_ONLY);
 		textActiveSchema.setLayoutData(BorderLayout.CENTER);
@@ -125,7 +124,7 @@ public class TypeListSkel extends TitleAreaDialog {
 		btnResetSchema = new Button(compositeHeader, SWT.NONE);
 		btnResetSchema.setEnabled(false);
 		btnResetSchema.setLayoutData(BorderLayout.EAST);
-		btnResetSchema.setText(Messages.reset_text);
+		btnResetSchema.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.reset_text());
 
 		tableViewer = new TableViewer(container, SWT.BORDER
 				| SWT.FULL_SELECTION);
@@ -138,12 +137,12 @@ public class TypeListSkel extends TitleAreaDialog {
 		tblclmnViewerName = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnName = tblclmnViewerName.getColumn();
 		tblclmnName.setWidth(100);
-		tblclmnName.setText(Messages.name_text);
+		tblclmnName.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text());
 
 		tblclmnViewerDescription = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnDescription = tblclmnViewerDescription.getColumn();
 		tblclmnDescription.setWidth(100);
-		tblclmnDescription.setText(Messages.description_text);
+		tblclmnDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text());
 
 		compositeActivator = new Composite(container, SWT.NONE);
 		compositeActivator.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));

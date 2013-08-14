@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.enumlist;
 
-import org.digimead.tabuddy.desktop.Messages;
 import org.digimead.tabuddy.desktop.ResourceManager;
 import org.digimead.tabuddy.desktop.moddef.dialog.eltemlist.ElementTemplateListSkel;
 import org.eclipse.jface.dialogs.IDialogConstants;
@@ -94,8 +93,8 @@ public class EnumerationListSkel extends TitleAreaDialog {
 	protected Control createDialogArea(Composite parent) {
 		setTitleImage(ResourceManager.getImage(ElementTemplateListSkel.class,
 				"/icons/full/message_info.gif"));
-		setTitle(Messages.enumerationListTitle_text);
-		setMessage(Messages.enumerationListDescription_text);
+		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.enumerationListTitle_text());
+		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.enumerationListDescription_text());
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new GridLayout(1, false));
@@ -104,7 +103,7 @@ public class EnumerationListSkel extends TitleAreaDialog {
 		Label lblEnumerations = new Label(container, SWT.NONE);
 		lblEnumerations.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER,
 				false, false, 1, 1));
-		lblEnumerations.setText(Messages.enumerations_text);
+		lblEnumerations.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.enumerations_text());
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK
 				| SWT.FULL_SELECTION);
@@ -118,17 +117,17 @@ public class EnumerationListSkel extends TitleAreaDialog {
 		TableColumn tblclmnEnumerationAvailability = tblclmnAvailability
 				.getColumn();
 		tblclmnEnumerationAvailability.setWidth(100);
-		tblclmnEnumerationAvailability.setText(Messages.availability_text);
+		tblclmnEnumerationAvailability.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.availability_text());
 
 		tblclmnId = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnEnumerationId = tblclmnId.getColumn();
 		tblclmnEnumerationId.setWidth(100);
-		tblclmnEnumerationId.setText(Messages.identificator_text);
+		tblclmnEnumerationId.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text());
 
 		tblclmnName = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnEnumerationName = tblclmnName.getColumn();
 		tblclmnEnumerationName.setWidth(100);
-		tblclmnEnumerationName.setText(Messages.name_text);
+		tblclmnEnumerationName.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text());
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true,

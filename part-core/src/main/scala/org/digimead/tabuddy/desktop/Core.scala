@@ -119,10 +119,6 @@ class Core extends akka.actor.Actor with Loggable {
 
     case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
       future {
-        // Wait for translationService in future
-        definition.NLS.translationService
-        // Lock UI and translate all messages
-        App.execNGet { Core.initializeBundleMessages }
         App.verifyApplicationEnvironment
         core.Actions.configure
         core.Views.configure
@@ -171,10 +167,6 @@ object Core {
 
   override def toString = "Core[Singleton]"
 
-  /** Initialize translation. */
-  protected def initializeBundleMessages {
-    Mess
-  }
   /**
    * Dependency injection routines
    */

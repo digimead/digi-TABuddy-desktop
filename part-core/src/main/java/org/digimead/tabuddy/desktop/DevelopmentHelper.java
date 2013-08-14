@@ -64,7 +64,7 @@ public class DevelopmentHelper extends Composite {
 		super(parent, style);
 
 		Label lblNewLabel = new Label(this, SWT.NONE);
-		lblNewLabel.setText(Messages.acquire_text);
+		lblNewLabel.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.acquire_text());
 
 	}
 

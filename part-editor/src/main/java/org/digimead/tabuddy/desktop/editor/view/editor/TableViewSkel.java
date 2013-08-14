@@ -90,7 +90,7 @@ public class TableViewSkel extends Composite {
 				1));
 
 		Label lblRoot = new Label(this, SWT.NONE);
-		lblRoot.setText(Messages.rootElement_text);
+		lblRoot.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.rootElement_text());
 
 		textRootElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY
 				| SWT.WRAP | SWT.SINGLE);
@@ -102,7 +102,7 @@ public class TableViewSkel extends Composite {
 		Label lblActiveElement = new Label(this, SWT.NONE);
 		lblActiveElement.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,
 				false, false, 1, 1));
-		lblActiveElement.setText(Messages.activeElement_text);
+		lblActiveElement.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.activeElement_text());
 
 		textActiveElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY
 				| SWT.WRAP | SWT.SINGLE);
@@ -113,7 +113,7 @@ public class TableViewSkel extends Composite {
 		btnResetActiveElement = new Button(this, SWT.NONE);
 		btnResetActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
 				false, false, 1, 1));
-		btnResetActiveElement.setText(Messages.reset_text);
+		btnResetActiveElement.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.reset_text());
 
 	}
 

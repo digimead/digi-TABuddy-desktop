@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.moddef.dialog.typeed;
 
-import org.digimead.tabuddy.desktop.Messages;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
@@ -98,8 +97,8 @@ public class TypeEditorSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setMessage(Messages.typeEditorDescription_text);
-		setTitle(Messages.typeEditorTitle_text);
+		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeEditorDescription_text());
+		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeEditorTitle_text());
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new BorderLayout(0, 0));
@@ -114,7 +113,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		lblTemplateName.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,
 				false, false, 1, 1));
 		lblTemplateName.setBounds(0, 0, 65, 15);
-		lblTemplateName.setText(Messages.name_text);
+		lblTemplateName.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text());
 
 		textSchemaName = new Text(compositeHeader, SWT.BORDER);
 		textSchemaName.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
@@ -125,7 +124,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		lblDescription.setAlignment(SWT.RIGHT);
 		lblDescription.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false,
 				false, 1, 1));
-		lblDescription.setText(Messages.description_text);
+		lblDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text());
 
 		textSchemaDescription = new Text(compositeHeader, SWT.BORDER);
 		textSchemaDescription.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
@@ -134,7 +133,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		new Label(compositeHeader, SWT.NONE);
 
 		btnCheckActive = new Button(compositeHeader, SWT.CHECK);
-		btnCheckActive.setText(Messages.active_text);
+		btnCheckActive.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.active_text());
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK
 				| SWT.FULL_SELECTION);
@@ -147,29 +146,29 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		TableColumn tblclmnAvailability = tableViewerColumnAvailability
 				.getColumn();
 		tblclmnAvailability.setWidth(100);
-		tblclmnAvailability.setText(Messages.availability_text);
+		tblclmnAvailability.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.availability_text());
 
 		tableViewerColumnType = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnType = tableViewerColumnType.getColumn();
 		tblclmnType.setWidth(100);
-		tblclmnType.setText(Messages.type_text);
+		tblclmnType.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.type_text());
 
 		tableViewerColumnAlias = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnAlias = tableViewerColumnAlias.getColumn();
 		tblclmnAlias.setWidth(100);
-		tblclmnAlias.setText(Messages.alias_text);
+		tblclmnAlias.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.alias_text());
 
 		tableViewerColumnView = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnView = tableViewerColumnView.getColumn();
 		tblclmnView.setWidth(100);
-		tblclmnView.setText(Messages.view_text);
+		tblclmnView.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.view_text());
 
 		tableViewerColumnLabel = new TableViewerColumn(tableViewer,
 				SWT.NONE);
 		TableColumn tblclmnDescription = tableViewerColumnLabel
 				.getColumn();
 		tblclmnDescription.setWidth(100);
-		tblclmnDescription.setText(Messages.description_text);
+		tblclmnDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text());
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(BorderLayout.SOUTH);

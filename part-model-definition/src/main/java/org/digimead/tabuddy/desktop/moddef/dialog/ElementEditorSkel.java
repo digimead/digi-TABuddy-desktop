@@ -89,8 +89,8 @@ public class ElementEditorSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setMessage(Messages.elementEditorDescription_text);
-		setTitle(Messages.elementEditorTitle_text);
+		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorDescription_text());
+		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorTitle_text());
 		Composite area = (Composite) super.createDialogArea(parent);
 
 		form = toolkit.createScrolledForm(area);
@@ -98,7 +98,7 @@ public class ElementEditorSkel extends TitleAreaDialog {
 		form.getBody().setLayout(new GridLayout(3, false));
 
 		lblElementIdentificator = toolkit.createLabel(form.getBody(),
-				Messages.identificator_text, SWT.NONE);
+				org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text(), SWT.NONE);
 		lblElementIdentificator.setAlignment(SWT.RIGHT);
 		lblElementIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false,
 				false, 2, 1));

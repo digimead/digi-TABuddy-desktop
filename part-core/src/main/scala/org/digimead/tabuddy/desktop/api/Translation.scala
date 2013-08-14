@@ -61,16 +61,16 @@ object Translation {
       /** Message map accessor. */
       def messages(): immutable.ListMap[String, String]
       /** Translate the current singleton. */
-      def translate(resourceName: String): Unit =
-        translate(Seq(resourceName), Locale.getDefault())
+      def ranslate(resourceName: String): Unit =
+        ranslate(Seq(resourceName), Locale.getDefault())
       /** Translate the current singleton. */
-      def translate(resourceName: String, locale: Locale): Unit =
-        translate(Seq(resourceName), locale)
+      def ranslate(resourceName: String, locale: Locale): Unit =
+        ranslate(Seq(resourceName), locale)
       /** Translate the current singleton. */
-      def translate(resourceNames: Seq[String]): Unit =
-        translate(resourceNames, Locale.getDefault())
+      def ranslate(resourceNames: Seq[String]): Unit =
+        ranslate(resourceNames, Locale.getDefault())
       /** Translate the current singleton. */
-      def translate(resourceNames: Seq[String], locale: Locale)
+      def ranslate(resourceNames: Seq[String], locale: Locale)
     }
   }
 }
