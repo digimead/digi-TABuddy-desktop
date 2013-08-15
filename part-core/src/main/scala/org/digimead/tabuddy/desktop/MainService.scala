@@ -209,7 +209,7 @@ class MainService extends api.Main with Disposable.Default with Loggable {
     var returnCode = PlatformUI.RETURN_RESTART
     //returnCode = PlatformUI.createAndRunWorkbench(display, new WorkbenchAdvisor())
     /* Workbench is still active sporadically after createAndRunWorkbench is completed. */
-    try { App.workbench.close() } catch { case e: Throwable => }
+    //try { App.workbench.close() } catch { case e: Throwable => }
     // Flush display queue.
     //while (display.readAndDispatch()) {}
     /*

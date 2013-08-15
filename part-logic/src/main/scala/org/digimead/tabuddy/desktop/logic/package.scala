@@ -51,31 +51,30 @@ import org.digimead.tabuddy.desktop.logic.Config
 import com.escalatesoft.subcut.inject.NewBindingModule
 
 package object logic {
-  lazy val default =
-    new NewBindingModule(module => {
-      // Get 'data' path from System.getProperty("data") or
-      // Try to get jar location or get current directory
-      module.bind[File] identifiedBy "Data" toSingle { Util.getPath("data", getClass) }
-      // Configuration file located at {data}/configuration/tabuddy.conf by default
-      module.bind[File] identifiedBy "Config" toModuleSingle { module =>
-        val configName = "tabuddy.conf"
-        val dataPath = module.inject[File](Some("Data"))
-        val configurationPath = new File(dataPath, "configuration")
-        new File(configurationPath, configName)
-      }
-      module.bind[api.Config] toModuleSingle { implicit module => new Config }
-      // Dialog persist settings class factory
-      module.bind[(String, String) => org.digimead.tabuddy.desktop.definition.api.Dialog.Settings] toSingle {
-        (sectionName, prefix) => new support.Dialog.Settings(sectionName, prefix)
-      }
-    }) ~
-      //report.default ~
-      //mesh.transport.default ~
-      payload.default ~
-      payload.view.default ~
-      payload.view.comparator.default ~
-      payload.view.filter.default ~
-      operation.default
+  lazy val default = new NewBindingModule(module => {
+    // Get 'data' path from System.getProperty("data") or
+    // Try to get jar location or get current directory
+    module.bind[File] identifiedBy "Data" toSingle { Util.getPath("data", getClass) }
+    // Configuration file located at {data}/configuration/tabuddy.conf by default
+    module.bind[File] identifiedBy "Config" toModuleSingle { module =>
+      val configName = "tabuddy.conf"
+      val dataPath = module.inject[File](Some("Data"))
+      val configurationPath = new File(dataPath, "configuration")
+      new File(configurationPath, configName)
+    }
+    module.bind[api.Config] toModuleSingle { implicit module => new Config }
+    // Dialog persist settings class factory
+    module.bind[(String, String) => org.digimead.tabuddy.desktop.definition.api.Dialog.Settings] toSingle {
+      (sectionName, prefix) => new support.Dialog.Settings(sectionName, prefix)
+    }
+  }) ~
+    //report.default ~
+    //mesh.transport.default ~
+    payload.default ~
+    payload.view.default ~
+    payload.view.comparator.default ~
+    payload.view.filter.default ~
+    operation.default
   //approver.default ~
   //debug.default
 }

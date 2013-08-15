@@ -176,9 +176,6 @@ class ElementTemplate(
     properties.map(arr => Tuple3(arr(0), arr(1), arr(2))).toArray
   }
   /** Set property map */
-  //protected def setProperty[T <: AnyRef with java.io.Serializable](id: Symbol, group: TemplatePropertyGroup, data: Option[TemplateProperty[T]])(implicit m: Manifest[T]): Unit =
-  //  DSLType.classSymbolMap.get(m.runtimeClass).map(typeSymbol => setProperty(id, typeSymbol, group, data))
-  /** Set property map */
   protected def setProperty(id: Symbol, ptype: api.PropertyType[_], group: api.TemplatePropertyGroup, data: Option[api.TemplateProperty[_ <: AnyRef with java.io.Serializable]]) {
     val properties = getPropertyArray()
     data match {

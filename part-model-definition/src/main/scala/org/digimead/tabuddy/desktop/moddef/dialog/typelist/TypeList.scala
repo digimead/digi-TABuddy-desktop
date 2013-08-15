@@ -155,7 +155,7 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
     val actualActiveSchemaListener = actualActiveSchema.addChangeListener { (activeSchema, event) =>
       getTextActiveSchema.setText(actual.find(_.id == activeSchema).getOrElse(initialActiveSchema).name)
       getTextActiveSchema.setToolTipText("id: " + activeSchema.toString)
-      getbtnResetSchema().setEnabled(true)
+      getbtnResetSchema().setEnabled(actualActiveSchema.value != initialActiveSchema.id)
       getTableViewer.getSelection match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
           ActionActivate.setEnabled(!selection.getFirstElement().eq(activeSchema))

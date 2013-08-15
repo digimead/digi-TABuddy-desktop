@@ -114,7 +114,7 @@ class EnumerationList(val parentShell: Shell, val initial: List[payload.api.Enum
   @volatile private var sortDirection = Default.sortingDirection
 
   /** Get actual enumerations */
-  def getModifiedEnumerations(): Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = Set() //actual.toSet
+  def getModifiedEnumerations(): Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {

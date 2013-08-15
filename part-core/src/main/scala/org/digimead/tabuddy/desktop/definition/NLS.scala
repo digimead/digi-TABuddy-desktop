@@ -156,12 +156,15 @@ object NLS {
   /** Translation service. */
   lazy val translationService = translationServiceTracker.flatMap(tracker => Option(tracker.waitForService(Timeout.short.toMillis)))
 
-  def consolidated: immutable.ListMap[String, String] = registry.synchronized {
+  /** Get hash map with all messages (key -> translated value). */
+  def messages(): immutable.ListMap[String, String] = registry.synchronized {
     cache getOrElse {
-      cache = Some(NLS.list.map(_.T.messages).reduce((a, b) => a ++ b)) // Intersections is out of scope
+      cache = Some(immutable.ListMap(NLS.list.map(_.T.messages).reduce((a, b) => a ++ b).toList.sortBy(_._1): _*)) // Intersections is out of scope
       cache.get
     }
   }
+  /** Get hash map with messages from the specific NLS singleton. */
+  def messages(singleton: NLS): immutable.ListMap[String, String] = singleton.T.messages
   /** List all registered singletons with translation. */
   def list = registry.keys
   /** Add singleton to registry. */

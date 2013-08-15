@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,42 +41,15 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.api
+package org.digimead.tabuddy.desktop.operation.api
 
-import java.util.Locale
+import _root_.org.digimead.tabuddy.desktop.definition.api.Operation
+import _root_.org.digimead.tabuddy.desktop.api.Translation.NLS
 
-import scala.collection.immutable
-
-/** Translation service. */
-trait Translation {
-  /** Get user translations. */
-  def getUserTranslations(instance: Translation.NLS, locale: Locale): Option[immutable.HashMap[String, String]]
-  /** Get locale suffixes from the most specific to the most general. Vector(_ru_RU.properties, _ru.properties, .properties). */
-  def nlSuffixes(locale: Locale = Locale.getDefault()): Seq[String]
-  /** Set user translations. */
-  def setUserTranslations(instance: Translation.NLS, locale: Locale, translations: Option[immutable.HashMap[String, String]]): Unit
-  /** Translate the specific singleton. */
-  def translate(instance: Translation.NLS, locale: Locale, resourceNames: Seq[String]): Unit
-}
-
-object Translation {
-  /** Trait for object with messages. */
-  trait NLS {
-    val T: Translation
-    trait Translation {
-      /** Message map accessor. */
-      def messages(): immutable.ListMap[String, String]
-      /** Translate the current singleton. */
-      def ranslate(resourceName: String): Unit =
-        ranslate(Seq(resourceName), Locale.getDefault())
-      /** Translate the current singleton. */
-      def ranslate(resourceName: String, locale: Locale): Unit =
-        ranslate(Seq(resourceName), locale)
-      /** Translate the current singleton. */
-      def ranslate(resourceNames: Seq[String]): Unit =
-        ranslate(resourceNames, Locale.getDefault())
-      /** Translate the current singleton. */
-      def ranslate(resourceNames: Seq[String], locale: Locale)
-    }
-  }
+/**
+ * Translations base trait.
+ */
+trait OperationCustomTranslations {
+  // key, translated value, singleton
+  this: Operation[(String, String, NLS)] =>
 }

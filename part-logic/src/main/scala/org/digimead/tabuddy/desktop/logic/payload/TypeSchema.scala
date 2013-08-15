@@ -136,7 +136,7 @@ object TypeSchema extends Loggable {
       Messages.typeSchemaDefaultDescription_text.format(getEntityTranslation(ptype.id, "")))): _*)
   /** Get translation by alias */
   def getEntityTranslation(entityTypeId: Symbol, entityAlias: String): String = if (entityAlias.startsWith("*"))
-    NLS.consolidated.get(entityAlias.substring(1)).getOrElse {
+    NLS.messages.get(entityAlias.substring(1)).getOrElse {
       val result = entityAlias.substring(1)
       val trimmed = if (result.endsWith("_text"))
         result.substring(0, result.length - 5)
@@ -145,7 +145,7 @@ object TypeSchema extends Loggable {
       trimmed(0).toString.toUpperCase + trimmed.substring(1)
     }
   else if (entityAlias.isEmpty())
-    NLS.consolidated.get(entityTypeId.name.toLowerCase() + "_text").getOrElse(entityTypeId.name)
+    NLS.messages.get(entityTypeId.name.toLowerCase() + "_text").getOrElse(entityTypeId.name)
   else
     entityAlias
   /** Get type name*/
@@ -157,7 +157,7 @@ object TypeSchema extends Loggable {
   }
   /** Get all schemas for the current model. */
   def load(): Set[api.TypeSchema] = {
-    log.debug("load schema list for model " + Model.eId)
+    log.debug("Load schema list for model " + Model.eId)
     val schemas = try {
       if (Model.eId != Payload.defaultModel.eId)
         Payload.loadTypeSchemas(Payload.getModelMarker(Model).get)
@@ -165,7 +165,7 @@ object TypeSchema extends Loggable {
         immutable.HashSet[api.TypeSchema]()
     } catch {
       case e: Throwable =>
-        log.error("unable to load type schemas: " + e, e)
+        log.error("Unable to load type schemas: " + e, e)
         Set[api.TypeSchema]()
     }
     schemas.map { schema =>
@@ -186,16 +186,16 @@ object TypeSchema extends Loggable {
   /** Update only modified type schemas */
   @log
   def save(schemas: Set[api.TypeSchema]) = App.exec {
-    log.debug("save type schema list for model " + Model.eId)
+    log.debug("Save type schema list for model " + Model.eId)
     val oldSchemas = Data.typeSchemas.values
     val deleted = oldSchemas.filterNot(oldSchema => schemas.exists(compareDeep(_, oldSchema)))
     val added = schemas.filterNot(newSchema => oldSchemas.exists(compareDeep(_, newSchema)))
     if (deleted.nonEmpty) {
-      log.debug("delete Set(%s)".format(deleted.mkString(", ")))
+      log.debug("Delete Set(%s)".format(deleted.mkString(", ")))
       deleted.foreach { schema => Data.typeSchemas.remove(schema.id) }
     }
     if (added.nonEmpty) {
-      log.debug("add Set(%s)".format(added.mkString(", ")))
+      log.debug("Add Set(%s)".format(added.mkString(", ")))
       added.foreach { schema => Data.typeSchemas(schema.id) = schema }
     }
   }
@@ -286,7 +286,7 @@ object TypeSchema extends Loggable {
                       }).flatten
                     case unknown => throw new YAMLException("Unexpected api.TypeSchema 'entities' type " + unknown.getClass())
                   }
-                case other => log.warn(s"unknown api.TypeSchema key: $other")
+                case other => log.warn(s"Unknown api.TypeSchema key: $other")
               }
             val schema = for {
               id <- id

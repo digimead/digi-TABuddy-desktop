@@ -53,8 +53,10 @@ import scala.ref.WeakReference
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.moddef.Default
+import org.digimead.tabuddy.desktop.operation.OperationCustomTranslations
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.Validator
 import org.digimead.tabuddy.desktop.support.WritableList
@@ -64,6 +66,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.ActionContributionItem
 import org.eclipse.jface.action.IAction
@@ -292,18 +295,37 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
   }
   object ActionAliasLookup extends Action(Messages.lookupAliasInTranslations_text) {
     override def run = Option(entityField.value) foreach { before =>
-      /*val translationDialog = new TranslationLookup(dialog.getShell())
-        if (translationDialog.open() == Window.OK) {
-          translationDialog.getSelected.foreach(translation => {
-            val alias = "*" + translation.getKey.trim
-            if (before.alias != alias) {
-              val after = before.copy(alias = alias)
-              val index = dialog.actualEntities.indexOf(before)
-              dialog.actualEntities.update(index, after)
-              if (index == dialog.actualEntities.size - 1)
-                dialog.getTableViewer().refresh() // Workaround for the JFace bug. Force the last element modification.
-            }
-          })*/
+      OperationCustomTranslations().foreach { operation =>
+        val job = if (operation.canRedo())
+          Some(operation.redoJob())
+        else if (operation.canExecute())
+          Some(operation.executeJob())
+        else
+          None
+        job foreach { job =>
+          job.setPriority(Job.SHORT)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) =>
+              log.info(s"Operation completed successfully: ${result}")
+              result.foreach {
+                case (key, value, singleton) => App.exec {
+                  val alias = "*" + key.trim
+                  if (before.alias != alias) {
+                    val after = before.copy(alias = alias)
+                    val index = actualEntities.indexOf(before)
+                    actualEntities.update(index, after)
+                    if (index == actualEntities.size - 1)
+                      getTableViewer().refresh() // Workaround for the JFace bug. Force the last element modification.
+                  }
+                }
+              }
+            case Operation.Result.Cancel(message) =>
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other =>
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+        }
+      }
       if (ActionAutoResize.isChecked())
         autoresize()
     }

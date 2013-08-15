@@ -53,7 +53,9 @@ import java.util.Properties
 
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
+import scala.collection.immutable
 import scala.collection.mutable
+import scala.collection.JavaConversions._
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
@@ -73,7 +75,27 @@ class TranslationService extends Translation with Loggable {
   val EXTENSION = ".properties"
   /** Translation services */
   protected val services = new mutable.HashMap[Locale, ETranslationService]()
+  private val translationLock = new Object
 
+  /** Get user translations. */
+  @log
+  def getUserTranslations(instance: Translation.NLS, locale: Locale): Option[immutable.HashMap[String, String]] =
+    loadUserTranslations(instance, locale).map(p => immutable.HashMap(p.toSeq: _*))
+  /** Get locale suffixes from the most specific to the most general. Vector(_ru_RU.n, _ru.n, .n). */
+  @log
+  def nlSuffixes(locale: Locale = Locale.getDefault()) = {
+    val parts = locale.toString().split('_')
+    val result = for (i <- 0 to parts.size) yield if (i == 0) EXTENSION else "_" + parts.take(i).mkString("_") + EXTENSION
+    result.reverse
+  }
+  /** Set user translations. */
+  @log
+  def setUserTranslations(instance: Translation.NLS, locale: Locale, translations: Option[immutable.HashMap[String, String]]) =
+    saveUserTranslations(instance, locale, translations.map { hashMap =>
+      val props = new java.util.Properties
+      for ((k, v) <- hashMap) props.setProperty(k, v)
+      props
+    })
   /** Translate the specific singleton. */
   @log
   def translate(instance: Translation.NLS, locale: Locale, resourceNames: Seq[String]) = Option(System.getSecurityManager()) match {
@@ -81,12 +103,6 @@ class TranslationService extends Translation with Loggable {
       AccessController.doPrivileged(new PrivilegedAction[AnyRef]() { def run(): AnyRef = load(instance, resourceNames, locale) })
     case None =>
       load(instance, resourceNames, locale)
-  }
-  /** Get locale suffixes from the most specific to the most general. Vector(_ru_RU.n, _ru.n, .n). */
-  def nlSuffixes(locale: Locale = Locale.getDefault()) = {
-    val parts = locale.toString().split('_')
-    val result = for (i <- 0 to parts.size) yield if (i == 0) EXTENSION else "_" + parts.take(i).mkString("_") + EXTENSION
-    result.reverse
   }
 
   /**
@@ -99,46 +115,15 @@ class TranslationService extends Translation with Loggable {
     val root = resourceName.replace('.', '/')
     root + suffix
   }).flatten
-  /** Load translation defined by resourceName in the bundle. */
-  def loadResourceTranslations(instance: Translation.NLS, resourceNames: Seq[String], locale: Locale): Seq[Properties] = {
-    val loader = instance.getClass().getClassLoader()
-    // search the variants from most specific to most general, since
-    // the MessagesProperties.put method will mark assigned fields
-    // to prevent them from being assigned twice
-    val properties = for (variant <- buildVariants(resourceNames)) yield {
-      // loader==null if we're launched off the Java boot classpath
-      val input = if (loader == null) ClassLoader.getSystemResourceAsStream(variant) else loader.getResourceAsStream(variant)
-      if (input != null)
-        try {
-          val properties = new Properties()
-          properties.load(input)
-          Some(properties)
-        } catch {
-          case e: IOException =>
-            log.error("Error loading " + variant, e)
-            None
-        } finally {
-          if (input != null)
-            try { input.close() } catch { case e: IOException => }
-        }
-      else
-        None
-    }
-    properties.flatten
-  }
-  /** Load translation defined by user. */
-  def loadUserTranslations(instance: Translation.NLS, resourceNames: Seq[String], locale: Locale): Seq[Properties] = {
-    Seq()
-  }
   /** Load translation. */
-  def load(instance: Translation.NLS, resourceNames: Seq[String], locale: Locale): AnyRef = {
+  protected def load(instance: Translation.NLS, resourceNames: Seq[String], locale: Locale): AnyRef = {
     val clazz = instance.getClass
     log.debug(s"Load translation for ${clazz} with resource ${resourceNames}.")
     val fieldArray = clazz.getDeclaredFields().filter(field => field.getType() == classOf[String] &&
       Modifier.isPrivate(field.getModifiers) && Modifier.isFinal(field.getModifiers))
     val loader = clazz.getClassLoader()
     val isAccessible = (clazz.getModifiers() & Modifier.PUBLIC) != 0
-    val translations = loadUserTranslations(instance, resourceNames, locale) ++
+    val translations = loadUserTranslations(instance, locale) ++
       loadResourceTranslations(instance, resourceNames, locale)
     // Load fields data
     val lost = {
@@ -194,6 +179,38 @@ class TranslationService extends Translation with Loggable {
     }
     null // for PrivilegedAction
   }
+  /** Load translation defined by resourceName in the bundle. */
+  protected def loadResourceTranslations(instance: Translation.NLS, resourceNames: Seq[String], locale: Locale): Seq[Properties] = {
+    val loader = instance.getClass().getClassLoader()
+    // search the variants from most specific to most general, since
+    // the MessagesProperties.put method will mark assigned fields
+    // to prevent them from being assigned twice
+    val properties = for (variant <- buildVariants(resourceNames)) yield {
+      // loader==null if we're launched off the Java boot classpath
+      val input = if (loader == null) ClassLoader.getSystemResourceAsStream(variant) else loader.getResourceAsStream(variant)
+      if (input != null)
+        try {
+          val properties = new Properties()
+          properties.load(input)
+          Some(properties)
+        } catch {
+          case e: IOException =>
+            log.error("Error loading " + variant, e)
+            None
+        } finally {
+          if (input != null)
+            try { input.close() } catch { case e: IOException => }
+        }
+      else
+        None
+    }
+    properties.flatten
+  }
+  /** Load translation defined by user for the specific instance and specific locale. */
+  protected def loadUserTranslations(instance: Translation.NLS, locale: Locale): Option[Properties] = translationLock.synchronized {
+    log.debug(s"Load user translations for ${instance.getClass} and locale ${locale}.")
+    None
+  }
   /** Modify final field of the current class. */
   protected def modify(instance: Translation.NLS, field: Field, value: String) {
     if (!field.isAccessible())
@@ -201,8 +218,16 @@ class TranslationService extends Translation with Loggable {
     val before = field.get(instance)
     field.set(instance, value)
   }
+  /** Save translation defined by user for the specific instance and specific locale. */
+  protected def saveUserTranslations(instance: Translation.NLS, locale: Locale, properties: Option[Properties]): Unit = translationLock.synchronized {
+    if (properties.nonEmpty) {
+      log.debug(s"Save user translations for ${instance.getClass} and locale ${locale}.")
+    } else {
+      log.debug(s"Clear user translations for ${instance.getClass} and locale ${locale}.")
+    }
+  }
   /** Get translation service from Eclipse. */
-  protected def translationService(locale: Locale) = synchronized {
+  protected def translationService(locale: Locale) = translationLock.synchronized {
     services.get(locale) getOrElse {
       val translationContext = Context("translation")
       translationContext.set(ETranslationService.LOCALE, locale.toString)

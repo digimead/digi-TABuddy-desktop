@@ -60,7 +60,7 @@ import org.eclipse.swt.widgets.Event
 
 import akka.actor.Props
 
-/** Expand all elements. */
+/** Collapse all elements. */
 class CollapseAll extends JFaceAction("CollapseAll") with Loggable {
   @volatile protected var enabled = false
   ContextInjectionFactory.inject(this, Core.context)

@@ -64,7 +64,7 @@ class SimplePerspectiveChooser extends ContributionItem {
   protected val menuListener = new SimplePerspectiveChooser.MenuListener
 
   override def fill(menu: Menu, index: Int) {
-    val activePerspective = App.getActivePerspectiveId()
+    /*    val activePerspective = App.getActivePerspectiveId()
     val perspectives = PlatformUI.getWorkbench().getPerspectiveRegistry().getPerspectives();
     for {
       i <- 0 until perspectives.length
@@ -84,7 +84,7 @@ class SimplePerspectiveChooser extends ContributionItem {
       item.addSelectionListener(menuListener)
       if (Option(descriptor.getId()) == activePerspective)
         item.setSelection(true)
-    }
+    }*/
   }
   override def isDynamic(): Boolean = true
 }
@@ -97,12 +97,12 @@ object SimplePerspectiveChooser {
   class MenuListener extends SelectionAdapter {
     override def widgetSelected(e: SelectionEvent) {
       val item = e.widget.asInstanceOf[MenuItem]
-      if (item.getSelection()) {
+      /*      if (item.getSelection()) {
         App.getActivePage().foreach { page =>
           val descriptor = item.getData(KEY_PERSPECTIVE_DESCRIPTION).asInstanceOf[IPerspectiveDescriptor]
           page.setPerspective(descriptor)
         }
-      }
+      }*/
     }
   }
 }

@@ -43,7 +43,12 @@
 
 package org.digimead.tabuddy
 
+import com.escalatesoft.subcut.inject.NewBindingModule
+
 /**
  * This is the core bundle of the TA Buddy desktop application.
  */
-package object desktop {}
+package object desktop {
+  lazy val default = new NewBindingModule(module => {}) ~
+    operation.default
+}

@@ -58,7 +58,7 @@ import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.Widget
 
 trait Context {
-  this: Loggable with Generic with Workbench with GUI =>
+  this: Loggable with Generic with GUI =>
   /** Name of the key of SWT widget. */
   val widgetContextKey = classOf[Context].getName()
 

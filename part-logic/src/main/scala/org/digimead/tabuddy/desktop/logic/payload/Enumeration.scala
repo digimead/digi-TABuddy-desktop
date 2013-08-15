@@ -211,7 +211,7 @@ object Enumeration extends Loggable {
   /** Get translation by alias */
   def getConstantTranslation(constant: Constant[_ <: AnyRef with java.io.Serializable]): String =
     if (constant.alias.startsWith("*"))
-      NLS.consolidated.get(constant.alias.substring(1)).getOrElse {
+      NLS.messages.get(constant.alias.substring(1)).getOrElse {
         val result = constant.alias.substring(1)
         val trimmed = if (result.endsWith("_text"))
           result.substring(0, result.length - 5)
