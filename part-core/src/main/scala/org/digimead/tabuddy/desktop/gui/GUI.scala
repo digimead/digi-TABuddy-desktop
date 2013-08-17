@@ -83,8 +83,16 @@ class GUI extends Loggable {
     Resources.start(App.bundle(getClass).getBundleContext())
     App.publish(App.Message.Start(Right(GUI)))
     WindowSupervisor ! App.Message.Restore
+    var ts = 0L
+    var result = false
+    var duration = 0L
     while (exitCode.get.isEmpty) try {
-      if (!display.readAndDispatch())
+      ts = System.currentTimeMillis()
+      result = display.readAndDispatch()
+      duration = System.currentTimeMillis() - ts
+      if (duration > 500)
+        log.error(s"Too heavy UI operation: ${duration}ms.")
+      if (!result)
         display.sleep()
     } catch {
       case e: Throwable =>

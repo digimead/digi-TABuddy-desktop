@@ -46,6 +46,8 @@ package org.digimead.tabuddy.desktop.gui.widget
 import java.util.UUID
 
 import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.swt.widgets.Composite
 
 import akka.actor.ActorRef
@@ -58,6 +60,8 @@ trait SComposite extends Composite {
   val id: UUID
   /** Stack layer actor rederence. */
   val ref: ActorRef
+
+  App.assertUIThread()
   setData(GUI.swtId, id)
 
   override protected def checkSubclass() {

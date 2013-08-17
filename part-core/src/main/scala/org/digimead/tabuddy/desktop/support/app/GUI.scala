@@ -93,30 +93,97 @@ trait GUI {
     column.setWidth(math.min(column.getWidth() + padding, bounds.width / n))
   }
   /** Execute runnable in UI thread. */
-  def exec[T](f: => T): Unit =
+  def exec[T](f: => T): Unit = if (debug) {
+    val t = new Throwable("Entry point.")
+    if (thread.eq(Thread.currentThread())) {
+      val ts = System.currentTimeMillis()
+      f
+      val duration = System.currentTimeMillis() - ts
+      if (duration > 500)
+        log.error(s"Too heavy UI operation: ${duration}ms.", t)
+    } else execAsync({
+      val ts = System.currentTimeMillis()
+      f
+      val duration = System.currentTimeMillis() - ts
+      if (duration > 500)
+        log.error(s"Too heavy UI operation: ${duration}ms.", t)
+    })
+  } else {
     if (thread.eq(Thread.currentThread())) { f } else execAsync({ f })
+  }
   /** Asynchronously execute runnable in UI thread. */
-  def execAsync[T](f: => T): Unit = display.asyncExec(new Runnable {
-    def run = try { f } catch { case e: Throwable => log.error("UI Thread exception: " + e, e) }
-  })
+  def execAsync[T](f: => T): Unit = if (debug) {
+    val t = new Throwable("Entry point.")
+    display.asyncExec(new Runnable {
+      def run = try {
+        val ts = System.currentTimeMillis()
+        f
+        val duration = System.currentTimeMillis() - ts
+        if (duration > 500)
+          log.error(s"Too heavy UI operation: ${duration}ms.", t)
+      } catch { case e: Throwable => log.error("UI Thread exception: " + e, e) }
+    })
+  } else {
+    display.asyncExec(new Runnable {
+      def run = try { f } catch { case e: Throwable => log.error("UI Thread exception: " + e, e) }
+    })
+  }
   /** Execute runnable in UI thread and return result or exception */
-  def execNGet[T](f: => T): T =
+  def execNGet[T](f: => T): T = if (debug) {
+    val t = new Throwable("Entry point.")
+    if (thread.eq(Thread.currentThread())) {
+      val ts = System.currentTimeMillis()
+      val result = f
+      val duration = System.currentTimeMillis() - ts
+      if (duration > 500)
+        log.error(s"Too heavy UI operation: ${duration}ms.", t)
+      result
+    } else execNGetAsync({
+      val ts = System.currentTimeMillis()
+      val result = f
+      val duration = System.currentTimeMillis() - ts
+      if (duration > 500)
+        log.error(s"Too heavy UI operation: ${duration}ms.", t)
+      result
+    })
+  } else {
     if (thread.eq(Thread.currentThread())) { f } else execNGetAsync({ f })
+  }
   /** Asynchronously execute runnable in UI thread and return result or exception */
   def execNGetAsync[T](f: => T): T = {
     val result = new AtomicReference[Option[Either[Throwable, T]]](None)
-    display.asyncExec(new Runnable {
-      def run = result.synchronized {
-        try {
-          result.set(Some(Right(f)))
-          result.notifyAll()
-        } catch {
-          case e: Throwable =>
-            result.set(Some(Left(e)))
+    if (debug) {
+      val t = new Throwable("Entry point.")
+      display.asyncExec(new Runnable {
+        def run = result.synchronized {
+          val ts = System.currentTimeMillis()
+          try {
+            result.set(Some(Right(f)))
             result.notifyAll()
+          } catch {
+            case e: Throwable =>
+              result.set(Some(Left(e)))
+              result.notifyAll()
+          }
+          val duration = System.currentTimeMillis() - ts
+          if (duration > 500)
+            log.error(s"Too heavy UI operation: ${duration}ms.", t)
         }
-      }
-    })
+      })
+    } else {
+      display.asyncExec(new Runnable {
+        def run = result.synchronized {
+          try {
+            result.set(Some(Right(f)))
+            result.notifyAll()
+          } catch {
+            case e: Throwable =>
+              result.set(Some(Left(e)))
+              result.notifyAll()
+          }
+        }
+      })
+    }
     while (result.get.isEmpty)
       result.synchronized { result.wait() }
     result.get.get match {
@@ -135,18 +202,38 @@ trait GUI {
       throw new IllegalStateException("Unable to spawn execNGetAsync runnable with timeout within UI thread.")
     val mark = System.currentTimeMillis() + unit.toMillis(timeout)
     val result = new AtomicReference[Option[Either[Throwable, T]]](None)
-    display.asyncExec(new Runnable {
-      def run = result.synchronized {
-        try {
-          result.set(Some(Right(f)))
-          result.notifyAll()
-        } catch {
-          case e: Throwable =>
-            result.set(Some(Left(e)))
+    if (debug) {
+      val t = new Throwable("Entry point.")
+      display.asyncExec(new Runnable {
+        def run = result.synchronized {
+          val ts = System.currentTimeMillis()
+          try {
+            result.set(Some(Right(f)))
             result.notifyAll()
+          } catch {
+            case e: Throwable =>
+              result.set(Some(Left(e)))
+              result.notifyAll()
+          }
+          val duration = System.currentTimeMillis() - ts
+          if (duration > 500)
+            log.error(s"Too heavy UI operation: ${duration}ms.", t)
         }
-      }
-    })
+      })
+    } else {
+      display.asyncExec(new Runnable {
+        def run = result.synchronized {
+          try {
+            result.set(Some(Right(f)))
+            result.notifyAll()
+          } catch {
+            case e: Throwable =>
+              result.set(Some(Left(e)))
+              result.notifyAll()
+          }
+        }
+      })
+    }
     while (result.get.isEmpty && System.currentTimeMillis() < mark)
       result.synchronized { result.wait(mark - System.currentTimeMillis()) }
     result.get.get match {

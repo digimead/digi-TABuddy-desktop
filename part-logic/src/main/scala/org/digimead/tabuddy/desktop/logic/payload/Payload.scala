@@ -263,24 +263,24 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
   @log
   def loadTypeSchemas(marker: lapi.ModelMarker): immutable.HashSet[api.TypeSchema] = modelLock.synchronized {
     val typeSchemasStorage = new File(marker.path, folderTypeSchemas)
-    log.debug(s"load type schemas from $typeSchemasStorage")
+    log.debug(s"Load type schemas from $typeSchemasStorage")
     if (!typeSchemasStorage.exists())
       return immutable.HashSet()
     val prefix = marker.path.getCanonicalPath().size + 1
     var schemas = immutable.HashSet[api.TypeSchema]()
     typeSchemasStorage.listFiles(new FileFilter { def accept(file: File) = file.isFile() && file.getName().endsWith(".yaml") }).foreach { file =>
       try {
-        log.debug("load ... " + file.getCanonicalPath().substring(prefix))
+        log.debug("Load ... " + file.getCanonicalPath().substring(prefix))
         val yaml = Files.toString(file, Charsets.UTF_8)
         try {
           TypeSchema.YAML.from(yaml).foreach(schema => schemas = schemas + schema)
         } catch {
           case e: Throwable =>
-            log.error("unable to load type schema %s: %s".format(file.getName(), e), e)
+            log.error("Unable to load type schema %s: %s".format(file.getName(), e), e)
         }
       } catch {
         case e: IOException =>
-          log.error("unable to load type schema %s: %s".format(file.getName(), e))
+          log.error("Unable to load type schema %s: %s".format(file.getName(), e))
       }
     }
     schemas
@@ -292,7 +292,7 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
   @log
   def saveTypeSchemas(marker: lapi.ModelMarker, schemas: immutable.Set[api.TypeSchema]) = modelLock.synchronized {
     val typeSchemasStorage = new File(marker.path, folderTypeSchemas)
-    log.debug(s"load type schemas to $typeSchemasStorage")
+    log.debug(s"Save type schemas to $typeSchemasStorage")
     if (!typeSchemasStorage.exists())
       if (!typeSchemasStorage.mkdirs())
         throw new RuntimeException("Unable to create type schemas storage at " + typeSchemasStorage.getAbsolutePath())
@@ -316,7 +316,10 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
   protected def loadModel(marker: lapi.ModelMarker): Option[Model.Interface[_ <: Model.Stash]] = {
     if (!marker.isValid)
       return None
-    val treeFilter = new FileFilter() { def accept(file: File): Boolean = file.isDirectory() || file.getName.endsWith("." + extensionElement) }
+    val treeFilter = new FileFilter() {
+      def accept(file: File): Boolean = file.isDirectory() ||
+        (file.getName().startsWith("e ") && file.getName.endsWith("." + extensionElement))
+    }
     def treeFiles(root: File, skipHidden: Boolean, filter: FileFilter): Stream[File] =
       if (!root.exists || (skipHidden && root.isHidden)) Stream.empty
       else root #:: (
@@ -326,8 +329,13 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
         })
     val elements = treeFiles(marker.path, false, treeFilter).iterator
     val loadF = () => loadModelElements(marker, elements)
-    log.info(s"Load model ${marker.id} from ${marker.path.getAbsolutePath()}.")
-    val loaded = Payload.serialization.acquire[Model.Interface[Model.Stash], Model.Stash](loadF)
+    val loaded: Option[_ <: Model.Interface[_ <: Model.Stash]] = if (marker.path.listFiles().isEmpty) {
+      log.info(s"Load model ${marker.id} with empty model.")
+      Some(new PayloadModel(new Model.Stash(marker.id, marker.uuid)))
+    } else {
+      log.info(s"Load model ${marker.id} from ${marker.path.getAbsolutePath()}.")
+      Payload.serialization.acquire[Model.Interface[Model.Stash], Model.Stash](loadF)
+    }
     loaded.foreach { model =>
       markerRegistry(model) = marker
       Model.reset(model)
@@ -340,7 +348,7 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
     while (iterator.hasNext) {
       val next = iterator.next
       if (next.isFile) {
-        log.debug("load ... " + next.getCanonicalPath().substring(prefix))
+        log.debug("Load ... " + next.getCanonicalPath().substring(prefix))
         val elementStream = new BufferedInputStream(new FileInputStream(next))
         val elementData = new ByteArrayOutputStream()
         val result = try {

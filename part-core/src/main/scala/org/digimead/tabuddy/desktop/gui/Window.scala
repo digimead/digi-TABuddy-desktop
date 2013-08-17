@@ -141,9 +141,11 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       throw new IllegalStateException("Unable to create window. It is already created.")
     App.assertUIThread(false)
     log.debug(s"Create window ${windowId}.")
-    val window = new AppWindow(windowId, self, stackSupervisor, windowContext, null)
-    window.configuration = Some(configuration)
-    this.window = Option(window)
+    this.window = App.execNGet {
+      val window = new AppWindow(windowId, self, stackSupervisor, windowContext, null)
+      window.configuration = Some(configuration)
+      Option(window)
+    }
     this.window
   }
   /** Destroy created window. */

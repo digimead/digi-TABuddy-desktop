@@ -61,6 +61,8 @@ import org.eclipse.core.runtime.preferences.InstanceScope
 
 trait Generic extends MainService.Consumer {
   this: Loggable with GUI with Context =>
+  /** Flag indicating whether debug methods is enabled. */
+  @volatile var debug = true
   /** Application preference store. */
   protected lazy val preferenceStore = new ScopedPreferenceStore(InstanceScope.INSTANCE, bundle(getClass).getSymbolicName())
   /** Hash with started classes. Class name -> running. */

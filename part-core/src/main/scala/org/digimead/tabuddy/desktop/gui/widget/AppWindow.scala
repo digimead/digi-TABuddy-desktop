@@ -94,6 +94,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   /** On active listener */
   protected val onActiveListener = new AppWindow.OnActiveListener(this)
 
+  App.assertUIThread()
   initialize()
 
   def initialize() {
