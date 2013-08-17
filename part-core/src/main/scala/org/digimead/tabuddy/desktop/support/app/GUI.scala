@@ -138,14 +138,7 @@ trait GUI {
       if (duration > 500)
         log.error(s"Too heavy UI operation: ${duration}ms.", t)
       result
-    } else execNGetAsync({
-      val ts = System.currentTimeMillis()
-      val result = f
-      val duration = System.currentTimeMillis() - ts
-      if (duration > 500)
-        log.error(s"Too heavy UI operation: ${duration}ms.", t)
-      result
-    })
+    } else execNGetAsync({ f })
   } else {
     if (thread.eq(Thread.currentThread())) { f } else execNGetAsync({ f })
   }

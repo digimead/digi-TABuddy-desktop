@@ -123,14 +123,14 @@ trait Generic extends MainService.Consumer {
   }, origin + " afterStart").start
   /** Assert the current thread against the UI one. */
   def assertUIThread(uiThread: Boolean = true) = if (uiThread) {
-    if (!checkUIThread) {
+    if (!isUIThread) {
       val throwable = new IllegalAccessException("Only the original thread that created a UI can touch its views and use observables.")
       // sometimes we throw exception in threads that haven't catch block, notify anyway
       log.error("Only the original thread that created a UI can touch its views and use observables.", throwable)
       throw throwable
     }
   } else {
-    if (checkUIThread) {
+    if (isUIThread) {
       val throwable = new IllegalAccessException(s"Current thread ${Thread.currentThread()} is UI blocker.")
       // sometimes we throw exception in threads that haven't catch block, notify anyway
       log.error(s"Current thread ${Thread.currentThread()} is UI blocker.", throwable)
@@ -140,7 +140,7 @@ trait Generic extends MainService.Consumer {
   /** Get bundle for class. */
   def bundle(clazz: Class[_]) = FrameworkUtil.getBundle(clazz)
   /** Check the current thread against the UI one. */
-  def checkUIThread() = thread.eq(Thread.currentThread())
+  def isUIThread() = thread.eq(Thread.currentThread())
   /** Clear all started entries. */
   def clearStarted() = startedLock.synchronized {
     started.clear()

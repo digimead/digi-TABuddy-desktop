@@ -60,17 +60,55 @@ import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
 
 trait Dialog extends org.eclipse.jface.dialogs.Dialog {
-  protected val parentShell: Shell
+  protected val blockOnOpen = false
   /** On active listener flag */
   protected val onActiveFlag = new AtomicBoolean(true)
   /** On active listener */
   protected val onActiveListener = new Dialog.OnActiveListener(this)
+  /** Dialog parent shell. */
+  protected val parentShell: Shell
+  /** On close handler. */
+  protected val onClose = new ThreadLocal[(Int) => Any]()
 
+  /** Opens this dialog, creating it first if it has not yet been created. */
+  override def open(): Int = {
+    App.assertUIThread()
+    onClose.remove()
+    super.open()
+  }
+  /** Opens this dialog, creating it first if it has not yet been created. */
+  def open[T](f: (Int) => T) {
+    App.assertUIThread()
+    onClose.set(f)
+    super.open()
+  }
+  /** Focuses exists dialog or opens this one, creating it first if it has not yet been created. */
   def openOrFocus(): Int = {
-    Dialog.openOrFocus(this)
+    App.assertUIThread()
+    onClose.remove()
+    super.open()
+  }
+  /** Focuses exists dialog or opens this one, creating it first if it has not yet been created. */
+  def openOrFocus[T](f: (Int) => T) {
+    App.assertUIThread()
+    onClose.set(f)
+    super.open()
+  }
+  /**
+   * Closes this window, disposes its shell, and removes this window from its
+   * window manager (if it has one).
+   */
+  override protected def close(): Boolean = {
+    val result = super.close
+    if (result) {
+      Option(onClose.get()).foreach { f => f(getReturnCode()) }
+      onClose.remove()
+    }
+    result
   }
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
+    setBlockOnOpen(blockOnOpen)
     val result = super.createDialogArea(parent)
     // The onPaintListener solution is not sufficient
     App.display.addFilter(SWT.Paint, onActiveListener)

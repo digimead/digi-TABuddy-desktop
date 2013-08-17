@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.moddef.operation
 
+import java.util.concurrent.Exchanger
+
 import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.log.api.Loggable
@@ -55,7 +57,6 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.swt.widgets.Shell
 
 /**
  * Modify an enumeration list
@@ -70,12 +71,24 @@ class OperationModifyEnumerationList(enumerationList: Set[Enumeration[_ <: AnyRe
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def dialog(shell: Shell): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = {
-    val dialog = new EnumerationList(shell, enumerationList.toList)
-    if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
-      Operation.Result.OK(Some(dialog.getModifiedEnumerations()))
-    else
-      Operation.Result.Cancel[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]()
+  protected def dialog(): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = {
+    val exchanger = new Exchanger[Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]]()
+    App.assertUIThread(false)
+    App.exec {
+      App.getActiveShell match {
+        case Some(shell) =>
+          val dialog = new EnumerationList(shell, enumerationList.toList)
+          dialog.openOrFocus {
+            case result if result == org.eclipse.jface.window.Window.OK =>
+              exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedEnumerations())))
+            case other =>
+              exchanger.exchange(Operation.Result.Cancel[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]())
+          }
+        case None =>
+          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+      }
+    }
+    exchanger.exchange(null)
   }
   protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = redo(monitor, info)
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]] = {
@@ -86,10 +99,7 @@ class OperationModifyEnumerationList(enumerationList: Set[Enumeration[_ <: AnyRe
       Operation.Result.Error("Unimplemented")
     } else if (canExecute) {
       // TODO save modification history
-      App.execNGet {
-        App.getActiveShell.map(dialog) getOrElse
-          { Operation.Result.Error("Unable to find active shell.") }
-      }
+      dialog
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state

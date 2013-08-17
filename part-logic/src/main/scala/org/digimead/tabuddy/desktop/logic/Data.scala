@@ -208,7 +208,7 @@ object Data extends Loggable {
   /** Update available models. */
   def updateAvailableModels() {
     log.debug("Update an available model list.")
-    App.checkUIThread()
+    App.assertUIThread()
     val modelSet1 = immutable.SortedSet(availableModels: _*)
     val modelSet2 = immutable.SortedSet(Payload.listModels.flatMap { marker =>
       try {
