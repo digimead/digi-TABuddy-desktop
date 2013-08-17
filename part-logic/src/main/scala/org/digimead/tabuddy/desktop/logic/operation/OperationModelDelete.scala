@@ -43,62 +43,104 @@
 
 package org.digimead.tabuddy.desktop.logic.operation
 
+import scala.reflect.runtime.universe
+
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.definition.Operation
 
-class OperationModelDelete private (modelId: Symbol)
-  extends OperationModelDelete.Abstract(modelId) with Loggable {
-  @volatile protected var allowExecute = true
-
-  override def canExecute() = allowExecute
-  override def canRedo() = false
-  override def canUndo() = false
-
-  protected def run(monitor: IProgressMonitor): Operation.Result[Unit] = {
-    Operation.Result.OK()
+/** 'Delete model' operation. */
+class OperationModelDelete extends api.OperationModelDelete with Loggable {
+  protected val operationLock = new Object()
+  /**
+   * Delete model with modelId.
+   *
+   * @param modelId model to delete
+   * @param askBefore askUser before delete
+   * @return deleted model marker
+   */
+  def apply(modelId: Symbol, askBefore: Boolean): logic.api.ModelMarker = ModelLock.synchronized {
+    log.info(s"Delete model ${modelId}.")
+    if (modelId == Payload.defaultModel.eId) {
+      throw new IllegalArgumentException("Unable to delete the default model.")
+    } else {
+      val marker = getModelMarker(modelId)
+      // close model if needed
+      log.___gaze("CLOSE")
+      Payload.deleteModel(marker)
+      log.info(s"Model ${modelId} is deleted.")
+      marker
+    }
   }
+  /**
+   * Create 'Delete model' operation.
+   *
+   * @param modelId model to delete
+   * @param askBefore askUser before delete
+   * @return 'Delete model' operation
+   */
+  def operation(modelId: Symbol, askBefore: Boolean): Operation[logic.api.ModelMarker] =
+    new Implementation(modelId, askBefore)
 
-  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] = redo(monitor, info)
-
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] = {
-    // TODO delete
-    Operation.Result.Error("Unimplemented")
-  }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-    throw new UnsupportedOperationException
-}
-
-object OperationModelDelete extends Loggable {
-  @log
-  def apply(modelId: Symbol): Option[OperationModelDelete] = {
-    DI.jobFactory.asInstanceOf[Option[(Symbol) => OperationModelDelete]] match {
-      case Some(factory) =>
-        if (modelId != Payload.defaultModel.eId && modelId != Symbol(""))
-          Option(factory(modelId))
-        else {
-          log.warn("Unable to delete model with the default name")
-          None
-        }
+  /**
+   * Get operation model marker for this operation.
+   *
+   * This method isn't collect marker of default model.
+   */
+  protected def getModelMarker(modelId: Symbol): logic.api.ModelMarker = {
+    if (modelId == Payload.defaultModel.eId)
+      throw new IllegalAccessException("Unable to delete the default model.")
+    Payload.listModels.find(marker => marker.isValid && marker.id == modelId) match {
+      case Some(marker) =>
+        marker
       case None =>
-        log.error("OperationModelDelete implementation is not defined.")
-        None
+        throw new IllegalArgumentException(s"Unable to find marker for the model: ${modelId}.")
     }
   }
 
-  abstract class Abstract(val modelId: Symbol)
-    extends Operation[Unit](s"Delete model ${modelId}.") with api.OperationModelDelete {
+  class Implementation(modelId: Symbol, askBefore: Boolean)
+    extends OperationModelDelete.Abstract(modelId, askBefore) with Loggable {
+    @volatile protected var allowExecute = true
+
+    override def canExecute() = allowExecute
+    override def canRedo() = false
+    override def canUndo() = false
+
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[logic.api.ModelMarker] = {
+      Operation.Result.OK(Option(OperationModelDelete.this(modelId, askBefore)))
+    }
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[logic.api.ModelMarker] =
+      throw new UnsupportedOperationException
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[logic.api.ModelMarker] =
+      throw new UnsupportedOperationException
+  }
+}
+
+object OperationModelDelete extends Loggable {
+  /** Stable identifier with OperationModelDelete DI */
+  lazy val operation = DI.operation
+
+  /** Build a new 'Delete model' operation */
+  @log
+  def apply(modelId: Symbol, askBefore: Boolean): Option[Abstract] =
+    Some(operation.operation(modelId, askBefore).asInstanceOf[Abstract])
+
+  /** Bridge between abstract api.Operation[logic.api.ModelMarker] and concrete Operation[logic.api.ModelMarker] */
+  abstract class Abstract(val modelId: Symbol, val askBefore: Boolean) extends Operation[logic.api.ModelMarker](s"Delete model ${modelId}.") {
     this: Loggable =>
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Symbol) => api.OperationModelDelete]
+    lazy val operation = injectOptional[api.OperationModelDelete] getOrElse new OperationModelDelete
   }
 }

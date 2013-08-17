@@ -43,25 +43,24 @@
 
 package org.digimead.tabuddy.desktop.logic.action
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.core
-import org.digimead.tabuddy.desktop.core.Wizards.registry2implementation
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.operation.OperationModelClose
+import org.digimead.tabuddy.desktop.logic.operation.OperationModelNew
+import org.digimead.tabuddy.desktop.logic.operation.OperationModelOpen
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
@@ -91,32 +90,43 @@ class ActionLockModel private () extends JFaceAction(Messages.lock_text, IAction
   @log
   override def runWithEvent(event: Event) {
     val context = Core.context.getActiveLeaf()
-
     if (Model.eId == Payload.defaultModel.eId) {
       // There is the default model. Load different model.
       val id = context.get(Data.Id.modelIdUserInput).asInstanceOf[String]
       if (id.nonEmpty)
-        future {
-          Payload.listModels.find(marker => marker.isValid && marker.id.name == id) match {
-            case Some(marker) =>
-              Payload.acquireModel(marker)
-            case None => App.exec {
-              App.findShell(event.widget).foreach { shell =>
-                core.Wizards.open("org.digimead.tabuddy.desktop.editor.wizard.ModelCreationWizard", shell)
+        Payload.listModels.find(marker => marker.isValid && marker.id.name == id) match {
+          case Some(marker) =>
+            OperationModelOpen(Some(Model.eId), Symbol(id), false) foreach { operation =>
+              operation.getExecuteJob() match {
+                case Some(job) =>
+                  job.setPriority(Job.SHORT)
+                  job.schedule()
+                case None =>
+                  log.fatal(s"Unable to create job for ${operation}.")
               }
             }
-          }
-        } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+          case None =>
+            OperationModelNew(Some(id), None, true) foreach { operation =>
+              operation.getExecuteJob() match {
+                case Some(job) =>
+                  job.setPriority(Job.SHORT)
+                  job.schedule()
+                case None =>
+                  log.fatal(s"Unable to create job for ${operation}.")
+              }
+            }
+        }
     } else {
       // Something already loaded. Close.
-      future {
-        Payload.getModelMarker(Model) match {
-          case Some(marker) =>
-            Payload.close(marker)
+      OperationModelClose(Model.eId, false) foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.schedule()
           case None =>
-            log.fatal(s"Unable to correctly to close ${Model.inner} with unknown marker.")
+            log.fatal(s"Unable to create job for ${operation}.")
         }
-      } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+      }
     }
   }
   override def setChecked(checked: Boolean) {

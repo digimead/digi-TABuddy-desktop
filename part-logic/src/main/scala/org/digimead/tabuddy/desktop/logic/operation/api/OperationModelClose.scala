@@ -47,23 +47,23 @@ import org.digimead.tabuddy.desktop.definition.api
 import org.digimead.tabuddy.desktop.logic
 
 /**
- * OperationModelDelete base trait.
+ * OperationModelClose base trait.
  */
-trait OperationModelDelete {
+trait OperationModelClose {
   /**
-   * Delete model with modelId.
+   * Close model with modelId.
    *
-   * @param modelId model to delete
-   * @param askBefore askUser before delete
-   * @return deleted model marker
+   * @param modelId model to close
+   * @param force close model without saving
+   * @return closed model marker
    */
-  def apply(modelId: Symbol, askBefore: Boolean): logic.api.ModelMarker
+  def apply(modelId: Symbol, force: Boolean): logic.api.ModelMarker
   /**
-   * Create 'Delete model' operation.
+   * Create 'Close model' operation.
    *
-   * @param modelId model to delete
-   * @param askBefore askUser before delete
-   * @return 'Delete model' operation
+   * @param modelId model to close
+   * @param force close model without saving
+   * @return 'Close model' operation
    */
-  def operation(modelId: Symbol, askBefore: Boolean): api.Operation[logic.api.ModelMarker]
+  def operation(modelId: Symbol, force: Boolean): api.Operation[logic.api.ModelMarker]
 }

@@ -48,7 +48,6 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConversions._
 
 import org.digimead.digi.lib.Disposable
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
@@ -63,6 +62,7 @@ import org.eclipse.e4.ui.internal.workbench.E4Workbench
 import org.eclipse.equinox.app.IApplication
 import org.eclipse.equinox.app.IApplicationContext
 import org.eclipse.jface.databinding.swt.SWTObservables
+import org.eclipse.swt.widgets.Display
 import org.eclipse.ui.PlatformUI
 import org.eclipse.ui.internal.services.EvaluationService
 import org.osgi.util.tracker.ServiceTracker
@@ -71,7 +71,7 @@ import com.typesafe.config.ConfigFactory
 
 import akka.actor.ActorSystem
 
-import language.implicitConversions
+import scala.language.implicitConversions
 
 /**
  * Application entry point for Digi Launcher
@@ -368,6 +368,9 @@ object MainService extends Loggable {
     val result = new AtomicReference[Option[gui.GUI.Exit]](None)
 
     override def run {
+      Display.getDefault() // get or create
+      for (i <- 1 to 10 if Display.getCurrent().isDisposed())
+        if (i == 10) throw new IllegalStateException("Unable to start application with disposed display.") else Thread.sleep(100)
       assert(result.get.isEmpty)
       assert(bindingContext != null)
       assert(display != null)

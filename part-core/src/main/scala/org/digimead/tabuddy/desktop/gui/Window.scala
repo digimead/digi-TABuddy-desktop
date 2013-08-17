@@ -172,8 +172,10 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   /** Open created window. */
   protected def open(sender: ActorRef) = this.window.foreach(window => App.execNGet {
     if (window.getShell() == null || (window.getShell() != null && !window.getShell().isDisposed()))
-      if (sender != context.system.deadLetters)
-        sender ! Window.Message.OpenResult(window.open())
+      if (sender != context.system.deadLetters) {
+        val result = window.open()
+        sender ! Window.Message.OpenResult(result)
+      }
   })
 }
 

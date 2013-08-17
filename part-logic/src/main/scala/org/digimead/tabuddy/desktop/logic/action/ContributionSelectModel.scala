@@ -44,16 +44,15 @@
 package org.digimead.tabuddy.desktop.logic.action
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.desktop.Resources.resources2implementation
-import org.digimead.tabuddy.desktop.core
-import org.digimead.tabuddy.desktop.core.Wizards.registry2implementation
 import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.operation.OperationModelNew
+import org.digimead.tabuddy.desktop.logic.operation.OperationModelOpen
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.support.App
@@ -66,6 +65,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.ControlContribution
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.layout.RowLayoutFactory
@@ -201,23 +201,29 @@ class ContributionSelectModel extends ControlContribution(ContributionSelectMode
   /** On Enter key event. */
   protected def onEnter(widget: Widget) = if (idValue.value.nonEmpty) {
     val id = idValue.value
-    future {
+    if (id.nonEmpty)
       Payload.listModels.find(marker => marker.isValid && marker.id.name == id) match {
         case Some(marker) =>
-          Payload.acquireModel(marker)
-        case None =>
-          try {
-            App.exec {
-              App.findShell(widget).foreach { shell =>
-                core.Wizards.open("org.digimead.tabuddy.desktop.editor.wizard.ModelCreationWizard", shell)
-              }
+          OperationModelOpen(Some(Model.eId), Symbol(id), false) foreach { operation =>
+            operation.getExecuteJob() match {
+              case Some(job) =>
+                job.setPriority(Job.SHORT)
+                job.schedule()
+              case None =>
+                log.fatal(s"Unable to create job for ${operation}.")
             }
-          } catch {
-            case e: IllegalArgumentException =>
-              log.error(e.getMessage())
+          }
+        case None =>
+          OperationModelNew(Some(id), None, true) foreach { operation =>
+            operation.getExecuteJob() match {
+              case Some(job) =>
+                job.setPriority(Job.SHORT)
+                job.schedule()
+              case None =>
+                log.fatal(s"Unable to create job for ${operation}.")
+            }
           }
       }
-    } onFailure { case e: Throwable => log.error(e.getMessage, e) }
   }
   /** Resize combo viewer */
   protected def resizeCombo() = for {

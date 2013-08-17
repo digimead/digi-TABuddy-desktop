@@ -87,6 +87,8 @@ case class ModelMarker(
     require(true)
     Symbol(modelDescriptorProperties.get.getProperty(ModelMarker.fieldOrigin))
   }
+  /** Model descriptor location. */
+  def descriptor = new File(path.getParentFile(), path.getName() + "." + Payload.extensionModel)
   /** Model ID. */
   def id: Symbol = Symbol(path.getName)
   /** Last accessed timestamp. */
@@ -164,8 +166,6 @@ case class ModelMarker(
       resource.setContents(input, true, false, null)
   }
 
-  /** Model descriptor location. */
-  protected def descriptor = new File(path.getParentFile(), path.getName() + "." + Payload.extensionModel)
   /** Load model descriptor if needed. */
   protected def require(throwError: Boolean, updateViaSave: Boolean = true): Unit =
     if (autoload && (modelDescriptorProperties.isEmpty || resourceProperties.isEmpty)) {
@@ -229,6 +229,25 @@ object ModelMarker extends Loggable {
     } else
       throw new IllegalStateException("Model marker ${marker} is already exists.")
     ModelMarker(resourceUUID, true)
+  }
+  /** Delete marker. */
+  def delete(marker: ModelMarker): ReadOnlyModelMarker = {
+    val readOnlyMarker = new ReadOnlyModelMarker(marker.uuid, marker.createdAt, marker.creator, marker.id, false, marker.lastAccessed, marker.path)
+    marker.resource.delete(true, false, null)
+    readOnlyMarker
+  }
+
+  /** Read only marker. */
+  class ReadOnlyModelMarker(val uuid: UUID, val createdAt: Long, val creator: Symbol, val id: Symbol, val isValid: Boolean,
+    val lastAccessed: Long, val path: File) extends api.ModelMarker {
+    /** Autoload property file if suitable information needed. */
+    val autoload = false
+    /** Load marker properties. */
+    def load() =
+      throw new UnsupportedOperationException
+    /** Save marker properties. */
+    def save() =
+      throw new UnsupportedOperationException
   }
   /** Marker for default model. */
   class DefaultModelMarker extends ModelMarker(Payload.defaultModel.eUnique) {

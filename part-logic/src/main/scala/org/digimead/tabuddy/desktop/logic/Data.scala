@@ -152,38 +152,22 @@ object Data extends Loggable {
   /** This function is invoked at every model initialization */
   def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = {
     log.info(s"Initialize model $newModel.")
-    val modelSet1 = App.execNGet { immutable.SortedSet(availableModels: _*) }
-    val modelSet2 = immutable.SortedSet(Payload.listModels.flatMap { marker =>
-      try {
-        Option(marker.id.name)
-      } catch {
-        case e: Throwable =>
-          log.warn(s"Broken model marker ${marker}: " + e.getMessage)
-          None
-      }
-    }: _*)
-    val modelsRemoved = modelSet1 &~ modelSet2
-    val modelsAdded = modelSet2 &~ modelSet1
     // The load order is important
-    // Type schemas
-    val typeSchemaSet = TypeSchema.load()
-    App.exec {
+    App.execNGet {
+      // Type schemas
+      val typeSchemaSet = TypeSchema.load()
       // reload type schemas
       log.debug("Update type schemas.")
       Data.typeSchemas.clear
       typeSchemaSet.foreach(schema => Data.typeSchemas(schema.id) = schema)
-    }
-    // Enumerations
-    val enumerationSet = Enumeration.load()
-    App.exec {
+      // Enumerations
+      val enumerationSet = Enumeration.load()
       // reload enumerations
       log.debug("Update enumerations.")
       Data.enumerations.clear
       enumerationSet.foreach(enumeration => Data.enumerations(enumeration.id) = enumeration)
-    }
-    // Templates
-    val elementTemplateSet = ElementTemplate.load()
-    App.exec {
+      // Templates
+      val elementTemplateSet = ElementTemplate.load()
       // reload element templates
       log.debug("Update element templates.")
       Data.elementTemplates.clear
@@ -199,20 +183,14 @@ object Data extends Loggable {
         case None =>
           Data.typeSchema.value = TypeSchema.predefined.head
       }
-    }
-    // Model
-    App.exec {
+      // Model
       // update model name
-      log.debug("Set actial model name to " + newModel.eId.name)
+      log.debug(s"Set actial model name to ${newModel.eId.name}.")
       Data.modelName.value = newModel.eId.name
       // update available models
-      log.debug("update an available model list")
-      modelsRemoved.foreach(name => Data.availableModels -= name)
-      modelsAdded.foreach(name => Data.availableModels += name)
-    }
-    // View
-    App.exec {
-      log.debug("Update view difinitions")
+      updateAvailableModels()
+      // View
+      log.debug("Update view difinitions.")
       Data.viewDefinitions.clear
       View.load.foreach(view => Data.viewDefinitions(view.id) = view)
       Data.viewFilters.clear
@@ -227,7 +205,26 @@ object Data extends Loggable {
      */
     updateModelElements()
   }
-  /** Update model elements */
+  /** Update available models. */
+  def updateAvailableModels() {
+    log.debug("Update an available model list.")
+    App.checkUIThread()
+    val modelSet1 = immutable.SortedSet(availableModels: _*)
+    val modelSet2 = immutable.SortedSet(Payload.listModels.flatMap { marker =>
+      try {
+        Option(marker.id.name)
+      } catch {
+        case e: Throwable =>
+          log.warn(s"Broken model marker ${marker}: " + e.getMessage)
+          None
+      }
+    }: _*)
+    val modelsRemoved = modelSet1 &~ modelSet2
+    val modelsAdded = modelSet2 &~ modelSet1
+    modelsRemoved.foreach(name => Data.availableModels -= name)
+    modelsAdded.foreach(name => Data.availableModels += name)
+  }
+  /** Update model elements. */
   def updateModelElements() {
     // Record.Interface[_ <: Record.Stash]] == Record.Generic: avoid 'erroneous or inaccessible type' error
     val eTABuddy = DI.inject[Record.Interface[_ <: Record.Stash]]("eTABuddy")

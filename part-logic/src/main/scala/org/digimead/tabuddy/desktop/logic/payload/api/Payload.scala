@@ -70,12 +70,14 @@ trait Payload {
 
   /** Load the specific model from the predefined directory ${location}/id/ */
   def acquireModel(marker: ModelMarker): Option[Model.Interface[_ <: Model.Stash]]
-  /** Close the current active model. */
-  def close(marker: ModelMarker)
+  /** Close the active model. */
+  def closeModel(marker: ModelMarker)
   /** Create the specific model at the specific directory. */
   def createModel(fullPath: File): ModelMarker
+  /** Delete the model. */
+  def deleteModel(marker: ModelMarker): ModelMarker
   /** Store the specific model to the predefined directory ${location}/id/ */
-  def freezeModel(marker: ModelMarker, model: Model.Interface[_ <: Model.Stash])
+  def saveModel(marker: ModelMarker, model: Model.Interface[_ <: Model.Stash]): URI
   /** Generate new name/id/... */
   def generateNew(base: String, suffix: String, exists: (String) => Boolean): String
   /** Returns the element storage. */

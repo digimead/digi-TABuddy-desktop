@@ -101,8 +101,10 @@ class ModelCreationWizard extends Wizard with INewWizard with Loggable {
         ErrorDialog.openError(one.getShell(), CoreMessages.error_text + ".",
           Messages.ModelCreationWizardPageOne_creationError_text, status)
         false
-      } else
+      } else {
+        result = Some(marker)
         true
+      }
     } catch {
       case e: Throwable =>
         val status = App.throwableToMultiStatus(e, App.bundle(getClass))

@@ -91,7 +91,7 @@ import language.implicitConversions
  * Singleton that contains information about loaded models and provides high level model serialization API.
  */
 class Payload(implicit val bindingModule: BindingModule) extends api.Payload with Injectable with Loggable {
-  val elementNameTemplate = "e %s {%08X}" // hash that prevents case insensitivity collision
+  val elementNameTemplate = "e %s {%08X}" // hash prevents case insensitivity collision
   /** File extension for the serialized element. */
   val extensionElement = Payload.DI.extensionElement
   /** File extension for the model descriptors. */
@@ -105,12 +105,13 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
     map(Payload.defaultModel) = new ModelMarker.DefaultModelMarker
     map
   }
+  protected val modelLock = new Object
 
   /**
    * Load the specific model from the predefined directory ${location}/id/
    */
   @log
-  def acquireModel(marker: lapi.ModelMarker): Option[Model.Interface[_ <: Model.Stash]] = {
+  def acquireModel(marker: lapi.ModelMarker): Option[Model.Interface[_ <: Model.Stash]] = modelLock.synchronized {
     log.debug(s"Acquire model with marker ${marker}.")
     try {
       loadModel(marker) orElse {
@@ -138,11 +139,11 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
     }
   }
   /**
-   * Close the current active model.
+   * Close the active model.
    */
   @log
-  def close(marker: lapi.ModelMarker) {
-    log.info(s"Close model '${Model}' with marker '${marker}'.")
+  def closeModel(marker: lapi.ModelMarker) = modelLock.synchronized {
+    log.info(s"Close model '${Model}' with '${marker}'.")
     try {
       marker.save()
     } finally {
@@ -150,10 +151,34 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
     }
   }
   /**
+   * Delete model.
+   */
+  @log
+  def deleteModel(marker: lapi.ModelMarker): lapi.ModelMarker = modelLock.synchronized {
+    log.info(s"Delete model '${Model.inner}' with '${marker}'.")
+    marker match {
+      case marker: ModelMarker =>
+        if (marker.id == Model.eId)
+          Model.reset(Payload.defaultModel)
+        val modelDescriptorFile = new File(marker.path, marker.id + "." + Payload.extensionModel)
+        val toDelete = markerRegistry.filter { case (model, mm) => mm == marker }
+        toDelete.foreach { case (model, mm) => markerRegistry.remove(model) }
+        log.debug(s"Delete ${marker.path}")
+        FileUtil.deleteFile(marker.path)
+        log.debug(s"Delete ${marker.descriptor}")
+        FileUtil.deleteFile(marker.descriptor)
+        val roMarker = ModelMarker.delete(marker)
+        App.exec { Data.updateAvailableModels }
+        roMarker
+      case other =>
+        throw new IllegalArgumentException("Unexpected model marker type ${other.getClass}. ")
+    }
+  }
+  /**
    * Create the specific model at the specific directory.
    */
   @log
-  def createModel(fullPath: File): lapi.ModelMarker = {
+  def createModel(fullPath: File): lapi.ModelMarker = modelLock.synchronized {
     log.info(s"Create model at '${fullPath.getCanonicalPath()}'.")
     val resourceUUID = UUID.randomUUID()
     val createdAt = System.currentTimeMillis()
@@ -164,19 +189,15 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
    * Store the specific model to the predefined directory ${location}/id/
    */
   @log
-  def freezeModel(marker: lapi.ModelMarker, model: Model.Interface[_ <: Model.Stash]) {
+  def saveModel(marker: lapi.ModelMarker, model: Model.Interface[_ <: Model.Stash]): URI = modelLock.synchronized {
     log.debug(s"Freeze model ${model}.")
     if (marker.id != model.eId)
       throw new IllegalArgumentException(s"Model marker id ${marker.id} and model id ${model.eId} are different.")
-    try {
-      val storage = saveModel(marker, model)
-      val typeSchemas = App.execNGet { Data.typeSchemas.values.toSet }
-      saveTypeSchemas(marker, typeSchemas)
-    } catch {
-      // catch all throwables from serialization process
-      case e: Throwable =>
-        log.error("Unable to save model %s: %s".format(model, e))
-    }
+    val saveF = saveModelElements(marker.path, _: Element.Generic, _: Array[Byte])
+    Payload.serialization.freeze(Model, saveF)
+    val typeSchemas = App.execNGet { Data.typeSchemas.values.toSet }
+    saveTypeSchemas(marker, typeSchemas)
+    marker.path.toURI
   }
   /** Generate new name/id/... */
   def generateNew(base: String, suffix: String, exists: (String) => Boolean): String = {
@@ -223,7 +244,7 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
   def getModelMarker(model: Model.Interface[_ <: Model.Stash]): Option[lapi.ModelMarker] =
     markerRegistry.get(model)
   /** Get a model list. */
-  def listModels(): Seq[lapi.ModelMarker] = {
+  def listModels(): Seq[lapi.ModelMarker] = modelLock.synchronized {
     modelMarker(Payload.defaultModel) +: Logic.container.members.flatMap { resource =>
       if (resource.getFileExtension() == extensionModel)
         try {
@@ -240,7 +261,7 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
   }
   /** Load type schemas. */
   @log
-  def loadTypeSchemas(marker: lapi.ModelMarker): immutable.HashSet[api.TypeSchema] = {
+  def loadTypeSchemas(marker: lapi.ModelMarker): immutable.HashSet[api.TypeSchema] = modelLock.synchronized {
     val typeSchemasStorage = new File(marker.path, folderTypeSchemas)
     log.debug(s"load type schemas from $typeSchemasStorage")
     if (!typeSchemasStorage.exists())
@@ -269,7 +290,7 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
     getModelMarker(model) getOrElse { throw new IllegalArgumentException("Marker is unavailable for model " + model) }
   /** Save type schemas. */
   @log
-  def saveTypeSchemas(marker: lapi.ModelMarker, schemas: immutable.Set[api.TypeSchema]) {
+  def saveTypeSchemas(marker: lapi.ModelMarker, schemas: immutable.Set[api.TypeSchema]) = modelLock.synchronized {
     val typeSchemasStorage = new File(marker.path, folderTypeSchemas)
     log.debug(s"load type schemas to $typeSchemasStorage")
     if (!typeSchemasStorage.exists())
@@ -339,14 +360,6 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
       }
     }
     None
-  }
-  /** Save the model. */
-  @log
-  protected def saveModel(marker: lapi.ModelMarker, model: Model.Interface[_ <: Model.Stash]) {
-    if (marker.id != model.eId)
-      throw new IllegalArgumentException(s"Model marker id ${marker.id} and model id ${model.eId} are different.")
-    val saveF = saveModelElements(marker.path, _: Element.Generic, _: Array[Byte])
-    Payload.serialization.freeze(Model, saveF)
   }
   /** Save model elements */
   protected def saveModelElements(base: File, element: Element.Generic, data: Array[Byte]) {

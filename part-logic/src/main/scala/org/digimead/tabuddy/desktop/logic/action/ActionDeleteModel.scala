@@ -43,18 +43,18 @@
 
 package org.digimead.tabuddy.desktop.logic.action
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.operation.OperationModelDelete
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
@@ -71,13 +71,6 @@ class ActionDeleteModel extends JFaceAction(Messages.delete_text) with Loggable 
   ContextInjectionFactory.inject(ActionDeleteModel.this, Core.context)
 
   override def isEnabled(): Boolean = super.isEnabled && enabled
-  /** Runs this action, passing the triggering SWT event. */
-  @log
-  override def runWithEvent(event: Event) = future {
-    //Payload.close(Payload.modelMarker(Model))
-    //Payload.delete(Payload.modelMarker(Model))
-  } onFailure { case e: Throwable => log.error(e.getMessage, e) }
-
   /** Invoked at every modification of Data.Id.modelIdUserInput. */
   @Inject @Optional // @log
   def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) = App.exec {
@@ -86,6 +79,30 @@ class ActionDeleteModel extends JFaceAction(Messages.delete_text) with Loggable 
       updateEnabled()
     }
   }
+  /** Runs this action, passing the triggering SWT event. */
+  @log
+  override def runWithEvent(event: Event) = {
+    val context = Core.context.getActiveLeaf()
+    val id = context.get(Data.Id.modelIdUserInput).asInstanceOf[String]
+    if (id.nonEmpty)
+      OperationModelDelete(Symbol(id), true).foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
+  }
+
   /** Update enabled action state. */
   protected def updateEnabled() = if (isEnabled)
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)

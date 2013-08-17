@@ -45,11 +45,24 @@ package org.digimead.tabuddy.desktop.logic.operation.api
 
 import java.net.URI
 
-import org.digimead.tabuddy.desktop.definition.api.Operation
+import org.digimead.tabuddy.desktop.definition.api
 
 /**
- * OperationModelFreeze base trait.
+ * OperationModelSave base trait.
  */
-trait OperationModelFreeze {
-  this: Operation[URI] =>
+trait OperationModelSave {
+  /**
+   * Save model with modelId.
+   *
+   * @param modelId model to save
+   * @return model URI
+   */
+  def apply(modelId: Symbol): URI
+  /**
+   * Create 'Save model' operation.
+   *
+   * @param modelId model to save
+   * @return 'Save model' operation
+   */
+  def operation(modelId: Symbol): api.Operation[URI]
 }

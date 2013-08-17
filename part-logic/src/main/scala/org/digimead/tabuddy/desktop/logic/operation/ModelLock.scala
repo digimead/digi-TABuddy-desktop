@@ -41,29 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation.api
+package org.digimead.tabuddy.desktop.logic.operation
 
-import org.digimead.tabuddy.desktop.definition.api
-import org.digimead.tabuddy.desktop.logic
-
-/**
- * OperationModelDelete base trait.
- */
-trait OperationModelDelete {
-  /**
-   * Delete model with modelId.
-   *
-   * @param modelId model to delete
-   * @param askBefore askUser before delete
-   * @return deleted model marker
-   */
-  def apply(modelId: Symbol, askBefore: Boolean): logic.api.ModelMarker
-  /**
-   * Create 'Delete model' operation.
-   *
-   * @param modelId model to delete
-   * @param askBefore askUser before delete
-   * @return 'Delete model' operation
-   */
-  def operation(modelId: Symbol, askBefore: Boolean): api.Operation[logic.api.ModelMarker]
-}
+/** Singleton object that is used as synchronization lock for all model operations. */
+object ModelLock

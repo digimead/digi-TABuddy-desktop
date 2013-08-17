@@ -68,17 +68,30 @@ abstract class Operation[A: universe.TypeTag](label: String) extends AbstractOpe
   def executeJob(info: Option[IAdaptable] = None): Operation.Job[A] = {
     new Operation.Job[A](getLabel()) {
       protected def run(monitor: IProgressMonitor): IStatus = {
-        log.debug("""Run "execute" operation's job.""")
-        Operation.history.execute(Operation.this, monitor, info.getOrElse(null))
+        log.info(s"""Begin "${label}" job [EXECUTE].""")
+        val result = Operation.history.execute(Operation.this, monitor, info.getOrElse(null))
+        log.info(s"""Job "${label}" is finished: ${result}.""")
+        result
       }
     }
   }
+  /** Get execute job if possible. */
+  def getExecuteJob(info: Option[IAdaptable] = None): Option[Operation.Job[A]] =
+    if (canExecute()) Some(executeJob(info)) else None
+  /** Get redo job if possible. */
+  def getRedoJob(info: Option[IAdaptable] = None): Option[Operation.Job[A]] =
+    if (canRedo()) Some(redoJob(info)) else None
+  /** Get undo job if possible. */
+  def getUndoJob(info: Option[IAdaptable] = None): Option[Operation.Job[A]] =
+    if (canUndo()) Some(undoJob(info)) else None
   /** Create redo job for this operation. */
   def redoJob(info: Option[IAdaptable] = None): Operation.Job[A] = {
     new Operation.Job[A](getLabel()) {
       protected def run(monitor: IProgressMonitor): IStatus = {
-        log.debug("""Run "redo" operation's job.""")
-        Operation.history.redoOperation(Operation.this, monitor, info.getOrElse(null))
+        log.info(s"""Begin "${label}" job [REDO].""")
+        val result = Operation.history.redoOperation(Operation.this, monitor, info.getOrElse(null))
+        log.info(s"""Job "${label}" is finished: ${result}.""")
+        result
       }
     }
   }
@@ -86,8 +99,10 @@ abstract class Operation[A: universe.TypeTag](label: String) extends AbstractOpe
   def undoJob(info: Option[IAdaptable] = None): Operation.Job[A] = {
     new Operation.Job[A](getLabel()) {
       protected def run(monitor: IProgressMonitor): IStatus = {
-        log.debug("""Run "undo" operation's job.""")
-        Operation.history.undoOperation(Operation.this, monitor, info.getOrElse(null))
+        log.info(s"""Begin "${label}" job [UNDO].""")
+        val result = Operation.history.undoOperation(Operation.this, monitor, info.getOrElse(null))
+        log.info(s"""Job "${label}" is finished: ${result}.""")
+        result
       }
     }
   }

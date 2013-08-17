@@ -56,64 +56,84 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic
 
-class OperationModelFreeze private (modelId: Symbol)
-  extends OperationModelFreeze.Abstract(modelId) with Loggable {
-  @volatile protected var allowExecute = true
-
-  override def canExecute() = allowExecute
-  override def canRedo() = false
-  override def canUndo() = false
-
-  protected def run(monitor: IProgressMonitor): Operation.Result[URI] = {
-    Operation.Result.OK()
-  }
-  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] = redo(monitor, info)
-
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] = {
-    // process the job
-    val result: Operation.Result[URI] = if (canExecute) {
-      assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
-      val model = Model
-      //      Operation.Result.OK(Payload.freezeModel(model))
-      Operation.Result.OK()
+/** 'Save model' operation. */
+class OperationModelSave extends api.OperationModelSave with Loggable {
+  /**
+   * Save model with modelId.
+   *
+   * @param modelId model to save
+   * @return model URI
+   */
+  def apply(modelId: Symbol) = ModelLock.synchronized {
+    log.info(s"Save model ${modelId}.")
+    if (modelId == Payload.defaultModel.eId) {
+      throw new IllegalArgumentException("Unable to save the default model.")
+    } else if (Model.eId == modelId) {
+      val result = Payload.saveModel(getModelMarker(modelId), Model)
+      log.info(s"Model ${modelId} is saved.")
+      result
     } else
-      Operation.Result.Error(s"Unable to process $this: execute are prohibited")
-    // update the job state
-    allowExecute = false
-    // return the result
-    result
+      throw new IllegalStateException(s"Unable to save model ${modelId}. Unexpected model ${Model.eId} is loaded.")
   }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] =
-    throw new UnsupportedOperationException
-}
+  /**
+   * Create 'Save model' operation.
+   *
+   * @param modelId model to save
+   * @return 'Save model' operation
+   */
+  def operation(modelId: Symbol) = new Implemetation(modelId)
 
-object OperationModelFreeze extends Loggable {
-  @log
-  def apply(modelId: Symbol): Option[OperationModelFreeze] = {
-    DI.jobFactory.asInstanceOf[Option[(Symbol) => OperationModelFreeze]] match {
-      case Some(factory) =>
-        if (modelId != Payload.defaultModel.eId && modelId != Symbol(""))
-          Option(factory(modelId))
-        else {
-          log.warn("Unable to freeze model with default name")
-          None
-        }
+  /**
+   * Get operation model marker for this operation.
+   *
+   * This method isn't collect marker of default model.
+   */
+  protected def getModelMarker(modelId: Symbol): logic.api.ModelMarker = {
+    if (modelId == Payload.defaultModel.eId)
+      throw new IllegalAccessException("Unable to close the default model.")
+    Payload.listModels.find(marker => marker.isValid && marker.id == modelId) match {
+      case Some(marker) =>
+        marker
       case None =>
-        log.error("OperationModelFreeze implementation is not defined.")
-        None
+        throw new IllegalArgumentException(s"Unable to find marker for the model: ${modelId}.")
     }
   }
 
-  abstract class Abstract(val modelId: Symbol)
-    extends Operation[URI](s"Freeze model ${modelId}.") with api.OperationModelFreeze {
+  class Implemetation(modelId: Symbol) extends OperationModelSave.Abstract(modelId) with Loggable {
+    @volatile protected var allowExecute = true
+
+    override def canExecute() = allowExecute
+    override def canRedo() = false
+    override def canUndo() = false
+
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] = ModelLock.synchronized {
+      Operation.Result.OK(Option(OperationModelSave.this(modelId)))
+    }
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] =
+      throw new UnsupportedOperationException
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[URI] =
+      throw new UnsupportedOperationException
+  }
+}
+
+object OperationModelSave extends Loggable {
+  /** Stable identifier with OperationModelSave DI */
+  lazy val operation = DI.operation
+
+  /** Build a new 'Save model' operation */
+  @log
+  def apply(modelId: Symbol): Option[Abstract] = Some(operation.operation(modelId).asInstanceOf[Abstract])
+
+  /** Bridge between abstract api.Operation[URI] and concrete Operation[URI] */
+  abstract class Abstract(val modelId: Symbol) extends Operation[URI](s"Save model ${modelId}.") {
     this: Loggable =>
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Symbol) => api.OperationModelFreeze]
+    lazy val operation = injectOptional[api.OperationModelSave] getOrElse new OperationModelSave
   }
 }

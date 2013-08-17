@@ -43,12 +43,31 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.api
 
-import org.digimead.tabuddy.desktop.definition.api.Operation
-import org.digimead.tabuddy.model.Model
+import java.io.File
+
+import org.digimead.tabuddy.desktop.definition.api
+import org.digimead.tabuddy.desktop.logic
 
 /**
- * OperationModelAcquire base trait.
+ * OperationModelNew base trait.
  */
-trait OperationModelAcquire {
-  this: Operation[Model.Interface[_ <: Model.Stash]] =>
+trait OperationModelNew {
+  /**
+   * Create new model.
+   *
+   * @param name initial model name if any
+   * @param location initial model location if any
+   * @param interactive show model creation wizard
+   * @return created model marker
+   */
+  def apply(name: Option[String], location: Option[File], interactive: Boolean): logic.api.ModelMarker
+  /**
+   * Create 'New model' operation.
+   *
+   * @param name initial model name if any
+   * @param location initial model location if any
+   * @param interactive show model creation wizard
+   * @return 'New model' operation
+   */
+  def operation(name: Option[String], location: Option[File], interactive: Boolean): api.Operation[logic.api.ModelMarker]
 }
