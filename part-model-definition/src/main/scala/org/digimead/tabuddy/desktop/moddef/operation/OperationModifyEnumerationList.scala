@@ -59,7 +59,7 @@ import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
 
 /**
- * Modify an enumeration list
+ * Modify an enumeration list.
  */
 class OperationModifyEnumerationList(enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]], modelId: Symbol)
   extends org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumerationList.Abstract(enumerationList, modelId) with Loggable {
@@ -81,7 +81,7 @@ class OperationModifyEnumerationList(enumerationList: Set[Enumeration[_ <: AnyRe
           dialog.openOrFocus {
             case result if result == org.eclipse.jface.window.Window.OK =>
               exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedEnumerations())))
-            case other =>
+            case result =>
               exchanger.exchange(Operation.Result.Cancel[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]())
           }
         case None =>

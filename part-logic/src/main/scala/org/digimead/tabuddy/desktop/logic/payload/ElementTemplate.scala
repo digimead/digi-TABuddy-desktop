@@ -246,23 +246,23 @@ object ElementTemplate extends Loggable {
   def container() = DI.definition
   /** Get all element templates. */
   def load(): Set[api.ElementTemplate] = {
-    log.debug("load element template list for model " + Model.eId)
+    log.debug("Load element template list for model " + Model.eId)
     val templates: scala.collection.mutable.LinkedHashSet[api.ElementTemplate] =
       ElementTemplate.container.eChildren.map({ element =>
         ElementTemplate.predefined.find(predefined =>
           element.canEqual(predefined.element.getClass(), predefined.element.eStash.getClass())) match {
           case Some(predefined) =>
-            log.debug("load template %s based on %s".format(element, predefined))
+            log.debug("Load template %s based on %s".format(element, predefined))
             Some(new ElementTemplate(element, predefined.factory))
           case None =>
-            log.warn("unable to find apropriate element wrapper for " + element)
+            log.warn("Unable to find apropriate element wrapper for " + element)
             None
         }
       }).flatten
     // add predefined element templates if not exists
     ElementTemplate.predefined.foreach { predefined =>
       if (!templates.exists(_.element.eId == predefined.element.eId)) {
-        log.debug("template for predefined element %s not found, recreate".format(predefined))
+        log.debug("Template for predefined element %s not found, recreate".format(predefined))
         templates += predefined
       }
     }
@@ -271,26 +271,26 @@ object ElementTemplate extends Loggable {
   }
   /** This function is invoked at every model initialization */
   def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = {
-    userPredefinedTemplates = DI.user
-    originalPredefinedTemplates = DI.original
+    userPredefinedTemplates = DI.user // get or create user templates
+    originalPredefinedTemplates = DI.original // get or create original templates
     assert(userPredefinedTemplates.map(_.id) == originalPredefinedTemplates.map(_.id),
       "User modified predefined template list must contain the same elements as original predefined template list")
   }
   /** Update only modified element templates */
   def save(templates: Set[api.ElementTemplate]) = App.exec {
-    log.debug("save element template list for model " + Model.eId)
+    log.debug("Save element template list for model " + Model.eId)
     val oldTemplates = Data.elementTemplates.values
     val deleted = oldTemplates.filterNot(oldTemplate => templates.exists(compareDeep(_, oldTemplate)))
     val added = templates.filterNot(newTemplate => oldTemplates.exists(compareDeep(_, newTemplate)))
     if (deleted.nonEmpty) {
-      log.debug("delete Set(%s)".format(deleted.mkString(", ")))
+      log.debug("Delete Set(%s)".format(deleted.mkString(", ")))
       deleted.foreach { template =>
         Data.elementTemplates.remove(template.id)
         container.eChildren -= template.element
       }
     }
     if (added.nonEmpty) {
-      log.debug("add Set(%s)".format(added.mkString(", ")))
+      log.debug("Add Set(%s)".format(added.mkString(", ")))
       added.foreach { template =>
         container.eChildren += template.element
         Data.elementTemplates(template.id) = template
@@ -348,7 +348,7 @@ object ElementTemplate extends Loggable {
     val factory = (container: Element.Generic, id: Symbol, scopeModificator: Symbol) =>
       Task(container, id, new Task.Scope(scopeModificator), Coordinate.root.coordinate)
     if (sample || (container & TaskLocation(id)).isEmpty) {
-      log.debug("initialize new predefined Task template")
+      log.debug("Initialize new predefined Task template.")
       val element = if (sample)
         Record(id, Coordinate.root.coordinate)
       else
@@ -356,7 +356,7 @@ object ElementTemplate extends Loggable {
       new ElementTemplate(element, factory, "Predefined task element", true,
         immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('name, false, None, PropertyType.get('String)))))
     } else {
-      log.debug("initialize exists predefined Task template")
+      log.debug("Initialize exists predefined Task template.")
       new ElementTemplate(factory(ElementTemplate.container, id, id), factory)
     }
   }
@@ -441,9 +441,14 @@ object ElementTemplate extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val definition = inject[Record.Interface[_ <: Record.Stash]]("eElementTemplate")
-
-    def user = inject[Seq[api.ElementTemplate]]("User")
+    org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Interface[_ <: Record.Stash]]("eElementTemplate")
+    org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.ElementTemplate]]("Original")
+    org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.ElementTemplate]]("User")
+    /** Get or create dynamically eElementTemplate container inside current active model. */
+    def definition = inject[Record.Interface[_ <: Record.Stash]]("eElementTemplate")
+    /** Get or create the sequence of the application predefined templates, marked as samples, inside current active model. */
     def original = inject[Seq[api.ElementTemplate]]("Original")
+    /** Get or create the sequence of the application predefined templates inside current active model. */
+    def user = inject[Seq[api.ElementTemplate]]("User")
   }
 }

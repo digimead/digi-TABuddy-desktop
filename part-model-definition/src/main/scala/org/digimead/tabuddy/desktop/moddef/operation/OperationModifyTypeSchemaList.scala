@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.moddef.operation
 
+import java.util.concurrent.Exchanger
+
 import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.log.api.Loggable
@@ -58,7 +60,7 @@ import org.eclipse.core.runtime.IProgressMonitor
 import org.eclipse.swt.widgets.Shell
 
 /**
- * Modify an immutable type schema list
+ * Modify a type schema list.
  */
 class OperationModifyTypeSchemaList(before: Set[TypeSchema], active: TypeSchema, modelId: Symbol)
   extends org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchemaList.Abstract(before, active, modelId) with Loggable {
@@ -71,12 +73,24 @@ class OperationModifyTypeSchemaList(before: Set[TypeSchema], active: TypeSchema,
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def dialog(shell: Shell): Operation.Result[(Set[TypeSchema], TypeSchema)] = {
-    val dialog = new TypeList(shell, before.toList, active)
-    if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
-      Operation.Result.OK(Some(dialog.getSchemaSet, dialog.getActiveSchema))
-    else
-      Operation.Result.Cancel[(Set[TypeSchema], TypeSchema)]()
+  protected def dialog(): Operation.Result[(Set[TypeSchema], TypeSchema)] = {
+    val exchanger = new Exchanger[Operation.Result[(Set[TypeSchema], TypeSchema)]]()
+    App.assertUIThread(false)
+    App.exec {
+      App.getActiveShell match {
+        case Some(shell) =>
+          val dialog = new TypeList(shell, before.toList, active)
+          dialog.openOrFocus {
+            case result if result == org.eclipse.jface.window.Window.OK =>
+              exchanger.exchange(Operation.Result.OK(Some(dialog.getSchemaSet, dialog.getActiveSchema)))
+            case result =>
+              exchanger.exchange(Operation.Result.Cancel[(Set[TypeSchema], TypeSchema)]())
+          }
+        case None =>
+          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+      }
+    }
+    exchanger.exchange(null)
   }
   protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[TypeSchema], TypeSchema)] = redo(monitor, info)
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[TypeSchema], TypeSchema)] = {
@@ -85,10 +99,7 @@ class OperationModifyTypeSchemaList(before: Set[TypeSchema], active: TypeSchema,
     val result: Operation.Result[(Set[TypeSchema], TypeSchema)] = if (canRedo) {
       jobResult.get
     } else if (canExecute) {
-      App.execNGet {
-        App.getActiveShell.map(dialog) getOrElse
-          { Operation.Result.Error("Unable to find active shell.") }
-      }
+      dialog
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state

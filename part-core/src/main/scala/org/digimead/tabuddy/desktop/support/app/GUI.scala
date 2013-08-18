@@ -43,9 +43,9 @@
 
 package org.digimead.tabuddy.desktop.support.app
 
-import java.util.concurrent.ExecutionException
+import java.util.concurrent.Exchanger
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.TimeoutException
 
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
@@ -95,21 +95,15 @@ trait GUI {
   /** Execute runnable in UI thread. */
   def exec[T](f: => T): Unit = if (debug) {
     val t = new Throwable("Entry point.")
-    if (thread.eq(Thread.currentThread())) {
+    if (isUIThread) {
       val ts = System.currentTimeMillis()
       f
       val duration = System.currentTimeMillis() - ts
       if (duration > 500)
         log.error(s"Too heavy UI operation: ${duration}ms.", t)
-    } else execAsync({
-      val ts = System.currentTimeMillis()
-      f
-      val duration = System.currentTimeMillis() - ts
-      if (duration > 500)
-        log.error(s"Too heavy UI operation: ${duration}ms.", t)
-    })
+    } else execAsync({ f })
   } else {
-    if (thread.eq(Thread.currentThread())) { f } else execAsync({ f })
+    if (isUIThread) { f } else execAsync({ f })
   }
   /** Asynchronously execute runnable in UI thread. */
   def execAsync[T](f: => T): Unit = if (debug) {
@@ -128,10 +122,25 @@ trait GUI {
       def run = try { f } catch { case e: Throwable => log.error("UI Thread exception: " + e, e) }
     })
   }
+  /** Execute blocking runnable with it's own UI queue. */
+  def execBlocking[T](f: => T): T = {
+    if (isUIThread) {
+      f
+    } else {
+      val exchanger = new Exchanger[Either[Throwable, T]]()
+      display.asyncExec(new Runnable {
+        def run = try { exchanger.exchange(Right(f)) } catch { case e: Throwable => exchanger.exchange(Left(e)) }
+      })
+      exchanger.exchange(null) match {
+        case Left(e) => throw e
+        case Right(r) => r
+      }
+    }
+  }
   /** Execute runnable in UI thread and return result or exception */
   def execNGet[T](f: => T): T = if (debug) {
     val t = new Throwable("Entry point.")
-    if (thread.eq(Thread.currentThread())) {
+    if (isUIThread) {
       val ts = System.currentTimeMillis()
       val result = f
       val duration = System.currentTimeMillis() - ts
@@ -140,24 +149,17 @@ trait GUI {
       result
     } else execNGetAsync({ f })
   } else {
-    if (thread.eq(Thread.currentThread())) { f } else execNGetAsync({ f })
+    if (isUIThread) { f } else execNGetAsync({ f })
   }
   /** Asynchronously execute runnable in UI thread and return result or exception */
   def execNGetAsync[T](f: => T): T = {
-    val result = new AtomicReference[Option[Either[Throwable, T]]](None)
+    val exchanger = new Exchanger[Either[Throwable, T]]()
     if (debug) {
       val t = new Throwable("Entry point.")
       display.asyncExec(new Runnable {
-        def run = result.synchronized {
+        def run = {
           val ts = System.currentTimeMillis()
-          try {
-            result.set(Some(Right(f)))
-            result.notifyAll()
-          } catch {
-            case e: Throwable =>
-              result.set(Some(Left(e)))
-              result.notifyAll()
-          }
+          try { exchanger.exchange(Right(f)) } catch { case e: Throwable => exchanger.exchange(Left(e)) }
           val duration = System.currentTimeMillis() - ts
           if (duration > 500)
             log.error(s"Too heavy UI operation: ${duration}ms.", t)
@@ -165,21 +167,10 @@ trait GUI {
       })
     } else {
       display.asyncExec(new Runnable {
-        def run = result.synchronized {
-          try {
-            result.set(Some(Right(f)))
-            result.notifyAll()
-          } catch {
-            case e: Throwable =>
-              result.set(Some(Left(e)))
-              result.notifyAll()
-          }
-        }
+        def run = try { exchanger.exchange(Right(f)) } catch { case e: Throwable => exchanger.exchange(Left(e)) }
       })
     }
-    while (result.get.isEmpty)
-      result.synchronized { result.wait() }
-    result.get.get match {
+    exchanger.exchange(null) match {
       case Left(e) =>
         throw e
       case Right(r) =>
@@ -190,48 +181,17 @@ trait GUI {
    * Asynchronously execute runnable in UI thread with timeout and return result or exception
    * NB This routine block UI thread, so it would unusual to freeze application for a few hours.
    */
+  @throws[TimeoutException]("If the specified waiting time elapses before another thread enters the exchange")
   def execNGetAsync[T](timeout: Int, unit: TimeUnit = TimeUnit.MILLISECONDS)(f: => T): T = {
-    if (thread.eq(Thread.currentThread()))
+    if (isUIThread)
       throw new IllegalStateException("Unable to spawn execNGetAsync runnable with timeout within UI thread.")
-    val mark = System.currentTimeMillis() + unit.toMillis(timeout)
-    val result = new AtomicReference[Option[Either[Throwable, T]]](None)
-    if (debug) {
-      val t = new Throwable("Entry point.")
-      display.asyncExec(new Runnable {
-        def run = result.synchronized {
-          val ts = System.currentTimeMillis()
-          try {
-            result.set(Some(Right(f)))
-            result.notifyAll()
-          } catch {
-            case e: Throwable =>
-              result.set(Some(Left(e)))
-              result.notifyAll()
-          }
-          val duration = System.currentTimeMillis() - ts
-          if (duration > 500)
-            log.error(s"Too heavy UI operation: ${duration}ms.", t)
-        }
-      })
-    } else {
-      display.asyncExec(new Runnable {
-        def run = result.synchronized {
-          try {
-            result.set(Some(Right(f)))
-            result.notifyAll()
-          } catch {
-            case e: Throwable =>
-              result.set(Some(Left(e)))
-              result.notifyAll()
-          }
-        }
-      })
-    }
-    while (result.get.isEmpty && System.currentTimeMillis() < mark)
-      result.synchronized { result.wait(mark - System.currentTimeMillis()) }
-    result.get.get match {
+    val exchanger = new Exchanger[Either[Throwable, T]]()
+    display.asyncExec(new Runnable {
+      def run = try { exchanger.exchange(Right(f)) } catch { case e: Throwable => exchanger.exchange(Left(e)) }
+    })
+    exchanger.exchange(null, timeout, unit) match {
       case Left(e) =>
-        throw new ExecutionException(e)
+        throw e
       case Right(r) =>
         r
     }

@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.moddef.operation
 
+import java.util.concurrent.Exchanger
+
 import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.log.api.Loggable
@@ -64,7 +66,7 @@ import org.eclipse.jface.dialogs.ErrorDialog
 import org.eclipse.swt.widgets.Shell
 
 /**
- * Modify an enumeration list
+ * Modify an enumeration list.
  */
 class OperationModifyEnumeration(enumeration: payload.api.Enumeration[_ <: AnyRef with java.io.Serializable],
   enumerationList: Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]], modelId: Symbol)
@@ -78,24 +80,36 @@ class OperationModifyEnumeration(enumeration: payload.api.Enumeration[_ <: AnyRe
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def dialog(shell: Shell): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
-    if (Data.getAvailableTypes().isEmpty) {
-      ErrorDialog.openError(shell, null, Messages.enumerationUnableToCreate_text,
-        new Status(IStatus.INFO, "unknown", IStatus.OK, Messages.enumerationUnableToCreateNoTypes_text, null))
-      Operation.Result.Error(Messages.enumerationUnableToCreate_text, false)
-    } else {
-      val dialog = new EnumerationEditor(shell, enumeration, enumerationList.toList)
-      if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
-        Operation.Result.OK({
-          val enumeration = dialog.getModifiedEnumeration
-          if (enumerationList.contains(enumeration) && payload.Enumeration.compareDeep(this.enumeration, enumeration))
-            None // nothing changes, and enumeration is already exists
-          else
-            Some(enumeration)
-        })
-      else
-        Operation.Result.Cancel()
+  protected def dialog(): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
+    val exchanger = new Exchanger[Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]]()
+    App.assertUIThread(false)
+    App.exec {
+      App.getActiveShell match {
+        case Some(shell) => if (Data.getAvailableTypes().isEmpty) {
+          App.execBlocking {
+            ErrorDialog.openError(shell, null, Messages.enumerationUnableToCreate_text,
+              new Status(IStatus.INFO, "unknown", IStatus.OK, Messages.enumerationUnableToCreateNoTypes_text, null))
+            exchanger.exchange(Operation.Result.Error(Messages.enumerationUnableToCreate_text, false))
+          }
+        } else {
+          val dialog = new EnumerationEditor(shell, enumeration, enumerationList.toList)
+          dialog.openOrFocus {
+            case result if result == org.eclipse.jface.window.Window.OK =>
+              exchanger.exchange(Operation.Result.OK({
+                val enumeration = dialog.getModifiedEnumeration
+                if (enumerationList.contains(enumeration) && payload.Enumeration.compareDeep(this.enumeration, enumeration))
+                  None // nothing changes, and enumeration is already exists
+                else
+                  Some(enumeration)
+              }))
+            case result =>
+              exchanger.exchange(Operation.Result.Cancel())
+          }
+        } case None =>
+          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+      }
     }
+    exchanger.exchange(null)
   }
   protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = redo(monitor, info)
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
@@ -106,8 +120,7 @@ class OperationModifyEnumeration(enumeration: payload.api.Enumeration[_ <: AnyRe
       Operation.Result.Error[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]("Unimplemented")
     } else if (canExecute) {
       // TODO save modification history
-      App.execNGet { App.getActiveShell.map(dialog) } getOrElse
-        { Operation.Result.Error("Unable to find active shell.") }
+      dialog
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state

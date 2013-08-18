@@ -120,7 +120,7 @@ object Data extends Loggable {
   lazy val viewSortings = WritableMap[UUID, Sorting]
 
   // save type schema value to the current model at every change
-  typeSchema.addChangeListener { (schema, event) => Payload.settings.eSet[String]('Data_typeSchema, schema.id.toString, "") }
+  typeSchema.addChangeListener { (schema, event) => Payload.settings.eSet[String]('activeTypeSchema, schema.id.toString, "") }
 
   /** Get user enumerations */
   def getAvailableElementTemplates(): List[payload.api.ElementTemplate] =
@@ -173,7 +173,7 @@ object Data extends Loggable {
       Data.elementTemplates.clear
       elementTemplateSet.foreach(template => Data.elementTemplates(template.id) = template)
       // set active type schema
-      Payload.settings.eGet[String]('Data_typeSchema) match {
+      Payload.settings.eGet[String]('activeTypeSchema) match {
         case Some(schemaValue) =>
           val schemaUUID = UUID.fromString(schemaValue)
           Data.typeSchemas.get(schemaUUID) match {

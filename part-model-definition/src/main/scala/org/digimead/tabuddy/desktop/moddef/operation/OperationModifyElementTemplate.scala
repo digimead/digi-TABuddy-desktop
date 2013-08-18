@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.moddef.operation
 
+import java.util.concurrent.Exchanger
+
 import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.log.api.Loggable
@@ -58,7 +60,7 @@ import org.eclipse.core.runtime.IProgressMonitor
 import org.eclipse.swt.widgets.Shell
 
 /**
- * Modify elementTemplate
+ * Modify an elementTemplate.
  */
 class OperationModifyElementTemplate(
   /** The initial element template */
@@ -75,19 +77,31 @@ class OperationModifyElementTemplate(
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def dialog(shell: Shell): Operation.Result[payload.api.ElementTemplate] = {
-    val dialog = new ElementTemplateEditor(shell, template, templateList)
-    if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
-      Operation.Result.OK({
-        val after = dialog.getModifiedTemplate
-        // compare templates and deep compare template properties
-        if (templateList.exists(template => payload.ElementTemplate.compareDeep(template, after)))
-          None // nothing changes, and template is already exists
-        else
-          Some(after)
-      })
-    else
-      Operation.Result.Cancel[payload.api.ElementTemplate]()
+  protected def dialog(): Operation.Result[payload.api.ElementTemplate] = {
+    val exchanger = new Exchanger[Operation.Result[payload.api.ElementTemplate]]()
+    App.assertUIThread(false)
+    App.exec {
+      App.getActiveShell match {
+        case Some(shell) =>
+          val dialog = new ElementTemplateEditor(shell, template, templateList)
+          dialog.openOrFocus {
+            case result if result == org.eclipse.jface.window.Window.OK =>
+              exchanger.exchange(Operation.Result.OK({
+                val after = dialog.getModifiedTemplate
+                // compare templates and deep compare template properties
+                if (templateList.exists(template => payload.ElementTemplate.compareDeep(template, after)))
+                  None // nothing changes, and template is already exists
+                else
+                  Some(after)
+              }))
+            case result =>
+              exchanger.exchange(Operation.Result.Cancel[payload.api.ElementTemplate]())
+          }
+        case None =>
+          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+      }
+    }
+    exchanger.exchange(null)
   }
   protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] = redo(monitor, info)
   protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] = {
@@ -98,10 +112,7 @@ class OperationModifyElementTemplate(
       Operation.Result.Error("Unimplemented")
     } else if (canExecute) {
       // TODO save modification history
-      App.execNGet {
-        App.getActiveShell.map(dialog) getOrElse
-          { Operation.Result.Error("Unable to find active shell.") }
-      }
+      dialog
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state

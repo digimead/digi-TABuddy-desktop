@@ -346,6 +346,8 @@ object Enumeration extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val definition = inject[Record.Interface[_ <: Record.Stash]]("eEnumeration")
+    org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Interface[_ <: Record.Stash]]("eEnumeration")
+    /** Get or create dynamically eEnumeration container inside current active model. */
+    def definition = inject[Record.Interface[_ <: Record.Stash]]("eEnumeration")
   }
 }

@@ -43,11 +43,13 @@
 
 package org.digimead.tabuddy.desktop.moddef.operation
 
+import java.util.concurrent.Exchanger
+
 import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.moddef.dialog.eltemlist.ElementTemplateList
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -55,9 +57,8 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.swt.widgets.Shell
 
-class OperationModifyElementTemplateList(elementTemplates: Set[ElementTemplate], modelId: Symbol)
+class OperationModifyElementTemplateList(elementTemplates: Set[payload.api.ElementTemplate], modelId: Symbol)
   extends org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplateList.Abstract(elementTemplates, modelId) with Loggable {
   @volatile protected var allowExecute = true
   @volatile protected var allowRedo = false
@@ -67,26 +68,35 @@ class OperationModifyElementTemplateList(elementTemplates: Set[ElementTemplate],
   override def canRedo() = allowRedo
   override def canUndo() = allowUndo
 
-  protected def dialog(shell: Shell): Operation.Result[Set[ElementTemplate]] = {
-    val dialog = new ElementTemplateList(shell, elementTemplates)
-    if (dialog.openOrFocus() == org.eclipse.jface.window.Window.OK)
-      Operation.Result.OK(Some(dialog.getModifiedTemplates()))
-    else
-      Operation.Result.Cancel[Set[ElementTemplate]]()
+  protected def dialog(): Operation.Result[Set[payload.api.ElementTemplate]] = {
+    val exchanger = new Exchanger[Operation.Result[Set[payload.api.ElementTemplate]]]()
+    App.assertUIThread(false)
+    App.exec {
+      App.getActiveShell match {
+        case Some(shell) =>
+          val dialog = new ElementTemplateList(shell, elementTemplates)
+          dialog.openOrFocus {
+            case result if result == org.eclipse.jface.window.Window.OK =>
+              exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedTemplates())))
+            case result =>
+              exchanger.exchange(Operation.Result.Cancel[Set[payload.api.ElementTemplate]]())
+          }
+        case None =>
+          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+      }
+    }
+    exchanger.exchange(null)
   }
-  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[ElementTemplate]] = redo(monitor, info)
-  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[ElementTemplate]] = {
+  protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.ElementTemplate]] = redo(monitor, info)
+  protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.ElementTemplate]] = {
     assert(Model.eId == modelId, "An unexpected model %s, expect %s".format(Model.eId, modelId))
     // process the job
-    val result: Operation.Result[Set[ElementTemplate]] = if (canRedo) {
+    val result: Operation.Result[Set[payload.api.ElementTemplate]] = if (canRedo) {
       // TODO replay history, modify ElementTemplate.container: before -> after
       Operation.Result.Error("Unimplemented")
     } else if (canExecute) {
       // TODO save modification history
-      App.execNGet {
-        App.getActiveShell.map(dialog) getOrElse
-          { Operation.Result.Error("Unable to find active shell.") }
-      }
+      dialog
     } else
       Operation.Result.Error(s"Unable to process $this: redo and execute are prohibited")
     // update the job state
@@ -107,7 +117,7 @@ class OperationModifyElementTemplateList(elementTemplates: Set[ElementTemplate],
     // return the result
     result
   }
-  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[ElementTemplate]] = {
+  protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.ElementTemplate]] = {
     // TODO revert history, modify elementTemplate: after -> before
     Operation.Result.Error("Unimplemented")
   }

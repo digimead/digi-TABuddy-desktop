@@ -366,6 +366,7 @@ object TypeSchema extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.TypeSchema]]
     lazy val default = inject[UUID]("TypeSchema.Default")
     /** Predefined type schemas that are available for this application */
     def predefinedSchemas: Seq[api.TypeSchema] = {
