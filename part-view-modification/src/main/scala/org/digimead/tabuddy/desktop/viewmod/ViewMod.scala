@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.modeldef
+package org.digimead.tabuddy.desktop.viewmod
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
@@ -67,9 +67,9 @@ import akka.actor.actorRef2Scala
 import scala.language.implicitConversions
 
 /**
- * Root actor of the Model Definition component.
+ * Root actor of the View modification component.
  */
-class ModelDef extends akka.actor.Actor with Loggable {
+class ViewMod extends akka.actor.Actor with Loggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef]()
   /** Flag indicating whether GUI is valid. */
@@ -82,7 +82,7 @@ class ModelDef extends akka.actor.Actor with Loggable {
   /*
    * Logic component actors.
    */
-  val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  //val actionRef = context.actorOf(action.Action.props, action.Action.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -106,18 +106,18 @@ class ModelDef extends akka.actor.Actor with Loggable {
     case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
-    case message @ App.Message.Inconsistent(element, _) if element != ModelDef && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
+    case message @ App.Message.Inconsistent(element, _) if element != ViewMod && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
-        context.system.eventStream.publish(App.Message.Inconsistent(ModelDef, self))
+        context.system.eventStream.publish(App.Message.Inconsistent(ViewMod, self))
       }
       inconsistentSet = inconsistentSet + element
     }
-    case message @ App.Message.Consistent(element, _) if element != ModelDef && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
+    case message @ App.Message.Consistent(element, _) if element != ViewMod && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
-        context.system.eventStream.publish(App.Message.Consistent(ModelDef, self))
+        context.system.eventStream.publish(App.Message.Consistent(ViewMod, self))
       }
     }
     case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
@@ -144,30 +144,30 @@ class ModelDef extends akka.actor.Actor with Loggable {
   /** This callback is invoked when GUI is valid. */
   @log
   protected def onGUIValid() = initializationLock.synchronized {
-    App.afterStart("Desktop Model Definition", Timeout.normal.toMillis, Logic.getClass()) {
+    App.afterStart("Desktop View Modification", Timeout.normal.toMillis, Logic.getClass()) {
       val context = thisBundle.getBundleContext()
       //Actions.configure
-      App.markAsStarted(ModelDef.getClass)
+      App.markAsStarted(ViewMod.getClass)
     }
   }
   /** This callback is invoked when GUI is invalid. */
   @log
   protected def onGUIInvalid() = initializationLock.synchronized {
     val context = thisBundle.getBundleContext()
-    App.markAsStopped(ModelDef.getClass())
+    App.markAsStopped(ViewMod.getClass())
     // Prepare for shutdown.
     //Actions.unconfigure
     if (inconsistentSet.nonEmpty)
       log.fatal("Inconsistent elements detected: " + inconsistentSet)
     // The everything is stopped. Absolutely consistent.
-    App.publish(App.Message.Consistent(ModelDef, self))
+    App.publish(App.Message.Consistent(ViewMod, self))
   }
 }
 
-object ModelDef {
-  implicit def modeldef2actorRef(m: ModelDef.type): ActorRef = m.actor
-  implicit def modeldef2actorSRef(m: ModelDef.type): ScalaActorRef = m.actor
-  /** ModelDef actor reference. */
+object ViewMod {
+  implicit def ViewMod2actorRef(m: ViewMod.type): ActorRef = m.actor
+  implicit def ViewMod2actorSRef(m: ViewMod.type): ScalaActorRef = m.actor
+  /** ViewMod actor reference. */
   lazy val actor = {
     val inbox = Inbox.create(App.system)
     inbox.send(Logic, App.Message.Attach(props, id))
@@ -178,22 +178,22 @@ object ModelDef {
         throw new IllegalStateException(s"Unable to attach actor ${id} to ${Logic.path}.")
     }
   }
-  /** ModelDef actor path. */
+  /** ViewMod actor path. */
   lazy val actorPath = Logic.path / id
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** ModelDef actor reference configuration object. */
+  /** ViewMod actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  action.Action
+  //action.Action
 
-  override def toString = "ModelDef[Singleton]"
+  override def toString = "ViewMod[Singleton]"
 
   /**
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** ModelDef actor reference configuration object. */
-    lazy val props = injectOptional[Props]("ModelDef") getOrElse Props[ModelDef]
+    /** ViewMod actor reference configuration object. */
+    lazy val props = injectOptional[Props]("ViewMod") getOrElse Props[ViewMod]
   }
 }

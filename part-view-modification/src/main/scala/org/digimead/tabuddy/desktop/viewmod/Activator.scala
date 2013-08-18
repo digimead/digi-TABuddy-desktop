@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.modeldef
+package org.digimead.tabuddy.desktop.viewmod
 
 import scala.ref.WeakReference
 
@@ -81,27 +81,27 @@ class Activator extends BundleActivator with Loggable {
           log.warn("DI service not found.")
       }
     DependencyInjection.inject()
-    ModelDef.actor // Start component actors hierarchy
-    System.out.println("Module definition component is started.")
+    ViewMod.actor // Start component actors hierarchy
+    System.out.println("View modification component is started.")
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
-    log.debug("Stop TABuddy Desktop module definition component.")
+    log.debug("Stop TABuddy Desktop view modification component.")
     try {
       // Stop component actors.
       val inbox = Inbox.create(App.system)
-      inbox.watch(ModelDef)
-      ModelDef ! PoisonPill
+      inbox.watch(ViewMod)
+      ViewMod ! PoisonPill
       if (inbox.receive(Timeout.long).isInstanceOf[Terminated])
-        log.debug("ModelDef actors hierarchy is terminated.")
+        log.debug("ViewMod actors hierarchy is terminated.")
       else
-        log.fatal("Unable to shutdown ModelDef actors hierarchy.")
+        log.fatal("Unable to shutdown ViewMod actors hierarchy.")
     } catch {
       case e if App.system == null =>
         log.debug("Skip Akka cleanup: ecosystem is already shut down.")
     }
     Activator.dispose()
-    System.out.println("Module definition component is stopped.")
+    System.out.println("View modification component is stopped.")
   }
 }
 

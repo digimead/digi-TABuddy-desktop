@@ -51,6 +51,16 @@ import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
 
+/**
+ * Model definition component contains:
+ *   create element dialog
+ *   modify element template dialog
+ *   modify element template list dialog
+ *   modify enumeration dialog
+ *   modify enumeration list dialog
+ *   modify type schema dialog
+ *   modify type schema list dialog
+ */
 package object modeldef {
   lazy val default = new NewBindingModule(module => {
     // implementation of logic.operation.OperationCreateElement
