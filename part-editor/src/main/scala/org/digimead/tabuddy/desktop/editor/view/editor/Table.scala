@@ -46,26 +46,24 @@ package org.digimead.tabuddy.desktop.editor.view.editor
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.Array.canBuildFrom
 import scala.Option.option2Iterable
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.parallel
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
 import scala.ref.WeakReference
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.PropertyType.LabelProviderAdapter
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
-import org.digimead.tabuddy.desktop.logic.payload.view.comparator.Comparator
-import org.digimead.tabuddy.desktop.logic.payload.view.filter.Filter
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.editor.Default
+import org.digimead.tabuddy.desktop.logic.payload.PropertyType
+import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.TreeProxy
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.model.element.Element
-import org.eclipse.jface.action.Action
-import org.eclipse.jface.action.IAction
 import org.eclipse.jface.action.IMenuListener
 import org.eclipse.jface.action.IMenuManager
 import org.eclipse.jface.action.MenuManager
@@ -77,7 +75,6 @@ import org.eclipse.jface.viewers.ILabelProvider
 import org.eclipse.jface.viewers.ISelectionChangedListener
 import org.eclipse.jface.viewers.IStructuredSelection
 import org.eclipse.jface.viewers.SelectionChangedEvent
-import org.eclipse.jface.viewers.StructuredSelection
 import org.eclipse.jface.viewers.TableViewer
 import org.eclipse.jface.viewers.TableViewerColumn
 import org.eclipse.jface.viewers.Viewer
@@ -95,13 +92,10 @@ import org.eclipse.swt.graphics.Color
 import org.eclipse.swt.graphics.Font
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.widgets.Shell
+
 import com.ibm.icu.text.DateFormat
-import org.eclipse.jface.util.ConfigureColumns
-import org.eclipse.jface.window.SameShellProvider
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.editor.Default
+
+import scala.language.reflectiveCalls
 
 class Table(protected[editor] val view: View, style: Int)
   extends TableActions with TableFields with Loggable {
@@ -495,11 +489,11 @@ object Table extends Loggable {
      */
     def getImage(element: AnyRef): Image = element match {
       case item: TreeProxy.Item =>
-//        propertyMap.get(item.element.eScope.modificator).map { property =>
-//          val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
-          // as common unknown type
-//          property.ptype.adapter.labelProvider.asInstanceOf[LabelProviderAdapter[AnyRef with java.io.Serializable]].getImage(value)
-//        } getOrElse null
+        //        propertyMap.get(item.element.eScope.modificator).map { property =>
+        //          val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
+        // as common unknown type
+        //          property.ptype.adapter.labelProvider.asInstanceOf[LabelProviderAdapter[AnyRef with java.io.Serializable]].getImage(value)
+        //        } getOrElse null
         null
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))

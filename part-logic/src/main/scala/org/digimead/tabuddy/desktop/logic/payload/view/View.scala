@@ -90,7 +90,7 @@ case class View(
 
 object View extends Loggable {
   /** Predefined default view */
-  val default = View(UUID.fromString("033ca060-8493-11e2-9e96-0800200c9a66"), Messages.default_text,
+  val displayName = View(UUID.fromString("033ca060-8493-11e2-9e96-0800200c9a66"), Messages.default_text,
     "The default minimal view with 'name' column", true, mutable.LinkedHashSet('name), mutable.LinkedHashSet(), mutable.LinkedHashSet())
   /** Columns limit per view */
   val collectionMaximum = 10000
@@ -109,7 +109,7 @@ object View extends Loggable {
     val id = element.eId.name.replaceAll("_", "-")
     val uuid = try { Option(UUID.fromString(id)) } catch {
       case e: Throwable =>
-        log.error("unable to load view with id " + id)
+        log.error("Unable to load view with id " + id)
         None
     }
     val availability = element.eGet[java.lang.Boolean](getFieldIDAvailability).map(_.get)
@@ -181,26 +181,26 @@ object View extends Loggable {
   def getFieldIDName() = 'name
   /** Get all view definitions. */
   def load(): Set[View] = {
-    log.debug("load view definition list for model " + Model.eId)
+    log.debug("Load view definition list for model " + Model.eId)
     val result = View.container.eChildren.toSet.map(View.get).flatten.toList.sortBy(_.name)
-    if (result.contains(View.default)) result.toSet else (View.default +: result).toSet
+    if (result.contains(View.displayName)) result.toSet else (View.displayName +: result).toSet
   }
   /** Update only modified view definitions */
   def save(views: Set[View]) = App.exec {
-    log.debug("save view definition list for model " + Model.eId)
+    log.debug("Save view definition list for model " + Model.eId)
     val oldViews = Data.viewDefinitions.values
-    val newViews = views - default
+    val newViews = views - displayName
     val deleted = oldViews.filterNot(oldView => newViews.exists(compareDeep(_, oldView)))
     val added = newViews.filterNot(newView => oldViews.exists(compareDeep(_, newView)))
     if (deleted.nonEmpty) {
-      log.debug("delete Set(%s)".format(deleted.mkString(", ")))
+      log.debug("Delete Set(%s)".format(deleted.mkString(", ")))
       deleted.foreach { view =>
         Data.viewDefinitions.remove(view.id)
         remove(view)
       }
     }
     if (added.nonEmpty) {
-      log.debug("add Set(%s)".format(added.mkString(", ")))
+      log.debug("Add Set(%s)".format(added.mkString(", ")))
       added.foreach { view =>
         set(view)
         Data.viewDefinitions(view.id) = view
@@ -247,6 +247,8 @@ object View extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val definition = inject[Record.Interface[_ <: Record.Stash]]("eViewDefinition")
+    org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Interface[_ <: Record.Stash]]("eViewDefinition")
+    /** Get or create dynamically eViewDefinition container inside current active model. */
+    def definition = inject[Record.Interface[_ <: Record.Stash]]("eViewDefinition")
   }
 }

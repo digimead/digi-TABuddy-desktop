@@ -41,41 +41,29 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view.filter
+package org.digimead.tabuddy.desktop.logic.payload.view
 
 import java.util.UUID
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.view.api
-import org.digimead.tabuddy.model.element.Element
+import scala.collection.immutable
 
-class ByPropertyText extends api.Filter[ByPropertyTextArgument] with Loggable {
-  val id = UUID.fromString("74db4f4c-261c-443c-b014-fae7d864357b")
-  val name = "By property text"
-  val description = "Compare two element's properties via text representation"
-  val isArgumentSupported = true
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.model.Record
 
-  /** Convert Argument trait to the serialized string */
-  def argumentToString(argument: ByPropertyTextArgument): String = argument.value
-  /** Convert Argument trait to the text representation for the user */
-  def argumentToText(argument: ByPropertyTextArgument): String = argument.value
-  /** Check whether filtering is available */
-  def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
-  /** Filter element property */
-  def filter[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e: Element.Generic, argument: Option[ByPropertyTextArgument]): Boolean =
-    argument match {
-      case Some(argument) =>
-        val text = e.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
-        text.toLowerCase().contains(argument.value.toLowerCase())
-      case None =>
-        log.warn("argument is absent")
-        true
-    }
-  /** Convert the serialized argument to Argument trait */
-  def stringToArgument(argument: String): Option[ByPropertyTextArgument] = Some(ByPropertyTextArgument(argument.trim()))
+/** Application wide comparators that is available for consumer. */
+object AvailableComparators {
+  /** Default user comparator. */
+  def default = DI.defaultComparator
+  /** Map of all available comparators. */
+  def map = DI.map
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Comparator item that is selected by default. */
+    lazy val defaultComparator = map(inject[UUID]("Comparator.Default"))
+    /** Predefined comparators that are available for this application */
+    lazy val map = inject[immutable.HashMap[UUID, api.Comparator[_ <: api.Comparator.Argument]]]
+  }
 }
-
-sealed case class ByPropertyTextArgument(val value: String) extends api.Filter.Argument
-
-object ByPropertyText extends ByPropertyText

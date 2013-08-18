@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.logic.payload.view
 import java.util.UUID
 
 import scala.collection.mutable
+import scala.collection.immutable
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -87,8 +88,8 @@ case class Filter(
 }
 
 object Filter extends Loggable {
-  /** Predefined default sort */
-  val default = Filter(UUID.fromString("d9baaf38-fb98-4de5-9085-12156e668b0c"), Messages.default_text, "", true, mutable.LinkedHashSet())
+  /** Predefined default filter. */
+  val allowAllFilter = Filter(UUID.fromString("d9baaf38-fb98-4de5-9085-12156e668b0c"), Messages.default_text, "", true, mutable.LinkedHashSet())
   /** Fields limit per sort */
   val collectionMaximum = 100
 
@@ -155,13 +156,13 @@ object Filter extends Loggable {
   def load(): Set[Filter] = {
     log.debug("load view filter list for model " + Model.eId)
     val result = Filter.container.eChildren.map(Filter.get).flatten.toList.sortBy(_.name)
-    if (result.contains(Filter.default)) result.toSet else (Filter.default +: result).toSet
+    if (result.contains(Filter.allowAllFilter)) result.toSet else (Filter.allowAllFilter +: result).toSet
   }
   /** Update only modified view filters */
   def save(filters: Set[Filter]) = App.exec {
     log.debug("save view filter list for model " + Model.eId)
     val oldFilters = Data.viewFilters.values
-    val newFilters = filters - default
+    val newFilters = filters - allowAllFilter
     val deleted = oldFilters.filterNot(oldFilter => newFilters.exists(compareDeep(_, oldFilter)))
     val added = newFilters.filterNot(newFilter => oldFilters.exists(compareDeep(_, newFilter)))
     if (deleted.nonEmpty) {
@@ -211,6 +212,8 @@ object Filter extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val definition = inject[Record.Interface[Record.Stash]]("eViewFilter")
+    org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Interface[_ <: Record.Stash]]("eViewFilter")
+    /** Get or create dynamically eViewFilter container inside current active model. */
+    def definition = inject[Record.Interface[_ <: Record.Stash]]("eViewFilter")
   }
 }

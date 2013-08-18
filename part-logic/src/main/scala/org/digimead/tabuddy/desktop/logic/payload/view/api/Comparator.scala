@@ -73,6 +73,8 @@ trait Comparator[T <: Comparator.Argument] {
   def compare[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[U], e1: Element.Generic, e2: Element.Generic, argument: Option[T]): Int
   /** Convert the serialized argument to Argument instance */
   def stringToArgument(argument: String): Option[T]
+  /** Convert the serialized argument to the text representation for the user */
+  def stringToText(argument: String): Option[String] = stringToArgument(argument).map(argumentToText)
 }
 
 object Comparator {

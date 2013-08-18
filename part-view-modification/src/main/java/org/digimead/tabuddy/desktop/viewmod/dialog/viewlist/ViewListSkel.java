@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,9 +41,9 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.modeldef.dialog.eltemlist;
+package org.digimead.tabuddy.desktop.viewmod.dialog.viewlist;
 
-import org.digimead.tabuddy.desktop.ResourceManager;
+import org.digimead.tabuddy.desktop.viewmod.dialog.CustomMessages;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
@@ -51,13 +51,12 @@ import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
-import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.Text;
 
 import swing2swt.layout.FlowLayout;
 
@@ -66,21 +65,22 @@ import swing2swt.layout.FlowLayout;
  *
  * @author ezh
  */
-public class ElementTemplateListSkel extends TitleAreaDialog {
-	private TableViewer tableViewer;
+public class ViewListSkel extends TitleAreaDialog {
 	private Composite compositeFooter;
-	private TableViewerColumn tableViewerColumnId;
-	private TableViewerColumn tableViewerColumnAvailability;
+	private Table table;
+	private TableViewer tableViewer;
+	private TableViewerColumn tableViewerColumnDescription;
 	private TableViewerColumn tableViewerColumnName;
+	private Text textFilter;
 
 	/**
 	 * Create the dialog.
 	 *
 	 * @param parentShell
 	 */
-	public ElementTemplateListSkel(Shell parentShell) {
+	public ViewListSkel(Shell parentShell) {
 		super(parentShell);
-		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
+		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE);
 	}
 
 	/**
@@ -90,52 +90,41 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setTitleImage(ResourceManager.getImage(ElementTemplateList.class,
-				"/icons/full/message_info.gif"));
-		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplateListTitle_text()); // $hide$
-		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplateListDescription_text()); // $hide$
+		setTitle(CustomMessages.viewListTitle_text);
+		setMessage(CustomMessages.viewListDescription_text);
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
-		container.setLayout(new GridLayout(1, true));
+		container.setLayout(new GridLayout(1, false));
 		container.setLayoutData(new GridData(GridData.FILL_BOTH));
 
-		Label lblElementTemplates = new Label(container, SWT.NONE);
-		lblElementTemplates.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER,
-				false, false, 1, 1));
-		lblElementTemplates.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplates_text()); // $hide$
+		textFilter = new Text(container, SWT.BORDER);
+		textFilter.setToolTipText(org.digimead.tabuddy.desktop.Messages$.MODULE$.lookupFilter_text()); // $hide$
+		textFilter.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
+				false, 1, 1));
+		textFilter.setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.lookupFilter_text()); // $hide$
 
-		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK | SWT.FULL_SELECTION);
-		Table table_templates = tableViewer.getTable();
-		table_templates.setHeaderVisible(true);
-		table_templates.setLinesVisible(true);
-		table_templates.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true,
-				true, 1, 1));
+		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK
+				| SWT.FULL_SELECTION);
+		table = tableViewer.getTable();
+		table.setLinesVisible(true);
+		table.setHeaderVisible(true);
+		table.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
 
-		tableViewerColumnAvailability = new TableViewerColumn(
-				tableViewer, SWT.NONE);
-		TableColumn tblclmnAvailability = tableViewerColumnAvailability
-				.getColumn();
-		tblclmnAvailability.setWidth(100);
-		tblclmnAvailability
-				.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.availability_text()); // $hide$
+		tableViewerColumnName = new TableViewerColumn(tableViewer, SWT.NONE);
+		TableColumn tableColumnName = tableViewerColumnName.getColumn();
+		tableColumnName.setWidth(100);
+		tableColumnName.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text()); // $hide$
 
-		tableViewerColumnId = new TableViewerColumn(tableViewer,
+		tableViewerColumnDescription = new TableViewerColumn(tableViewer,
 				SWT.NONE);
-		TableColumn tblclmnId = tableViewerColumnId.getColumn();
-		tblclmnId.setWidth(100);
-		tblclmnId.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text()); // $hide$
-
-		tableViewerColumnName = new TableViewerColumn(
-				tableViewer, SWT.NONE);
-		TableColumn tblclmnName = tableViewerColumnName
+		TableColumn tableColumnDescription = tableViewerColumnDescription
 				.getColumn();
-		tblclmnName.setWidth(100);
-		tblclmnName
-				.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text()); // $hide$
+		tableColumnDescription.setWidth(100);
+		tableColumnDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text()); // $hide$
 
 		compositeFooter = new Composite(container, SWT.NONE);
-		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,
-				true, false, 1, 1));
+		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true,
+				false, 1, 1));
 		compositeFooter.setLayout(new FlowLayout(FlowLayout.RIGHT, 5, 5));
 
 		return area;
@@ -148,30 +137,29 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected void createButtonsForButtonBar(Composite parent) {
-		Button button = createButton(parent, IDialogConstants.OK_ID,
-				IDialogConstants.OK_LABEL, true);
-		button.setEnabled(false);
+		createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL,
+				true);
 		createButton(parent, IDialogConstants.CANCEL_ID,
 				IDialogConstants.CANCEL_LABEL, false);
+	}
+
+	protected TableViewerColumn getTableViewerColumnName() {
+		return tableViewerColumnName;
+	}
+
+	protected TableViewerColumn getTableViewerColumnDescription() {
+		return tableViewerColumnDescription;
 	}
 
 	protected TableViewer getTableViewer() {
 		return tableViewer;
 	}
 
-	public Composite getCompositeFooter() {
+	protected Composite getCompositeFooter() {
 		return compositeFooter;
 	}
 
-	protected TableViewerColumn getTableViewerColumnId() {
-		return tableViewerColumnId;
-	}
-
-	protected TableViewerColumn getTableViewerColumnAvailability() {
-		return tableViewerColumnAvailability;
-	}
-
-	protected TableViewerColumn getTableViewerColumnName() {
-		return tableViewerColumnName;
+	protected Text getTextFilter() {
+		return textFilter;
 	}
 }

@@ -89,7 +89,7 @@ case class Sorting(
 
 object Sorting extends Loggable {
   /** Predefined default sort */
-  val default = Sorting(UUID.fromString("da7303d6-d432-49bd-9634-48d1638c2775"), Messages.default_text,
+  val simpleSorting = Sorting(UUID.fromString("da7303d6-d432-49bd-9634-48d1638c2775"), Messages.default_text,
     "default sort order", true, mutable.LinkedHashSet())
   /** Fields limit per sort */
   val collectionMaximum = 100
@@ -106,7 +106,7 @@ object Sorting extends Loggable {
     val id = element.eId.name.replaceAll("_", "-")
     val uuid = try { Option(UUID.fromString(id)) } catch {
       case e: Throwable =>
-        log.error("unable to load sorting with id " + id)
+        log.error("Unable to load sorting with id " + id)
         None
     }
     val availability = element.eGet[java.lang.Boolean](getFieldIDAvailability).map(_.get)
@@ -156,26 +156,26 @@ object Sorting extends Loggable {
   def getFieldIDName() = 'name
   /** Get all view sortings for the current model. */
   def load(): Set[Sorting] = {
-    log.debug("load view sorting list for model " + Model.eId)
+    log.debug("Load view sorting list for model " + Model.eId)
     val result = Sorting.container.eChildren.map(Sorting.get).flatten.toList.sortBy(_.name)
-    if (result.contains(Sorting.default)) result.toSet else (Sorting.default +: result).toSet
+    if (result.contains(Sorting.simpleSorting)) result.toSet else (Sorting.simpleSorting +: result).toSet
   }
   /** Update only modified view sortings */
   def save(sortings: Set[Sorting]) = App.exec {
-    log.debug("save view sorting list for model " + Model.eId)
+    log.debug("Save view sorting list for model " + Model.eId)
     val oldSortings = Data.viewSortings.values
-    val newSortings = sortings - default
+    val newSortings = sortings - simpleSorting
     val deleted = oldSortings.filterNot(oldSorting => newSortings.exists(compareDeep(_, oldSorting)))
     val added = newSortings.filterNot(newSorting => oldSortings.exists(compareDeep(_, newSorting)))
     if (deleted.nonEmpty) {
-      log.debug("delete Set(%s)".format(deleted.mkString(", ")))
+      log.debug("Delete Set(%s)".format(deleted.mkString(", ")))
       deleted.foreach { sorting =>
         Data.viewSortings.remove(sorting.id)
         remove(sorting)
       }
     }
     if (added.nonEmpty) {
-      log.debug("add Set(%s)".format(added.mkString(", ")))
+      log.debug("Add Set(%s)".format(added.mkString(", ")))
       added.foreach { sorting =>
         set(sorting)
         Data.viewSortings(sorting.id) = sorting
@@ -228,6 +228,8 @@ object Sorting extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val definition = inject[Record.Interface[_ <: Record.Stash]]("eViewSorting")
+    org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Interface[_ <: Record.Stash]]("eViewSorting")
+    /** Get or create dynamically eViewSorting container inside current active model. */
+    def definition = inject[Record.Interface[_ <: Record.Stash]]("eViewSorting")
   }
 }

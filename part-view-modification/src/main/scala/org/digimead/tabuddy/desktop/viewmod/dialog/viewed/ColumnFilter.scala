@@ -41,41 +41,53 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view.filter
+package org.digimead.tabuddy.desktop.viewmod.dialog.viewed
 
 import java.util.UUID
 
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.view.api
-import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.support.WritableList
+import org.digimead.tabuddy.desktop.viewmod.Default
+import org.eclipse.jface.viewers.CellLabelProvider
+import org.eclipse.jface.viewers.ViewerCell
+import org.eclipse.swt.graphics.Point
+import org.eclipse.swt.widgets.TableItem
 
-class ByPropertyText extends api.Filter[ByPropertyTextArgument] with Loggable {
-  val id = UUID.fromString("74db4f4c-261c-443c-b014-fae7d864357b")
-  val name = "By property text"
-  val description = "Compare two element's properties via text representation"
-  val isArgumentSupported = true
-
-  /** Convert Argument trait to the serialized string */
-  def argumentToString(argument: ByPropertyTextArgument): String = argument.value
-  /** Convert Argument trait to the text representation for the user */
-  def argumentToText(argument: ByPropertyTextArgument): String = argument.value
-  /** Check whether filtering is available */
-  def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
-  /** Filter element property */
-  def filter[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e: Element.Generic, argument: Option[ByPropertyTextArgument]): Boolean =
-    argument match {
-      case Some(argument) =>
-        val text = e.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
-        text.toLowerCase().contains(argument.value.toLowerCase())
-      case None =>
-        log.warn("argument is absent")
-        true
+object ColumnFilter extends Loggable {
+  class TLabelProvider(val actualFilters: WritableList[UUID]) extends CellLabelProvider {
+    /** Update the label for cell. */
+    override def update(cell: ViewerCell) = cell.getElement() match {
+      case item: view.api.Filter[_] =>
+        cell.setText(item.name)
+        // update checkbox
+        cell.getItem() match {
+          case tableItem: TableItem if tableItem.getChecked() != actualFilters.contains(item.id) =>
+            tableItem.setChecked(!tableItem.getChecked())
+          case _ =>
+        }
+      case unknown =>
+        log.fatal("Unknown item " + unknown.getClass())
     }
-  /** Convert the serialized argument to Argument trait */
-  def stringToArgument(argument: String): Option[ByPropertyTextArgument] = Some(ByPropertyTextArgument(argument.trim()))
+    /** Get the text displayed in the tool tip for object. */
+    override def getToolTipText(element: Object): String = element match {
+      case item: view.api.Filter[_] =>
+        if (item.description.nonEmpty)
+          item.description
+        else
+          null
+      case unknown =>
+        log.fatal("Unknown item " + unknown.getClass())
+        null
+    }
+    /**
+     * Return the amount of pixels in x and y direction that the tool tip to
+     * pop up from the mouse pointer.
+     */
+    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
+    /** The time in milliseconds until the tool tip is displayed. */
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
+    /** The time in milliseconds the tool tip is shown for. */
+    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
+  }
 }
-
-sealed case class ByPropertyTextArgument(val value: String) extends api.Filter.Argument
-
-object ByPropertyText extends ByPropertyText

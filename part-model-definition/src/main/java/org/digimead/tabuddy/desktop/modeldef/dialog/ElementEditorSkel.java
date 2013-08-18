@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.modeldef.dialog;
 
-import org.digimead.tabuddy.desktop.Messages;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.swt.SWT;
@@ -89,8 +88,8 @@ public class ElementEditorSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorDescription_text());
-		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorTitle_text());
+		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorDescription_text()); // $hide$
+		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorTitle_text()); // $hide$
 		Composite area = (Composite) super.createDialogArea(parent);
 
 		form = toolkit.createScrolledForm(area);
@@ -98,7 +97,7 @@ public class ElementEditorSkel extends TitleAreaDialog {
 		form.getBody().setLayout(new GridLayout(3, false));
 
 		lblElementIdentificator = toolkit.createLabel(form.getBody(),
-				org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text(), SWT.NONE);
+				org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text(), SWT.NONE); // $hide$
 		lblElementIdentificator.setAlignment(SWT.RIGHT);
 		lblElementIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false,
 				false, 2, 1));

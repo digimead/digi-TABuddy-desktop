@@ -136,18 +136,18 @@ object Data extends Loggable {
   }
   /** Get user view definitions */
   def getAvailableViewDefinitions(): Set[View] = App.execNGet {
-    val result = View.default +: Data.viewDefinitions.values.filter(_.availability).toList.sortBy(_.name)
-    if (result.isEmpty) Set(View.default) else result.toSet
+    val result = View.displayName +: Data.viewDefinitions.values.filter(_.availability).toList.sortBy(_.name)
+    if (result.isEmpty) Set(View.displayName) else result.toSet
   }
   /** Get user view filters */
   def getAvailableViewFilters(): Set[Filter] = App.execNGet {
-    val result = Filter.default +: Data.viewFilters.values.filter(_.availability).toList.sortBy(_.name)
-    if (result.isEmpty) Set(Filter.default) else result.toSet
+    val result = Filter.allowAllFilter +: Data.viewFilters.values.filter(_.availability).toList.sortBy(_.name)
+    if (result.isEmpty) Set(Filter.allowAllFilter) else result.toSet
   }
   /** Get user view sortings */
   def getAvailableViewSortings(): Set[Sorting] = App.execNGet {
-    val result = Sorting.default +: Data.viewSortings.values.filter(_.availability).toList.sortBy(_.name)
-    if (result.isEmpty) Set(Sorting.default) else result.toSet
+    val result = Sorting.simpleSorting +: Data.viewSortings.values.filter(_.availability).toList.sortBy(_.name)
+    if (result.isEmpty) Set(Sorting.simpleSorting) else result.toSet
   }
   /** This function is invoked at every model initialization */
   def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = {

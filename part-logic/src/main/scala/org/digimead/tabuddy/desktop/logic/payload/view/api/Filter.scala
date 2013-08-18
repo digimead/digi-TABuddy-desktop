@@ -74,7 +74,9 @@ trait Filter[T <: Filter.Argument] {
   /** Returns the generic type filter */
   def generic = this.asInstanceOf[Filter[Filter.Argument]]
   /** Convert the serialized argument to Argument instance */
-  def stringToArgument(argument: String): Option[Filter.Argument]
+  def stringToArgument(argument: String): Option[T]
+  /** Convert the serialized argument to the text representation for the user */
+  def stringToText(argument: String): Option[String] = stringToArgument(argument).map(argumentToText)
 }
 
 object Filter {
