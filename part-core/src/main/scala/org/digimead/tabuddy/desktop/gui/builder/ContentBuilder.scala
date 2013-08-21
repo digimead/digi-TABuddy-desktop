@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.gui.builder
 
+import scala.ref.WeakReference
+
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
@@ -69,7 +71,7 @@ class ContentBuilder extends Loggable {
     container.setLayout(layout)
     val filler = new Composite(container, SWT.NONE)
     filler.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GREEN))
-    val content = new WComposite(window.id, window.ref, container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
+    val content = new WComposite(window.id, window.ref, WeakReference(window), container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
     content.setLayout(new GridLayout)
     content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
     layout.topControl = filler

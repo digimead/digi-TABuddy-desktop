@@ -63,10 +63,10 @@ package object operation {
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumerationList$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchema$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchemaList$DI$")
-  /*  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilter$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilter$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilterList$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySorting$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySortingList$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyView$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyViewList$DI$")*/
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyViewList$DI$")
 }

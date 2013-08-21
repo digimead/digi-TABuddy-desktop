@@ -43,27 +43,13 @@
 
 package org.digimead.tabuddy.desktop.viewmod.dialog.viewed
 
-import org.digimead.tabuddy.desktop.support.Validator
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.jface.databinding.swt.WidgetProperties
-import org.eclipse.jface.viewers.CellEditor
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.EditingSupport
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.TextCellEditor
-import org.eclipse.jface.viewers.ViewerCell
-import org.eclipse.swt.SWT
-import org.eclipse.swt.events.VerifyEvent
-import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Text
-import org.eclipse.swt.widgets.TableItem
-import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
+import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.viewmod.Default
+import org.eclipse.jface.viewers.CellLabelProvider
+import org.eclipse.jface.viewers.ViewerCell
+import org.eclipse.swt.graphics.Point
 
 object ColumnN extends Loggable {
   class TLabelProvider(val actual: WritableList[Symbol]) extends CellLabelProvider {
@@ -76,7 +62,7 @@ object ColumnN extends Loggable {
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         null
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

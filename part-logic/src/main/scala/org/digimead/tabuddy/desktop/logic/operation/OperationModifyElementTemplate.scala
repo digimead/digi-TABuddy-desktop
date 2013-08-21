@@ -84,7 +84,6 @@ object OperationModifyElementTemplate extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
     lazy val jobFactory = injectOptional[(ElementTemplate, Set[ElementTemplate], Symbol) => api.OperationModifyElementTemplate]
   }
 }

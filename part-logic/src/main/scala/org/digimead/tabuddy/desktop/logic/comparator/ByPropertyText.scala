@@ -41,41 +41,34 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view.filter
+package org.digimead.tabuddy.desktop.logic.comparator
 
 import java.util.UUID
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.view.api
 import org.digimead.tabuddy.model.element.Element
 
-class ByPropertyText extends api.Filter[ByPropertyTextArgument] with Loggable {
-  val id = UUID.fromString("74db4f4c-261c-443c-b014-fae7d864357b")
+class ByPropertyText extends api.Comparator[api.Comparator.Argument] with Loggable {
+  val id = UUID.fromString("84b24863-145a-40a7-aade-e25547c52b41")
   val name = "By property text"
   val description = "Compare two element's properties via text representation"
-  val isArgumentSupported = true
+  val isArgumentSupported = false
 
   /** Convert Argument trait to the serialized string */
-  def argumentToString(argument: ByPropertyTextArgument): String = argument.value
+  def argumentToString(argument: api.Comparator.Argument): String = ""
   /** Convert Argument trait to the text representation for the user */
-  def argumentToText(argument: ByPropertyTextArgument): String = argument.value
-  /** Check whether filtering is available */
-  def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
-  /** Filter element property */
-  def filter[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e: Element.Generic, argument: Option[ByPropertyTextArgument]): Boolean =
-    argument match {
-      case Some(argument) =>
-        val text = e.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
-        text.toLowerCase().contains(argument.value.toLowerCase())
-      case None =>
-        log.warn("argument is absent")
-        true
-    }
+  def argumentToText(argument: api.Comparator.Argument): String = ""
+  /** Check whether comparation is available */
+  def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
+  /** Compare two element's properties */
+  def compare[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e1: Element.Generic, e2: Element.Generic, argument: Option[api.Comparator.Argument]): Int = {
+    val text1 = e1.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
+    val text2 = e2.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
+    text1.compareTo(text2)
+  }
   /** Convert the serialized argument to Argument trait */
-  def stringToArgument(argument: String): Option[ByPropertyTextArgument] = Some(ByPropertyTextArgument(argument.trim()))
+  def stringToArgument(argument: String): Option[api.Comparator.Argument] = None
 }
-
-sealed case class ByPropertyTextArgument(val value: String) extends api.Filter.Argument
 
 object ByPropertyText extends ByPropertyText

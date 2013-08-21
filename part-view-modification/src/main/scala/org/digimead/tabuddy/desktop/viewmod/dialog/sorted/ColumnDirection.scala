@@ -43,6 +43,11 @@
 
 package org.digimead.tabuddy.desktop.viewmod.dialog.sorted
 
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.CheckboxCellEditor
@@ -51,17 +56,12 @@ import org.eclipse.jface.viewers.TableViewer
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.viewmod.Default
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableComparators
 
 object ColumnDirection extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         if (item.direction)
           cell.setText(Messages.ascending_text)
         else
@@ -71,7 +71,7 @@ object ColumnDirection extends Loggable {
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         AvailableComparators.map.get(item.comparator).map(c => "comparator: " + c.description).getOrElse(null)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
@@ -91,14 +91,14 @@ object ColumnDirection extends Loggable {
     override protected def getCellEditor(element: AnyRef): CellEditor = new CheckboxCellEditor(null, SWT.CHECK | SWT.READ_ONLY)
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         Boolean.box(item.direction)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: Sorting.Definition =>
+      case before: view.api.Sorting.Definition =>
         if (before.direction != value.asInstanceOf[Boolean]) {
           val after = before.copy(direction = value.asInstanceOf[Boolean])
           container.updateActualDefinition(before, after)

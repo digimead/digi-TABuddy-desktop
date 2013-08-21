@@ -43,7 +43,14 @@
 
 package org.digimead.tabuddy.desktop.viewmod.dialog.sorted
 
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.comparator
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.payload.PropertyType
+import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.digimead.tabuddy.desktop.support.WritableList
+import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
@@ -57,25 +64,19 @@ import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
-import org.digimead.tabuddy.desktop.viewmod.Default
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableComparators
-import org.digimead.tabuddy.desktop.logic.payload.view
-import org.digimead.tabuddy.desktop.logic.payload.PropertyType
 
 object ColumnSorting extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         cell.setText(AvailableComparators.map.get(item.comparator).map(_.name).getOrElse(""))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         AvailableComparators.map.get(item.comparator).map(_.description).getOrElse(null)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
@@ -93,7 +94,7 @@ object ColumnSorting extends Loggable {
   }
   class TEditingSupport(viewer: TableViewer, container: SortingEditor) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         val cellEditor = new ComboBoxViewerCellEditor(viewer.getControl().asInstanceOf[Composite], SWT.READ_ONLY)
         cellEditor.setLabelProvider(new ComparatorLabelProvider)
         cellEditor.setContentProvider(new ObservableListContentProvider())
@@ -106,14 +107,14 @@ object ColumnSorting extends Loggable {
     }
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         AvailableComparators.map.get(item.comparator) getOrElse null
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: Sorting.Definition =>
+      case before: view.api.Sorting.Definition =>
       //        val description = value.asInstanceOf[String].trim
       //        if (before.description != description)
       //          container.updateActualSorting(before, before.copy(description = description))
@@ -123,7 +124,7 @@ object ColumnSorting extends Loggable {
   }
   class ComparatorLabelProvider() extends LabelProvider {
     override def getText(element: AnyRef): String = element match {
-      case comparator: view.api.Comparator[_] =>
+      case comparator: comparator.api.Comparator[_] =>
         comparator.name
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

@@ -121,7 +121,7 @@ object Action {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model toolbar descriptor. */
-  val modelToolbar = WindowToolbar.Descriptor(getClass.getName() + "#model")
+  lazy val modelToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#model") }
   // Initialize descendant actor singletons
   ActionModifyElementTemplateList
   ActionModifyEnumerationList

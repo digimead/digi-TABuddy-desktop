@@ -43,27 +43,27 @@
 
 package org.digimead.tabuddy.desktop.viewmod.dialog.sorted
 
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.payload.view
 import org.digimead.tabuddy.desktop.support.WritableList
+import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.graphics.Point
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
-import org.digimead.tabuddy.desktop.viewmod.Default
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableComparators
 
 object ColumnN extends Loggable {
-  class TLabelProvider(val actual: WritableList[Sorting.Definition]) extends CellLabelProvider {
+  class TLabelProvider(val actual: WritableList[view.api.Sorting.Definition]) extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         cell.setText(actual.indexOf(item).toString)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         AvailableComparators.map.get(item.comparator).map(c => "comparator: " + c.description).getOrElse(null)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

@@ -46,14 +46,27 @@ package org.digimead.tabuddy.desktop.viewmod.dialog.viewed
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
+
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
+import scala.ref.WeakReference
+
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Validator
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
+import org.digimead.tabuddy.desktop.support.ui.RegexFilterListener
+import org.digimead.tabuddy.desktop.viewmod.Default
+import org.digimead.tabuddy.desktop.viewmod.dialog.CustomMessages
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.ActionContributionItem
@@ -82,18 +95,8 @@ import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.TableItem
 import org.eclipse.swt.widgets.Text
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.viewmod.Default
-import org.digimead.tabuddy.desktop.viewmod.dialog.CustomMessages
-import org.digimead.tabuddy.desktop.support.ui.RegexFilterListener
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.logic.payload.view
 
-class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewList: List[payload.view.View])
+class ViewEditor(val parentShell: Shell, val view: payload.view.api.View, val viewList: List[payload.view.api.View])
   extends ViewEditorSkel(parentShell) with Dialog with Loggable {
   /** The actual fields */
   protected val actualFields = WritableList(view.fields.toList)
@@ -123,17 +126,20 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
   /** The property representing sortings filter content */
   protected val filterSortings = WritableValue("")
   /** The property representing current view name */
-  protected val nameField = WritableValue[String]
+  protected val nameField = WritableValue[String]("")
   /** The property representing a selected field */
   protected val selectedField = WritableValue[Symbol]
   /** The property representing a selected property */
   protected val selectedProperty = WritableValue[Symbol]
-  assert(ViewEditor.dialog.isEmpty, "ViewEditor dialog is already active")
+  /** Actual sortBy column index */
+  @volatile protected var sortColumn = 0 // by an id
+  /** Actual sort direction */
+  @volatile protected var sortDirection = Default.sortingDirection
 
   def getModifiedViews(): payload.view.View = {
     val name = nameField.value.trim
     val description = descriptionField.value.trim
-    payload.view.View(view.id, name, description, availabilityField.value, mutable.LinkedHashSet(actualFields: _*),
+    new payload.view.View(view.id, name, description, availabilityField.value, mutable.LinkedHashSet(actualFields: _*),
       mutable.LinkedHashSet(actualFilters: _*), mutable.LinkedHashSet(actualSortings: _*))
   }
 
@@ -152,14 +158,14 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
-    new ActionContributionItem(ViewEditor.ActionAdd).fill(getCompositeBody1())
-    new ActionContributionItem(ViewEditor.ActionRemove).fill(getCompositeBody1())
-    new ActionContributionItem(ViewEditor.ActionUp).fill(getCompositeBody2())
-    new ActionContributionItem(ViewEditor.ActionDown).fill(getCompositeBody2())
-    ViewEditor.ActionAdd.setEnabled(false)
-    ViewEditor.ActionRemove.setEnabled(false)
-    ViewEditor.ActionUp.setEnabled(false)
-    ViewEditor.ActionDown.setEnabled(false)
+    new ActionContributionItem(ActionAdd).fill(getCompositeBody1())
+    new ActionContributionItem(ActionRemove).fill(getCompositeBody1())
+    new ActionContributionItem(ActionUp).fill(getCompositeBody2())
+    new ActionContributionItem(ActionDown).fill(getCompositeBody2())
+    ActionAdd.setEnabled(false)
+    ActionRemove.setEnabled(false)
+    ActionUp.setEnabled(false)
+    ActionDown.setEnabled(false)
     initTableViewerFields()
     initTableViewerFilters()
     initTableViewerProperties()
@@ -193,14 +199,12 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
         availabilityField.removeChangeListener(availabilityFieldListener)
         descriptionField.removeChangeListener(descriptionFieldListener)
         nameField.removeChangeListener(nameFieldListener)
-        ViewEditor.dialog = None
       }
     })
     // Set the dialog message
     setMessage(CustomMessages.viewEditorDescription_text.format(view.name))
     // Set the dialog window title
     getShell().setText(CustomMessages.viewEditorDialog_text.format(view.name))
-    ViewEditor.dialog = Some(this)
     result
   }
   /** Allow external access for scala classes */
@@ -212,9 +216,9 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     val viewer = getTableViewerFields()
     viewer.setContentProvider(new ObservableListContentProvider())
     getTableViewerColumnN.setLabelProvider(new ColumnN.TLabelProvider(actualFields))
-    getTableViewerColumnN.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(0, viewer))
+    getTableViewerColumnN.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(new WeakReference(this), 0, viewer))
     getTableViewerColumnField.setLabelProvider(new ColumnField.TLabelProvider)
-    getTableViewerColumnField.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(1, viewer))
+    getTableViewerColumnField.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(new WeakReference(this), 1, viewer))
     // Activate the tooltip support for the viewer
     ColumnViewerToolTipSupport.enableFor(viewer)
     // Add the selection listener
@@ -222,13 +226,13 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
           val field = selection.getFirstElement().asInstanceOf[Symbol]
-          ViewEditor.ActionUp.setEnabled(actualFields.headOption != Some(field))
-          ViewEditor.ActionDown.setEnabled(actualFields.lastOption != Some(field))
-          ViewEditor.ActionRemove.setEnabled(true)
+          ActionUp.setEnabled(actualFields.headOption != Some(field))
+          ActionDown.setEnabled(actualFields.lastOption != Some(field))
+          ActionRemove.setEnabled(true)
         case selection =>
-          ViewEditor.ActionRemove.setEnabled(false)
-          ViewEditor.ActionUp.setEnabled(false)
-          ViewEditor.ActionDown.setEnabled(false)
+          ActionRemove.setEnabled(false)
+          ActionUp.setEnabled(false)
+          ActionDown.setEnabled(false)
       }
     })
     // Add the filter
@@ -243,7 +247,7 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     filterFields.underlying.addChangeListener(filterListener)
     viewer.setFilters(Array(new ViewEditor.SymbolFilter(filter)))
     // Set sorting
-    viewer.setComparator(new ViewEditor.ViewComparator(0, Default.sortingDirection, true))
+    viewer.setComparator(new ViewEditor.ViewComparator(new WeakReference(this), true))
     viewer.setInput(actualFields.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selectedField)
   }
@@ -252,7 +256,7 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     val viewer = getTableViewerFilters()
     viewer.setContentProvider(new ObservableListContentProvider())
     getTableViewerColumnFilter.setLabelProvider(new ColumnFilter.TLabelProvider(actualFilters))
-    getTableViewerColumnFilter.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(0, viewer))
+    getTableViewerColumnFilter.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(new WeakReference(this), 0, viewer))
     // Add a SWT.CHECK support
     viewer.getTable.addListener(SWT.Selection, new Listener() {
       def handleEvent(event: Event) = if (event.detail == SWT.CHECK)
@@ -285,7 +289,7 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     filterFilters.underlying.addChangeListener(filterListener)
     viewer.setFilters(Array(new ViewEditor.FilterFilter(filter)))
     // Set sorting
-    viewer.setComparator(new ViewEditor.ViewComparator(0))
+    viewer.setComparator(new ViewEditor.ViewComparator(new WeakReference(this)))
     viewer.setInput(allFilters.underlying)
   }
   /** Initialize table viewer 'Properties' */
@@ -293,16 +297,16 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     val viewer = getTableViewerProperties()
     viewer.setContentProvider(new ObservableListContentProvider())
     getTableViewerColumnPropertyFrom.setLabelProvider(new ColumnPropertyFrom.TLabelProvider)
-    getTableViewerColumnPropertyFrom.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(0, viewer))
+    getTableViewerColumnPropertyFrom.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(new WeakReference(this), 0, viewer))
     // Activate the tooltip support for the viewer
     ColumnViewerToolTipSupport.enableFor(viewer)
     // Add the selection listener
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          ViewEditor.ActionAdd.setEnabled(true)
+          ActionAdd.setEnabled(true)
         case selection =>
-          ViewEditor.ActionAdd.setEnabled(false)
+          ActionAdd.setEnabled(false)
       }
     })
     // Add filters
@@ -320,7 +324,7 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     filterProperties.underlying.addChangeListener(filterListener)
     viewer.setFilters(Array(visibleFilter, new ViewEditor.SymbolFilter(filter)))
     // Set sorting
-    viewer.setComparator(new ViewEditor.ViewComparator(0))
+    viewer.setComparator(new ViewEditor.ViewComparator(new WeakReference(this)))
     viewer.setInput(allProperties.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selectedProperty)
     viewer.getTable().pack
@@ -330,7 +334,7 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     val viewer = getTableViewerSortings()
     viewer.setContentProvider(new ObservableListContentProvider())
     getTableViewerColumnSorting.setLabelProvider(new ColumnSorting.TLabelProvider(actualSortings))
-    getTableViewerColumnSorting.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(0, viewer))
+    getTableViewerColumnSorting.getColumn.addSelectionListener(new ViewEditor.ViewSelectionAdapter(new WeakReference(this), 0, viewer))
     // Add a SWT.CHECK support
     viewer.getTable.addListener(SWT.Selection, new Listener() {
       def handleEvent(event: Event) = if (event.detail == SWT.CHECK)
@@ -363,7 +367,7 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     filterSortings.underlying.addChangeListener(filterListener)
     viewer.setFilters(Array(new ViewEditor.SortingFilter(filter)))
     // Set sorting
-    viewer.setComparator(new ViewEditor.ViewComparator(0))
+    viewer.setComparator(new ViewEditor.ViewComparator(new WeakReference(this)))
     viewer.setInput(allSortings.underlying)
   }
   /** On dialog active */
@@ -396,7 +400,7 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
       })
   }
   /** Update OK button state */
-  protected def updateOK() = if (ViewEditor.dialog.nonEmpty) {
+  protected def updateOK() = {
     val error = validate()
     setMessage(updateDescription(error))
     Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(actualFields.nonEmpty && error.isEmpty && {
@@ -431,19 +435,52 @@ class ViewEditor(val parentShell: Shell, val view: payload.view.View, val viewLi
     validator.withDecoration(validator.showDecorationRequired(_))
   else
     validator.withDecoration(_.hide)
+
+  object ActionAdd extends Action(">") with Loggable {
+    override def run = Option(selectedProperty.value) foreach { property =>
+      actualFields += property
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
+      getTableViewerProperties.refresh()
+    }
+  }
+  object ActionRemove extends Action("<") with Loggable {
+    override def run = Option(selectedField.value) foreach { field =>
+      actualFields -= field
+      future { autoresize() } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
+      getTableViewerProperties.refresh()
+    }
+  }
+  object ActionUp extends Action(Messages.up_text) with Loggable {
+    override def run = Option(selectedField.value) foreach { field =>
+      val index = actualFields.indexOf(field)
+      if (index > -1 && 0 <= (index - 1)) {
+        actualFields.update(index, actualFields(index - 1))
+        actualFields.update(index - 1, field)
+        getTableViewerFields.refresh()
+        getTableViewerFields.setSelection(new StructuredSelection(field), true)
+      }
+    }
+  }
+  object ActionDown extends Action(Messages.down_text) with Loggable {
+    override def run = Option(selectedField.value) foreach { field =>
+      val index = actualFields.indexOf(field)
+      if (index > -1 && actualFields.size > (index + 1)) {
+        actualFields.update(index, actualFields(index + 1))
+        actualFields.update(index + 1, field)
+        getTableViewerFields.refresh()
+        getTableViewerFields.setSelection(new StructuredSelection(field), true)
+      }
+    }
+  }
 }
 
 object ViewEditor extends Loggable {
-  /** There is may be only one dialog instance at time */
-  @volatile private var dialog: Option[ViewEditor] = None
-
-  /** Apply a f(x) to the selected property if any */
-  def property[T](f: (ViewEditor, Symbol) => T): Option[T] =
-    dialog.flatMap(d => Option(d.selectedProperty.value).map(f(d, _)))
-  /** Apply a f(x) to the selected view if any */
-  def field[T](f: (ViewEditor, Symbol) => T): Option[T] =
-    dialog.flatMap(d => Option(d.selectedField.value).map(f(d, _)))
-
   class FilterFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
@@ -465,21 +502,23 @@ object ViewEditor extends Loggable {
       pattern.matcher(item.name.toLowerCase()).matches()
     }
   }
-  class ViewComparator(initialColumn: Int, initialDirection: Boolean = Default.sortingDirection, dual: Boolean = false) extends ViewerComparator {
-    /** The sort column */
-    var columnVar = initialColumn
-    /** The sort direction */
-    var directionVar = initialDirection
+  class ViewComparator(dialog: WeakReference[ViewEditor], dual: Boolean = false) extends ViewerComparator {
+    private var _column = dialog.get.map(_.sortColumn) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
+    private var _direction = dialog.get.map(_.sortDirection) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
 
     /** Active column getter */
-    def column = columnVar
+    def column = _column
     /** Active column setter */
     def column_=(arg: Int) {
-      columnVar = arg
-      directionVar = initialDirection
+      _column = arg
+      dialog.get.foreach(_.sortColumn = _column)
+      _direction = Default.sortingDirection
+      dialog.get.foreach(_.sortDirection = _direction)
     }
     /** Sorting direction */
-    def direction = directionVar
+    def direction = _direction
     /**
      * Returns a negative, zero, or positive number depending on whether
      * the first element is less than, equal to, or greater than
@@ -508,15 +547,16 @@ object ViewEditor extends Loggable {
             entity1.name.compareTo(entity2.name)
           }
       }
-      if (directionVar) -rc else rc
+      if (_direction) -rc else rc
     }
     /** Switch comparator direction */
     def switchDirection() {
-      directionVar = !directionVar
+      _direction = !_direction
+      dialog.get.foreach(_.sortDirection = _direction)
     }
   }
-  class ViewSelectionAdapter(column: Int, viewer: TableViewer) extends SelectionAdapter {
-    override def widgetSelected(e: SelectionEvent) = dialog.foreach { dialog =>
+  class ViewSelectionAdapter(dialog: WeakReference[ViewEditor], column: Int, viewer: TableViewer) extends SelectionAdapter {
+    override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog =>
       val comparator = viewer.getComparator().asInstanceOf[ViewComparator]
       if (comparator.column == column) {
         comparator.switchDirection()
@@ -524,51 +564,6 @@ object ViewEditor extends Loggable {
       } else {
         comparator.column = column
         viewer.refresh()
-      }
-    }
-  }
-  /*
-   * Actions
-   */
-  object ActionAdd extends Action(">") with Loggable {
-    override def run = ViewEditor.property { (dialog, property) =>
-      dialog.actualFields += property
-      future { dialog.autoresize() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
-      }
-      dialog.getTableViewerProperties.refresh()
-    }
-  }
-  object ActionRemove extends Action("<") with Loggable {
-    override def run = ViewEditor.field { (dialog, field) =>
-      dialog.actualFields -= field
-      future { dialog.autoresize() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
-      }
-      dialog.getTableViewerProperties.refresh()
-    }
-  }
-  object ActionUp extends Action(Messages.up_text) with Loggable {
-    override def run = ViewEditor.field { (dialog, field) =>
-      val index = dialog.actualFields.indexOf(field)
-      if (index > -1 && 0 <= (index - 1)) {
-        dialog.actualFields.update(index, dialog.actualFields(index - 1))
-        dialog.actualFields.update(index - 1, field)
-        dialog.getTableViewerFields.refresh()
-        dialog.getTableViewerFields.setSelection(new StructuredSelection(field), true)
-      }
-    }
-  }
-  object ActionDown extends Action(Messages.down_text) with Loggable {
-    override def run = ViewEditor.field { (dialog, field) =>
-      val index = dialog.actualFields.indexOf(field)
-      if (index > -1 && dialog.actualFields.size > (index + 1)) {
-        dialog.actualFields.update(index, dialog.actualFields(index + 1))
-        dialog.actualFields.update(index + 1, field)
-        dialog.getTableViewerFields.refresh()
-        dialog.getTableViewerFields.setSelection(new StructuredSelection(field), true)
       }
     }
   }

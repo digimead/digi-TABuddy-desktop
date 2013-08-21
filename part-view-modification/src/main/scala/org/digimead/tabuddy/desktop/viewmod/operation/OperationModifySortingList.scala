@@ -43,6 +43,87 @@
 
 package org.digimead.tabuddy.desktop.viewmod.operation
 
-class OperationModifySortingList {
+import java.util.concurrent.CancellationException
+import java.util.concurrent.Exchanger
 
+import scala.reflect.runtime.universe
+
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.logic.operation.view.api
+import org.digimead.tabuddy.desktop.logic.payload.view.api.Sorting
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.viewmod.dialog.sortlist.SortingList
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
+import org.eclipse.core.runtime.IAdaptable
+import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.swt.widgets.Shell
+
+/** 'Modify sorting list' operation. */
+class OperationModifySortingList extends api.OperationModifySortingList with Loggable {
+  /**
+   * Modify sorting list.
+   *
+   * @param sortingList the list of exists sortings
+   * @param modelId current model Id
+   * @return the modified/the same sorting list
+   */
+  def apply(sortingList: Set[Sorting], modelId: Symbol): Set[Sorting] = {
+    log.info(s"Modify sorting list for model ${modelId}.")
+    App.assertUIThread(false)
+    if (Model.eId != modelId)
+      throw new IllegalStateException(s"Unable to modify sorting list. Unexpected model ${Model.eId} is loaded.")
+    val exchanger = new Exchanger[Set[Sorting]]()
+    Core.context.get[Shell](GUI.shellContextKey) match {
+      case Some(shell) =>
+        App.exec {
+          val dialog = new SortingList(shell, sortingList.toList)
+          dialog.openOrFocus {
+            case result if result == org.eclipse.jface.window.Window.OK =>
+              exchanger.exchange(dialog.getModifiedSortings())
+            case result =>
+              exchanger.exchange(null)
+          }
+        }
+      case None =>
+        throw new IllegalStateException("Unable to create 'modify sorting list' dialog without parent shell.")
+    }
+    Option(exchanger.exchange(null)) getOrElse { throw new CancellationException }
+  }
+  /**
+   * Create 'Modify sorting list' operation.
+   *
+   * @param sortingList the list of exists sortings
+   * @param modelId current model Id
+   * @return 'Modify sorting list' operation
+   */
+  def operation(sortingList: Set[Sorting], modelId: Symbol): Operation[Set[Sorting]] =
+    new Implemetation(sortingList, modelId)
+
+  class Implemetation(sortingList: Set[Sorting], modelId: Symbol)
+    extends logic.operation.view.OperationModifySortingList.Abstract(sortingList, modelId) with Loggable {
+    @volatile protected var allowExecute = true
+
+    override def canExecute() = allowExecute
+    override def canRedo() = false
+    override def canUndo() = false
+
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Sorting]] = {
+      try {
+        Operation.Result.OK(Option(OperationModifySortingList.this(sortingList, modelId)))
+      } catch {
+        case e: CancellationException =>
+          Operation.Result.Cancel()
+      }
+    }
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Sorting]] =
+      throw new UnsupportedOperationException
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[Sorting]] =
+      throw new UnsupportedOperationException
+  }
 }

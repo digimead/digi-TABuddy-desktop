@@ -75,7 +75,6 @@ object OperationModifyTypeSchema extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
     lazy val jobFactory = injectOptional[(TypeSchema, Set[TypeSchema], Boolean, Symbol) => api.OperationModifyTypeSchema]
   }
 }

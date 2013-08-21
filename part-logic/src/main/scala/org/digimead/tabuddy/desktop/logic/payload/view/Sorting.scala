@@ -59,24 +59,37 @@ import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Coordinate
 import org.digimead.tabuddy.model.element.Element
 
-case class Sorting(
-  /** Sort unique id */
+/**
+ * Sorting is a user selected group of Sorting.Definition (element property <-> logic.comparator tuple)
+ * which is applied to the visible model.
+ * Sorting equality is based on the elementId.
+ */
+class Sorting(
+  /** Sort unique id. */
   val id: UUID,
-  /** Sort name */
+  /** Sort name. */
   val name: String,
-  /** Sort description */
+  /** Sort description. */
   val description: String,
-  /** Availability flag for user (some sortings may exists, but not involved in element representation) */
+  /** Availability flag for user (some sortings may exists, but not involved in element representation). */
   val availability: Boolean,
-  /** Sorting definitions */
-  val definitions: mutable.LinkedHashSet[Sorting.Definition]) {
-  /** Element id symbol */
+  /** Sorting definitions. */
+  val definitions: mutable.LinkedHashSet[api.Sorting.Definition]) extends api.Sorting {
+  /** Element id symbol. */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
-  def canEqual(other: Any) =
-    other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.view.Sorting]
+  /** The copy constructor */
+  def copy(id: UUID = this.id,
+    name: String = this.name,
+    description: String = this.description,
+    availability: Boolean = this.availability,
+    definitions: mutable.LinkedHashSet[api.Sorting.Definition] = this.definitions): this.type =
+    new Sorting(id, name, description, availability, definitions).asInstanceOf[this.type]
+
+  def canEqual(other: Any): Boolean =
+    other.isInstanceOf[api.Sorting]
   override def equals(other: Any) = other match {
-    case that: org.digimead.tabuddy.desktop.logic.payload.view.Sorting =>
+    case that: api.Sorting =>
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId // elementId == UUID
@@ -89,13 +102,13 @@ case class Sorting(
 
 object Sorting extends Loggable {
   /** Predefined default sort */
-  val simpleSorting = Sorting(UUID.fromString("da7303d6-d432-49bd-9634-48d1638c2775"), Messages.default_text,
+  val simpleSorting = new Sorting(UUID.fromString("da7303d6-d432-49bd-9634-48d1638c2775"), Messages.default_text,
     "default sort order", true, mutable.LinkedHashSet())
   /** Fields limit per sort */
   val collectionMaximum = 100
 
   /** The deep comparison of two sortings */
-  def compareDeep(a: Sorting, b: Sorting): Boolean =
+  def compareDeep(a: api.Sorting, b: api.Sorting): Boolean =
     (a eq b) || (a == b && a.description == b.description && a.availability == b.availability && a.name == b.name &&
       // definition sequence order is important
       a.definitions.sameElements(b.definitions))
@@ -125,7 +138,7 @@ object Sorting extends Loggable {
           for {
             comparator <- comparator
             propertyType <- propertyType if (PropertyType.container.isDefinedAt(Symbol(propertyType)))
-          } yield Definition(Symbol(property), Symbol(propertyType), direction, comparator, argument)
+          } yield api.Sorting.Definition(Symbol(property), Symbol(propertyType), direction, comparator, argument)
         case None =>
           next = false
           None
@@ -136,7 +149,7 @@ object Sorting extends Loggable {
       uuid <- uuid if definitions.nonEmpty
       availability <- availability
       name <- name
-    } yield Sorting(uuid, name, description.getOrElse(""), availability, definitions)
+    } yield new Sorting(uuid, name, description.getOrElse(""), availability, definitions)
   }
   /** Returns an ID for the availability field */
   def getFieldIDAvailability() = 'availability
@@ -161,7 +174,7 @@ object Sorting extends Loggable {
     if (result.contains(Sorting.simpleSorting)) result.toSet else (Sorting.simpleSorting +: result).toSet
   }
   /** Update only modified view sortings */
-  def save(sortings: Set[Sorting]) = App.exec {
+  def save(sortings: Set[api.Sorting]) = App.exec {
     log.debug("Save view sorting list for model " + Model.eId)
     val oldSortings = Data.viewSortings.values
     val newSortings = sortings - simpleSorting
@@ -183,7 +196,7 @@ object Sorting extends Loggable {
     }
   }
   /** Saet sorting to element */
-  def set(sorting: Sorting, container: Element.Generic = container) {
+  def set(sorting: api.Sorting, container: Element.Generic = container) {
     val element = Record(container, sorting.elementId, Coordinate.root.coordinate)
     // remove all element properties
     element.eStash.property.clear
@@ -206,24 +219,10 @@ object Sorting extends Loggable {
     }
   }
   /** Remove sorting element */
-  def remove(sorting: Sorting, container: Element.Generic = container) {
+  def remove(sorting: api.Sorting, container: Element.Generic = container) {
     container.eChildren.find(_.eId == sorting.elementId).foreach(element => container.eChildren -= element)
   }
 
-  /**
-   * The definition of an element property sorting
-   */
-  case class Definition(
-    /** Property id */
-    val property: Symbol,
-    /** Property type */
-    val propertyType: Symbol,
-    /** Sort direction (ascending/descending) */
-    val direction: Boolean,
-    /** Comparator id */
-    val comparator: UUID,
-    /** Comparator options */
-    val argument: String)
   /**
    * Dependency injection routines
    */

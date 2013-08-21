@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,22 +41,29 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view
+package org.digimead.tabuddy.desktop.logic.operation.view.api
 
-import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.tabuddy.desktop.definition.api
+import org.digimead.tabuddy.desktop.logic.payload.view.api.View
 
-import scala.collection.immutable
-
-import org.digimead.digi.lib.DependencyInjection
-
-import java.util.UUID
-
-package object filter {
-  lazy val default = new NewBindingModule(module => {
-    module.bind[UUID] identifiedBy "Filter.Default" toSingle { ByPropertyText.id }
-    module.bind[immutable.HashMap[UUID, api.Filter[_ <: api.Filter.Argument]]] toSingle {
-      immutable.HashMap(ByPropertyText.id -> ByPropertyText)
-    }
-  })
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.view.filter.Filter$DI$")
+/**
+ * OperationModifyViewList base trait.
+ */
+trait OperationModifyViewList {
+  /**
+   * Modify view list.
+   *
+   * @param viewList the list of exists views
+   * @param modelId current model Id
+   * @return the modified/the same view list
+   */
+  def apply(viewList: Set[View], modelId: Symbol): Set[View]
+  /**
+   * Create 'Modify view list' operation.
+   *
+   * @param viewList the list of exists views
+   * @param modelId current model Id
+   * @return 'Modify view list' operation
+   */
+  def operation(viewList: Set[View], modelId: Symbol): api.Operation[Set[View]]
 }

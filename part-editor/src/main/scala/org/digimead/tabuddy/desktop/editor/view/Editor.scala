@@ -45,39 +45,42 @@ package org.digimead.tabuddy.desktop.editor.view
 
 import java.util.UUID
 import java.util.concurrent.TimeoutException
+
 import scala.collection.immutable
 import scala.concurrent.Await
 import scala.concurrent.Future
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.editor.view.editor.Tree
+import org.digimead.tabuddy.desktop.editor.view.editor.View
 import org.digimead.tabuddy.desktop.gui
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
+import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
+import org.digimead.tabuddy.desktop.support.TreeProxy
+import org.digimead.tabuddy.desktop.support.WritableValue
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.element.Stash
+import org.eclipse.core.databinding.observable.Observables
+import org.eclipse.core.databinding.observable.value.IValueChangeListener
+import org.eclipse.core.databinding.observable.value.ValueChangeEvent
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Widget
+
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.model.element.Stash
-import org.eclipse.core.databinding.observable.Observables
-import org.eclipse.core.databinding.observable.value.IValueChangeListener
-import org.eclipse.core.databinding.observable.value.ValueChangeEvent
-import org.digimead.tabuddy.desktop.editor.view.editor.View
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.editor.view.editor.Tree
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.support.TreeProxy
 
 class Editor(val contentId: UUID) extends Actor with Loggable {
   /** Aggregation listener delay */
@@ -168,6 +171,7 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
     } foreach { sender ! _ }
 
     case message @ App.Message.Stop(Left(widget: Widget), None) => App.traceMessage(message) {
+      onStop(widget)
       App.Message.Stop(Right(widget))
     } foreach { sender ! _ }
 
@@ -245,9 +249,17 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
   protected def onStart(widget: Widget) = view match {
     case Some(view) =>
       log.debug("View started by focus event on " + widget)
-      App.exec { view.getChildren().head.asInstanceOf[editor.View].onStart() }
+      App.execNGet { view.getChildren().head.asInstanceOf[editor.View].onStart(widget) }
     case None =>
       log.fatal("Unable to start view without widget.")
+  }
+  /** User start interaction with window/stack supervisor/view/this content. Focus is gained. */
+  protected def onStop(widget: Widget) = view match {
+    case Some(view) =>
+      log.debug("View stopped. Last widget is " + widget)
+      App.execNGet { view.getChildren().head.asInstanceOf[editor.View].onStop(widget) }
+    case None =>
+      log.fatal("Unable to stop view without widget.")
   }
 }
 

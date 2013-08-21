@@ -59,6 +59,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Core.core2actorRef
+import org.digimead.tabuddy.desktop.UIThread
 import org.digimead.tabuddy.desktop.definition.Context
 import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
 import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
@@ -447,7 +448,7 @@ object WindowSupervisor extends Loggable {
           if (isEmpty) {
             log.debug("There are no active windows. Shut down main loop.")
             WindowSupervisor ! App.Message.Save
-            GUI.stop(GUI.Exit.Ok)
+            GUI.stop(UIThread.Code.Ok)
           }
       }
       this
@@ -456,7 +457,7 @@ object WindowSupervisor extends Loggable {
       super.clear()
       log.debug("There are no active windows. Shut down main loop.")
       WindowSupervisor ! App.Message.Save
-      GUI.stop(GUI.Exit.Ok)
+      GUI.stop(UIThread.Code.Ok)
     }
   }
   /** Wrapper that contains window and ActorRef. */

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,43 +41,51 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view.api
+package org.digimead.tabuddy.desktop.logic.operation.view
 
-import java.util.UUID
+import scala.reflect.runtime.universe
 
-import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
-import org.digimead.tabuddy.model.element.Element
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
 
-/** The Base interface of the comparator */
-trait Comparator[T <: Comparator.Argument] {
-  /** The comparator identificator */
-  val id: UUID
-  /** The comparator name */
-  val name: String
-  /** The comparator description */
-  val description: String
-  /** The flag determines whether or not the comparator uses an argument */
-  val isArgumentSupported: Boolean
+/**
+ * Modify a view's filter list.
+ */
+object OperationModifyFilterList extends Loggable {
+  /** Stable identifier with OperationModifyFilterList DI */
+  lazy val operation = DI.operation
 
-  /** Convert Argument instance to the serialized string */
-  def argumentToString(argument: T): String
-  /** Convert Argument instance to the text representation for the user */
-  def argumentToText(argument: T): String
-  /** Check whether comparation is available */
-  def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean
-  /** Compare two element's properties */
-  def compare[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e1: Element.Generic, e2: Element.Generic, argument: Option[T]): Int =
-    compare(property.id, property.ptype, e1, e2, argument)
-  /** Compare two element's properties */
-  def compare[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[U], e1: Element.Generic, e2: Element.Generic, argument: Option[T]): Int
-  /** Convert the serialized argument to Argument instance */
-  def stringToArgument(argument: String): Option[T]
-  /** Convert the serialized argument to the text representation for the user */
-  def stringToText(argument: String): Option[String] = stringToArgument(argument).map(argumentToText)
-}
+  /**
+   * Build a new 'Modify filter list' operation
+   * @param filterList the list of exists filters
+   * @param modelId current model Id
+   * @return 'Modify filter list' operation
+   */
+  @log
+  def apply(filterList: Set[Filter], modelId: Symbol = Model.eId): Option[Abstract] = {
+    operation match {
+      case Some(operation) =>
+        Some(operation.operation(filterList, modelId).asInstanceOf[Abstract])
+      case None =>
+        log.error("OperationModifyFilterList implementation is not defined.")
+        None
+    }
+  }
 
-object Comparator {
-  /** Contains comparator options */
-  trait Argument
+  /** Bridge between abstract api.Operation[Set[Filter]] and concrete Operation[Set[Filter]] */
+  abstract class Abstract(val filterList: Set[Filter], val modelId: Symbol)
+    extends Operation[Set[Filter]](s"Edit filter list for model $modelId.") {
+    this: Loggable =>
+  }
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    lazy val operation = injectOptional[api.OperationModifyFilterList]
+  }
 }

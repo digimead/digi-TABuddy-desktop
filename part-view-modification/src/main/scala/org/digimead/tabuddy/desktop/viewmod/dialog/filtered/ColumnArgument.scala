@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.viewmod.dialog.filtered
 
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableFilters
+import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
 import org.digimead.tabuddy.desktop.logic.payload.view.api
 import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.jface.viewers.CellEditor

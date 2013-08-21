@@ -68,9 +68,9 @@ class Action extends Actor with Loggable {
   /*
    * View modification component action's actors.
    */
-  val modifyElementTemplateListActionRef = context.actorOf(ActionModifyElementTemplateList.props, ActionModifyElementTemplateList.id)
-  val modifyEnumerationListActionRef = context.actorOf(ActionModifyEnumerationList.props, ActionModifyEnumerationList.id)
-  val modifyTypeSchemaListActionRef = context.actorOf(ActionModifyTypeSchemaList.props, ActionModifyTypeSchemaList.id)
+  val modifyFilterListActionRef = context.actorOf(ActionModifyFilterList.props, ActionModifyFilterList.id)
+  val modifySortingListActionRef = context.actorOf(ActionModifySortingList.props, ActionModifySortingList.id)
+  val modifyViewActionRef = context.actorOf(ActionModifyViewList.props, ActionModifyViewList.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -105,10 +105,10 @@ class Action extends Actor with Loggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val model = WindowMenu(window, logic.action.Action.modelMenu)
-    model.add(ActionModifyElementTemplateList())
-    model.add(ActionModifyEnumerationList())
-    model.add(ActionModifyTypeSchemaList())
+    val model = WindowMenu(window, logic.action.Action.viewMenu)
+    model.add(ActionModifyFilterList())
+    model.add(ActionModifySortingList())
+    model.add(ActionModifyViewList())
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
@@ -121,11 +121,11 @@ object Action {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model toolbar descriptor. */
-  val modelToolbar = WindowToolbar.Descriptor(getClass.getName() + "#model")
+  lazy val viewToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#view") }
   // Initialize descendant actor singletons
-  ActionModifyElementTemplateList
-  ActionModifyEnumerationList
-  ActionModifyTypeSchemaList
+  ActionModifyFilterList
+  ActionModifySortingList
+  ActionModifyViewList
 
   /** Action actor reference configuration object. */
   def props = DI.props

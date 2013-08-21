@@ -47,22 +47,34 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
+
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
+
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilter
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.logic.payload.view.Filter
-import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
+import org.digimead.tabuddy.desktop.support.ui.RegexFilterListener
+import org.digimead.tabuddy.desktop.viewmod.Default
+import org.digimead.tabuddy.desktop.viewmod.dialog.CustomMessages
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.ActionContributionItem
 import org.eclipse.jface.action.IAction
@@ -93,14 +105,8 @@ import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.TableItem
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.tabuddy.desktop.viewmod.dialog.CustomMessages
-import org.digimead.tabuddy.desktop.support.ui.RegexFilterListener
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.viewmod.Default
 
-class FilterList(val parentShell: Shell, val initial: List[Filter])
+class FilterList(val parentShell: Shell, val initial: List[view.api.Filter])
   extends FilterListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
   protected[filterlist] val actual = WritableList(initial)
@@ -109,13 +115,13 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
   /** The property representing filter field content */
   protected val filterField = WritableValue("")
   /** The property representing a selected view */
-  protected val selected = WritableValue[Filter]
+  protected val selected = WritableValue[view.api.Filter]
   /** Actual sort direction */
   @volatile private var sortDirection = Default.sortingDirection
   /** Actual sortBy column index */
   @volatile private var sortColumn = 0
 
-  def getModifiedFilters(): Set[Filter] = actual.sortBy(_.name).toSet
+  def getModifiedFilters(): Set[view.api.Filter] = actual.sortBy(_.name).toSet
 
   /** Auto resize table viewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
@@ -161,7 +167,7 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
     result
   }
   /** Generate new name: old name + ' Copy' + N */
-  protected def getNewFilterCopyName(name: String, filterList: List[Filter]): String = {
+  protected def getNewFilterCopyName(name: String, filterList: List[view.api.Filter]): String = {
     val sameIds = immutable.HashSet(filterList.filter(_.name.startsWith(name)).map(_.name).toSeq: _*)
     var n = 0
     var newName = name + " " + Messages.copy_item_text
@@ -188,7 +194,7 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
           case tableItem: TableItem =>
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: Filter =>
+              case before: view.api.Filter =>
                 if (before.availability != tableItem.getChecked()) {
                   val after = before.copy(availability = tableItem.getChecked())
                   updateActualFilter(before, after)
@@ -216,10 +222,10 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          val filter = selection.getFirstElement().asInstanceOf[Filter]
+          val filter = selection.getFirstElement().asInstanceOf[view.api.Filter]
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
-          ActionRemove.setEnabled(Filter.allowAllFilter != filter) // exclude predefined
+          ActionRemove.setEnabled(view.Filter.allowAllFilter != filter) // exclude predefined
         case selection =>
           ActionCreateFrom.setEnabled(false)
           ActionEdit.setEnabled(false)
@@ -254,7 +260,7 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
     getTextFilter().setMessage(Messages.lookupFilter_text);
   }
   /** Updates an actual element template */
-  protected[filterlist] def updateActualFilter(before: Filter, after: Filter) {
+  protected[filterlist] def updateActualFilter(before: view.api.Filter, after: view.api.Filter) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -268,7 +274,7 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
   }
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
-    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(Filter.compareDeep(_, _)) }))
+    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(view.Filter.compareDeep(_, _)) }))
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
@@ -277,32 +283,73 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = {
       val newFilterName = Payload.generateNew(Messages.newFilterName_text, " ", newName => actual.exists(_.name == newName))
-      val newFilter = Filter(UUID.randomUUID(), newFilterName, "", true, mutable.LinkedHashSet())
-      //      JobModifyFilter(newFilter, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-      //        job.getValue.foreach { case (filter) => Main.exec { dialog.actual += filter } }
-      //      }.execute)*/
+      val newFilter = new view.Filter(UUID.randomUUID(), newFilterName, "", true, mutable.LinkedHashSet())
+      OperationModifyFilter(newFilter, actual.toSet).foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (filter) => App.exec { actual += filter } }
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
   object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
     override def run = Option(selected.value) foreach { selected =>
-      /*val name = getNewFilterCopyName(selected.name, dialog.actual.toList)
+      val name = getNewFilterCopyName(selected.name, actual.toList)
       val newFilter = selected.copy(id = UUID.randomUUID(), name = name)
-      JobModifyFilter(newFilter, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach {
-          case (filter) => Main.exec {
-            assert(!dialog.actual.exists(_.id == filter.id), "Filter %s already exists".format(filter))
-            dialog.actual += filter
-          }
+      OperationModifyFilter(newFilter, actual.toSet).foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach {
+                  case (filter) => App.exec {
+                    assert(!actual.exists(_.id == filter.id), "Filter %s already exists".format(filter))
+                    actual += filter
+                  }
+                }
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
         }
-      }.execute)*/
+      }
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = Option(selected.value) foreach { before =>
-      /*JobModifyFilter(before, dialog.actual.toSet).
-        foreach(_.setOnSucceeded { job =>
-          job.getValue.foreach { case (after) => Main.exec { dialog.updateActualFilter(before, after) } }
-        }.execute)*/
+      OperationModifyFilter(before, actual.toSet).foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (after) => App.exec { updateActualFilter(before, after) } }
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {
@@ -313,11 +360,6 @@ class FilterList(val parentShell: Shell, val initial: List[Filter])
 }
 
 object FilterList extends Loggable {
-
-  /** Apply a f(x) to the selected filter if any */
-  //  def filter[T](f: (FilterList, Filter) => T): Option[T] =
-  //    dialog.flatMap(dFilterListSkel => Option(d.selected.value).map(f(d, _)))
-
   class FilterComparator(dialog: WeakReference[FilterList]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -341,8 +383,8 @@ object FilterList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val entity1 = e1.asInstanceOf[Filter]
-      val entity2 = e2.asInstanceOf[Filter]
+      val entity1 = e1.asInstanceOf[view.api.Filter]
+      val entity2 = e2.asInstanceOf[view.api.Filter]
       val rc = column match {
         case 0 => entity1.name.compareTo(entity2.name)
         case 1 => entity1.description.compareTo(entity2.description)
@@ -360,7 +402,7 @@ object FilterList extends Loggable {
   class TableFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[Filter]
+      val item = element.asInstanceOf[view.api.Filter]
       pattern.matcher(item.name.toLowerCase()).matches() ||
         pattern.matcher(item.description.toLowerCase()).matches()
     }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,29 +41,32 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view
+package org.digimead.tabuddy.desktop.logic.operation.view.api
 
-import java.util.UUID
+import org.digimead.tabuddy.desktop.definition.api
+import org.digimead.tabuddy.desktop.definition.api.Operation
+import org.digimead.tabuddy.desktop.logic.payload.view.api.Sorting
 
-import scala.collection.immutable
-
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.tabuddy.model.Record
-
-/** Application wide filters that is available for consumer. */
-object AvailableFilters {
-  /** Default user filter. */
-  def default = DI.defaultFilter
-  /** Map of all available filters. */
-  def map = DI.map
-
+/**
+ * OperationModifySorting base trait.
+ */
+trait OperationModifySorting {
   /**
-   * Dependency injection routines
+   * Modify sorting.
+   *
+   * @param sorting the initial sorting
+   * @param sortingList the list of exists sortings
+   * @param modelId current model Id
+   * @return the modified/the same sorting
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Filter item that is selected by default. */
-    lazy val defaultFilter = map(inject[UUID]("Filter.Default"))
-    /** Map of filters that is available for application. */
-    lazy val map = inject[immutable.HashMap[UUID, api.Filter[_ <: api.Filter.Argument]]]
-  }
+  def apply(sorting: Sorting, sortingList: Set[Sorting], modelId: Symbol): Sorting
+  /**
+   * Create 'Modify sorting' operation.
+   *
+   * @param sorting the initial sorting
+   * @param sortingList the list of exists sortings
+   * @param modelId current model Id
+   * @return 'Modify sorting' operation
+   */
+  def operation(sorting: Sorting, sortingList: Set[Sorting], modelId: Symbol): api.Operation[Sorting]
 }

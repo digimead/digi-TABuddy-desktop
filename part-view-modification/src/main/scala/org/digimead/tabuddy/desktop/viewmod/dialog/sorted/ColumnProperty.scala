@@ -43,46 +43,32 @@
 
 package org.digimead.tabuddy.desktop.viewmod.dialog.sorted
 
-import org.digimead.tabuddy.desktop.support.Validator
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.jface.databinding.swt.WidgetProperties
-import org.eclipse.jface.viewers.CellEditor
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.EditingSupport
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.TextCellEditor
-import org.eclipse.jface.viewers.ViewerCell
-import org.eclipse.swt.SWT
-import org.eclipse.swt.events.VerifyEvent
-import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Text
-import org.eclipse.swt.widgets.TableItem
-import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.payload.view
 import org.digimead.tabuddy.desktop.viewmod.Default
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableComparators
+import org.eclipse.jface.viewers.CellLabelProvider
+import org.eclipse.jface.viewers.ViewerCell
+import org.eclipse.swt.graphics.Point
 
 object ColumnProperty extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         cell.setText(item.property.name)
-        // update checkbox
-        //cell.getItem() match {
-//          case tableItem: TableItem if tableItem.getChecked() != (item.priority != -1) =>
-//            tableItem.setChecked(item.priority != -1)
-//          case _ =>
-//        }
+      // update checkbox
+      //cell.getItem() match {
+      //          case tableItem: TableItem if tableItem.getChecked() != (item.priority != -1) =>
+      //            tableItem.setChecked(item.priority != -1)
+      //          case _ =>
+      //        }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         AvailableComparators.map.get(item.comparator).map(c => "comparator: " + c.description).getOrElse(null)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

@@ -99,6 +99,7 @@ import javax.inject.Named
 import org.digimead.tabuddy.desktop.ResourceManager
 import org.eclipse.swt.events.DisposeListener
 import org.eclipse.swt.events.DisposeEvent
+import org.digimead.tabuddy.desktop.gui.WindowToolbar
 
 class View private (parent: VComposite, style: Int)
   extends TableViewSkel(parent, style) with ViewActions with Loggable {
@@ -190,18 +191,37 @@ class View private (parent: VComposite, style: Int)
   def onModelIdUserInputChanged(@Named(Data.Id.selectedElementUserInput) element: Element[_ <: Stash]) =
     App.exec { updateActiveElement(element) }
   /** onStart callback */
-  def onStart() {
-    log.___gaze("ONSTART")
-    //    Window.getMenuTopLevel().add(tableViewMenu)
-    //    Window.getMenuTopLevel().update(false)
-    this.layout()
-  }
+  def onStart(widget: Widget) = {
+    App.assertUIThread()
+    for {
+      wComposite <- App.findShell(widget).flatMap(App.findWindowComposite)
+      appWindow <- wComposite.getAppWindow
+    } yield {
+      val viewToolBar = WindowToolbar(appWindow, org.digimead.tabuddy.desktop.logic.action.Action.viewToolbar)
+      appWindow.getCoolBarManager().find(org.digimead.tabuddy.desktop.logic.action.Action.viewToolbar.id).setVisible(false)
+      viewToolBar.setVisible(false)
+      appWindow.getCoolBarManager2().update(true)
+      log.___glance("HIDE" + viewToolBar + "===" + appWindow.getCoolBarManager2().find(org.digimead.tabuddy.desktop.logic.action.Action.viewToolbar.id))
+      //    Window.getMenuTopLevel().add(tableViewMenu)
+      //    Window.getMenuTopLevel().update(false)
+      this.layout()
+    }
+  } getOrElse { throw new IllegalStateException("Unable to process onStart event.") }
   /** onStop callback */
-  def onStop() {
-    log.___gaze("ONSTOP")
-    //    Window.getMenuTopLevel().remove(tableViewMenu)
-    //    Window.getMenuTopLevel().update(false)
-  }
+  def onStop(widget: Widget) = {
+    App.assertUIThread()
+    for {
+      wComposite <- App.findShell(widget).flatMap(App.findWindowComposite)
+      appWindow <- wComposite.getAppWindow
+    } yield {
+      val viewToolBar = WindowToolbar(appWindow, org.digimead.tabuddy.desktop.logic.action.Action.viewToolbar)
+      viewToolBar.setVisible(true)
+      appWindow.getCoolBarManager2().update(true)
+      log.___glance("SHOW" + viewToolBar)
+      //    Window.getMenuTopLevel().remove(tableViewMenu)
+      //    Window.getMenuTopLevel().update(false)
+    }
+  } getOrElse { throw new IllegalStateException("Unable to process onStart event.") }
   /**
    * Refreshes this viewer starting with the given element. Labels are updated
    * as described in <code>refresh(boolean updateLabels)</code>.

@@ -47,21 +47,34 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
+
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
+
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyView
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.logic.payload.view.View
+import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
 import org.digimead.tabuddy.desktop.support.WritableValue
 import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
+import org.digimead.tabuddy.desktop.support.ui.RegexFilterListener
+import org.digimead.tabuddy.desktop.viewmod.Default
+import org.digimead.tabuddy.desktop.viewmod.dialog.CustomMessages
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.ActionContributionItem
 import org.eclipse.jface.action.IAction
@@ -92,15 +105,8 @@ import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.TableItem
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.viewmod.dialog.CustomMessages
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.viewmod.Default
-import org.digimead.tabuddy.desktop.support.ui.RegexFilterListener
-import org.digimead.tabuddy.desktop.Messages
 
-class ViewList(val parentShell: Shell, val initial: List[View])
+class ViewList(val parentShell: Shell, val initial: List[view.api.View])
   extends ViewListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
   protected[viewlist] val actual = WritableList(initial)
@@ -109,13 +115,13 @@ class ViewList(val parentShell: Shell, val initial: List[View])
   /** The property representing view filter content */
   protected val filterViews = WritableValue("")
   /** The property representing a selected view */
-  protected val selected = WritableValue[View]
+  protected val selected = WritableValue[view.api.View]
   /** Actual sort direction */
   @volatile private var sortDirection = Default.sortingDirection
   /** Actual sortBy column index */
   @volatile private var sortColumn = 1
 
-  def getModifiedViews(): Set[View] = actual.sortBy(_.name).toSet
+  def getModifiedViews(): Set[view.api.View] = actual.sortBy(_.name).toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
@@ -161,7 +167,7 @@ class ViewList(val parentShell: Shell, val initial: List[View])
     result
   }
   /** Generate new name: old name + ' Copy ' + N */
-  protected def getNewViewCopyName(name: String, viewList: List[View]): String = {
+  protected def getNewViewCopyName(name: String, viewList: List[view.api.View]): String = {
     val sameIds = immutable.HashSet(viewList.filter(_.name.startsWith(name)).map(_.name).toSeq: _*)
     var n = 0
     var newName = name + " " + Messages.copy_item_text
@@ -190,7 +196,7 @@ class ViewList(val parentShell: Shell, val initial: List[View])
           case tableItem: TableItem =>
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: View =>
+              case before: view.api.View =>
                 if (before.availability != tableItem.getChecked()) {
                   val after = before.copy(availability = tableItem.getChecked())
                   updateActualView(before, after)
@@ -218,10 +224,10 @@ class ViewList(val parentShell: Shell, val initial: List[View])
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          val view = selection.getFirstElement().asInstanceOf[View]
+          val view = selection.getFirstElement().asInstanceOf[org.digimead.tabuddy.desktop.logic.payload.view.api.View]
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
-          ActionRemove.setEnabled(View.displayName != view) // exclude predefined
+          ActionRemove.setEnabled(org.digimead.tabuddy.desktop.logic.payload.view.View.displayName != view) // exclude predefined
         case selection =>
           ActionCreateFrom.setEnabled(false)
           ActionEdit.setEnabled(false)
@@ -254,7 +260,7 @@ class ViewList(val parentShell: Shell, val initial: List[View])
       }
   }
   /** Updates an actual element template */
-  protected[viewlist] def updateActualView(before: View, after: View) {
+  protected[viewlist] def updateActualView(before: view.api.View, after: view.api.View) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -263,7 +269,7 @@ class ViewList(val parentShell: Shell, val initial: List[View])
   }
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
-    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(View.compareDeep(_, _)) }))
+    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(view.View.compareDeep(_, _)) }))
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
@@ -272,52 +278,89 @@ class ViewList(val parentShell: Shell, val initial: List[View])
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = {
       val newViewName = Payload.generateNew(Messages.newViewName_text, " ", newName => actual.exists(_.name == newName))
-      val newView = View(UUID.randomUUID(), newViewName, "", true, mutable.LinkedHashSet(), mutable.LinkedHashSet(), mutable.LinkedHashSet())
-      /*      JobModifyView(newView, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach {
-          case (view) => Main.exec {
-            dialog.actual += view
-            dialog.getTableViewer.setSelection(new StructuredSelection(view), true)
-          }
+      val newView = new view.View(UUID.randomUUID(), newViewName, "", true, mutable.LinkedHashSet(), mutable.LinkedHashSet(), mutable.LinkedHashSet())
+      OperationModifyView(newView, actual.toSet).foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach {
+                  case (view) => App.exec {
+                    actual += view
+                    getTableViewer.setSelection(new StructuredSelection(view), true)
+                  }
+                }
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
         }
-      }.execute)*/
+      }
     }
   }
   object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
-    override def run = {} /*ViewList.view { (dialog, selected) =>
-      val name = getNewViewCopyName(selected.name, dialog.actual.toList)
+    override def run = Option(selected.value) foreach { selected =>
+      val name = getNewViewCopyName(selected.name, actual.toList)
       val newView = selected.copy(id = UUID.randomUUID(), name = name)
-/*      JobModifyView(newView, dialog.actual.toSet).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach {
-          case (view) => Main.exec {
-            assert(!dialog.actual.exists(_.id == view.id), "View %s already exists".format(view))
-            dialog.actual += view
-            dialog.getTableViewer.setSelection(new StructuredSelection(view), true)
-          }
+      OperationModifyView(newView, actual.toSet).foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach {
+                  case (view) => App.exec {
+                    assert(!actual.exists(_.id == view.id), "View %s already exists".format(view))
+                    actual += view
+                    getTableViewer.setSelection(new StructuredSelection(view), true)
+                  }
+                }
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
         }
-      }.execute)*/*/
+      }
+    }
   }
   object ActionEdit extends Action(Messages.edit_text) {
-    override def run = {} /*ViewList.view { (dialog, before) =>
-     /* JobModifyView(before, dialog.actual.toSet).
-        foreach(_.setOnSucceeded { job =>
-          job.getValue.foreach { case (after) => Main.exec { dialog.updateActualView(before, after) } }
-        }.execute)*/
-    }*/
+    override def run = Option(selected.value) foreach { before =>
+      OperationModifyView(before, actual.toSet).foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (after) => App.exec { updateActualView(before, after) } }
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
+    }
   }
   object ActionRemove extends Action(Messages.remove_text) {
-    override def run = {} /*ViewList.view { (dialog, selected) =>
-      dialog.actual -= selected
-    }*/
+    override def run = Option(selected.value) foreach { selected =>
+      actual -= selected
+    }
   }
 }
 
 object ViewList extends Loggable {
-
-  /** Apply a f(x) to the selected view if any */
-  //  def view[T](f: (ViewList, View) => T): Option[T] =
-  //    dialog.flatMap(d => Option(d.selected.value).map(f(d, _)))
-
   class ViewComparator(dialog: WeakReference[ViewList]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -341,8 +384,8 @@ object ViewList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val entity1 = e1.asInstanceOf[View]
-      val entity2 = e2.asInstanceOf[View]
+      val entity1 = e1.asInstanceOf[view.api.View]
+      val entity2 = e2.asInstanceOf[view.api.View]
       val rc = column match {
         case 0 => entity1.availability.compareTo(entity2.availability)
         case 1 => entity1.name.compareTo(entity2.name)
@@ -361,7 +404,7 @@ object ViewList extends Loggable {
   class ViewFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[View]
+      val item = element.asInstanceOf[view.api.View]
       pattern.matcher(item.name.toLowerCase()).matches() ||
         pattern.matcher(item.description.toLowerCase()).matches()
     }

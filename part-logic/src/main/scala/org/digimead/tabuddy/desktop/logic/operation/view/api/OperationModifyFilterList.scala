@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,22 +41,29 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.logic.operation.view.api
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.api
+import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
 
-object Polygon extends Loggable {
+/**
+ * OperationModifyFilterList base trait.
+ */
+trait OperationModifyFilterList {
   /**
-   * User function. If you want to evaluate something in 'org.digimead.tabuddy.desktop' bundle context
-   *   from Scala REPL then write it right here :-) You are welcome.
-   * And don't forget to clean up.
+   * Modify filter list.
+   *
+   * @param filterList the list of exists filters
+   * @param modelId current model Id
+   * @return the modified/the same filter list
    */
-  def __test__(arg: AnyRef): AnyRef = {
-    arg.asInstanceOf[Boolean] match {
-      case x if x =>
-        log.___glance("LOAD")
-      case x if !x =>
-    }
-    null
-  }
+  def apply(filterList: Set[Filter], modelId: Symbol): Set[Filter]
+  /**
+   * Create 'Modify filter list' operation.
+   *
+   * @param filterList the list of exists filters
+   * @param modelId current model Id
+   * @return 'Modify filter list' operation
+   */
+  def operation(filterList: Set[Filter], modelId: Symbol): api.Operation[Set[Filter]]
 }

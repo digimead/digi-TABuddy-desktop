@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.viewmod.dialog.sorted
 
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableComparators
-import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.payload.view
 import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.ViewerCell
@@ -55,14 +55,14 @@ object ColumnType extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         cell.setText(item.propertyType.name)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         AvailableComparators.map.get(item.comparator).map(_.description).getOrElse(null)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

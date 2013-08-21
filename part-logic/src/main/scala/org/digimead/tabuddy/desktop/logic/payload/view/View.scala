@@ -57,28 +57,42 @@ import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Coordinate
 import org.digimead.tabuddy.model.element.Element
 
-case class View(
-  /** View unique id */
+/**
+ * View is group of user specific filters and user specific sortings.
+ * View equality is based on the elementId.
+ */
+class View(
+  /** View unique id. */
   val id: UUID,
-  /** View name */
+  /** View name. */
   val name: String,
-  /** View description */
+  /** View description. */
   val description: String,
-  /** Availability flag for user (some views may exists, but not involved in element representation) */
+  /** Availability flag for user (some views may exists, but not involved in element representation). */
   val availability: Boolean,
-  /** View fields (visible properties) */
+  /** View fields (visible properties). */
   val fields: mutable.LinkedHashSet[Symbol],
-  /** View filters (visible filters) */
+  /** View filters (visible filters). */
   val filters: mutable.LinkedHashSet[UUID],
-  /** View sortings (visible sortings) */
-  val sortings: mutable.LinkedHashSet[UUID]) {
-  /** Element id symbol */
+  /** View sortings (visible sortings). */
+  val sortings: mutable.LinkedHashSet[UUID]) extends api.View {
+  /** Element id symbol. */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
+  /** The copy constructor */
+  def copy(id: UUID = this.id,
+    name: String = this.name,
+    description: String = this.description,
+    availability: Boolean = this.availability,
+    fields: mutable.LinkedHashSet[Symbol] = this.fields,
+    filters: mutable.LinkedHashSet[UUID] = this.filters,
+    sortings: mutable.LinkedHashSet[UUID] = this.sortings): this.type =
+    new View(id, name, description, availability, fields, filters, sortings).asInstanceOf[this.type]
+
   def canEqual(other: Any) =
-    other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.view.View]
+    other.isInstanceOf[api.View]
   override def equals(other: Any) = other match {
-    case that: org.digimead.tabuddy.desktop.logic.payload.view.View =>
+    case that: api.View =>
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId
@@ -90,13 +104,13 @@ case class View(
 
 object View extends Loggable {
   /** Predefined default view */
-  val displayName = View(UUID.fromString("033ca060-8493-11e2-9e96-0800200c9a66"), Messages.default_text,
+  val displayName = new View(UUID.fromString("033ca060-8493-11e2-9e96-0800200c9a66"), Messages.default_text,
     "The default minimal view with 'name' column", true, mutable.LinkedHashSet('name), mutable.LinkedHashSet(), mutable.LinkedHashSet())
   /** Columns limit per view */
   val collectionMaximum = 10000
 
   /** The deep comparison of two sortings */
-  def compareDeep(a: View, b: View): Boolean =
+  def compareDeep(a: api.View, b: api.View): Boolean =
     (a eq b) || (a == b && a.description == b.description && a.availability == b.availability && a.name == b.name &&
       // fields sequence order is important
       a.fields.sameElements(b.fields) &&
@@ -165,7 +179,7 @@ object View extends Loggable {
       uuid <- uuid if fields.nonEmpty
       availability <- availability
       name <- name
-    } yield View(uuid, name, description.getOrElse(""), availability, fields, filters, sortings)
+    } yield new View(uuid, name, description.getOrElse(""), availability, fields, filters, sortings)
   }
   /** Returns an ID for the availability field */
   def getFieldIDAvailability() = 'availability
@@ -186,7 +200,7 @@ object View extends Loggable {
     if (result.contains(View.displayName)) result.toSet else (View.displayName +: result).toSet
   }
   /** Update only modified view definitions */
-  def save(views: Set[View]) = App.exec {
+  def save(views: Set[api.View]) = App.exec {
     log.debug("Save view definition list for model " + Model.eId)
     val oldViews = Data.viewDefinitions.values
     val newViews = views - displayName
@@ -208,7 +222,7 @@ object View extends Loggable {
     }
   }
   /** Set view to element */
-  def set(view: View, container: Element.Generic = container) = {
+  def set(view: api.View, container: Element.Generic = container) = {
     val element = Record(container, view.elementId, Coordinate.root.coordinate)
     element.eStash.property.clear
     // set element's properties
@@ -241,7 +255,7 @@ object View extends Loggable {
     } element.eSet[String](getFieldIDSorting(i), sorting.toString())
   }
   /** Remove view element */
-  def remove(view: View, container: Element.Generic = container) =
+  def remove(view: api.View, container: Element.Generic = container) =
     container.eChildren.find(_.eId == view.elementId).foreach(element => container.eChildren -= element)
   /**
    * Dependency injection routines

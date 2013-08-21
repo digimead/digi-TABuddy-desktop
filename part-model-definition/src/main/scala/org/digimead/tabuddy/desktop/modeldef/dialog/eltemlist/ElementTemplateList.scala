@@ -293,23 +293,20 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = Option(selected.value) foreach { (before) =>
       OperationModifyElementTemplate(before, actual.toSet).foreach { operation =>
-        val job = if (operation.canRedo())
-          Some(operation.redoJob())
-        else if (operation.canExecute())
-          Some(operation.executeJob())
-        else
-          None
-        job foreach { job =>
-          job.setPriority(Job.SHORT)
-          job.onComplete(_ match {
-            case Operation.Result.OK(result, message) =>
-              log.info(s"Operation completed successfully: ${result}")
-              result.foreach { case (after) => App.exec { updateActualTemplate(before, after) } }
-            case Operation.Result.Cancel(message) =>
-              log.warn(s"Operation canceled, reason: ${message}.")
-            case other =>
-              log.error(s"Unable to complete operation: ${other}.")
-          }).schedule()
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (after) => App.exec { updateActualTemplate(before, after) } }
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
         }
       }
     }

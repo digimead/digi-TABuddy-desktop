@@ -58,7 +58,7 @@ object ColumnFilter extends Loggable {
   class TLabelProvider(val actualFilters: WritableList[UUID]) extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: view.api.Filter[_] =>
+      case item: view.api.Filter =>
         cell.setText(item.name)
         // update checkbox
         cell.getItem() match {
@@ -71,7 +71,7 @@ object ColumnFilter extends Loggable {
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: view.api.Filter[_] =>
+      case item: view.api.Filter =>
         if (item.description.nonEmpty)
           item.description
         else

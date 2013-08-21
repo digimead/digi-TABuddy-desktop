@@ -59,8 +59,8 @@ import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.logic.payload.TemplateProperty
 import org.digimead.tabuddy.desktop.logic.payload.view
-import org.digimead.tabuddy.desktop.logic.payload.view.Filter
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableFilters
+import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
+import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.Validator
 import org.digimead.tabuddy.desktop.support.WritableList
@@ -105,7 +105,7 @@ import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.TableItem
 import org.eclipse.swt.widgets.Text
 
-class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterList: List[view.Filter])
+class FilterEditor(val parentShell: Shell, val filter: view.api.Filter, val filterList: List[view.api.Filter])
   extends FilterEditorSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
   protected[filtered] val actual = WritableList(filter.rules.toList)
@@ -120,22 +120,25 @@ class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterLi
   /** The property representing filters filter content */
   protected val filterFilters = WritableValue("")
   /** The property representing current view name */
-  protected val nameField = WritableValue[String]
+  protected val nameField = WritableValue[String]("")
   /** The property representing a selected property */
   protected val selectedProperty = WritableValue[FilterEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]
   /** The property representing a selected sorting */
   protected val selectedRule = WritableValue[view.api.Filter.Rule]
+  /** Actual sortBy column index */
+  @volatile protected var sortColumn = 0 // by an id
+  /** Actual sort direction */
+  @volatile protected var sortDirection = Default.sortingDirection
   /** All defined properties of the current model grouped by id, type  */
   protected[filtered] lazy val total: WritableList[FilterEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]] = WritableList(Data.elementTemplates.values.
     flatMap { template => template.properties.flatMap(_._2) }.map(property => FilterEditor.PropertyItem(property.id, property.ptype,
       !actual.exists(definition => definition.property == property.id && definition.propertyType == property.ptype.id))).
     toList.distinct.sortBy(_.ptype.typeSymbol.name).sortBy(_.id.name))
-  assert(FilterEditor.dialog.isEmpty, "FilterEditor dialog is already active")
 
-  def getModifiedFilter(): view.Filter = {
+  def getModifiedFilter(): view.api.Filter = {
     val name = nameField.value.trim
     val description = descriptionField.value.trim
-    view.Filter(filter.id, name, description, availabilityField.value, mutable.LinkedHashSet(actual: _*))
+    new view.Filter(filter.id, name, description, availabilityField.value, mutable.LinkedHashSet(actual: _*))
   }
 
   /** Auto resize tableviewer columns */
@@ -197,14 +200,12 @@ class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterLi
         availabilityField.removeChangeListener(availabilityFieldListener)
         descriptionField.removeChangeListener(descriptionFieldListener)
         nameField.removeChangeListener(nameFieldListener)
-        FilterEditor.dialog = None
       }
     })
     // Set the dialog message
     setMessage(CustomMessages.viewFilterEditorDescription_text.format(filter.name))
     // Set the dialog window title
     getShell().setText(CustomMessages.viewFilterEditorDialog_text.format(filter.name))
-    FilterEditor.dialog = Some(this)
     result
   }
   /** Allow external access for scala classes */
@@ -216,9 +217,9 @@ class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterLi
     val viewer = getTableViewerProperties()
     viewer.setContentProvider(new ObservableListContentProvider())
     getTableViewerColumnPropertyFrom.setLabelProvider(new ColumnPropertyFrom.TLabelProvider)
-    getTableViewerColumnPropertyFrom.getColumn.addSelectionListener(new FilterEditor.PropertySelectionAdapter(0))
+    getTableViewerColumnPropertyFrom.getColumn.addSelectionListener(new FilterEditor.PropertySelectionAdapter(new WeakReference(this), 0))
     getTableViewerColumnTypeFrom.setLabelProvider(new ColumnTypeFrom.TLabelProvider)
-    getTableViewerColumnTypeFrom.getColumn.addSelectionListener(new FilterEditor.PropertySelectionAdapter(1))
+    getTableViewerColumnTypeFrom.getColumn.addSelectionListener(new FilterEditor.PropertySelectionAdapter(new WeakReference(this), 1))
     // Activate the tooltip support for the viewer
     ColumnViewerToolTipSupport.enableFor(viewer)
     // Add the context menu
@@ -256,7 +257,7 @@ class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterLi
     filterProperties.underlying.addChangeListener(filterListener)
     viewer.setFilters(Array(visibleFilter, new FilterEditor.PropertyFilter(filter)))
     // Set sorting
-    viewer.setComparator(new FilterEditor.FilterComparator(0))
+    viewer.setComparator(new FilterEditor.FilterComparator(new WeakReference(this)))
     viewer.setInput(total.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selectedProperty)
     viewer.getTable().pack
@@ -266,18 +267,18 @@ class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterLi
     val viewer = getTableViewerFilters()
     viewer.setContentProvider(new ObservableListContentProvider())
     getTableViewerColumnProperty.setLabelProvider(new ColumnProperty.TLabelProvider)
-    getTableViewerColumnProperty.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(0))
+    getTableViewerColumnProperty.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(new WeakReference(this), 0))
     getTableViewerColumnType.setLabelProvider(new ColumnType.TLabelProvider)
-    getTableViewerColumnType.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(1))
+    getTableViewerColumnType.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(new WeakReference(this), 1))
     getTableViewerColumnInversion.setLabelProvider(new ColumnInversion.TLabelProvider)
     getTableViewerColumnInversion.setEditingSupport(new ColumnInversion.TEditingSupport(viewer, this))
-    getTableViewerColumnInversion.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(2))
+    getTableViewerColumnInversion.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(new WeakReference(this), 2))
     getTableViewerColumnFilter.setLabelProvider(new ColumnSorting.TLabelProvider)
     getTableViewerColumnFilter.setEditingSupport(new ColumnSorting.TEditingSupport(viewer, this))
-    getTableViewerColumnFilter.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(3))
+    getTableViewerColumnFilter.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(new WeakReference(this), 3))
     getTableViewerColumnArgument.setLabelProvider(new ColumnArgument.TLabelProvider)
     getTableViewerColumnArgument.setEditingSupport(new ColumnArgument.TEditingSupport(viewer, this))
-    getTableViewerColumnArgument.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(4))
+    getTableViewerColumnArgument.getColumn.addSelectionListener(new FilterEditor.FilterSelectionAdapter(new WeakReference(this), 4))
     // Activate the tooltip support for the viewer
     ColumnViewerToolTipSupport.enableFor(viewer)
     // Add the context menu
@@ -311,7 +312,7 @@ class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterLi
     filterFilters.underlying.addChangeListener(filterListener)
     viewer.setFilters(Array(new FilterEditor.Filter(filter)))
     // Set sorting
-    viewer.setComparator(new FilterEditor.FilterComparator(0))
+    viewer.setComparator(new FilterEditor.FilterComparator(new WeakReference(this)))
     viewer.setInput(actual.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selectedRule)
   }
@@ -341,7 +342,7 @@ class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterLi
       }
   }
   /** Update OK button state */
-  protected def updateOK() = if (FilterEditor.dialog.nonEmpty) {
+  protected def updateOK() {
     val error = validate()
     setMessage(updateDescription(error))
     Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(actual.nonEmpty && error.isEmpty && {
@@ -378,84 +379,54 @@ class FilterEditor(val parentShell: Shell, val filter: view.Filter, val filterLi
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) FilterEditor.dialog.foreach(dialog => future { dialog.autoresize })
+    override def run = if (isChecked()) future { autoresize }
   }
   object ActionAdd extends Action(">") with Loggable {
-    override def run = FilterEditor.property { (dialog, property) =>
+    override def run = Option(selectedProperty.value) foreach { property =>
       property.visible = false
-      dialog.actual += view.api.Filter.Rule(property.id, property.ptype.id, false, Filter.allowAllFilter.id, "")
+      actual += view.api.Filter.Rule(property.id, property.ptype.id, false, view.Filter.allowAllFilter.id, "")
       if (ActionAutoResize.isChecked())
-        future { dialog.autoresize() } onFailure {
+        future { autoresize() } onFailure {
           case e: Exception => log.error(e.getMessage(), e)
           case e => log.error(e.toString())
         }
       else
-        dialog.getTableViewerProperties.refresh()
+        getTableViewerProperties.refresh()
     }
   }
   object ActionRemove extends Action("<") with Loggable {
-    override def run = FilterEditor.rule { (dialog, rule) =>
-      dialog.actual -= rule
-      dialog.total.find(property => rule.property == property.id && rule.propertyType == property.ptype.id).foreach(_.visible = true)
+    override def run = Option(selectedRule.value) foreach { rule =>
+      actual -= rule
+      total.find(property => rule.property == property.id && rule.propertyType == property.ptype.id).foreach(_.visible = true)
       if (ActionAutoResize.isChecked())
-        future { dialog.autoresize() } onFailure {
+        future { autoresize() } onFailure {
           case e: Exception => log.error(e.getMessage(), e)
           case e => log.error(e.toString())
         }
       else
-        dialog.getTableViewerProperties.refresh()
+        getTableViewerProperties.refresh()
     }
   }
 }
 
 object FilterEditor extends Loggable {
-  /** There is may be only one dialog instance at time */
-  @volatile private var dialog: Option[FilterEditor] = None
-
-  /** Apply a f(x) to the selected view if any */
-  def property[T](f: (FilterEditor, PropertyItem[_ <: AnyRef with java.io.Serializable]) => T): Option[T] =
-    dialog.flatMap(d => Option(d.selectedProperty.value).map(f(d, _)))
-  /** Apply a f(x) to the selected view if any */
-  def rule[T](f: (FilterEditor, view.api.Filter.Rule) => T): Option[T] =
-    dialog.flatMap(d => Option(d.selectedRule.value).map(f(d, _)))
-
-  class PropertyFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
-    override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
-      val pattern = filter.get
-      val item = element.asInstanceOf[PropertyItem[AnyRef with java.io.Serializable]]
-      pattern.matcher(item.id.name.toLowerCase()).matches() || pattern.matcher(item.ptype.name.toLowerCase()).matches()
-    }
-  }
-  case class PropertyItem[T <: AnyRef with java.io.Serializable](val id: Symbol, ptype: payload.api.PropertyType[T], var visible: Boolean)
-  class PropertySelectionAdapter(column: Int) extends SelectionAdapter {
-    override def widgetSelected(e: SelectionEvent) = dialog.foreach { dialog =>
-      val viewer = dialog.getTableViewerProperties()
-      val comparator = viewer.getComparator().asInstanceOf[FilterComparator]
-      if (comparator.column == column) {
-        comparator.switchDirection()
-        viewer.refresh()
-      } else {
-        comparator.column = column
-        viewer.refresh()
-      }
-    }
-  }
-
-  class FilterComparator(initialColumn: Int, initialDirection: Boolean = Default.sortingDirection) extends ViewerComparator {
-    /** The sort column */
-    var columnVar = initialColumn
-    /** The sort direction */
-    var directionVar = initialDirection
+  class FilterComparator(dialog: WeakReference[FilterEditor]) extends ViewerComparator {
+    private var _column = dialog.get.map(_.sortColumn) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
+    private var _direction = dialog.get.map(_.sortDirection) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
 
     /** Active column getter */
-    def column = columnVar
+    def column = _column
     /** Active column setter */
     def column_=(arg: Int) {
-      columnVar = arg
-      directionVar = initialDirection
+      _column = arg
+      dialog.get.foreach(_.sortColumn = _column)
+      _direction = Default.sortingDirection
+      dialog.get.foreach(_.sortDirection = _direction)
     }
     /** Sorting direction */
-    def direction = directionVar
+    def direction = _direction
     /**
      * Returns a negative, zero, or positive number depending on whether
      * the first element is less than, equal to, or greater than
@@ -480,7 +451,7 @@ object FilterEditor extends Loggable {
             case index =>
               log.fatal(s"unknown column with index $index"); 0
           }
-          if (directionVar) -rc else rc
+          if (_direction) -rc else rc
         case entity1: PropertyItem[_] =>
           val entity2 = e2.asInstanceOf[PropertyItem[_]]
           val rc = column match {
@@ -489,12 +460,13 @@ object FilterEditor extends Loggable {
             case index =>
               log.fatal(s"unknown column with index $index"); 0
           }
-          if (directionVar) -rc else rc
+          if (_direction) -rc else rc
       }
     }
     /** Switch comparator direction */
     def switchDirection() {
-      directionVar = !directionVar
+      _direction = !_direction
+      dialog.get.foreach(_.sortDirection = _direction)
     }
   }
   class Filter(filter: AtomicReference[Pattern]) extends ViewerFilter {
@@ -508,9 +480,30 @@ object FilterEditor extends Loggable {
           filter.stringToArgument(item.argument).map(filter.generic.argumentToText)).getOrElse(item.argument).toLowerCase()).matches()
     }
   }
-  class FilterSelectionAdapter(column: Int) extends SelectionAdapter {
-    override def widgetSelected(e: SelectionEvent) = dialog.foreach { dialog =>
+  class FilterSelectionAdapter(dialog: WeakReference[FilterEditor], column: Int) extends SelectionAdapter {
+    override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog =>
       val viewer = dialog.getTableViewerFilters()
+      val comparator = viewer.getComparator().asInstanceOf[FilterComparator]
+      if (comparator.column == column) {
+        comparator.switchDirection()
+        viewer.refresh()
+      } else {
+        comparator.column = column
+        viewer.refresh()
+      }
+    }
+  }
+  class PropertyFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
+    override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
+      val pattern = filter.get
+      val item = element.asInstanceOf[PropertyItem[AnyRef with java.io.Serializable]]
+      pattern.matcher(item.id.name.toLowerCase()).matches() || pattern.matcher(item.ptype.name.toLowerCase()).matches()
+    }
+  }
+  case class PropertyItem[T <: AnyRef with java.io.Serializable](val id: Symbol, ptype: payload.api.PropertyType[T], var visible: Boolean)
+  class PropertySelectionAdapter(dialog: WeakReference[FilterEditor], column: Int) extends SelectionAdapter {
+    override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog =>
+      val viewer = dialog.getTableViewerProperties()
       val comparator = viewer.getComparator().asInstanceOf[FilterComparator]
       if (comparator.column == column) {
         comparator.switchDirection()

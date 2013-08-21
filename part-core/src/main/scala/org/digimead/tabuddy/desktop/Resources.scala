@@ -224,7 +224,10 @@ object Resources extends Loggable {
       // add new parser
       val enabled = filter { case (key, value) => value }.map(_._1).toSeq
       val parser = action.View.parser(enabled)
-      uniqueParserId = Command.addToContext(Core.context, parser)
+      if (Command.getDescriptor(parser.uniqueId).nonEmpty)
+        uniqueParserId = Command.addToContext(Core.context, parser)
+      else
+        uniqueParserId = None
       this
     }
 

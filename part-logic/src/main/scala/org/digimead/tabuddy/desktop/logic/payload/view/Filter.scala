@@ -59,7 +59,13 @@ import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Coordinate
 import org.digimead.tabuddy.model.element.Element
 
-case class Filter(
+/**
+ * Filter base trait.
+ * Filter is a user selected group of Filter.Rule (element property <-> logic.filter tuple)
+ * which is applied to the visible model.
+ * Filter equality is based on the elementId.
+ */
+class Filter(
   /** Filter unique id */
   val id: UUID,
   /** Filter name */
@@ -69,14 +75,22 @@ case class Filter(
   /** Availability flag for user (some filters may exists, but not involved in element representation) */
   val availability: Boolean,
   /** Filter rules, sorted by hash code */
-  val rules: mutable.LinkedHashSet[api.Filter.Rule]) {
+  val rules: mutable.LinkedHashSet[api.Filter.Rule]) extends api.Filter {
   /** Element id symbol */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
+  /** The copy constructor */
+  def copy(id: UUID = this.id,
+    name: String = this.name,
+    description: String = this.description,
+    availability: Boolean = this.availability,
+    rules: mutable.LinkedHashSet[api.Filter.Rule] = this.rules): this.type =
+    new Filter(id, name, description, availability, rules).asInstanceOf[this.type]
+
   def canEqual(other: Any) =
-    other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.view.Filter]
+    other.isInstanceOf[Filter]
   override def equals(other: Any) = other match {
-    case that: org.digimead.tabuddy.desktop.logic.payload.view.Filter =>
+    case that: Filter =>
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId // elementId == UUID
@@ -89,12 +103,12 @@ case class Filter(
 
 object Filter extends Loggable {
   /** Predefined default filter. */
-  val allowAllFilter = Filter(UUID.fromString("d9baaf38-fb98-4de5-9085-12156e668b0c"), Messages.default_text, "", true, mutable.LinkedHashSet())
+  val allowAllFilter = new Filter(UUID.fromString("d9baaf38-fb98-4de5-9085-12156e668b0c"), Messages.default_text, "", true, mutable.LinkedHashSet())
   /** Fields limit per sort */
   val collectionMaximum = 100
 
   /** The deep comparison of two filters */
-  def compareDeep(a: Filter, b: Filter): Boolean =
+  def compareDeep(a: api.Filter, b: api.Filter): Boolean =
     (a eq b) || (a == b && a.description == b.description && a.availability == b.availability && a.name == b.name &&
       a.rules.size == b.rules.size && a.rules.toSeq.sortBy(_.hashCode).sameElements(b.rules.toSeq.sortBy(_.hashCode)))
   /** Filter elements container */
@@ -134,7 +148,7 @@ object Filter extends Loggable {
       uuid <- uuid if rules.nonEmpty
       availability <- availability
       name <- name
-    } yield Filter(uuid, name, description.getOrElse(""), availability, rules)
+    } yield new Filter(uuid, name, description.getOrElse(""), availability, rules)
   }
   /** Returns an ID for the availability field */
   def getFieldIDAvailability() = 'availability
@@ -159,7 +173,7 @@ object Filter extends Loggable {
     if (result.contains(Filter.allowAllFilter)) result.toSet else (Filter.allowAllFilter +: result).toSet
   }
   /** Update only modified view filters */
-  def save(filters: Set[Filter]) = App.exec {
+  def save(filters: Set[api.Filter]) = App.exec {
     log.debug("save view filter list for model " + Model.eId)
     val oldFilters = Data.viewFilters.values
     val newFilters = filters - allowAllFilter
@@ -181,7 +195,7 @@ object Filter extends Loggable {
     }
   }
   /** Save filter to element */
-  def set(filter: Filter, container: Element.Generic = container) = {
+  def set(filter: api.Filter, container: Element.Generic = container) = {
     val element = Record(container, filter.elementId, Coordinate.root.coordinate)
     // remove all element properties
     element.eStash.property.clear
@@ -204,7 +218,7 @@ object Filter extends Loggable {
     }
   }
   /** Remove filter element */
-  def remove(filter: Filter, container: Element.Generic = container) {
+  def remove(filter: api.Filter, container: Element.Generic = container) {
     container.eChildren.find(_.eId == filter.elementId).foreach(element => container.eChildren -= element)
   }
 

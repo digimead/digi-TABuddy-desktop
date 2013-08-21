@@ -58,7 +58,7 @@ import akka.actor.ActorRef
 trait SComposite extends Composite {
   /** Stack layer id. */
   val id: UUID
-  /** Stack layer actor rederence. */
+  /** Stack layer actor reference. */
   val ref: ActorRef
 
   App.assertUIThread()

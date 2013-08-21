@@ -46,7 +46,12 @@ package org.digimead.tabuddy.desktop.gui.widget
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.language.implicitConversions
+
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.Context
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.digimead.tabuddy.desktop.definition.ToolBarManager
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.WindowConfiguration
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor
@@ -56,8 +61,8 @@ import org.digimead.tabuddy.desktop.gui.builder.ContentBuilder.builder2implement
 import org.digimead.tabuddy.desktop.gui.widget.status.StatusLineContributor.sbar2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context
 import org.digimead.tabuddy.desktop.support.Timeout
+import org.eclipse.jface.action.CoolBarManager
 import org.eclipse.jface.action.StatusLineManager
 import org.eclipse.jface.window.ApplicationWindow
 import org.eclipse.swt.SWT
@@ -73,8 +78,6 @@ import org.eclipse.swt.widgets.Shell
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
-
-import language.implicitConversions
 
 /**
  * Instance that represents visible window which is based on JFace framework.
@@ -102,6 +105,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     addCoolBar(SWT.FLAT | SWT.WRAP)
     addMenuBar()
     setBlockOnOpen(false)
+    getCoolBarManager.setOverrides(ToolBarManager.Overrides)
   }
 
   /** Update window configuration. */
@@ -147,6 +151,38 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     showContent(content)
     App.publish(App.Message.Open(Right(this)))
     container
+  }
+  /**
+   * Returns a new cool bar manager for the window.
+   * <p>
+   * Subclasses may override this method to customize the cool bar manager.
+   * </p>
+   *
+   * @param style swt style bits used to create the Coolbar
+   *
+   * @return a cool bar manager
+   * @since 3.0
+   * @see CoolBarManager#CoolBarManager(int)
+   * @see CoolBar for style bits
+   */
+  override protected def createCoolBarManager(style: Int): CoolBarManager = {
+    new CoolBarManager(style) {
+      override def update(force: Boolean) {
+        {
+          for {
+            control <- Option(getControl())
+            composite <- Option(control.getParent())
+          } yield {
+            composite.setRedraw(false)
+            super.update(force)
+            composite.layout(true)
+            composite.setRedraw(true)
+          }
+        } getOrElse {
+          super.update(force)
+        }
+      }
+    }
   }
   /** Create status bar manager. */
   override protected def createStatusLineManager(): StatusLineManager = {

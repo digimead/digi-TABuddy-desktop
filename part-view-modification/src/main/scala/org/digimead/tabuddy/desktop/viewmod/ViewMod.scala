@@ -80,9 +80,9 @@ class ViewMod extends akka.actor.Actor with Loggable {
   log.debug("Start actor " + self.path)
 
   /*
-   * Logic component actors.
+   * ViewMod component actors.
    */
-  //val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  val actionRef = context.actorOf(action.Action.props, action.Action.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -185,7 +185,7 @@ object ViewMod {
   /** ViewMod actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  //action.Action
+  action.Action
 
   override def toString = "ViewMod[Singleton]"
 

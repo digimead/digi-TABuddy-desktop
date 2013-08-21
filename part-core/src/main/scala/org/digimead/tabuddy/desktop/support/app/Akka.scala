@@ -49,7 +49,7 @@ import scala.concurrent.Await
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.digi.lib.log.api.RichLogger
-import org.digimead.tabuddy.desktop.MainService
+import org.digimead.tabuddy.desktop.UIThread
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
@@ -67,7 +67,7 @@ import akka.pattern.ask
  * Akka support trait
  */
 trait Akka {
-  this: MainService.Consumer with Loggable =>
+  this: UIThread.Consumer with Loggable =>
   /** Support actor. */
   // System.nanoTime is needed because we may have more than one supportActor per JVM
   protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "Support." + System.nanoTime())
@@ -154,7 +154,7 @@ trait Akka {
         result
     }
   }
-    /** Publish event to Akka Event Bus */
+  /** Publish event to Akka Event Bus */
   def publish = system.eventStream.publish _
   /** Send argument to the actor. */
   def tellActor[A](path: Seq[String], argument: A): Unit =

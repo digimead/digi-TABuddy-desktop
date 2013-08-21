@@ -45,45 +45,40 @@ package org.digimead.tabuddy.desktop.logic.payload.view.api
 
 import java.util.UUID
 
-import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
-import org.digimead.tabuddy.model.element.Element
+import scala.collection.mutable
 
-/** The Base interface of the filter */
-trait Filter[T <: Filter.Argument] {
-  /** The comparator identificator */
+/**
+ * Filter is a user selected group of Filter.Rule (element property <-> logic.filter tuple)
+ * which is applied to the visible model.
+ * Filter equality is based on the elementId.
+ */
+trait Filter {
+  /** Filter unique id. */
   val id: UUID
-  /** The comparator name */
+  /** Filter name. */
   val name: String
-  /** The comparator description */
+  /** Filter description. */
   val description: String
-  /** The flag determines whether or not the comparator uses an argument */
-  val isArgumentSupported: Boolean
+  /** Availability flag for user (some filters may exists, but not involved in element representation). */
+  val availability: Boolean
+  /** Filter rules, sorted by hash code. */
+  val rules: mutable.LinkedHashSet[Filter.Rule]
+  /** Element id symbol. */
+  val elementId: Symbol
 
-  /** Convert Argument instance to the serialized string */
-  def argumentToString(argument: T): String
-  /** Convert Argument instance to the text representation for the user */
-  def argumentToText(argument: T): String
-  /** Check whether filtering is available */
-  def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean
-  /** Filter element property */
-  def filter[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e: Element.Generic, argument: Option[T]): Boolean =
-    filter(property.id, property.ptype, e, argument)
-  /** Filter element property */
-  def filter[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[U], e: Element.Generic, argument: Option[T]): Boolean
-  /** Returns the generic type filter */
-  def generic = this.asInstanceOf[Filter[Filter.Argument]]
-  /** Convert the serialized argument to Argument instance */
-  def stringToArgument(argument: String): Option[T]
-  /** Convert the serialized argument to the text representation for the user */
-  def stringToText(argument: String): Option[String] = stringToArgument(argument).map(argumentToText)
+  /** The copy constructor */
+  def copy(id: UUID = this.id,
+    name: String = this.name,
+    description: String = this.description,
+    availability: Boolean = this.availability,
+    rules: mutable.LinkedHashSet[Filter.Rule] = this.rules): this.type
+
+  def canEqual(other: Any): Boolean
 }
 
 object Filter {
-  /** Contains comparator options */
-  trait Argument
   /**
-   * The rule of an element property filter
+   * The rule of an element property filter.
    */
   case class Rule(
     /** Property id */

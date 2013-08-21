@@ -50,6 +50,7 @@ import scala.collection.immutable
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.payload.view
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.Enumeration
@@ -113,11 +114,11 @@ object Data extends Loggable {
   /** The property representing the active type schema */
   lazy val typeSchema = WritableValue[payload.api.TypeSchema]
   /** The property representing all available view definitions */
-  lazy val viewDefinitions = WritableMap[UUID, View]
+  lazy val viewDefinitions = WritableMap[UUID, view.api.View]
   /** The property representing all available view filters */
-  lazy val viewFilters = WritableMap[UUID, Filter]
+  lazy val viewFilters = WritableMap[UUID, view.api.Filter]
   /** The property representing all available view sortings */
-  lazy val viewSortings = WritableMap[UUID, Sorting]
+  lazy val viewSortings = WritableMap[UUID, view.api.Sorting]
 
   // save type schema value to the current model at every change
   typeSchema.addChangeListener { (schema, event) => Payload.settings.eSet[String]('activeTypeSchema, schema.id.toString, "") }
@@ -135,17 +136,17 @@ object Data extends Loggable {
       currentTypeSchema.entity.get(ptype.id).map(_.availability).getOrElse(defaultValue))
   }
   /** Get user view definitions */
-  def getAvailableViewDefinitions(): Set[View] = App.execNGet {
+  def getAvailableViewDefinitions(): Set[view.api.View] = App.execNGet {
     val result = View.displayName +: Data.viewDefinitions.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(View.displayName) else result.toSet
   }
   /** Get user view filters */
-  def getAvailableViewFilters(): Set[Filter] = App.execNGet {
+  def getAvailableViewFilters(): Set[view.api.Filter] = App.execNGet {
     val result = Filter.allowAllFilter +: Data.viewFilters.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(Filter.allowAllFilter) else result.toSet
   }
   /** Get user view sortings */
-  def getAvailableViewSortings(): Set[Sorting] = App.execNGet {
+  def getAvailableViewSortings(): Set[view.api.Sorting] = App.execNGet {
     val result = Sorting.simpleSorting +: Data.viewSortings.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(Sorting.simpleSorting) else result.toSet
   }

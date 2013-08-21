@@ -41,35 +41,43 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view.comparator
+package org.digimead.tabuddy.desktop.logic.comparator.api
 
 import java.util.UUID
 
-import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.view.api
+import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
 import org.digimead.tabuddy.model.element.Element
 
-class ByPropertyText extends api.Comparator[api.Comparator.Argument] with Loggable {
-  val id = UUID.fromString("84b24863-145a-40a7-aade-e25547c52b41")
-  val name = "By property text"
-  val description = "Compare two element's properties via text representation"
-  val isArgumentSupported = false
+/** The Base interface of the model comparator */
+trait Comparator[T <: Comparator.Argument] {
+  /** The comparator identificator */
+  val id: UUID
+  /** The comparator name */
+  val name: String
+  /** The comparator description */
+  val description: String
+  /** The flag determines whether or not the comparator uses an argument */
+  val isArgumentSupported: Boolean
 
-  /** Convert Argument trait to the serialized string */
-  def argumentToString(argument: api.Comparator.Argument): String = ""
-  /** Convert Argument trait to the text representation for the user */
-  def argumentToText(argument: api.Comparator.Argument): String = ""
+  /** Convert Argument instance to the serialized string */
+  def argumentToString(argument: T): String
+  /** Convert Argument instance to the text representation for the user */
+  def argumentToText(argument: T): String
   /** Check whether comparation is available */
-  def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
+  def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean
   /** Compare two element's properties */
-  def compare[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e1: Element.Generic, e2: Element.Generic, argument: Option[api.Comparator.Argument]): Int = {
-    val text1 = e1.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
-    val text2 = e2.eGet(propertyId, ptype.typeSymbol).map(value => ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
-    text1.compareTo(text2)
-  }
-  /** Convert the serialized argument to Argument trait */
-  def stringToArgument(argument: String): Option[api.Comparator.Argument] = None
+  def compare[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e1: Element.Generic, e2: Element.Generic, argument: Option[T]): Int =
+    compare(property.id, property.ptype, e1, e2, argument)
+  /** Compare two element's properties */
+  def compare[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[U], e1: Element.Generic, e2: Element.Generic, argument: Option[T]): Int
+  /** Convert the serialized argument to Argument instance */
+  def stringToArgument(argument: String): Option[T]
+  /** Convert the serialized argument to the text representation for the user */
+  def stringToText(argument: String): Option[String] = stringToArgument(argument).map(argumentToText)
 }
 
-object ByPropertyText extends ByPropertyText
+object Comparator {
+  /** Contains comparator options */
+  trait Argument
+}

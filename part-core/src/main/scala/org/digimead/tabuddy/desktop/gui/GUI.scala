@@ -50,6 +50,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Resources
 import org.digimead.tabuddy.desktop.Resources.resources2implementation
+import org.digimead.tabuddy.desktop.UIThread
 import org.digimead.tabuddy.desktop.gui.WindowSupervisor.windowSupervisor2actorSRef
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -61,24 +62,13 @@ import language.implicitConversions
  */
 class GUI extends Loggable {
   /** Main loop exit code. */
-  @volatile protected var exitCode: Option[AtomicReference[Option[GUI.Exit]]] = None
+  protected val exitCode = new AtomicReference[Option[UIThread.Code]](null)
 
-  /** Stop main loop with the specific exit code. */
-  def stop(code: GUI.Exit) = {
-    log.debugWhere("Stop main loop with code " + code)
-    exitCode.foreach(exitCode => exitCode.synchronized {
-      if (exitCode.compareAndSet(None, Some(code))) {
-        exitCode.notifyAll()
-        App.display.wake()
-        log.debugWhere("Exit code updated.")
-      } else
-        log.error(s"Unable to set new exit code ${code}. There is already ${exitCode.get}.")
-    })
-  }
+  /** GUI main loop that is invoked from UIThread. */
   @log
-  def run(exitCode: AtomicReference[Option[GUI.Exit]]) = {
+  def run() {
     log.debug("Main loop is running.")
-    this.exitCode = Some(exitCode)
+    App.assertUIThread()
     val display = App.display
     Resources.start(App.bundle(getClass).getBundleContext())
     App.publish(App.Message.Start(Right(GUI)))
@@ -113,9 +103,39 @@ class GUI extends Loggable {
     log.debug("Main loop is finished.")
     exitCode.get.getOrElse {
       log.fatal("Unexpected termination without exit code.")
-      exitCode.set(Some(GUI.Exit.Error))
+      exitCode.set(Some(UIThread.Code.Error))
     }
     exitCode.synchronized { exitCode.notifyAll() }
+  }
+  /** Start main loop. */
+  def start() = exitCode.synchronized {
+    log.debugWhere("Start main loop.")
+    // change exitCode from null -> None
+    exitCode.set(None)
+    exitCode.notifyAll()
+  }
+  /** Stop main loop with the specific exit code. */
+  def stop(code: UIThread.Code) = exitCode.synchronized {
+    log.debugWhere("Stop main loop with code " + code)
+    if (exitCode.compareAndSet(None, Some(code))) {
+      exitCode.synchronized { exitCode.notifyAll() }
+      App.display.wake()
+      log.debugWhere("Exit code updated.")
+    } else
+      log.error(s"Unable to set new exit code ${code}. There is already ${exitCode.get}.")
+  }
+  /** Wait for the specific exit code. */
+  def waitWhile(f: Option[UIThread.Code] => Boolean): Option[UIThread.Code] = exitCode.synchronized {
+    log.debug("Waiting for GUI.")
+    while ({
+      val value = exitCode.get
+      if (!f(value)) {
+        log.debug(s"Waiting for GUI is completed. Actual code is ${value}.")
+        return value
+      }
+      true
+    }) exitCode.wait()
+    exitCode.get // unreachable code for compiler
   }
 }
 
@@ -133,12 +153,6 @@ object GUI {
   def inner(): GUI = DI.implementation
   override def toString = "Core.GUI[Singleton]"
 
-  sealed trait Exit
-  object Exit {
-    case object Ok extends Exit
-    case object Error extends Exit
-    case object Restart extends Exit
-  }
   /**
    * Dependency injection routines
    */

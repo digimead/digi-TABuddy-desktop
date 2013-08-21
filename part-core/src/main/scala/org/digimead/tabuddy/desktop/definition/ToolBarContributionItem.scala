@@ -41,22 +41,20 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.view
+package org.digimead.tabuddy.desktop.definition
 
-import java.util.UUID
+import org.eclipse.jface.action.IToolBarManager
 
-import scala.collection.immutable
+class ToolBarContributionItem(toolBarManager: IToolBarManager, id: String) extends org.eclipse.jface.action.ToolBarContributionItem(toolBarManager, id) {
+  /**
+   * Indicates this item is visible in its manager; <code>true</code>
+   * by default.
+   */
+  private var visible = true
 
-import org.digimead.digi.lib.DependencyInjection
-
-import com.escalatesoft.subcut.inject.NewBindingModule
-
-package object comparator {
-  lazy val default = new NewBindingModule(module => {
-    module.bind[UUID] identifiedBy "Comparator.Default" toSingle { ByPropertyText.id }
-    module.bind[immutable.HashMap[UUID, api.Comparator[_ <: api.Comparator.Argument]]] toSingle {
-      immutable.HashMap(ByPropertyText.id -> ByPropertyText)
-    }
-  })
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.view.comparator.Comparator$DI$")
+  override def setVisible(arg: Boolean) {
+    visible = arg
+    super.setVisible(arg)
+  }
+  override def isVisible() = super.isVisible && visible
 }

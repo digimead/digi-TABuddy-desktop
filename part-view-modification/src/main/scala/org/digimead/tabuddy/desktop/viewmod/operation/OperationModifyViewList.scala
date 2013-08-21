@@ -43,6 +43,87 @@
 
 package org.digimead.tabuddy.desktop.viewmod.operation
 
-class OperationModifyViewList {
+import java.util.concurrent.CancellationException
+import java.util.concurrent.Exchanger
 
+import scala.reflect.runtime.universe
+
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.logic.operation.view.api
+import org.digimead.tabuddy.desktop.logic.payload.view.api.View
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.viewmod.dialog.viewlist.ViewList
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
+import org.eclipse.core.runtime.IAdaptable
+import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.swt.widgets.Shell
+
+/** 'Modify view list' operation. */
+class OperationModifyViewList extends api.OperationModifyViewList with Loggable {
+  /**
+   * Modify view list.
+   *
+   * @param viewList the list of exists views
+   * @param modelId current model Id
+   * @return the modified/the same view list
+   */
+  def apply(viewList: Set[View], modelId: Symbol): Set[View] = {
+    log.info(s"Modify view list for model ${modelId}.")
+    App.assertUIThread(false)
+    if (Model.eId != modelId)
+      throw new IllegalStateException(s"Unable to modify view list. Unexpected model ${Model.eId} is loaded.")
+    val exchanger = new Exchanger[Set[View]]()
+    Core.context.get[Shell](GUI.shellContextKey) match {
+      case Some(shell) =>
+        App.exec {
+          val dialog = new ViewList(shell, viewList.toList)
+          dialog.openOrFocus {
+            case result if result == org.eclipse.jface.window.Window.OK =>
+              exchanger.exchange(dialog.getModifiedViews())
+            case result =>
+              exchanger.exchange(null)
+          }
+        }
+      case None =>
+        throw new IllegalStateException("Unable to create 'modify view list' dialog without parent shell.")
+    }
+    Option(exchanger.exchange(null)) getOrElse { throw new CancellationException }
+  }
+  /**
+   * Create 'Modify view list' operation.
+   *
+   * @param viewList the list of exists views
+   * @param modelId current model Id
+   * @return 'Modify view list' operation
+   */
+  def operation(viewList: Set[View], modelId: Symbol): Operation[Set[View]] =
+    new Implemetation(viewList, modelId)
+
+  class Implemetation(viewList: Set[View], modelId: Symbol)
+    extends logic.operation.view.OperationModifyViewList.Abstract(viewList, modelId) with Loggable {
+    @volatile protected var allowExecute = true
+
+    override def canExecute() = allowExecute
+    override def canRedo() = false
+    override def canUndo() = false
+
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[View]] = {
+      try {
+        Operation.Result.OK(Option(OperationModifyViewList.this(viewList, modelId)))
+      } catch {
+        case e: CancellationException =>
+          Operation.Result.Cancel()
+      }
+    }
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[View]] =
+      throw new UnsupportedOperationException
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[View]] =
+      throw new UnsupportedOperationException
+  }
 }

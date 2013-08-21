@@ -43,10 +43,13 @@
 
 package org.digimead.tabuddy.desktop
 
+import java.util.concurrent.atomic.AtomicReference
+
 import scala.ref.WeakReference
 
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.Disposable
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core.core2actorRef
 import org.digimead.tabuddy.desktop.Core.core2actorSRef
@@ -55,9 +58,15 @@ import org.digimead.tabuddy.desktop.Report.report2implementation
 import org.digimead.tabuddy.desktop.api.Main
 import org.digimead.tabuddy.desktop.api.Translation
 import org.digimead.tabuddy.desktop.command.Command
+import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
+import org.eclipse.core.databinding.DataBindingContext
+import org.eclipse.core.databinding.observable.Realm
+import org.eclipse.jface.databinding.swt.SWTObservables
+import org.eclipse.swt.widgets.Display
+import org.eclipse.ui.PlatformUI
 import org.osgi.framework.BundleActivator
 import org.osgi.framework.BundleContext
 import org.osgi.framework.ServiceRegistration
@@ -70,7 +79,7 @@ import akka.actor.Terminated
 /**
  * OSGi entry point.
  */
-class Activator extends BundleActivator with definition.NLS.Initializer with Loggable {
+class Activator extends BundleActivator with definition.NLS.Initializer with UIThread.Initializer with Loggable {
   @volatile protected var mainRegistration: Option[ServiceRegistration[api.Main]] = None
   @volatile protected var reportServiceTracker: Option[ServiceTracker[AnyRef, AnyRef]] = None
   @volatile protected var translationServiceTracker: Option[ServiceTracker[api.Translation, api.Translation]] = None
@@ -88,12 +97,6 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Log
     val translationServiceTracker = new ServiceTracker[api.Translation, api.Translation](context, classOf[api.Translation], null)
     translationServiceTracker.open()
     this.translationServiceTracker = Some(translationServiceTracker)
-    // Start "main" service
-    mainRegistration = Option(context.registerService(classOf[api.Main], MainService, null))
-    mainRegistration match {
-      case Some(service) => log.debug("Register TABuddy Desktop application entry point service as: " + service)
-      case None => log.error("Unable to register TABuddy Desktop application entry point service.")
-    }
     // Setup DI for this bundle
     Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
       map { currencyServiceRef => (currencyServiceRef, context.getService(currencyServiceRef)) } match {
@@ -108,7 +111,17 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Log
           log.warn("DI service not found.")
       }
     DependencyInjection.inject()
+    // Start UI thread
+    UIThread.thread.start()
+    uiThreadStartSync()
+    // Initialize translation service
     setTranslationServiceTracker(this.translationServiceTracker)
+    // Start "main" service
+    mainRegistration = Option(context.registerService(classOf[api.Main], MainService, null))
+    mainRegistration match {
+      case Some(service) => log.debug("Register TABuddy Desktop application entry point service as: " + service)
+      case None => log.error("Unable to register TABuddy Desktop application entry point service.")
+    }
     // Start component actors hierarchy
     Core.actor
     // Start global components that haven't dispose methods.

@@ -45,9 +45,10 @@ package org.digimead.tabuddy.desktop.viewmod.dialog.filtered
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.logic.payload.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableComparators
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableFilters
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
 import org.digimead.tabuddy.desktop.logic.payload.view.api
+import org.digimead.tabuddy.desktop.logic.comparator
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
@@ -123,7 +124,7 @@ object ColumnSorting extends Loggable {
   }
   class ComparatorLabelProvider() extends LabelProvider {
     override def getText(element: AnyRef): String = element match {
-      case comparator: api.Comparator[_] =>
+      case comparator: comparator.api.Comparator[_] =>
         comparator.name
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

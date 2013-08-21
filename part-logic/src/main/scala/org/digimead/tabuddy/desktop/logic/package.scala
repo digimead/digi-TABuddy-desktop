@@ -72,8 +72,8 @@ package object logic {
     //mesh.transport.default ~
     payload.default ~
     payload.view.default ~
-    payload.view.comparator.default ~
-    payload.view.filter.default ~
+    comparator.default ~
+    filter.default ~
     operation.default
   //approver.default ~
   //debug.default

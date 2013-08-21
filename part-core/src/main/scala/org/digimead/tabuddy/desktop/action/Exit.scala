@@ -48,6 +48,7 @@ import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.UIThread
 import org.digimead.tabuddy.desktop.command.Command
 import org.digimead.tabuddy.desktop.command.Command.parser.commandLiteral
 import org.digimead.tabuddy.desktop.gui.GUI
@@ -58,10 +59,10 @@ object Exit extends JFaceAction(Messages.exit_text) with Loggable {
   import Command.parser._
   /** Command description. */
   implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.exit_text, "my exit",
-      (activeContext, parserContext, parserResult) => run)
+    (activeContext, parserContext, parserResult) => run)
   /** Command parser. */
   lazy val parser = Command.CmdParser("exit")
 
   @log
-  override def run = GUI.stop(GUI.Exit.Ok)
+  override def run = GUI.stop(UIThread.Code.Ok)
 }

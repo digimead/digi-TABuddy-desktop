@@ -101,7 +101,7 @@ class ContributionSelectModel extends ControlContribution(ContributionSelectMode
   def comboMinimumWidth = 80
   def comboMaximumWidth = (window.getShell().getBounds().width / 4).toInt
 
-  /** Create toolbar control. */
+  /** Create contribution control. */
   override protected def createControl(parent: Composite): Control = {
     val parentShell = App.findShell(parent)
 

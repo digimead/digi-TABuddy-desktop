@@ -76,7 +76,6 @@ object OperationModifyEnumerationList extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
     lazy val jobFactory = injectOptional[(Set[Enumeration[_ <: AnyRef with java.io.Serializable]], Symbol) => api.OperationModifyEnumerationList]
   }
 }

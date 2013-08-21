@@ -45,21 +45,23 @@ package org.digimead.tabuddy.desktop.support.app
 
 import java.io.PrintWriter
 import java.io.StringWriter
+
 import scala.Array.canBuildFrom
 import scala.collection.mutable
+
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.MainService
+import org.digimead.tabuddy.desktop.UIThread
+import org.eclipse.core.databinding.observable.Realm
 import org.eclipse.core.runtime.IStatus
 import org.eclipse.core.runtime.MultiStatus
 import org.eclipse.core.runtime.Status
-import org.osgi.framework.Bundle
-import org.osgi.framework.FrameworkUtil
-import org.eclipse.core.databinding.observable.Realm
+import org.eclipse.core.runtime.preferences.InstanceScope
 import org.eclipse.jface.preference.IPreferenceStore
 import org.eclipse.ui.preferences.ScopedPreferenceStore
-import org.eclipse.core.runtime.preferences.InstanceScope
+import org.osgi.framework.Bundle
+import org.osgi.framework.FrameworkUtil
 
-trait Generic extends MainService.Consumer {
+trait Generic extends UIThread.Consumer {
   this: Loggable with GUI with Context =>
   /** Flag indicating whether debug methods is enabled. */
   @volatile var debug = true

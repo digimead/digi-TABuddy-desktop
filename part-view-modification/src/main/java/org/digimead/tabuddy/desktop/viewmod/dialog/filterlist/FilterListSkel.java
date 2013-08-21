@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.viewmod.dialog.filterlist;
 
-import org.digimead.tabuddy.desktop.viewmod.dialog.CustomMessages;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
@@ -90,8 +89,8 @@ public class FilterListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setMessage(CustomMessages.viewFilterListDescription_text);
-		setTitle(CustomMessages.viewFilterListTitle_text);
+		setMessage(org.digimead.tabuddy.desktop.viewmod.Messages$.MODULE$.viewFilterListDescription_text()); // $hide$
+		setTitle(org.digimead.tabuddy.desktop.viewmod.Messages$.MODULE$.viewFilterListTitle_text()); // $hide$
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new GridLayout(1, false));
@@ -99,11 +98,9 @@ public class FilterListSkel extends TitleAreaDialog {
 
 		textFilter = new Text(container, SWT.BORDER);
 		textFilter.setToolTipText(org.digimead.tabuddy.desktop.Messages$.MODULE$.lookupFilter_text()); // $hide$
-		textFilter.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
-				false, 1, 1));
+		textFilter.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
 
-		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK
-				| SWT.FULL_SELECTION);
+		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK | SWT.FULL_SELECTION);
 		table = tableViewer.getTable();
 		table.setLinesVisible(true);
 		table.setHeaderVisible(true);
@@ -114,16 +111,13 @@ public class FilterListSkel extends TitleAreaDialog {
 		tableColumnName.setWidth(100);
 		tableColumnName.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text()); // $hide$
 
-		tableViewerColumnDescription = new TableViewerColumn(tableViewer,
-				SWT.NONE);
-		TableColumn tableColumnDescription = tableViewerColumnDescription
-				.getColumn();
+		tableViewerColumnDescription = new TableViewerColumn(tableViewer, SWT.NONE);
+		TableColumn tableColumnDescription = tableViewerColumnDescription.getColumn();
 		tableColumnDescription.setWidth(100);
 		tableColumnDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text()); // $hide$
 
 		compositeFooter = new Composite(container, SWT.NONE);
-		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true,
-				false, 1, 1));
+		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false, 1, 1));
 		compositeFooter.setLayout(new FlowLayout(FlowLayout.RIGHT, 5, 5));
 
 		return area;
@@ -136,10 +130,8 @@ public class FilterListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected void createButtonsForButtonBar(Composite parent) {
-		createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL,
-				true);
-		createButton(parent, IDialogConstants.CANCEL_ID,
-				IDialogConstants.CANCEL_LABEL, false);
+		createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL, true);
+		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
 	protected TableViewerColumn getTableViewerColumnName() {

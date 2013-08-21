@@ -43,6 +43,10 @@
 
 package org.digimead.tabuddy.desktop.viewmod.dialog.sorted
 
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.jface.viewers.CellEditor
 import org.eclipse.jface.viewers.CellLabelProvider
 import org.eclipse.jface.viewers.EditingSupport
@@ -50,23 +54,19 @@ import org.eclipse.jface.viewers.TableViewer
 import org.eclipse.jface.viewers.TextCellEditor
 import org.eclipse.jface.viewers.ViewerCell
 import org.eclipse.swt.graphics.Point
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
-import org.digimead.tabuddy.desktop.logic.payload.view.AvailableComparators
-import org.digimead.tabuddy.desktop.viewmod.Default
 
 object ColumnArgument extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         cell.setText(AvailableComparators.map.get(item.comparator).flatMap(_.stringToText(item.argument)).getOrElse(item.argument))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         AvailableComparators.map.get(item.comparator).map(c => "comparator: " + c.description).getOrElse(null)
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
@@ -86,14 +86,14 @@ object ColumnArgument extends Loggable {
     override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: Sorting.Definition =>
+      case item: view.api.Sorting.Definition =>
         ""
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: Sorting.Definition =>
+      case before: view.api.Sorting.Definition =>
       //        val description = value.asInstanceOf[String].trim
       //        if (before.description != description)
       //          container.updateActualDefinition(before, before.copy(description = description))
