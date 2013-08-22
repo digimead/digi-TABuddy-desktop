@@ -41,58 +41,55 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.action
+package org.digimead.tabuddy.desktop.viewmod.action
 
-import scala.collection.mutable
+import scala.ref.WeakReference
 
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.Resources
-import org.digimead.tabuddy.desktop.Resources.resources2implementation
-import org.eclipse.jface.action.ControlContribution
-import org.eclipse.jface.layout.RowLayoutFactory
-import org.eclipse.swt.SWT
-import org.eclipse.swt.layout.GridData
-import org.eclipse.swt.layout.GridLayout
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.digimead.tabuddy.desktop.definition.ToolBarManager
+import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.CoolBarManager
 import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Label
+import org.eclipse.swt.widgets.ToolBar
 
-class ContributionSelectFilter extends ControlContribution(ContributionSelectModel.id) with Loggable {
-  val id = getClass.getName
-  //@volatile protected var combo: Option[ComboViewer] = None
-  //@volatile protected var label: Option[Label] = None
-  ///** Id text value. */
-  //protected val idValue = WritableValue("")
+import javax.inject.Inject
+import javax.inject.Named
 
-  ContributionSelectFilter.instance += (ContributionSelectFilter.this) -> {}
+class ViewToolBarManager extends ToolBarManager with Loggable {
+  /** CoolBar */
+  @volatile protected var coolBarManager = WeakReference[CoolBarManager](null)
+  /** Flag indicating whether toolbar manager is visible. */
+  @volatile protected var visible = false
 
-  /** Create contribution control. */
-  override protected def createControl(parent: Composite): Control = {
-    val container = new Composite(parent, SWT.NONE)
-    val layout = RowLayoutFactory.fillDefaults().wrap(false).spacing(0).create()
-    layout.marginLeft = 3
-    layout.center = true
-    container.setLayout(layout)
-    val label = createLabel(container)
-    container
+  override def createControl(parent: Composite): ToolBar = {
+    App.execAsync { ContextInjectionFactory.inject(ViewToolBarManager.this, Core.context) }
+    super.createControl(parent)
   }
-  protected def createLabel(parent: Composite): Label = {
-    val container = new Composite(parent, SWT.NONE)
-    container.setLayout(new GridLayout(1, false))
-    val label = new Label(container, SWT.NONE)
-    label.setAlignment(SWT.CENTER);
-    label.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-    label.setText(Messages.localModel_text + ":")
-    label.setToolTipText(Messages.localModel_tooltip_text)
-    label.setFont(Resources.fontSmall)
-    label
+  /** Invoked on view activation. */
+  @Inject @Optional
+  def onViewChanged(@Named(GUI.viewContextKey) vcomposite: VComposite): Unit = App.exec {
+    if (vcomposite.getContext.getLocal(Data.Id.usingViewDefinition) == java.lang.Boolean.TRUE)
+      visible = true
+    else
+      visible = false
+    log.___gaze("SET VISIBLE " + visible)
+    contribution.get.foreach(_.setVisible(visible))
+    getCoolBarManager.foreach(_.update(true))
   }
-}
-
-object ContributionSelectFilter {
-  /** All SelectFilter instances. */
-  private val instance = new mutable.WeakHashMap[ContributionSelectFilter, Unit] with mutable.SynchronizedMap[ContributionSelectFilter, Unit]
-  /** Singleton identificator. */
-  val id = getClass.getName().dropRight(1)
+  /** Get coolbar manager for this toolbar manager. */
+  protected def getCoolBarManager(): Option[CoolBarManager] = coolBarManager.get orElse {
+    Option(getControl()).flatMap(c => Option(c.getShell())).flatMap(App.findWindowComposite).flatMap(_.getAppWindow).map { window =>
+      val coolbar = window.getCoolBarManager()
+      coolBarManager = WeakReference(coolbar)
+      coolbar
+    }
+  }
 }

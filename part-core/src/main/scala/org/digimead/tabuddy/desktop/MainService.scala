@@ -222,15 +222,15 @@ class MainService extends api.Main with Disposable.Default with Loggable {
      */
     E4Workbench.getServiceContext() match {
       case globalContext: EclipseContext =>
-        while (App.contextFindChild("WorkbenchContext", globalContext) match {
-          case Some(context: EclipseContext) =>
-            log.debug("Cleaning up garbage after Eclipse: WorkbenchContext")
-            try { globalContext.removeChild(context) } catch { case e: Throwable => } // who cares?
-            try { context.dispose() } catch { case e: Throwable => } // who cares?
-            true
-          case _ =>
-            false
-        }) ()
+        //while (App.findChildContextByName("WorkbenchContext", globalContext) match {
+        //  case Some(context: EclipseContext) =>
+        //    log.debug("Cleaning up garbage after Eclipse: WorkbenchContext")
+        //    try { globalContext.removeChild(context) } catch { case e: Throwable => } // who cares?
+        //    try { context.dispose() } catch { case e: Throwable => } // who cares?
+        //    true
+        //  case _ =>
+        //    false
+        //}) ()
         /*
          * org.eclipse.ui.internal.Workbench.init() create EvaluationService
          * final EvaluationService evaluationService = new EvaluationService(e4Context); <-- Here
@@ -239,15 +239,15 @@ class MainService extends api.Main with Disposable.Default with Loggable {
          * But wait... That developer is used a 'dispose' method! Awesome! But little note - dispose don't clean a shit.
          *   Ezh
          */
-        while (App.contextFindChild(classOf[EvaluationService].getName, globalContext) match {
-          case Some(context: EclipseContext) =>
-            log.debug("Cleaning up garbage after Eclipse: EvaluationService")
-            try { globalContext.removeChild(context) } catch { case e: Throwable => } // who cares?
-            try { context.dispose() } catch { case e: Throwable => } // who cares?
-            true
-          case _ =>
-            false
-        }) ()
+        //while (App.findChildContextByName(classOf[EvaluationService].getName, globalContext) match {
+        //  case Some(context: EclipseContext) =>
+        //    log.debug("Cleaning up garbage after Eclipse: EvaluationService")
+        //    try { globalContext.removeChild(context) } catch { case e: Throwable => } // who cares?
+        //    try { context.dispose() } catch { case e: Throwable => } // who cares?
+        //    true
+        //  case _ =>
+        //    false
+        //}) ()
         // Remove local garbage from globalContext
         /*
          * EclipseContext implementation contains this note before localData:

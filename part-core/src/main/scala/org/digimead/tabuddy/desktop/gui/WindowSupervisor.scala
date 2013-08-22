@@ -53,6 +53,7 @@ import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.future
+import scala.language.implicitConversions
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
@@ -66,6 +67,7 @@ import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.gui.GUI.gui2implementation
 import org.digimead.tabuddy.desktop.gui.WindowConfiguration.windowConfiguration2implementation
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
+import org.digimead.tabuddy.desktop.gui.widget.WComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
@@ -75,7 +77,7 @@ import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
-import org.eclipse.jface.window.{ Window => JWindow }
+import org.eclipse.jface.window.{Window => JWindow}
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
@@ -89,8 +91,6 @@ import akka.actor.ScalaActorRef
 import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
-
-import language.implicitConversions
 
 /**
  * Window supervisor responsible for:
@@ -203,7 +203,8 @@ class WindowSupervisor extends Actor with Loggable {
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
     App.assertUIThread(false)
     val windowName = Window.id + "_%08X".format(windowId.hashCode())
-    val windowContext = Core.context.createChild("Context_" + windowName): Context.Rich
+    val windowContext = Core.context.createChild(WComposite.contextName): Context.Rich
+    windowContext.set(WComposite.contextName, windowId)
     val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), windowName)
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
     // Block supervisor until window is created

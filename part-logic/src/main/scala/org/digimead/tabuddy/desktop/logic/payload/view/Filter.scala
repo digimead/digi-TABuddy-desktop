@@ -88,9 +88,9 @@ class Filter(
     new Filter(id, name, description, availability, rules).asInstanceOf[this.type]
 
   def canEqual(other: Any) =
-    other.isInstanceOf[Filter]
+    other.isInstanceOf[api.Filter]
   override def equals(other: Any) = other match {
-    case that: Filter =>
+    case that: api.Filter =>
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId // elementId == UUID

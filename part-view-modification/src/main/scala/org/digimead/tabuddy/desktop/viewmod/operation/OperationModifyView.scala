@@ -80,7 +80,7 @@ class OperationModifyView extends api.OperationModifyView with Loggable {
     if (Model.eId != modelId)
       throw new IllegalStateException(s"Unable to modify view ${view}. Unexpected model ${Model.eId} is loaded.")
     val exchanger = new Exchanger[View]()
-    Core.context.get[Shell](GUI.shellContextKey) match {
+    App.getActiveShell() match {
       case Some(shell) =>
         App.exec {
           val dialog = new ViewEditor(shell, view, viewList.toList)

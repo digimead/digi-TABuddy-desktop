@@ -45,6 +45,9 @@ package org.digimead.tabuddy.desktop.definition
 
 import org.eclipse.jface.action.IToolBarManager
 
+/**
+ * ToolBarContributionItem with restored 'visible' behavior.
+ */
 class ToolBarContributionItem(toolBarManager: IToolBarManager, id: String) extends org.eclipse.jface.action.ToolBarContributionItem(toolBarManager, id) {
   /**
    * Indicates this item is visible in its manager; <code>true</code>

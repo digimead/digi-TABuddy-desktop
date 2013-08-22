@@ -87,7 +87,7 @@ class OperationModelNew extends api.OperationModelNew with Loggable {
     if (!interactive && location.isEmpty)
       throw new IllegalArgumentException("Unable to create non interactive new model without location.")
     if (interactive)
-      Core.context.get[Shell](GUI.shellContextKey) match {
+      App.getActiveShell match {
         case Some(shell) =>
           App.execNGet {
             Wizards.open("org.digimead.tabuddy.desktop.editor.wizard.ModelCreationWizard", shell, Some(name, location)) match {

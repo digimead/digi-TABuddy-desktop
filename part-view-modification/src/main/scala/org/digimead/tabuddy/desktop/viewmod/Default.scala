@@ -47,6 +47,8 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.eclipse.swt.graphics.Point
 
 object Default {
+  /** Aggregation listener delay. msec. */
+  val aggregatorDelay = DI.aggregatorDelay
   /** Ascending sort constant */
   val ASCENDING = DI.ASCENDING
   /** Descending sort constant */
@@ -71,14 +73,16 @@ object Default {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** Aggregation listener delay. msec. */
+    lazy val aggregatorDelay = injectOptional[Int]("Default.aggregatorDelay") getOrElse 250
     /** Ascending sort constant */
-    lazy val ASCENDING = injectOptional[Boolean]("Editor.Sorting.ASCENDING") getOrElse false
+    lazy val ASCENDING = injectOptional[Boolean]("Default.Sorting.ASCENDING") getOrElse false
     /** Descending sort constant */
-    lazy val DESCENDING = injectOptional[Boolean]("Editor.Sorting.DESCENDING") getOrElse true
+    lazy val DESCENDING = injectOptional[Boolean]("Default.Sorting.DESCENDING") getOrElse true
     /** Auto resize column padding */
-    lazy val columnPadding = injectOptional[Int]("Editor.columnPadding") getOrElse 10
+    lazy val columnPadding = injectOptional[Int]("Default.columnPadding") getOrElse 10
     /** Default sort direction */
-    lazy val sortingDirection = injectOptional[Boolean]("Editor.Sorting.Direction") getOrElse Default.ASCENDING
+    lazy val sortingDirection = injectOptional[Boolean]("Default.Sorting.Direction") getOrElse Default.ASCENDING
     /**
      * Return the amount of pixels in x and y direction you want the tool tip to
      * pop up from the mouse pointer. The default shift is 10px right and 0px
@@ -86,10 +90,10 @@ object Default {
      * position the tool tip 1px right to your mouse cursor else click events
      * may not get propagated properly.
      */
-    lazy val toolTipShift = injectOptional[Point]("Editor.ToolTip.Shift") getOrElse new Point(5, 5)
+    lazy val toolTipShift = injectOptional[Point]("Default.ToolTip.Shift") getOrElse new Point(5, 5)
     /** The time in milliseconds until the tool tip is displayed. */
-    lazy val toolTipDisplayDelayTime = injectOptional[Int]("Editor.ToolTip.DisplayDelayTime") getOrElse 100 //msec
+    lazy val toolTipDisplayDelayTime = injectOptional[Int]("Default.ToolTip.DisplayDelayTime") getOrElse 100 //msec
     /** The time in milliseconds the tool tip is shown for. */
-    lazy val toolTipTimeDisplayed = injectOptional[Int]("Editor.ToolTip.TimeDisplayed") getOrElse 5000 //msec
+    lazy val toolTipTimeDisplayed = injectOptional[Int]("Default.ToolTip.TimeDisplayed") getOrElse 5000 //msec
   }
 }

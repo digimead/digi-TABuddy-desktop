@@ -119,10 +119,6 @@ class Action extends Actor with Loggable {
     modelToolBar.getToolBarManager().add(ActionLockModel())
     modelToolBar.getToolBarManager().add(ActionSaveModel())
     modelToolBar.getToolBarManager().add(ActionDeleteModel())
-    val viewToolBar = WindowToolbar(window, Action.viewToolbar)
-    viewToolBar.getToolBarManager().add(new ContributionSelectView)
-    viewToolBar.getToolBarManager().add(new ContributionSelectFilter)
-    viewToolBar.getToolBarManager().add(new ContributionSelectSorting)
     window.getCoolBarManager2().update(true)
   }
 }
@@ -131,13 +127,11 @@ object Action {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model menu descriptor. */
-  val modelMenu = WindowMenu.Descriptor("&Model", None, getClass.getName() + "#model")
+  lazy val modelMenu = App.execNGet { WindowMenu.Descriptor("&Model", None, getClass.getName() + "#model") }
   /** Model toolbar descriptor. */
-  val modelToolbar = WindowToolbar.Descriptor(getClass.getName() + "#model")
+  lazy val modelToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#model") }
   /** View menu descriptor. */
-  val viewMenu = WindowMenu.Descriptor("&View", None, getClass.getName() + "#view")
-  /** View toolbar descriptor. */
-  val viewToolbar = WindowToolbar.Descriptor(getClass.getName() + "#view")
+  lazy val viewMenu = App.execNGet { WindowMenu.Descriptor("&View", None, getClass.getName() + "#view") }
   // Initialize descendant actor singletons
   ActionCloseModel
   ActionDeleteModel

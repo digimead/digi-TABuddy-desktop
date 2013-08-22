@@ -64,6 +64,8 @@ class Context(parent: EclipseContext) extends EclipseContext(parent) {
     result.set(EclipseContext.DEBUG_STRING, name)
     result
   }
+  /** Get context parent. */
+  override def getParent(): Context = super.getParent.asInstanceOf[Context]
   /** Get context parents. */
   def getParents(): Seq[Context] = App.contextParents(Context.this).asInstanceOf[Seq[Context]]
   override def modify(name: String, value: AnyRef) = {

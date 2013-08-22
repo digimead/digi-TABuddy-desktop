@@ -416,7 +416,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   /** Set active view. */
   protected def setActiveView(id: UUID, widget: Widget): Unit = try {
     if (lastActiveView.get() != Some(id)) {
-      log.debug(s"Set active view ${configuration.element(id)}.")
+      log.debug(s"Set active view ${configuration.element(id)._2} with full id ${id}.")
       lastActiveView.set(Option(id))
     }
     Await.ready(ask(pointers(id).actor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)

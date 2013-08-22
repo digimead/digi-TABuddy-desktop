@@ -114,6 +114,11 @@ class Action extends Actor with Loggable {
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
+    val viewToolBar = WindowToolbar(window, Action.viewToolbar)
+    viewToolBar.getToolBarManager().add(new ContributionSelectView)
+    viewToolBar.getToolBarManager().add(new ContributionSelectFilter)
+    viewToolBar.getToolBarManager().add(new ContributionSelectSorting)
+    window.getCoolBarManager2().update(true)
   }
 }
 
@@ -121,7 +126,7 @@ object Action {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model toolbar descriptor. */
-  lazy val viewToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#view") }
+  lazy val viewToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#view", () => new ViewToolBarManager()) }
   // Initialize descendant actor singletons
   ActionModifyFilterList
   ActionModifySortingList

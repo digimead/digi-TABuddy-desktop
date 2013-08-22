@@ -50,7 +50,7 @@ import scala.collection.immutable
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.definition.Context
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.Enumeration
@@ -59,6 +59,7 @@ import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.logic.payload.PropertyType
 import org.digimead.tabuddy.desktop.logic.payload.TemplateProperty
 import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
+import org.digimead.tabuddy.desktop.logic.payload.view
 import org.digimead.tabuddy.desktop.logic.payload.view.Filter
 import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.digimead.tabuddy.desktop.logic.payload.view.View
@@ -135,21 +136,27 @@ object Data extends Loggable {
     PropertyType.container.values.toList.filter(ptype =>
       currentTypeSchema.entity.get(ptype.id).map(_.availability).getOrElse(defaultValue))
   }
-  /** Get user view definitions */
+  /** Get all available view definitions. */
   def getAvailableViewDefinitions(): Set[view.api.View] = App.execNGet {
     val result = View.displayName +: Data.viewDefinitions.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(View.displayName) else result.toSet
   }
-  /** Get user view filters */
+  /** Get all available view filters. */
   def getAvailableViewFilters(): Set[view.api.Filter] = App.execNGet {
     val result = Filter.allowAllFilter +: Data.viewFilters.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(Filter.allowAllFilter) else result.toSet
   }
-  /** Get user view sortings */
+  /** Get all available view sortings. */
   def getAvailableViewSortings(): Set[view.api.Sorting] = App.execNGet {
     val result = Sorting.simpleSorting +: Data.viewSortings.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(Sorting.simpleSorting) else result.toSet
   }
+  /** Get selected view definitions. */
+  def getSelectedViewDefinition(context: Context): Option[view.api.View] = None
+  /** Get selected view filter. */
+  def getSelectedViewFilter(context: Context): Option[view.api.Filter] = None
+  /** Get selected view sorting. */
+  def getSelectedViewSorting(context: Context): Option[view.api.Sorting] = None
   /** This function is invoked at every model initialization */
   def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = {
     log.info(s"Initialize model $newModel.")
@@ -269,6 +276,14 @@ object Data extends Loggable {
     final val modelIdUserInput = "org.digimead.tabuddy.desktop.logic.Data/modelIdUserInput"
     /** Value of the selected model element. */
     final val selectedElementUserInput = "org.digimead.tabuddy.desktop.logic.Data/selectedElementUserInput"
+    /** Value of the selected view ID. */
+    final val selectedView = "org.digimead.tabuddy.desktop.logic.Data/selectedView"
+    /** Value of the selected sorting ID. */
+    final val selectedSorting = "org.digimead.tabuddy.desktop.logic.Data/selectedSorting"
+    /** Value of the selected filter ID. */
+    final val selectedFilter = "org.digimead.tabuddy.desktop.logic.Data/selectedFilter"
+    /** Flag indicating whether this view is using 'view definitions/filters/sortings'. */
+    final val usingViewDefinition = "org.digimead.tabuddy.desktop.logic.Data/usingViewDefinition"
   }
   /**
    * Dependency injection routines

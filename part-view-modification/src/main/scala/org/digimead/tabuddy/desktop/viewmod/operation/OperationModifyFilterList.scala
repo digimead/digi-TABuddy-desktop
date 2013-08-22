@@ -79,7 +79,7 @@ class OperationModifyFilterList extends api.OperationModifyFilterList with Logga
     if (Model.eId != modelId)
       throw new IllegalStateException(s"Unable to modify filter list. Unexpected model ${Model.eId} is loaded.")
     val exchanger = new Exchanger[Set[Filter]]()
-    Core.context.get[Shell](GUI.shellContextKey) match {
+    App.getActiveShell() match {
       case Some(shell) =>
         App.exec {
           val dialog = new FilterList(shell, filterList.toList)

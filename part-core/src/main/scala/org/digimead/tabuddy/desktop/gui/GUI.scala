@@ -144,11 +144,11 @@ object GUI {
   /** SWT Data ID key */
   val swtId = getClass.getName() + "#ID"
   /** Context key with the current shell. */
-  lazy val shellContextKey = DI.shellContextKey
+  final val shellContextKey = "shell"
   /** Context key with current view. */
-  lazy val viewContextKey = DI.viewContextKey
+  final val viewContextKey = "view"
   /** Context key with current window. */
-  lazy val windowContextKey = DI.windowContextKey
+  final val windowContextKey = "window"
 
   def inner(): GUI = DI.implementation
   override def toString = "Core.GUI[Singleton]"
@@ -157,12 +157,6 @@ object GUI {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Context key with the current shell. */
-    lazy val shellContextKey = injectOptional[String]("GUI.Context.ShellKey") getOrElse "shell"
-    /** Context key with the current view. */
-    lazy val viewContextKey = injectOptional[String]("GUI.Context.ViewKey") getOrElse "view"
-    /** Context key with the current window. */
-    lazy val windowContextKey = injectOptional[String]("GUI.Context.WindowKey") getOrElse "window"
     /** GUI implementation */
     lazy val implementation = injectOptional[GUI] getOrElse new GUI
   }

@@ -102,13 +102,19 @@ trait Context {
     result += s"summary:\n$summary\n\ndetails:${details.mkString("\n")}\n\n"
     result
   }
-  /** Find context if any */
-  def contextFindChild(name: String, container: IEclipseContext): Option[EclipseContext] = {
+  /** Find context in branch with specific name if any */
+  def findBranchContextByName(contextLeaf: definition.Context, contextName: String): Option[definition.Context] =
+    if (contextLeaf.getLocal(EclipseContext.DEBUG_STRING) == contextName)
+      Some(contextLeaf)
+    else
+      Option(contextLeaf.getParent()) flatMap { parentContext => findBranchContextByName(parentContext, contextName) }
+  /** Find child context by name if any */
+  def findChildContextByName(container: definition.Context, childName: String): Option[definition.Context] = {
     val native = container match {
-      case ctx: EclipseContext => ctx
-      case other => throw new IllegalArgumentException(s"Context ${container} is not EclipseContext instance.")
+      case ctx: definition.Context => ctx
+      case other => throw new IllegalArgumentException(s"Context ${container} is not Context instance.")
     }
-    native.getChildren().find(ctx => ctx.internalGet(ctx, EclipseContext.DEBUG_STRING, true) == name)
+    native.getChildren().asInstanceOf[java.util.Set[definition.Context]].find(ctx => ctx.internalGet(ctx, EclipseContext.DEBUG_STRING, true) == childName)
   }
   /** Get context parents. */
   def contextParents(ctx: IEclipseContext): Seq[IEclipseContext] = getContextParents(ctx, Seq())

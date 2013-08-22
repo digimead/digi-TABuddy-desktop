@@ -238,7 +238,10 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertUIThread(false)
     view = Option(parent)
-    val content = App.execNGet { editor.View(parent, SWT.NONE) }
+    val content = App.execNGet {
+      parent.getContext.set(Data.Id.usingViewDefinition, java.lang.Boolean.TRUE)
+      editor.View(parent, SWT.NONE)
+    }
     Some(content)
   }
   /** Destroy created window. */

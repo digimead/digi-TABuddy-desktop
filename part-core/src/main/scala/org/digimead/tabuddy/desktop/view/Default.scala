@@ -117,7 +117,7 @@ class Default(val contentId: UUID) extends Actor with Loggable {
       parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
       parent.layout(Array[Control](button), SWT.ALL)
     }
-    Some(parent)
+    Some(null)
   }
   /** Destroy created window. */
   protected def destroy(sender: ActorRef) = this.view.foreach { view =>

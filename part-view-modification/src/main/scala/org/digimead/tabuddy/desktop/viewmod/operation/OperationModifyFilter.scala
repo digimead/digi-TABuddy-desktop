@@ -80,7 +80,7 @@ class OperationModifyFilter extends api.OperationModifyFilter with Loggable {
     if (Model.eId != modelId)
       throw new IllegalStateException(s"Unable to modify filter ${filter}. Unexpected model ${Model.eId} is loaded.")
     val exchanger = new Exchanger[Filter]()
-    Core.context.get[Shell](GUI.shellContextKey) match {
+    App.getActiveShell() match {
       case Some(shell) =>
         App.exec {
           val dialog = new FilterEditor(shell, filter, filterList.toList)

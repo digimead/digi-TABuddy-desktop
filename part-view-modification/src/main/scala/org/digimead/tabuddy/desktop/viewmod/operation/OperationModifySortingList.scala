@@ -79,7 +79,7 @@ class OperationModifySortingList extends api.OperationModifySortingList with Log
     if (Model.eId != modelId)
       throw new IllegalStateException(s"Unable to modify sorting list. Unexpected model ${Model.eId} is loaded.")
     val exchanger = new Exchanger[Set[Sorting]]()
-    Core.context.get[Shell](GUI.shellContextKey) match {
+    App.getActiveShell() match {
       case Some(shell) =>
         App.exec {
           val dialog = new SortingList(shell, sortingList.toList)

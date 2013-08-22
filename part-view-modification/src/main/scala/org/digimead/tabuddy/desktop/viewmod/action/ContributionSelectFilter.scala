@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.action
+package org.digimead.tabuddy.desktop.viewmod.action
 
 import scala.collection.mutable
 
@@ -58,14 +58,15 @@ import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Label
 
-class ContributionSelectView extends ControlContribution(ContributionSelectModel.id) with Loggable {
+class ContributionSelectFilter extends ControlContribution(ContributionSelectFilter.id) with Loggable {
   val id = getClass.getName
   //@volatile protected var combo: Option[ComboViewer] = None
   //@volatile protected var label: Option[Label] = None
   ///** Id text value. */
   //protected val idValue = WritableValue("")
 
-  ContributionSelectView.instance += (ContributionSelectView.this) -> {}
+  ContributionSelectFilter.instance += (ContributionSelectFilter.this) -> {}
+
   /** Create contribution control. */
   override protected def createControl(parent: Composite): Control = {
     val container = new Composite(parent, SWT.NONE)
@@ -89,9 +90,9 @@ class ContributionSelectView extends ControlContribution(ContributionSelectModel
   }
 }
 
-object ContributionSelectView {
-  /** All SelectView instances. */
-  private val instance = new mutable.WeakHashMap[ContributionSelectView, Unit] with mutable.SynchronizedMap[ContributionSelectView, Unit]
+object ContributionSelectFilter {
+  /** All SelectFilter instances. */
+  private val instance = new mutable.WeakHashMap[ContributionSelectFilter, Unit] with mutable.SynchronizedMap[ContributionSelectFilter, Unit]
   /** Singleton identificator. */
   val id = getClass.getName().dropRight(1)
 }

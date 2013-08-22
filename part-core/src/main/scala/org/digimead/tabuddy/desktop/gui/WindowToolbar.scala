@@ -63,7 +63,12 @@ object WindowToolbar extends Loggable {
       case Some(unknown) =>
         throw new IllegalArgumentException(s"${toolBarDescriptor} id points to unexpected toolbar contribution item.")
       case None =>
-        val toolBarContributionItem = new ToolBarContributionItem(toolBarDescriptor.factory(), toolBarDescriptor.id)
+        val manager = toolBarDescriptor.factory()
+        val toolBarContributionItem = new ToolBarContributionItem(manager, toolBarDescriptor.id)
+        manager match {
+          case manager: ToolBarManager => manager.setToolBarManagerContribution(toolBarContributionItem)
+          case other =>
+        }
         cbm.add(toolBarContributionItem)
         toolBarContributionItem
     }

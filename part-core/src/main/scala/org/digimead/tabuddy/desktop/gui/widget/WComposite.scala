@@ -63,3 +63,8 @@ class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppW
   /** Get AppWindow. */
   def getAppWindow() = window.get
 }
+
+object WComposite {
+  /** Window context name/context key for window id. */
+  final val contextName = "WCompositeContext"
+}

@@ -48,12 +48,15 @@ import scala.concurrent.Await
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.Context
+import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.gui.Configuration
 import org.digimead.tabuddy.desktop.gui.ViewLayer
+import org.digimead.tabuddy.desktop.gui.widget.SComposite
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context
 import org.digimead.tabuddy.desktop.support.Timeout
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
@@ -66,7 +69,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
 
-import language.implicitConversions
+import scala.language.implicitConversions
 
 class StackViewBuilder extends Loggable {
   /**
@@ -83,7 +86,8 @@ class StackViewBuilder extends Loggable {
     val viewName = ViewLayer.id + "_%08X".format(configuration.id.hashCode())
     log.debug(s"Build view layer ${viewName}.")
     App.assertUIThread(false)
-    val viewContext = pEContext.createChild("Context_" + viewName): Context.Rich
+    val viewContext = pEContext.createChild(VComposite.contextName): Context.Rich
+    viewContext.set(VComposite.contextName, configuration.id)
     val view = pAContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
     // Block until view is created.
     implicit val sender = pAContext.self
@@ -144,6 +148,10 @@ class StackViewBuilder extends Loggable {
       Await.result(ask(widget.contentRef, App.Message.Create(Left(widget)))(Timeout.short), Timeout.short) match {
         case App.Message.Create(Right(contentContainerWidget), None) =>
           log.debug(s"View layer ${configuration} content created.")
+          if (contentContainerWidget.isInstanceOf[SComposite])
+            // SComposite matching is involved in GUI hierarchy creation.
+            // This view will overwrite exists hierarchy element like ViewLayer with the same ID.
+            log.fatal(s"View ${configuration} is broken. View container is ${contentContainerWidget}.")
           viewWidget
         case App.Message.Error(error, None) =>
           log.fatal(s"Unable to create content for view layer ${configuration}: ${error}.")

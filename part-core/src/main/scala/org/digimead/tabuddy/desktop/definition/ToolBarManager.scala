@@ -47,10 +47,17 @@ import scala.ref.WeakReference
 
 import org.eclipse.jface.action.IContributionItem
 import org.eclipse.jface.action.IContributionManagerOverrides
-import org.eclipse.jface.action.ToolBarContributionItem
 
 class ToolBarManager extends org.eclipse.jface.action.ToolBarManager {
+  @volatile protected var contribution = WeakReference[org.eclipse.jface.action.ToolBarContributionItem](null)
+
   override def getOverrides(): IContributionManagerOverrides = Option(super.getOverrides) getOrElse { ToolBarManager.Overrides }
+  /** Set this toolbar manager contribution item. */
+  def setToolBarManagerContribution(arg: org.eclipse.jface.action.ToolBarContributionItem) {
+    if (arg.getToolBarManager() != this)
+      throw new IllegalArgumentException(s"Unable to bind ${arg} to ${this}.")
+    contribution = WeakReference(arg)
+  }
 }
 
 object ToolBarManager {
