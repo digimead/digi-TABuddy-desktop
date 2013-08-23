@@ -45,180 +45,156 @@ package org.digimead.tabuddy.desktop.viewmod.action
 
 import java.util.UUID
 
+import scala.Array.canBuildFrom
+import scala.Option.option2Iterable
 import scala.collection.mutable
-import scala.ref.WeakReference
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.Default
 import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.logic.payload.view.api.Sorting
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.Observables
-import org.eclipse.core.databinding.observable.value.IObservableValue
-import org.eclipse.core.databinding.observable.value.IValueChangeListener
-import org.eclipse.core.databinding.observable.value.ValueChangeEvent
 import org.eclipse.e4.core.contexts.Active
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.ControlContribution
-import org.eclipse.jface.action.IContributionItem
-import org.eclipse.jface.action.ToolBarContributionItem
-import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.viewers.ArrayContentProvider
-import org.eclipse.jface.viewers.ComboViewer
+import org.eclipse.jface.action.ICoolBarManager
 import org.eclipse.jface.viewers.LabelProvider
 import org.eclipse.jface.viewers.StructuredSelection
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.widgets.ToolBar
 
 import javax.inject.Inject
 import javax.inject.Named
 
-class ContributionSelectSorting extends ControlContribution(ContributionSelectSorting.id) with Loggable {
-  /** ToolBarContributionItem inside CoolBar. */
-  @volatile protected var coolBarContributionItem = WeakReference[ToolBarContributionItem](null)
-  /** IContributionItem inside ToolBar. */
-  @volatile protected var toolBarContributionItem = WeakReference[IContributionItem](null)
-  /** An active view sorting. */
-  protected val sorting = WritableValue[Option[Sorting]](None)
-  /** The combo box with list of view sortings. */
-  @volatile protected var sortingCombo = WeakReference[ComboViewer](null)
-  /** Sorting entities changes aggregator. */
-  private val sortingEventsAggregator = WritableValue(Long.box(0L))
+class ContributionSelectSorting extends ControlContribution(ContributionSelectSorting.id) with ContributionSelectBase[Sorting] with Loggable {
+  /** Context value key. */
+  val contextValueKey = Data.Id.selectedSorting
 
-  ContributionSelectSorting.instance += (ContributionSelectSorting.this) -> {}
-  ContextInjectionFactory.inject(ContributionSelectSorting.this, Core.context)
+  initialize()
+
+  /** Invoked on view activation. */
+  @Inject @Optional
+  def onViewChanged(@Named(GUI.viewContextKey) vcomposite: VComposite) = Option(vcomposite) foreach (vcomposite => App.exec {
+    Option(vcomposite.getContext.getLocal(Data.Id.selectedView)) match {
+      case Some(viewId: UUID) =>
+        // Take previous value.
+        updateComboBoxValue(viewId)
+      case None =>
+        // There is uninitialized context.
+        log.debug(s"Initialize ${vcomposite} context.")
+        updateContextValue(Some(ViewToolBarManager.defaultSorting))
+        updateComboBoxValue(None)
+      case _ =>
+    }
+  })
+  /** Invoked at every modification of Data.Id.selectedSorting. */
+  @Inject @Optional // @log
+  def onSelectedSortingChanged(@Active @Named(Data.Id.selectedSorting) id: UUID): Unit =
+    App.exec { updateComboBoxValue(id) }
+  /** Invoked at every modification of Data.Id.selectedView. */
+  @Inject @Optional // @log
+  def onSelectedViewChanged(@Active @Named(Data.Id.selectedView) id: UUID): Unit =
+    App.exec { reloadItems(Option(id).flatMap(Data.viewDefinitions.get) getOrElse { ViewToolBarManager.defaultView }) }
 
   /** Create contribution control. */
   override protected def createControl(parent: Composite): Control = {
-    val viewer = new ComboViewer(parent, SWT.BORDER | SWT.H_SCROLL | SWT.READ_ONLY)
-    viewer.getCombo.setToolTipText(Messages.sortings_text)
-    viewer.setContentProvider(ArrayContentProvider.getInstance())
-    viewer.setLabelProvider(new LabelProvider() {
-      override def getText(element: Object): String = element match {
-        case sorting: Sorting =>
-          sorting.name
-        case unknown =>
-          log.fatal("Unknown item " + unknown.getClass())
-          unknown.toString
-      }
-    })
-    ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(viewer)).addChangeListener(new IChangeListener {
-      override def handleChange(event: ChangeEvent) = {
-        val newValue = Option(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[Sorting])
-        if (ContributionSelectSorting.this.sorting.value != newValue)
-          ContributionSelectSorting.this.sorting.value = newValue
-      }
-    })
-    ContributionSelectSorting.this.sorting.addChangeListener { (value, _) =>
-      value match {
-        case Some(selected) => viewer.setSelection(new StructuredSelection(selected))
-        case None => viewer.setSelection(new StructuredSelection(payload.view.Sorting.simpleSorting))
-      }
-      updateContextValue(value)
+    log.debug("Create ContributionSelectView contribution.")
+    val result = super.createControl(parent)
+    comboViewer.get.foreach { comboViewer =>
+      comboViewer.getCombo.setToolTipText(Messages.sortings_text)
+      comboViewer.setLabelProvider(new LabelProvider() {
+        override def getText(element: Object): String = element match {
+          case sorting: Sorting =>
+            sorting.name
+          case unknown =>
+            log.fatal("Unknown item " + unknown.getClass())
+            unknown.toString
+        }
+      })
     }
-    Data.viewSortings.addChangeListener { event => sortingEventsAggregator.value = System.currentTimeMillis() }
-    Observables.observeDelayedValue(Default.aggregatorDelay, sortingEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      def handleValueChange(event: ValueChangeEvent) {
-        reloadItems()
-        for {
-          selectedSortingValue <- ContributionSelectSorting.this.sorting.value
-          actualSortingValue <- Data.viewSortings.get(selectedSortingValue.id)
-        } if (!payload.view.Sorting.compareDeep(selectedSortingValue, actualSortingValue))
-          // user modified the current sorting: id is persisted, but object is changed
-          ContributionSelectSorting.this.sorting.value = Some(actualSortingValue)
-      }
-    })
-    sortingCombo = WeakReference(viewer)
-    sorting.value = None
-    reloadItems()
-    viewer.getControl()
+    result
   }
-  /** Get IContributionItem for this ControlContribution. */
-  protected def getComboContribution(): Option[IContributionItem] = toolBarContributionItem.get orElse
-    getCoolBarContribution.flatMap { cc =>
-      val result = Option(cc.getToolBarManager().find(ContributionSelectSorting.id))
-      result.map(item => toolBarContributionItem = WeakReference(item))
-      result
-    }
-  /** Returns CoolBar contribution item. */
-  protected def getCoolBarContribution(): Option[ToolBarContributionItem] = coolBarContributionItem.get orElse sortingCombo.get.flatMap { combo =>
-    App.findWindowComposite(combo.getControl().getShell).flatMap(_.getAppWindow).map(_.getCoolBarManager2()).flatMap { coolbarManager =>
-      coolbarManager.getItems().find {
-        case item: ToolBarContributionItem =>
-          item.getToolBarManager() == this.getParent()
-        case item =>
-          false
-      } map { item =>
-        coolBarContributionItem = WeakReference(item.asInstanceOf[ToolBarContributionItem])
-        item.asInstanceOf[ToolBarContributionItem]
-      }
-    }
+  /** Reload sortings combo box. */
+  protected def reloadItems() = {
+    App.findBranchContextByName(Core.context.getActiveLeaf, VComposite.contextName).foreach(context =>
+      Option(context.getLocal(contextValueKey).asInstanceOf[UUID]))
+    reloadItems(ViewToolBarManager.defaultView)
   }
-  /** Invoked at every modification of Data.Id.selectedSorting. */
-  @Inject @Optional // @log
-  def onSelectedSortingChanged(@Active @Named(Data.Id.selectedSorting) id: UUID): Unit = App.exec {
-    val newValue = if (id != null)
-      Data.getAvailableViewSortings.find(_.id == id) getOrElse { payload.view.Sorting.simpleSorting }
-    else
-      payload.view.Sorting.simpleSorting
-    if (ContributionSelectSorting.this.sorting.value != Some(newValue)) {
-      log.debug(s"Update selected sorting value to ${newValue}.")
-      ContributionSelectSorting.this.sorting.value = Some(newValue)
-    } else if (id != newValue.id)
-      updateContextValue(Option(newValue))
-  }
-  /** Invoked at every modification of Data.Id.selectedView. */
-  @Inject @Optional // @log
-  def onSelectedViewChanged(@Active @Named(Data.Id.selectedView) id: UUID): Unit = App.exec {
-    val newValue = if (id != null)
-      Data.getAvailableViewDefinitions.find(_.id == id) getOrElse { payload.view.View.displayName }
-    else
-      payload.view.View.displayName
-    reloadItems(newValue)
-  }
-  /** Reload view definitions combo box */
-  protected def reloadItems(view: payload.view.api.View = payload.view.View.displayName) = for {
-    combo <- sortingCombo.get if !combo.getControl().isDisposed()
-    toolBarContribution <- getCoolBarContribution()
-    comboContribution <- getComboContribution()
+  /** Reload sortings combo box. */
+  protected def reloadItems(view: payload.view.api.View): Unit = for {
+    comboViewer <- comboViewer.get
+    combo = comboViewer.getCombo()
+    coolBarContribution <- getCoolBarContribution
   } {
     log.debug("Reload sorting combo.")
     App.assertUIThread()
-    if (view != payload.view.View.displayName) {
-      val available = Data.getAvailableViewSortings
-      val sortings = payload.view.Sorting.simpleSorting +: view.sortings.flatMap(id => available.find(_.id == id)).toArray
-      combo.setInput(sortings)
-      sorting.value match {
-        case Some(selected) if sortings.contains(selected) => combo.setSelection(new StructuredSelection(selected))
-        case _ => combo.setSelection(new StructuredSelection(payload.view.Sorting.simpleSorting))
-      }
-    } else {
-      combo.setInput(Data.getAvailableViewSortings.toArray)
-      sorting.value match {
-        case Some(selected) => combo.setSelection(new StructuredSelection(selected))
-        case None => combo.setSelection(new StructuredSelection(payload.view.Sorting.simpleSorting))
+    val available = Data.getAvailableViewSortings
+    val actialInput = if (view.sortings.isEmpty)
+      available.toArray
+    else
+      ViewToolBarManager.defaultSorting +: view.sortings.flatMap(id =>
+        available.find(_.id == id && id != ViewToolBarManager.defaultSorting.id)).toArray
+    val previousInput = comboViewer.getInput().asInstanceOf[Array[payload.view.api.Sorting]]
+    if (previousInput != null && previousInput.nonEmpty && previousInput.corresponds(actialInput)(payload.view.Sorting.compareDeep)) {
+      log.debug("Skip reload. Elements are the same.")
+      return // combo viewer input is the same
+    }
+    // a little hack
+    // 1. collapse combo
+    combo.removeAll()
+    // 2. expand combo with new values
+    actialInput.foreach(view => combo.add(view.name))
+    // asynchronous execution is important
+    App.execAsync {
+      if (!combo.isDisposed()) {
+        // 3. bind real values to combo viewer
+        comboViewer.setInput(actialInput)
+        Option(Core.context.getActiveLeaf.get(contextValueKey).asInstanceOf[UUID]) match {
+          case Some(id) => updateComboBoxValue(id)
+          case None => updateComboBoxValue(None)
+        }
+        for {
+          selectedSortingValue <- getSelection
+          actualSortingValue <- Data.viewSortings.get(selectedSortingValue.id)
+        } if (!payload.view.Sorting.compareDeep(selectedSortingValue, actualSortingValue))
+          // user modified the current view: id is persisted, but object is changed
+          updateComboBoxValue(Some(actualSortingValue))
+        for (toolItem <- combo.getParent().asInstanceOf[ToolBar].getItems().find(_.getControl() == combo)) {
+          val width = combo.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x
+          if (width > 0)
+            toolItem.setWidth(width)
+          coolBarContribution.update(ICoolBarManager.SIZE)
+        }
       }
     }
   }
-  /** Update current view context Data.Id.selectedView value. */
-  protected def updateContextValue(newValue: Option[Sorting]) =
-    App.findBranchContextByName(Core.context.getActiveLeaf, VComposite.contextName).foreach(context =>
-      newValue match {
-        case Some(value) => context.set(Data.Id.selectedSorting, value.id)
-        case None => context.remove(Data.Id.selectedSorting)
-      })
+  /** Update combo box value by ID. */
+  protected def updateComboBoxValue(newValueId: UUID) =
+    updateComboBoxValue(Data.getAvailableViewSortings.find(_.id == newValueId))
+  /** Update combo box value. */
+  protected def updateComboBoxValue(value: Option[Sorting]) {
+    val selection = getSelection
+    if (selection == value && value.nonEmpty)
+      return
+    if (selection == Some(ViewToolBarManager.defaultSorting) && value.isEmpty)
+      return
+    for (comboViewer <- comboViewer.get)
+      value match {
+        case Some(sorting) if Option(comboViewer.getInput().asInstanceOf[Array[payload.view.api.Sorting]]).map(_.contains(sorting)).getOrElse(false) =>
+          log.debug(s"Set UI value to ${sorting.id}.")
+          comboViewer.setSelection(new StructuredSelection(sorting), true)
+        case _ =>
+          log.debug(s"Set UI value to ${ViewToolBarManager.defaultSorting.id}.")
+          comboViewer.setSelection(new StructuredSelection(ViewToolBarManager.defaultSorting), true)
+      }
+  }
 }
 
 object ContributionSelectSorting {

@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop
 
+import org.digimead.digi.lib.DependencyInjection
+
 import com.escalatesoft.subcut.inject.NewBindingModule
 
 /**
@@ -81,4 +83,5 @@ package object viewmod {
       new operation.OperationModifyViewList()
     }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.viewmod.action.ViewToolBarManager$DI$")
 }

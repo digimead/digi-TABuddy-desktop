@@ -46,196 +46,135 @@ package org.digimead.tabuddy.desktop.viewmod.action
 import java.util.UUID
 
 import scala.collection.mutable
-import scala.ref.WeakReference
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.Default
 import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.logic.payload.view.api.View
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.Observables
-import org.eclipse.core.databinding.observable.value.IObservableValue
-import org.eclipse.core.databinding.observable.value.IValueChangeListener
-import org.eclipse.core.databinding.observable.value.ValueChangeEvent
 import org.eclipse.e4.core.contexts.Active
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.ControlContribution
-import org.eclipse.jface.action.IContributionItem
-import org.eclipse.jface.action.ToolBarContributionItem
-import org.eclipse.jface.databinding.viewers.IViewerObservableValue
-import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.viewers.ArrayContentProvider
-import org.eclipse.jface.viewers.ComboViewer
+import org.eclipse.jface.action.ICoolBarManager
 import org.eclipse.jface.viewers.LabelProvider
 import org.eclipse.jface.viewers.StructuredSelection
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.widgets.ToolBar
 
 import javax.inject.Inject
 import javax.inject.Named
 
-class ContributionSelectView extends ControlContribution(ContributionSelectView.id) with Loggable {
-  /** The combo box with list of view definitions. */
-  @volatile protected var comboViewer = WeakReference[ComboViewer](null)
-  /** Combo viewer observable. */
-  @volatile protected var comboViewerObservable: Option[IViewerObservableValue] = None
-  /** ToolBarContributionItem inside CoolBar. */
-  @volatile protected var coolBarContributionItem = WeakReference[ToolBarContributionItem](null)
-  /** IContributionItem inside ToolBar. */
-  @volatile protected var toolBarContributionItem = WeakReference[IContributionItem](null)
-  /** An active view definition. */
-  protected val view = WritableValue[Option[View]](None)
-  /** View entities changes aggregator. */
-  protected val viewEventsAggregator = WritableValue(Long.box(0L))
+class ContributionSelectView extends ControlContribution(ContributionSelectView.id) with ContributionSelectBase[View] with Loggable {
+  /** Context value key. */
+  val contextValueKey = Data.Id.selectedView
 
   initialize()
 
-  /** Initialize this class */
-  protected def initialize() {
-    App.assertUIThread()
-    ContributionSelectView.instance += (ContributionSelectView.this) -> {}
-    ContextInjectionFactory.inject(ContributionSelectView.this, Core.context)
-    Data.viewDefinitions.addChangeListener { event => viewEventsAggregator.value = System.currentTimeMillis() }
-    Observables.observeDelayedValue(Default.aggregatorDelay, viewEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      def handleValueChange(event: ValueChangeEvent) {
-        reloadItems()
-        for {
-          selectedViewValue <- ContributionSelectView.this.view.value
-          actualViewValue <- Data.viewDefinitions.get(selectedViewValue.id)
-        } if (!payload.view.View.compareDeep(selectedViewValue, actualViewValue))
-          // user modified the current view: id is persisted, but object is changed
-          ContributionSelectView.this.view.value = Some(actualViewValue)
-      }
-    })
-    ContributionSelectView.this.view.addChangeListener { (value, _) =>
-      value match {
-        case Some(selected) => comboViewer.get.foreach(_.setSelection(new StructuredSelection(selected)))
-        case None => comboViewer.get.foreach(_.setSelection(new StructuredSelection(payload.view.Sorting.simpleSorting)))
-      }
-      updateContextValue(value)
-    }
-  }
-  /** Create contribution control. */
-  override protected def createControl(parent: Composite): Control = {
-    log.debug("Create ContributionSelectView contribution")
-    val comboViewer = new ComboViewer(parent, SWT.BORDER | SWT.H_SCROLL | SWT.READ_ONLY)
-    comboViewer.getCombo.setToolTipText(Messages.views_text)
-    comboViewer.setContentProvider(ArrayContentProvider.getInstance())
-    comboViewer.setLabelProvider(new LabelProvider() {
-      override def getText(element: Object): String = element match {
-        case view: View =>
-          view.name
-        case unknown =>
-          log.fatal("Unknown item " + unknown.getClass())
-          unknown.toString
-      }
-    })
-    val comboViewerObservable = ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(comboViewer))
-    comboViewerObservable.addChangeListener(ViewerChangeListener)
-    comboViewer.getControl().addDisposeListener(DisposeListener)
-    this.comboViewerObservable = Some(comboViewerObservable)
-    this.comboViewer = WeakReference(comboViewer)
-    reloadItems()
-    comboViewer.getControl()
-  }
-  /** Get IContributionItem for this ControlContribution. */
-  protected def getComboContribution(): Option[IContributionItem] = toolBarContributionItem.get orElse
-    getCoolBarContribution.flatMap { cc =>
-      val result = Option(cc.getToolBarManager().find(ContributionSelectView.id))
-      result.map(item => toolBarContributionItem = WeakReference(item))
-      result
-    }
-  /** Returns CoolBar contribution item. */
-  protected def getCoolBarContribution(): Option[ToolBarContributionItem] = coolBarContributionItem.get orElse comboViewer.get.flatMap { combo =>
-    App.findWindowComposite(combo.getControl().getShell).flatMap(_.getAppWindow).map(_.getCoolBarManager2()).flatMap { coolbarManager =>
-      coolbarManager.getItems().find {
-        case item: ToolBarContributionItem =>
-          item.getToolBarManager() == this.getParent()
-        case item =>
-          false
-      } map { item =>
-        coolBarContributionItem = WeakReference(item.asInstanceOf[ToolBarContributionItem])
-        item.asInstanceOf[ToolBarContributionItem]
-      }
-    }
-  }
   /** Invoked on view activation. */
   @Inject @Optional
   def onViewChanged(@Named(GUI.viewContextKey) vcomposite: VComposite) = Option(vcomposite) foreach (vcomposite => App.exec {
-    Option(vcomposite.getContext.getLocal(Data.Id.selectedView)) match {
-      case Some(viewId: UUID) if Some(viewId) != view.value.map(_.id) =>
+    Option(vcomposite.getContext.getLocal(contextValueKey)) match {
+      case Some(viewId: UUID) =>
         // Take previous value.
-        updateContributionValue(Some(viewId))
+        updateComboBoxValue(viewId)
       case None =>
         // There is uninitialized context.
         log.debug(s"Initialize ${vcomposite} context.")
-        view.value = Option(payload.view.View.displayName)
-        updateContextValue(Some(payload.view.View.displayName))
+        updateContextValue(Some(ViewToolBarManager.defaultView))
+        updateComboBoxValue(None)
       case _ =>
     }
   })
   /** Invoked at every modification of Data.Id.selectedView. */
   @Inject @Optional // @log
   def onSelectedViewChanged(@Active @Named(Data.Id.selectedView) id: UUID): Unit =
-    App.exec { updateContributionValue(Option(id)) }
-  /** Reload view definitions combo box */
-  protected def reloadItems() = for {
-    combo <- comboViewer.get
-    toolBarContribution <- getCoolBarContribution()
-    comboContribution <- getComboContribution()
+    App.exec { updateComboBoxValue(id) }
+
+  /** Create contribution control. */
+  override protected def createControl(parent: Composite): Control = {
+    log.debug("Create ContributionSelectView contribution.")
+    val result = super.createControl(parent)
+    comboViewer.get.foreach { comboViewer =>
+      comboViewer.getCombo.setToolTipText(Messages.views_text)
+      comboViewer.setLabelProvider(new LabelProvider() {
+        override def getText(element: Object): String = element match {
+          case view: View =>
+            view.name
+          case unknown =>
+            log.fatal(s"Unknown item ${unknown.getClass()}.")
+            unknown.toString
+        }
+      })
+    }
+    result
+  }
+  /** Reload view definitions combo box. */
+  protected def reloadItems(): Unit = for {
+    comboViewer <- comboViewer.get
+    combo = comboViewer.getCombo()
+    coolBarContribution <- getCoolBarContribution
   } {
     log.debug("Reload view combo.")
     App.assertUIThread()
-    combo.setInput(Data.getAvailableViewDefinitions.toArray)
-    view.value match {
-      case Some(selected) => combo.setSelection(new StructuredSelection(selected))
-      case None => combo.setSelection(new StructuredSelection(payload.view.View.displayName))
+    val actialInput = Data.getAvailableViewDefinitions.toArray
+    val previousInput = comboViewer.getInput().asInstanceOf[Array[payload.view.api.View]]
+    if (previousInput != null && previousInput.nonEmpty && previousInput.corresponds(actialInput)(payload.view.View.compareDeep)) {
+      log.debug("Skip reload. Elements are the same.")
+      return // combo viewer input is the same
+    }
+    // a little hack
+    // 1. collapse combo
+    comboViewer.getCombo.removeAll()
+    // 2. expand combo with new values
+    actialInput.foreach(view => comboViewer.getCombo().add(view.name))
+    // asynchronous execution is important
+    App.execAsync {
+      // 3. bind real values to combo viewer
+      comboViewer.setInput(actialInput)
+      Option(Core.context.getActiveLeaf.get(contextValueKey).asInstanceOf[UUID]) match {
+        case Some(id) => updateComboBoxValue(id)
+        case None => updateComboBoxValue(None)
+      }
+      for {
+        selectedViewValue <- getSelection
+        actualViewValue <- Data.viewDefinitions.get(selectedViewValue.id)
+      } if (!payload.view.View.compareDeep(selectedViewValue, actualViewValue))
+        // user modified the current view: id is persisted, but object is changed
+        updateComboBoxValue(Some(actualViewValue))
+      for (toolItem <- combo.getParent().asInstanceOf[ToolBar].getItems().find(_.getControl() == combo)) {
+        val width = combo.computeSize(SWT.DEFAULT, SWT.DEFAULT, true).x
+        if (width > 0)
+          toolItem.setWidth(width)
+        coolBarContribution.update(ICoolBarManager.SIZE)
+      }
     }
   }
   /** Update combo box value by ID. */
-  protected def updateContributionValue(newValueId: Option[UUID]) = newValueId match {
-    case Some(valueId) if view.value.map(_.id) != newValueId && Data.getAvailableViewDefinitions.exists(_.id == newValueId) =>
-      view.value = Option(Data.getAvailableViewDefinitions.find(_.id == valueId) getOrElse { payload.view.View.displayName })
-    case _ if Option(payload.view.View.displayName.id) != newValueId =>
-      view.value = Option(payload.view.View.displayName)
-    case _ =>
-  }
-  /** Update context Data.Id.selectedView value. */
-  protected def updateContextValue(newValue: Option[View]) =
-    App.findBranchContextByName(Core.context.getActiveLeaf, VComposite.contextName).foreach(context =>
-      newValue match {
-        case Some(value) => context.set(Data.Id.selectedView, value.id)
-        case None => context.remove(Data.Id.selectedView)
-      })
-  /** Combo viewer change listener. */
-  object ViewerChangeListener extends IChangeListener {
-    override def handleChange(event: ChangeEvent) = {
-      val newValue = Option(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[View])
-      if (ContributionSelectView.this.view.value != newValue)
-        ContributionSelectView.this.view.value = newValue
-    }
-  }
-  /** Combo control dispose listener. */
-  object DisposeListener extends org.eclipse.swt.events.DisposeListener {
-    def widgetDisposed(e: DisposeEvent) {
-      comboViewer = WeakReference(null)
-      comboViewerObservable.foreach(_.dispose())
-      comboViewerObservable = None
-    }
+  protected def updateComboBoxValue(newValueId: UUID) =
+    updateComboBoxValue(Data.getAvailableViewDefinitions.find(_.id == newValueId))
+  /** Update combo box value. */
+  protected def updateComboBoxValue(value: Option[View]) {
+    val selection = getSelection
+    if (selection == value && value.nonEmpty)
+      return
+    if (selection == Some(ViewToolBarManager.defaultView) && value.isEmpty)
+      return
+    for (comboViewer <- comboViewer.get)
+      value match {
+        case Some(view) if Option(comboViewer.getInput().asInstanceOf[Array[payload.view.api.View]]).map(_.contains(view)).getOrElse(false) =>
+          log.debug(s"Set UI value to ${view.id}.")
+          comboViewer.setSelection(new StructuredSelection(view), true)
+        case _ =>
+          log.debug(s"Set UI value to ${ViewToolBarManager.defaultView.id}.")
+          comboViewer.setSelection(new StructuredSelection(ViewToolBarManager.defaultView), true)
+      }
   }
 }
 
