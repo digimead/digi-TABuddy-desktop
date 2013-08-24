@@ -90,7 +90,7 @@ class OperationModelNew extends api.OperationModelNew with Loggable {
       App.getActiveShell match {
         case Some(shell) =>
           App.execNGet {
-            Wizards.open("org.digimead.tabuddy.desktop.editor.wizard.ModelCreationWizard", shell, Some(name, location)) match {
+            Wizards.open("org.digimead.tabuddy.desktop.model.editor.wizard.ModelCreationWizard", shell, Some(name, location)) match {
               case marker: ModelMarker =>
                 marker
               case other if other == org.eclipse.jface.window.Window.CANCEL =>
