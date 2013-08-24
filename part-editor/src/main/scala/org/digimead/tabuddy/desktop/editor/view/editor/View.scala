@@ -43,65 +43,45 @@
 
 package org.digimead.tabuddy.desktop.editor.view.editor
 
-import java.util.Date
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.locks.ReentrantLock
-import scala.annotation.tailrec
-import scala.collection.JavaConversions._
+import scala.Array.canBuildFrom
+import scala.Array.fallbackCanBuildFrom
+import scala.Option.option2Iterable
 import scala.collection.immutable
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
-import scala.ref.WeakReference
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.ResourceManager
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
 import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.TreeProxy
-import org.digimead.tabuddy.desktop.support.WritableValue
+import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.Observables
-import org.eclipse.core.databinding.observable.value.IValueChangeListener
-import org.eclipse.core.databinding.observable.value.ValueChangeEvent
-import org.eclipse.jface.action.Action
+import org.eclipse.e4.core.contexts.Active
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.CoolBarManager
-import org.eclipse.jface.action.IAction
-import org.eclipse.jface.action.MenuManager
-import org.eclipse.jface.action.Separator
-import org.eclipse.jface.databinding.swt.WidgetProperties
-import org.eclipse.jface.util.ConfigureColumns
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.TreeViewer
-import org.eclipse.jface.viewers.ViewerCell
-import org.eclipse.jface.viewers.ViewerFilter
-import org.eclipse.jface.window.SameShellProvider
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StyleRange
-import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.layout.GridData
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Event
-import org.eclipse.swt.widgets.Listener
-import org.eclipse.swt.widgets.Shell
-import org.eclipse.swt.widgets.Widget
-import org.digimead.tabuddy.desktop.gui.widget.VComposite
-import com.escalatesoft.subcut.inject.Inject
-import org.eclipse.e4.core.di.annotations.Optional
-import org.eclipse.e4.core.contexts.Active
-import javax.inject.Named
-import org.digimead.tabuddy.desktop.ResourceManager
-import org.eclipse.swt.events.DisposeListener
 import org.eclipse.swt.events.DisposeEvent
-import org.digimead.tabuddy.desktop.gui.WindowToolbar
+import org.eclipse.swt.events.DisposeListener
+import org.eclipse.swt.layout.GridData
+import org.eclipse.swt.widgets.Widget
+import javax.inject.Inject
+import javax.inject.Named
+import org.eclipse.swt.widgets.Listener
+import org.eclipse.swt.widgets.Event
+import org.eclipse.swt.graphics.Point
 
-class View private (parent: VComposite, style: Int)
+class View(parent: VComposite, style: Int)
   extends TableViewSkel(parent, style) with ViewActions with Loggable {
   lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.content), tree.expandedItems)
   /** Table subview. */
@@ -131,97 +111,22 @@ class View private (parent: VComposite, style: Int)
   /** Returns the view's parent, which must be a VComposite. */
   override def getParent(): VComposite = parent
   /** Get selected element for current context. */
-  def getSelectedElementUserInput() = Option(parent.getContext.get(Data.Id.selectedElementUserInput).asInstanceOf[Element[Stash]])
-  /** Clear root path */
-  protected[editor] def clearRootElement() {
-    getTextRootElement.setText("")
-    getTextRootElement.setToolTipText(null)
-    rootElementRanges = Seq()
-  }
-  /** Allow external access for scala classes */
-  override protected[editor] def getCoolBarManager(): CoolBarManager = super.getCoolBarManager()
-  /** Allow external access for scala classes */
-  override protected[editor] def getSashForm() = super.getSashForm
-  /** Initialize editor view */
-  protected def initialize() {
-    setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-    // initialize tree
-    tree
-    // initialize table
-    table
-    // initialize toolbars
-    //getCoolBarManager.add(context.toolbarView)
-    //getCoolBarManager.add(context.toolbarPrimary)
-    //getCoolBarManager.add(context.toolbarSecondary)
-    //getCoolBarManager.update(true)
-    // initialize miscellaneous elements
-    /*Data.fieldElement.addChangeListener { (element, event) => updateActiveElement(element) }*/
-    getBtnResetActiveElement.addListener(SWT.Selection, new Listener() {
-      def handleEvent(event: Event) = Option(tree.treeViewer.getInput().asInstanceOf[TreeProxy.Item]) match {
-        case Some(item) if item.hash != 0 => setSelectedElementUserInput(item.element)
-        case _ => setSelectedElementUserInput(Model)
-      }
-    })
-    getTextRootElement.addListener(SWT.MouseDown, new Listener() {
-      def handleEvent(event: Event) = try {
-        val offset = getTextRootElement.getOffsetAtLocation(new Point(event.x, event.y))
-        val style = getTextRootElement.getStyleRangeAtOffset(offset)
-        if (style != null && style.underline && style.underlineStyle == SWT.UNDERLINE_LINK)
-          rootElementRanges.find(range => offset >= range.index && offset <= range.index + range.length).foreach { range =>
-            setSelectedElementUserInput(range.element)
-            val item = TreeProxy.Item(range.element)
-            if (tree.treeViewer.getInput() != item) View.withRedrawDelayed(View.this) {
-              tree.treeViewer.setInput(item)
-              ActionAutoResize(false)
-            }
-          }
-      } catch {
-        case e: IllegalArgumentException => // no character under event.x, event.y
-      }
-    })
-    // reload data
-    View.withRedrawDelayed(this) {
-      reload
-      ActionAutoResize(false)
-    }
-    View.views += this -> {}
-  }
-  /** Invoked at every modification of Data.Id.modelIdUserInput. */
+  def getSelectedElementUserInput() = Option(parent.getContext.get(Data.Id.selectedElement).asInstanceOf[Element[Stash]])
+  /** Invoked at every modification of Data.Id.selectedElement. */
   @Inject @Optional // @log
-  def onModelIdUserInputChanged(@Named(Data.Id.selectedElementUserInput) element: Element[_ <: Stash]) =
+  def onSelectedElementChanged(@Named(Data.Id.selectedElement) element: Element.Generic) =
     App.exec { updateActiveElement(element) }
+  /**
+   * Invoked at every modification of Data.Id.selectedElement on active context.
+   * This is allow to capture active element from neighbors.
+   */
+  @Inject @Optional // @log
+  def onActiveSelectedElementChanged(@Active @Named(Data.Id.selectedElement) element: Element.Generic) =
+    if (false) App.exec { updateActiveElement(element) }
   /** onStart callback */
-  def onStart(widget: Widget) = {
-    App.assertUIThread()
-    for {
-      wComposite <- App.findShell(widget).flatMap(App.findWindowComposite)
-      appWindow <- wComposite.getAppWindow
-    } yield {
-      //val viewToolBar = WindowToolbar(appWindow, org.digimead.tabuddy.desktop.logic.action.Action.viewToolbar)
-      //appWindow.getCoolBarManager().find(org.digimead.tabuddy.desktop.logic.action.Action.viewToolbar.id).setVisible(false)
-      //viewToolBar.setVisible(false)
-      //appWindow.getCoolBarManager2().update(true)
-      //log.___glance("HIDE" + viewToolBar + "===" + appWindow.getCoolBarManager2().find(org.digimead.tabuddy.desktop.logic.action.Action.viewToolbar.id))
-      //    Window.getMenuTopLevel().add(tableViewMenu)
-      //    Window.getMenuTopLevel().update(false)
-      this.layout()
-    }
-  } getOrElse { throw new IllegalStateException("Unable to process onStart event.") }
+  def onStart(widget: Widget) = {}
   /** onStop callback */
-  def onStop(widget: Widget) = {
-    App.assertUIThread()
-    for {
-      wComposite <- App.findShell(widget).flatMap(App.findWindowComposite)
-      appWindow <- wComposite.getAppWindow
-    } yield {
-      //val viewToolBar = WindowToolbar(appWindow, org.digimead.tabuddy.desktop.logic.action.Action.viewToolbar)
-      //viewToolBar.setVisible(true)
-      //appWindow.getCoolBarManager2().update(true)
-      //log.___glance("SHOW" + viewToolBar)
-      //    Window.getMenuTopLevel().remove(tableViewMenu)
-      //    Window.getMenuTopLevel().update(false)
-    }
-  } getOrElse { throw new IllegalStateException("Unable to process onStart event.") }
+  def onStop(widget: Widget) = {}
   /**
    * Refreshes this viewer starting with the given element. Labels are updated
    * as described in <code>refresh(boolean updateLabels)</code>.
@@ -341,50 +246,51 @@ class View private (parent: VComposite, style: Int)
       tree.treeViewer.getTree.clearAll(true)
       table.tableViewer.setInput(null)
       table.tableViewer.getTable.clearAll()
-      return
-    }
-    /*
-     * reload:
-     *  Table.columnTemplate
-     *  Table.columnLabelProvider
-     */
-    val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
-    val properties = Data.elementTemplates.values.flatMap { template =>
-      template.properties.foreach {
-        case (group, properties) => properties.foreach(property =>
-          propertyCache(property) = propertyCache.get(property).getOrElse(Seq()) :+ template)
+    } else {
+      log.debug(s"Update for ${Model.eId} model.")
+      /*
+       * reload:
+       *  Table.columnTemplate
+       *  Table.columnLabelProvider
+       */
+      val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
+      val properties = Data.elementTemplates.values.flatMap { template =>
+        template.properties.foreach {
+          case (group, properties) => properties.foreach(property =>
+            propertyCache(property) = propertyCache.get(property).getOrElse(Seq()) :+ template)
+        }
+        template.properties.flatMap(_._2)
+      }.toList.groupBy(_.id.name.toLowerCase())
+      val columnIds = List(View.COLUMN_ID, View.COLUMN_NAME) ++ properties.keys.filterNot(_ == View.COLUMN_NAME).toSeq.sorted
+      Table.columnTemplate = immutable.HashMap((for (columnId <- columnIds) yield columnId match {
+        case id if id == View.COLUMN_ID =>
+          (View.COLUMN_ID, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]())
+        case id if id == View.COLUMN_NAME =>
+          (View.COLUMN_NAME, immutable.HashMap(properties.get(View.COLUMN_NAME).getOrElse(List()).map { property =>
+            propertyCache(property).map(template => (template.id, property))
+          }.flatten: _*))
+        case _ =>
+          (columnId, immutable.HashMap(properties(columnId).map { property =>
+            propertyCache(property).map(template => (template.id, property))
+          }.flatten: _*))
+      }): _*)
+      Table.columnLabelProvider = Table.columnTemplate.map {
+        case (columnId, columnProperties) =>
+          if (columnId == View.COLUMN_ID)
+            columnId -> new Table.TableLabelProviderID()
+          else
+            columnId -> new Table.TableLabelProvider(columnId, columnProperties)
       }
-      template.properties.flatMap(_._2)
-    }.toList.groupBy(_.id.name.toLowerCase())
-    val columnIds = List(View.COLUMN_ID, View.COLUMN_NAME) ++ properties.keys.filterNot(_ == View.COLUMN_NAME).toSeq.sorted
-    Table.columnTemplate = immutable.HashMap((for (columnId <- columnIds) yield columnId match {
-      case id if id == View.COLUMN_ID =>
-        (View.COLUMN_ID, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]())
-      case id if id == View.COLUMN_NAME =>
-        (View.COLUMN_NAME, immutable.HashMap(properties.get(View.COLUMN_NAME).getOrElse(List()).map { property =>
-          propertyCache(property).map(template => (template.id, property))
-        }.flatten: _*))
-      case _ =>
-        (columnId, immutable.HashMap(properties(columnId).map { property =>
-          propertyCache(property).map(template => (template.id, property))
-        }.flatten: _*))
-    }): _*)
-    Table.columnLabelProvider = Table.columnTemplate.map {
-      case (columnId, columnProperties) =>
-        if (columnId == View.COLUMN_ID)
-          columnId -> new Table.TableLabelProviderID()
-        else
-          columnId -> new Table.TableLabelProvider(columnId, columnProperties)
+      updateColumns()
+      // update content
+      table.tableViewer.setInput(table.content.underlying)
+      tree.treeViewer.setInput(TreeProxy.Item(Model.inner))
+      tree.treeViewer.setExpandedElements(tree.expandedItems.toArray)
+      table.tableViewer.refresh()
     }
-    updateColumns()
-    // update content
-    table.tableViewer.setInput(table.content.underlying)
-    tree.treeViewer.setInput(TreeProxy.Item(Model.inner))
-    tree.treeViewer.setExpandedElements(tree.expandedItems.toArray)
-    table.tableViewer.refresh()
   }
   /** Set selected element for current context. */
-  def setSelectedElementUserInput(element: Element[_ <: Stash]) = parent.getContext.set(Data.Id.selectedElementUserInput, element)
+  def setSelectedElementUserInput(element: Element.Generic) = parent.getContext.set(Data.Id.selectedElement, element)
   /**
    * Updates the given elements' presentation when one or more of their properties change.
    * Only the given elements are updated.
@@ -407,6 +313,57 @@ class View private (parent: VComposite, style: Int)
     table.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null)
   }
 
+  /** Clear root path */
+  protected[editor] def clearRootElement() {
+    getTextRootElement.setText("")
+    getTextRootElement.setToolTipText(null)
+    rootElementRanges = Seq()
+  }
+  /** Allow external access for scala classes */
+  override protected[editor] def getCoolBarManager(): CoolBarManager = super.getCoolBarManager()
+  /** Allow external access for scala classes */
+  override protected[editor] def getSashForm() = super.getSashForm
+  /** Initialize editor view */
+  protected def initialize() {
+    // Initialize injection from view context after everything is ready.
+    App.execAsync { ContextInjectionFactory.inject(View.this, getParent.getContext) }
+    setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
+    // initialize tree
+    tree
+    // initialize table
+    table
+    // initialize miscellaneous elements
+    getBtnResetActiveElement.addListener(SWT.Selection, new Listener() {
+      def handleEvent(event: Event) = Option(tree.treeViewer.getInput().asInstanceOf[TreeProxy.Item]) match {
+        case Some(item) if item.hash != 0 => setSelectedElementUserInput(item.element)
+        case _ => setSelectedElementUserInput(Model)
+      }
+    })
+    // Jump for root links.
+    getTextRootElement.addListener(SWT.MouseDown, new Listener() {
+      def handleEvent(event: Event) = try {
+        val offset = getTextRootElement.getOffsetAtLocation(new Point(event.x, event.y))
+        val style = getTextRootElement.getStyleRangeAtOffset(offset)
+        if (style != null && style.underline && style.underlineStyle == SWT.UNDERLINE_LINK)
+          rootElementRanges.find(range => offset >= range.index && offset <= range.index + range.length).foreach { range =>
+            setSelectedElementUserInput(range.element)
+            val item = TreeProxy.Item(range.element)
+            if (tree.treeViewer.getInput() != item) View.withRedrawDelayed(View.this) {
+              tree.treeViewer.setInput(item)
+              ActionAutoResize(false)
+            }
+          }
+      } catch {
+        case e: IllegalArgumentException => // no character under event.x, event.y
+      }
+    })
+    // reload data
+    View.withRedrawDelayed(this) {
+      reload()
+      ActionAutoResize(false)
+    }
+    View.views += this -> {}
+  }
   /** Recreate table columns with preserve table selected elements */
   protected def recreateSmart() {
     if (Table.columnLabelProvider.isEmpty)
@@ -512,7 +469,7 @@ object View extends Loggable {
   val views = new ViewWeakHashMap with mutable.SynchronizedMap[View, Unit]
 
   /** Create editor view */
-  def apply(parent: VComposite, style: Int): View = {
+  /*def apply(parent: VComposite, style: Int): View = {
     val view = new View(parent, style)
 
     // handle view changes
@@ -544,8 +501,8 @@ object View extends Loggable {
       view.ActionAutoResize(true)
     }
     view
-  }
-  def get(widget: Widget): Option[View] = None
+  }*/
+  //def get(widget: Widget): Option[View] = None
   /** Disable the redraw while updating */
   def withRedrawDelayed[T](view: View)(f: => T): T = {
     view.getSashForm.setRedraw(false)

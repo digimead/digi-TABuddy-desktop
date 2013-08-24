@@ -240,7 +240,7 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
     view = Option(parent)
     val content = App.execNGet {
       parent.getContext.set(Data.Id.usingViewDefinition, java.lang.Boolean.TRUE)
-      editor.View(parent, SWT.NONE)
+      new editor.View(parent, SWT.NONE)
     }
     Some(content)
   }
@@ -256,7 +256,7 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
     case None =>
       log.fatal("Unable to start view without widget.")
   }
-  /** User start interaction with window/stack supervisor/view/this content. Focus is gained. */
+  /** User stop interaction with window/stack supervisor/view/this content. Focus is lost. */
   protected def onStop(widget: Widget) = view match {
     case Some(view) =>
       log.debug("View stopped. Last widget is " + widget)

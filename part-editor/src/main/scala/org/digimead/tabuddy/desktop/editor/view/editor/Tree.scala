@@ -46,16 +46,23 @@ package org.digimead.tabuddy.desktop.editor.view.editor
 import java.util.Date
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.collection.mutable
 import scala.collection.immutable
 import scala.collection.JavaConversions._
 import scala.ref.WeakReference
+
 import com.ibm.icu.text.DateFormat
+
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.editor.Default
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.TreeProxy
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
@@ -91,9 +98,10 @@ import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Sash
 import org.eclipse.swt.widgets.Shell
 import org.eclipse.swt.widgets.TreeItem
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
 
+/**
+ * Left part of the editor
+ */
 class Tree(protected[editor] val view: View, style: Int)
   extends TreeActions with TreeFields with Loggable {
   /** The auto resize lock */
@@ -140,7 +148,7 @@ class Tree(protected[editor] val view: View, style: Int)
     val column = tree.getColumn(0)
     column.pack()
     // calculate shift
-    val afterTreeWidth = 0 // column.getWidth() + Default.columnPadding + treeColumnWidthGap
+    val afterTreeWidth = column.getWidth() + Default.columnPadding + treeColumnWidthGap
     val shift = afterTreeWidth - fromWidth(0)
     if (math.abs(shift) <= skipDither)
       return
@@ -156,9 +164,10 @@ class Tree(protected[editor] val view: View, style: Int)
 
   /** Create contents of the table. */
   protected def create(): TreeViewer = {
-    log.debug("create tree")
+    log.debug("Create tree.")
     val treeViewer = new TreeViewer(view.getSashForm, style)
     val tree = treeViewer.getTree()
+    tree.setData(Tree.widgetDataKey_WeakReferenceView, WeakReference(view))
     treeViewer.setUseHashlookup(true)
     treeViewer.getTree.setHeaderVisible(true)
     treeViewer.getTree.setLinesVisible(true)
@@ -224,6 +233,7 @@ class Tree(protected[editor] val view: View, style: Int)
     manager.add(ActionHideTree)
   }
   /** onActive callback */
+  @log
   protected def onActive() {
     treeColumnWidthGap // initialize treeColumnWidthGap
     autoresize(true)
@@ -239,7 +249,8 @@ class Tree(protected[editor] val view: View, style: Int)
         log.warn("skip adding TableView sash resize listener: " + e.getMessage())
     }
   }
-  /** onExpand callback */
+  /** onCollapse callback */
+  @log
   protected def onCollapse(treeItem: TreeItem) {
     val item = treeItem.getData().asInstanceOf[TreeProxy.Item]
     if (expandedItems(item))
@@ -248,6 +259,7 @@ class Tree(protected[editor] val view: View, style: Int)
     view.ActionAutoResize(false)
   }
   /** onExpand callback */
+  @log
   protected def onExpand(treeItem: TreeItem) {
     val item = treeItem.getData.asInstanceOf[TreeProxy.Item]
     if (!expandedItems(item))
@@ -270,6 +282,8 @@ class Tree(protected[editor] val view: View, style: Int)
     view.getSelectedElementUserInput.foreach(view.updateActiveElement)
     view.ActionAutoResize(false)
   }
+  /** onInputChanged callback */
+  @log
   protected def onInputChanged(item: TreeProxy.Item) {
     if (treeViewer.getTree().isDisposed())
       return
@@ -291,6 +305,9 @@ class Tree(protected[editor] val view: View, style: Int)
 }
 
 object Tree extends Loggable {
+  /** Tree viewer data key with weak reference to view. */
+  val widgetDataKey_WeakReferenceView = getClass.getName() + "#WeakReferenceView"
+
   /** Collapse the element. */
   def collapse(element: Element.Generic, recursively: Boolean, view: View): Unit = {
     log.debug("collapse " + element)
@@ -410,9 +427,15 @@ object Tree extends Loggable {
      * has been switched to a different element.
      */
     def inputChanged(v: Viewer, oldInput: Object, newInput: Object) = App.exec {
-      View.get(v.getControl()).foreach { view =>
-        assert(view.tree.treeViewer.getInput() == newInput, "JFace bug, WTF? event fired, but input is not changed")
-        view.tree.onInputChanged(newInput.asInstanceOf[TreeProxy.Item])
+      Option(v.getControl().getData(Tree.widgetDataKey_WeakReferenceView)) match {
+        case Some(viewRef: WeakReference[_]) =>
+          viewRef.get.asInstanceOf[Option[View]].foreach { view =>
+            if (view.tree.treeViewer.getInput() == newInput)
+              log.warn("JFace bug, WTF? event fired, but input is not changed")
+            view.tree.onInputChanged(newInput.asInstanceOf[TreeProxy.Item])
+          }
+        case _ =>
+          log.fatal("Unable to find view reference.")
       }
     }
     /** Returns the child elements of the given parent element. */
@@ -461,7 +484,6 @@ object Tree extends Loggable {
         null
     }
   }
-
   object TreeLabelProvider extends CellLabelProvider {
     val dfg = DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL)
 

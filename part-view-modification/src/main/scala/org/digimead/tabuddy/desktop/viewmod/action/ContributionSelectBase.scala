@@ -78,6 +78,8 @@ import org.eclipse.swt.events.DisposeEvent
 import org.eclipse.swt.widgets.Composite
 import org.eclipse.swt.widgets.Control
 
+import language.reflectiveCalls
+
 trait ContributionSelectBase[T <: { val id: UUID }] {
   this: ControlContribution with Loggable =>
   /** The combo box with list of values. */
