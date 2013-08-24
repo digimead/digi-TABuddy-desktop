@@ -111,7 +111,7 @@ class View(parent: VComposite, style: Int)
   /** Returns the view's parent, which must be a VComposite. */
   override def getParent(): VComposite = parent
   /** Get selected element for current context. */
-  def getSelectedElementUserInput() = Option(parent.getContext.get(Data.Id.selectedElement).asInstanceOf[Element[Stash]])
+  def getSelectedElement() = Option(parent.getContext.get(Data.Id.selectedElement).asInstanceOf[Element[Stash]])
   /** Invoked at every modification of Data.Id.selectedElement. */
   @Inject @Optional // @log
   def onSelectedElementChanged(@Named(Data.Id.selectedElement) element: Element.Generic) =
@@ -290,7 +290,7 @@ class View(parent: VComposite, style: Int)
     }
   }
   /** Set selected element for current context. */
-  def setSelectedElementUserInput(element: Element.Generic) = parent.getContext.set(Data.Id.selectedElement, element)
+  def setSelectedElement(element: Element.Generic) = parent.getContext.set(Data.Id.selectedElement, element)
   /**
    * Updates the given elements' presentation when one or more of their properties change.
    * Only the given elements are updated.
@@ -335,8 +335,8 @@ class View(parent: VComposite, style: Int)
     // initialize miscellaneous elements
     getBtnResetActiveElement.addListener(SWT.Selection, new Listener() {
       def handleEvent(event: Event) = Option(tree.treeViewer.getInput().asInstanceOf[TreeProxy.Item]) match {
-        case Some(item) if item.hash != 0 => setSelectedElementUserInput(item.element)
-        case _ => setSelectedElementUserInput(Model)
+        case Some(item) if item.hash != 0 => setSelectedElement(item.element)
+        case _ => setSelectedElement(Model)
       }
     })
     // Jump for root links.
@@ -346,7 +346,7 @@ class View(parent: VComposite, style: Int)
         val style = getTextRootElement.getStyleRangeAtOffset(offset)
         if (style != null && style.underline && style.underlineStyle == SWT.UNDERLINE_LINK)
           rootElementRanges.find(range => offset >= range.index && offset <= range.index + range.length).foreach { range =>
-            setSelectedElementUserInput(range.element)
+            setSelectedElement(range.element)
             val item = TreeProxy.Item(range.element)
             if (tree.treeViewer.getInput() != item) View.withRedrawDelayed(View.this) {
               tree.treeViewer.setInput(item)
@@ -376,9 +376,9 @@ class View(parent: VComposite, style: Int)
   /** Recreate table columns */
   protected def updateColumns() {
     val disposedColumnsWidth = table.disposeColumns()
-    //val columnList = context.toolbarView.view.value.map(selected => mutable.LinkedHashSet(TableView.COLUMN_ID) ++
-    //  (selected.fields.map(_.name) - TableView.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(TableView.COLUMN_ID, TableView.COLUMN_NAME))
-    //table.createColumns(columnList, disposedColumnsWidth)
+    val columnList = Data.getSelectedViewDefinition(getParent.getContext).map(selected => mutable.LinkedHashSet(View.COLUMN_ID) ++
+      (selected.fields.map(_.name) - View.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(View.COLUMN_ID, View.COLUMN_NAME))
+    table.createColumns(columnList, disposedColumnsWidth)
   }
   /** Update active element status */
   protected[editor] def updateActiveElement(element: Element.Generic) {
@@ -461,8 +461,6 @@ object View extends Loggable {
   protected[editor] val COLUMN_ID = "id"
   /** The column special identifier */
   protected[editor] val COLUMN_NAME = "name"
-  /** Aggregation listener delay */
-  private val aggregatorDelay = 250 // msec
   /** Structural changes(e.g. addition or removal of elements) aggregator */
   //private val refreshEventsExpandAggregator = WritableValue(Set[Element[_ <: Stash]]())
   /** All views. */
@@ -502,7 +500,6 @@ object View extends Loggable {
     }
     view
   }*/
-  //def get(widget: Widget): Option[View] = None
   /** Disable the redraw while updating */
   def withRedrawDelayed[T](view: View)(f: => T): T = {
     view.getSashForm.setRedraw(false)

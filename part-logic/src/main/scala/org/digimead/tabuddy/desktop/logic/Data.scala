@@ -152,11 +152,26 @@ object Data extends Loggable {
     if (result.isEmpty) Set(Sorting.simpleSorting) else result.toSet
   }
   /** Get selected view definitions. */
-  def getSelectedViewDefinition(context: Context): Option[view.api.View] = None
+  def getSelectedViewDefinition(context: Context, local: Boolean = false): Option[view.api.View] = {
+    if (local)
+      Option(context.getLocal(Data.Id.selectedView).asInstanceOf[UUID])
+    else
+      Option(context.get(Data.Id.selectedView).asInstanceOf[UUID])
+  } flatMap (viewDefinitions.get)
   /** Get selected view filter. */
-  def getSelectedViewFilter(context: Context): Option[view.api.Filter] = None
+  def getSelectedViewFilter(context: Context, local: Boolean = false): Option[view.api.Filter] = {
+    if (local)
+      Option(context.getLocal(Data.Id.selectedFilter).asInstanceOf[UUID])
+    else
+      Option(context.get(Data.Id.selectedFilter).asInstanceOf[UUID])
+  } flatMap (viewFilters.get)
   /** Get selected view sorting. */
-  def getSelectedViewSorting(context: Context): Option[view.api.Sorting] = None
+  def getSelectedViewSorting(context: Context, local: Boolean = false): Option[view.api.Sorting] = {
+    if (local)
+      Option(context.getLocal(Data.Id.selectedSorting).asInstanceOf[UUID])
+    else
+      Option(context.get(Data.Id.selectedSorting).asInstanceOf[UUID])
+  } flatMap (viewSortings.get)
   /** This function is invoked at every model initialization */
   def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = {
     log.info(s"Initialize model $newModel.")

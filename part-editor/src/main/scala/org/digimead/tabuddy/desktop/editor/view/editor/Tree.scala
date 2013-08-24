@@ -194,7 +194,7 @@ class Tree(protected[editor] val view: View, style: Int)
     treeViewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-          view.setSelectedElementUserInput(selection.getFirstElement().asInstanceOf[TreeProxy.Item].element)
+          view.setSelectedElement(selection.getFirstElement().asInstanceOf[TreeProxy.Item].element)
         case selection =>
       }
     })
@@ -255,7 +255,7 @@ class Tree(protected[editor] val view: View, style: Int)
     val item = treeItem.getData().asInstanceOf[TreeProxy.Item]
     if (expandedItems(item))
       view.proxy.onCollapse(item)
-    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.getSelectedElement.foreach(view.updateActiveElement)
     view.ActionAutoResize(false)
   }
   /** onExpand callback */
@@ -279,7 +279,7 @@ class Tree(protected[editor] val view: View, style: Int)
         }
       }
     }
-    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.getSelectedElement.foreach(view.updateActiveElement)
     view.ActionAutoResize(false)
   }
   /** onInputChanged callback */
@@ -300,7 +300,7 @@ class Tree(protected[editor] val view: View, style: Int)
         view.proxy.onFilter(systemItem)
     }
     view.updateRootElement(item.element)
-    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.getSelectedElement.foreach(view.updateActiveElement)
   }
 }
 
@@ -319,14 +319,14 @@ object Tree extends Loggable {
       view.tree.treeViewer.collapseToLevel(item, 1)
       view.proxy.onCollapse(item)
     }
-    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.getSelectedElement.foreach(view.updateActiveElement)
   }
   /** Collapse all elements */
   def collapseAll(view: View) = {
     log.debug("collapse all elements")
     view.tree.treeViewer.collapseAll()
     view.proxy.onCollapseAll()
-    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.getSelectedElement.foreach(view.updateActiveElement)
   }
   /** Expand the element. */
   def expand(element: Element.Generic, recursively: Boolean, view: View): Unit = {
@@ -349,7 +349,7 @@ object Tree extends Loggable {
       }
     }
     expandItem(item)
-    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.getSelectedElement.foreach(view.updateActiveElement)
   }
   /** Expand all elements */
   def expandAll(view: View): Unit = {
@@ -358,7 +358,7 @@ object Tree extends Loggable {
     view.tree.treeViewer.expandAll()
     view.proxy.onExpandAll()
     view.table.tableViewer.setSelection(tableSelection)
-    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.getSelectedElement.foreach(view.updateActiveElement)
   }
   /** Toggle system elements filter */
   def toggleSystemElementsFilter(enableFilter: Boolean, view: View) = {
@@ -379,7 +379,7 @@ object Tree extends Loggable {
         }
       }
     }
-    view.getSelectedElementUserInput.foreach(view.updateActiveElement)
+    view.getSelectedElement.foreach(view.updateActiveElement)
   }
   /** Toggle auto expand */
   def toggleAutoExpand(enable: Boolean, view: View) = {
@@ -503,13 +503,13 @@ object Tree extends Loggable {
         null
     }
     /** The time in milliseconds until the tool tip is displayed. */
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 0 // Default.toolTipDisplayDelayTime
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
     /**
      * Return the amount of pixels in x and y direction that the tool tip to
      * pop up from the mouse pointer.
      */
-    override def getToolTipShift(obj: Object): Point = null //Default.toolTipShift
+    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
     /** The time in milliseconds the tool tip is shown for. */
-    override def getToolTipTimeDisplayed(obj: Object): Int = 0 //Default.toolTipTimeDisplayed
+    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
   }
 }
