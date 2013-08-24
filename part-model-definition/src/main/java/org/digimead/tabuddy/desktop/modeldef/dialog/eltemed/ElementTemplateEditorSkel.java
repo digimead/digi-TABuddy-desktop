@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.modeldef.dialog.eltemed;
 
-import org.digimead.tabuddy.desktop.Messages;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;

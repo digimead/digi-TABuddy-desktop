@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.editor.view.editor;
 
-import org.digimead.tabuddy.desktop.Messages;
 import org.eclipse.jface.action.CoolBarManager;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
