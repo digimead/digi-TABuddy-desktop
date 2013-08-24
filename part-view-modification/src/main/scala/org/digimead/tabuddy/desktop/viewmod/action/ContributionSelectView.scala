@@ -57,6 +57,7 @@ import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.logic.payload.view.api.View
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.ControlContribution
@@ -87,7 +88,7 @@ class ContributionSelectView extends ControlContribution(ContributionSelectView.
       case None =>
         // There is uninitialized context.
         log.debug(s"Initialize ${vcomposite} context.")
-        updateContextValue(Some(ViewToolBarManager.defaultView))
+        updateContextValue(Some(Default.ViewMod.view))
         updateComboBoxValue(None)
       case _ =>
     }
@@ -164,7 +165,7 @@ class ContributionSelectView extends ControlContribution(ContributionSelectView.
     val selection = getSelection
     if (selection == value && value.nonEmpty)
       return
-    if (selection == Some(ViewToolBarManager.defaultView) && value.isEmpty)
+    if (selection == Some(Default.ViewMod.view) && value.isEmpty)
       return
     for (comboViewer <- comboViewer.get)
       value match {
@@ -172,8 +173,8 @@ class ContributionSelectView extends ControlContribution(ContributionSelectView.
           log.debug(s"Set UI value to ${view.id}.")
           comboViewer.setSelection(new StructuredSelection(view), true)
         case _ =>
-          log.debug(s"Set UI value to ${ViewToolBarManager.defaultView.id}.")
-          comboViewer.setSelection(new StructuredSelection(ViewToolBarManager.defaultView), true)
+          log.debug(s"Set UI value to ${Default.ViewMod.view.id}.")
+          comboViewer.setSelection(new StructuredSelection(Default.ViewMod.view), true)
       }
   }
 }

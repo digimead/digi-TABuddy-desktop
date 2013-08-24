@@ -43,35 +43,28 @@
 
 package org.digimead.tabuddy.desktop.editor.action
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.jface.action.{ Action => JFaceAction }
 import org.eclipse.jface.action.IAction
-import org.eclipse.swt.widgets.Event
 
 import akka.actor.Props
 
 /** Collapse all elements. */
-class CollapseAll extends JFaceAction("CollapseAll") with Loggable {
-  @volatile protected var enabled = false
-  ContextInjectionFactory.inject(this, Core.context)
+class CollapseAll extends JFaceAction(Messages.collapseAll_text) with Loggable {
+  @volatile protected var enabled = true
 
   override def isEnabled(): Boolean = super.isEnabled && enabled
-  /** Runs this action, passing the triggering SWT event. */
+  /** Runs this action. */
   @log
-  override def runWithEvent(event: Event) = future {
-    //Payload.close(Payload.modelMarker(Model))
-    //Payload.delete(Payload.modelMarker(Model))
-  } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+  override def run() = App.getActiveView foreach (_.getChildren().headOption match {
+    case Some(view: org.digimead.tabuddy.desktop.editor.view.editor.View) => view.ActionCollapseAll()
+    case _ =>
+  })
 
   /** Update enabled action state. */
   protected def updateEnabled() = if (isEnabled)
@@ -79,33 +72,6 @@ class CollapseAll extends JFaceAction("CollapseAll") with Loggable {
   else
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
-
-/*
-class CollapseAll extends Handler(CollapseAll) with Loggable {
-  @log
-  def execute(event: ExecutionEvent): AnyRef = {
-    null
-  }
-}
-
-object CollapseAll extends Handler.Singleton with Loggable {
-  /** CollapseAll actor path. */
-  lazy val actorPath = App.system / Core.id / Editor.id / EditorToolBar.id / id
-  /** Command id for the current handler. */
-  val commandId = "org.digimead.tabuddy.desktop.editor.CollapseAll"
-  /** Handler actor reference configuration object. */
-  val props = DI.props
-
-  class Behavoiur extends Handler.Behaviour(CollapseAll) with Loggable
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** CollapseAll actor reference configuration object. */
-    lazy val props = injectOptional[Props]("command.CollapseAll") getOrElse Props[Behavoiur]
-  }
-}
-*/
 
 object CollapseAll extends Loggable {
   /** Singleton identificator. */

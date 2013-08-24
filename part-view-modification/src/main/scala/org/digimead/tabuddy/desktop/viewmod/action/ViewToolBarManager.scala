@@ -43,11 +43,8 @@
 
 package org.digimead.tabuddy.desktop.viewmod.action
 
-import java.util.UUID
-
 import scala.ref.WeakReference
 
-import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
@@ -55,7 +52,6 @@ import org.digimead.tabuddy.desktop.definition.ToolBarManager
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.gui.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
@@ -83,10 +79,7 @@ class ViewToolBarManager extends ToolBarManager with Loggable {
   /** Invoked on view activation. */
   @Inject @Optional
   def onViewChanged(@Named(GUI.viewContextKey) vcomposite: VComposite): Unit = App.exec {
-    if (vcomposite.getContext.getLocal(Data.Id.usingViewDefinition) == java.lang.Boolean.TRUE)
-      visible = true
-    else
-      visible = false
+    visible = vcomposite.getContext.getLocal(Data.Id.usingViewDefinition) == java.lang.Boolean.TRUE
     contribution.get.foreach(_.setVisible(visible))
     getCoolBarManager.foreach(_.update(true))
   }
@@ -97,26 +90,5 @@ class ViewToolBarManager extends ToolBarManager with Loggable {
       coolBarManager = WeakReference(coolbar)
       coolbar
     }
-  }
-}
-
-object ViewToolBarManager {
-  /** Default view definition id. */
-  val defaultView = DI.defaultViewId.flatMap(Data.viewDefinitions.get) getOrElse payload.view.View.displayName
-  /** Default view sorting id. */
-  val defaultSorting = DI.defaultViewId.flatMap(Data.viewSortings.get) getOrElse payload.view.Sorting.simpleSorting
-  /** Default view filter id. */
-  val defaultFilter = DI.defaultViewId.flatMap(Data.viewFilters.get) getOrElse payload.view.Filter.allowAllFilter
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Default view definition id. */
-    lazy val defaultViewId = injectOptional[UUID]("ViewMod.DefaultViewId")
-    /** Default view sorting id. */
-    lazy val defaultSortingId = injectOptional[UUID]("ViewMod.DefaultSortingId")
-    /** Default view filter id. */
-    lazy val defaultFilterID = injectOptional[UUID]("ViewMod.DefaultFilterId")
   }
 }

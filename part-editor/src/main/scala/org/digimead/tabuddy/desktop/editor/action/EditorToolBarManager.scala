@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,47 +41,53 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.editor.action
 
-import org.digimead.digi.lib.DependencyInjection
+import scala.ref.WeakReference
 
-import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.digimead.tabuddy.desktop.definition.ToolBarManager
+import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.gui.widget.VComposite
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.CoolBarManager
+import org.eclipse.swt.widgets.Composite
+import org.eclipse.swt.widgets.ToolBar
+
+import javax.inject.Inject
+import javax.inject.Named
 
 /**
- * View modification component contains:
- *   modify filter dialog
- *   modify filter list dialog
- *   modify sorting dialog
- *   modify sorting list dialog
- *   modify view dialog
- *   modify view list dialog
+ * ToolBar manager that contains ToggleIdentificators, ToggleEmpty, ExpandAll, CollapseAll
  */
-package object viewmod {
-  lazy val default = new NewBindingModule(module => {
-    // implementation of logic.operation.view.OperationModifyFilter
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyFilter] toSingle {
-      new operation.OperationModifyFilter()
+class EditorToolBarManager extends ToolBarManager with Loggable {
+  /** CoolBar */
+  @volatile protected var coolBarManager = WeakReference[CoolBarManager](null)
+  /** Flag indicating whether toolbar manager is visible. */
+  @volatile protected var visible = false
+
+  override def createControl(parent: Composite): ToolBar = {
+    App.execAsync { ContextInjectionFactory.inject(EditorToolBarManager.this, Core.context) }
+    super.createControl(parent)
+  }
+  /** Invoked on view activation. */
+  @Inject @Optional
+  def onViewChanged(@Named(GUI.viewContextKey) vcomposite: VComposite): Unit = App.exec {
+    visible = vcomposite.getChildren().headOption.map(_.isInstanceOf[org.digimead.tabuddy.desktop.editor.view.editor.View]).getOrElse(false)
+    contribution.get.foreach(_.setVisible(visible))
+    getCoolBarManager.foreach(_.update(true))
+  }
+  /** Get coolbar manager for this toolbar manager. */
+  protected def getCoolBarManager(): Option[CoolBarManager] = coolBarManager.get orElse {
+    Option(getControl()).flatMap(c => Option(c.getShell())).flatMap(App.findWindowComposite).flatMap(_.getAppWindow).map { window =>
+      val coolbar = window.getCoolBarManager()
+      coolBarManager = WeakReference(coolbar)
+      coolbar
     }
-    // implementation of logic.operation.view.OperationModifyFilterList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyFilterList] toSingle {
-      new operation.OperationModifyFilterList()
-    }
-    // implementation of logic.operation.view.OperationModifySorting
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifySorting] toSingle {
-      new operation.OperationModifySorting()
-    }
-    // implementation of logic.operation.view.OperationModifySortingList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifySortingList] toSingle {
-      new operation.OperationModifySortingList()
-    }
-    // implementation of logic.operation.view.OperationModifyView
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyView] toSingle {
-      new operation.OperationModifyView()
-    }
-    // implementation of logic.operation.view.OperationModifyViewList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyViewList] toSingle {
-      new operation.OperationModifyViewList()
-    }
-  })
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.viewmod.Default$DI$")
+  }
 }

@@ -48,15 +48,15 @@ import org.eclipse.swt.graphics.Point
 
 object Default {
   /** Aggregation listener delay. msec. */
-  val aggregatorDelay = DI.aggregatorDelay
+  def aggregatorDelay = DI.aggregatorDelay
   /** Ascending sort constant */
-  val ASCENDING = DI.ASCENDING
+  def ASCENDING = DI.ASCENDING
   /** Descending sort constant */
-  val DESCENDING = DI.DESCENDING
+  def DESCENDING = DI.DESCENDING
   /** Auto resize column padding */
-  val columnPadding = DI.columnPadding
+  def columnPadding = DI.columnPadding
   /** Default sort direction */
-  val sortingDirection = DI.sortingDirection
+  def sortingDirection = DI.sortingDirection
   /**
    * Return the amount of pixels in x and y direction you want the tool tip to
    * pop up from the mouse pointer. The default shift is 10px right and 0px
@@ -64,11 +64,11 @@ object Default {
    * position the tool tip 1px right to your mouse cursor else click events
    * may not get propagated properly.
    */
-  val toolTipShift = DI.toolTipShift
+  def toolTipShift = DI.toolTipShift
   /** The time in milliseconds until the tool tip is displayed. */
-  val toolTipDisplayDelayTime = DI.toolTipDisplayDelayTime
+  def toolTipDisplayDelayTime = DI.toolTipDisplayDelayTime
   /** The time in milliseconds the tool tip is shown for. */
-  val toolTipTimeDisplayed = DI.toolTipTimeDisplayed
+  def toolTipTimeDisplayed = DI.toolTipTimeDisplayed
   /**
    * Dependency injection routines.
    */

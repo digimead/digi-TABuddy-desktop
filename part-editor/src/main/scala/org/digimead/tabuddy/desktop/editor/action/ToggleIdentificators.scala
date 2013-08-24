@@ -43,64 +43,41 @@
 
 package org.digimead.tabuddy.desktop.editor.action
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
+import org.digimead.tabuddy.desktop.Messages
+import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.digimead.tabuddy.desktop.editor.Editor
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
+import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.{ Action => JFaceAction }
 import org.eclipse.jface.action.IAction
-import org.eclipse.swt.widgets.Event
 
 import akka.actor.Props
-/*
-class ToggleIdentificators extends Handler(ToggleIdentificators) with Loggable {
-  /** Executes with the map of parameter values by name. */
-  @log
-  def execute(event: ExecutionEvent): AnyRef = {
-    log.___glance("!!!! EXEC")
-    App.system.actorSelection(App.system / "*") ! Handler.Message.Disable
-    null
-  }
-}
+import javax.inject.Inject
+import javax.inject.Named
 
-object ToggleIdentificators extends Handler.Singleton with Loggable {
-  /** ToggleIdentificators actor path. */
-  lazy val actorPath = App.system / Core.id / Editor.id / EditorToolBar.id / id
-  /** Command id for the current handler. */
-  val commandId = classOf[ToggleIdentificators].getName
-  /** Handler actor reference configuration object. */
-  val props = DI.props
+/** Toggle visibility of identificators in the active view. */
+class ToggleIdentificators extends JFaceAction(Messages.identificators_text, IAction.AS_CHECK_BOX) with Loggable {
+  @volatile protected var enabled = true
 
-  class Behavoiur extends Handler.Behaviour(ToggleIdentificators) with Loggable
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** ToggleIdentificators actor reference configuration object. */
-    lazy val props = injectOptional[Props]("command.ToggleIdentificators") getOrElse Props[Behavoiur]
-  }
-}
-*/
-
-/** Toggle part identificators per window. */
-class ToggleIdentificators extends JFaceAction("ToggleIdentificators") with Loggable {
-  @volatile protected var enabled = false
   ContextInjectionFactory.inject(this, Core.context)
 
   override def isEnabled(): Boolean = super.isEnabled && enabled
-  /** Runs this action, passing the triggering SWT event. */
+  /** Update checked state from context. */
+  @Inject @Optional
+  def onStateOfToggleIdentificatorChanged(@Active @Named(Editor.Id.stateOfToggleIdentificator) checked: java.lang.Boolean) =
+    Option(checked) foreach { checked => App.exec { if (checked != isChecked()) setChecked(checked) } }
+  /** Runs this action. */
   @log
-  override def runWithEvent(event: Event) = future {
-    //Payload.close(Payload.modelMarker(Model))
-    //Payload.delete(Payload.modelMarker(Model))
-  } onFailure { case e: Throwable => log.error(e.getMessage, e) }
+  override def run() = for {
+    v <- App.getActiveView if v.getChildren().headOption.map(_.isInstanceOf[org.digimead.tabuddy.desktop.editor.view.editor.View]).getOrElse(false)
+  } v.getContext.set(Editor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
 
   /** Update enabled action state. */
   protected def updateEnabled() = if (isEnabled)

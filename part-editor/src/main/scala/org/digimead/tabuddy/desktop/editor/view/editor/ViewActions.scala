@@ -43,11 +43,17 @@
 
 package org.digimead.tabuddy.desktop.editor.view.editor
 
-import org.eclipse.jface.action.Action
 import org.digimead.tabuddy.desktop.Messages
-import org.eclipse.swt.widgets.Event
-import org.eclipse.swt.widgets.Shell
+import org.digimead.tabuddy.desktop.editor.Editor
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.IAction
+
+import javax.inject.Inject
+import javax.inject.Named
 
 /**
  * TableView actions.
@@ -88,16 +94,43 @@ trait ViewActions {
   object ActionElementDelete extends Action(Messages.delete_text) {
     override def run = {}
   }
+  /** Toggle visibility of identificators in the view. */
   object ActionToggleIdentificators extends Action(Messages.identificators_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
+    ViewActions.this.getParent.getContext.set(Editor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
+    ContextInjectionFactory.inject(this, ViewActions.this.getParent.getContext)
 
     def apply() = Table.toggleColumnId(isChecked(), ViewActions.this)
-    override def runWithEvent(event: Event) = apply()
+    /** Update checked state from context of the current view. */
+    @Inject @Optional
+    def onStateOfToggleIdentificatorChanged(@Named(Editor.Id.stateOfToggleIdentificator) checked: java.lang.Boolean) =
+      Option(checked) foreach (checked => App.exec {
+        if (checked != isChecked()) {
+          setChecked(checked)
+          apply()
+        }
+      })
+    override def run() = {
+      ViewActions.this.getParent.getContext.set(Editor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
+      apply()
+    }
   }
+  /** Toggle visibility of empty rows in the view. */
   object ActionToggleEmpty extends Action(Messages.emptyRows_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
+    ViewActions.this.getParent.getContext.set(Editor.Id.stateOfToggleEmpty, isChecked(): java.lang.Boolean)
+    ContextInjectionFactory.inject(this, ViewActions.this.getParent.getContext)
 
     def apply() = Table.toggleEmptyRows(!isChecked(), ViewActions.this)
+    /** Update checked state from context of the current view. */
+    @Inject @Optional
+    def onStateOfToggleIdentificatorChanged(@Named(Editor.Id.stateOfToggleEmpty) checked: java.lang.Boolean) =
+      Option(checked) foreach (checked => App.exec {
+        if (checked != isChecked()) {
+          setChecked(checked)
+          apply()
+        }
+      })
     override def run() = apply()
   }
   object ActionToggleExpand extends Action(Messages.expandNew_text, IAction.AS_CHECK_BOX) {
@@ -115,13 +148,30 @@ trait ViewActions {
       getSashForm.setMaximizedControl(null)
     override def run() = apply()
   }
+  /**
+   * Hide system elements.
+   * unchecked - filter is enabled
+   * checked - filter is disabled
+   * by default - enabled
+   */
   object ActionToggleSystem extends Action(Messages.systemElements_text, IAction.AS_CHECK_BOX) {
     setChecked(false)
+    ViewActions.this.getParent.getContext.set(Editor.Id.stateOfToggleSystem, isChecked(): java.lang.Boolean)
+    ContextInjectionFactory.inject(this, ViewActions.this.getParent.getContext)
 
     def apply() = View.withRedrawDelayed(ViewActions.this) {
       Tree.toggleSystemElementsFilter(!isChecked(), ViewActions.this)
       ActionAutoResize(false)
     }
+    /** Update checked state from context of the current view. */
+    @Inject @Optional
+    def onStateOfToggleIdentificatorChanged(@Named(Editor.Id.stateOfToggleSystem) checked: java.lang.Boolean) =
+      Option(checked) foreach (checked => App.exec {
+        if (checked != isChecked()) {
+          setChecked(checked)
+          apply()
+        }
+      })
     override def run() = apply()
   }
 }

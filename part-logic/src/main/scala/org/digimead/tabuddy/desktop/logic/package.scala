@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop
 
 import java.io.File
 
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.util.Util
 import org.digimead.tabuddy.desktop.logic.Config
 
@@ -77,4 +78,5 @@ package object logic {
     operation.default
   //approver.default ~
   //debug.default
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.Default$DI$")
 }

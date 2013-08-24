@@ -59,6 +59,7 @@ import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.logic.payload.view.api.Sorting
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.ControlContribution
@@ -89,7 +90,7 @@ class ContributionSelectSorting extends ControlContribution(ContributionSelectSo
       case None =>
         // There is uninitialized context.
         log.debug(s"Initialize ${vcomposite} context.")
-        updateContextValue(Some(ViewToolBarManager.defaultSorting))
+        updateContextValue(Some(Default.ViewMod.sorting))
         updateComboBoxValue(None)
       case _ =>
     }
@@ -101,7 +102,7 @@ class ContributionSelectSorting extends ControlContribution(ContributionSelectSo
   /** Invoked at every modification of Data.Id.selectedView. */
   @Inject @Optional // @log
   def onSelectedViewChanged(@Active @Named(Data.Id.selectedView) id: UUID): Unit =
-    App.exec { reloadItems(Option(id).flatMap(Data.viewDefinitions.get) getOrElse { ViewToolBarManager.defaultView }) }
+    App.exec { reloadItems(Option(id).flatMap(Data.viewDefinitions.get) getOrElse { Default.ViewMod.view }) }
 
   /** Create contribution control. */
   override protected def createControl(parent: Composite): Control = {
@@ -125,7 +126,7 @@ class ContributionSelectSorting extends ControlContribution(ContributionSelectSo
   protected def reloadItems() = {
     App.findBranchContextByName(Core.context.getActiveLeaf, VComposite.contextName).foreach(context =>
       Option(context.getLocal(contextValueKey).asInstanceOf[UUID]))
-    reloadItems(ViewToolBarManager.defaultView)
+    reloadItems(Default.ViewMod.view)
   }
   /** Reload sortings combo box. */
   protected def reloadItems(view: payload.view.api.View): Unit = for {
@@ -139,8 +140,8 @@ class ContributionSelectSorting extends ControlContribution(ContributionSelectSo
     val actialInput = if (view.sortings.isEmpty)
       available.toArray
     else
-      ViewToolBarManager.defaultSorting +: view.sortings.flatMap(id =>
-        available.find(_.id == id && id != ViewToolBarManager.defaultSorting.id)).toArray
+      Default.ViewMod.sorting +: view.sortings.flatMap(id =>
+        available.find(_.id == id && id != Default.ViewMod.sorting.id)).toArray
     val previousInput = comboViewer.getInput().asInstanceOf[Array[payload.view.api.Sorting]]
     if (previousInput != null && previousInput.nonEmpty && previousInput.corresponds(actialInput)(payload.view.Sorting.compareDeep)) {
       log.debug("Skip reload. Elements are the same.")
@@ -183,7 +184,7 @@ class ContributionSelectSorting extends ControlContribution(ContributionSelectSo
     val selection = getSelection
     if (selection == value && value.nonEmpty)
       return
-    if (selection == Some(ViewToolBarManager.defaultSorting) && value.isEmpty)
+    if (selection == Some(Default.ViewMod.sorting) && value.isEmpty)
       return
     for (comboViewer <- comboViewer.get)
       value match {
@@ -191,8 +192,8 @@ class ContributionSelectSorting extends ControlContribution(ContributionSelectSo
           log.debug(s"Set UI value to ${sorting.id}.")
           comboViewer.setSelection(new StructuredSelection(sorting), true)
         case _ =>
-          log.debug(s"Set UI value to ${ViewToolBarManager.defaultSorting.id}.")
-          comboViewer.setSelection(new StructuredSelection(ViewToolBarManager.defaultSorting), true)
+          log.debug(s"Set UI value to ${Default.ViewMod.sorting.id}.")
+          comboViewer.setSelection(new StructuredSelection(Default.ViewMod.sorting), true)
       }
   }
 }

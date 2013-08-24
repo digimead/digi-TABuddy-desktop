@@ -46,13 +46,13 @@ package org.digimead.tabuddy.desktop.editor.action
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop
-import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.gui.WindowMenu
 import org.digimead.tabuddy.desktop.gui.WindowToolbar
 import org.digimead.tabuddy.desktop.gui.widget.AppWindow
+import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.eclipse.jface.action.Separator
 
 import akka.actor.Actor
 import akka.actor.ActorRef
@@ -109,10 +109,11 @@ class Action extends Actor with Loggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    //val file = WindowMenu(window, desktop.action.Action.fileMenu)
-    //    file.add(Save())
-    //    file.add(Delete())
-    //    file.add(Close())
+    val model = WindowMenu(window, logic.action.Action.modelMenu)
+    model.add(new Separator)
+    model.add(ToggleExpand())
+    model.add(ToggleSystem())
+    window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
   @log
@@ -134,9 +135,9 @@ object Action {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Editor toolbar descriptor. */
-  val editorToolbar = WindowToolbar.Descriptor(getClass.getName() + "#editor")
+  lazy val editorToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#editor", () => new EditorToolBarManager()) }
   /** Element toolbar descriptor. */
-  val elementToolbar = WindowToolbar.Descriptor(getClass.getName() + "#element")
+  lazy val elementToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#element") }
   // Initialize descendant actor singletons
   CollapseAll
   ElementDelete

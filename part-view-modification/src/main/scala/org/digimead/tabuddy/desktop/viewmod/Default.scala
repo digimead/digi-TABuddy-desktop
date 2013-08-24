@@ -43,20 +43,24 @@
 
 package org.digimead.tabuddy.desktop.viewmod
 
+import java.util.UUID
+
 import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.payload
 import org.eclipse.swt.graphics.Point
 
 object Default {
   /** Aggregation listener delay. msec. */
-  val aggregatorDelay = DI.aggregatorDelay
+  def aggregatorDelay = DI.aggregatorDelay
   /** Ascending sort constant */
-  val ASCENDING = DI.ASCENDING
+  def ASCENDING = DI.ASCENDING
   /** Descending sort constant */
-  val DESCENDING = DI.DESCENDING
+  def DESCENDING = DI.DESCENDING
   /** Auto resize column padding */
-  val columnPadding = DI.columnPadding
+  def columnPadding = DI.columnPadding
   /** Default sort direction */
-  val sortingDirection = DI.sortingDirection
+  def sortingDirection = DI.sortingDirection
   /**
    * Return the amount of pixels in x and y direction you want the tool tip to
    * pop up from the mouse pointer. The default shift is 10px right and 0px
@@ -64,11 +68,19 @@ object Default {
    * position the tool tip 1px right to your mouse cursor else click events
    * may not get propagated properly.
    */
-  val toolTipShift = DI.toolTipShift
+  def toolTipShift = DI.toolTipShift
   /** The time in milliseconds until the tool tip is displayed. */
-  val toolTipDisplayDelayTime = DI.toolTipDisplayDelayTime
+  def toolTipDisplayDelayTime = DI.toolTipDisplayDelayTime
   /** The time in milliseconds the tool tip is shown for. */
-  val toolTipTimeDisplayed = DI.toolTipTimeDisplayed
+  def toolTipTimeDisplayed = DI.toolTipTimeDisplayed
+  object ViewMod {
+    /** Default view definition id. */
+    lazy val view = DI.defaultViewId.flatMap(Data.viewDefinitions.get) getOrElse payload.view.View.displayName
+    /** Default view sorting id. */
+    lazy val sorting = DI.defaultViewId.flatMap(Data.viewSortings.get) getOrElse payload.view.Sorting.simpleSorting
+    /** Default view filter id. */
+    lazy val filter = DI.defaultViewId.flatMap(Data.viewFilters.get) getOrElse payload.view.Filter.allowAllFilter
+  }
   /**
    * Dependency injection routines.
    */
@@ -81,6 +93,12 @@ object Default {
     lazy val DESCENDING = injectOptional[Boolean]("Default.Sorting.DESCENDING") getOrElse true
     /** Auto resize column padding */
     lazy val columnPadding = injectOptional[Int]("Default.columnPadding") getOrElse 10
+    /** Default view definition id. */
+    lazy val defaultViewId = injectOptional[UUID]("ViewMod.DefaultViewId")
+    /** Default view sorting id. */
+    lazy val defaultSortingId = injectOptional[UUID]("ViewMod.DefaultSortingId")
+    /** Default view filter id. */
+    lazy val defaultFilterID = injectOptional[UUID]("ViewMod.DefaultFilterId")
     /** Default sort direction */
     lazy val sortingDirection = injectOptional[Boolean]("Default.Sorting.Direction") getOrElse Default.ASCENDING
     /**

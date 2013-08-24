@@ -195,6 +195,16 @@ object Editor {
   // Initialize descendant actor singletons
   action.Action
 
+  object Id {
+    /** Value of the ToggleEmpty switch [java.lang.Boolean]. */
+    final val stateOfToggleEmpty = "org.digimead.tabuddy.desktop.editor.Editor/stateOfToggleEmpty"
+    /** Value of the ToggleExpand switch [java.lang.Boolean]. */
+    final val stateOfToggleExpand = "org.digimead.tabuddy.desktop.editor.Editor/stateOfToggleExpand"
+    /** Value of the ToggleIdentificator switch [java.lang.Boolean]. */
+    final val stateOfToggleIdentificator = "org.digimead.tabuddy.desktop.editor.Editor/stateOfToggleIdentificator"
+    /** Value of the ToggleSystem switch [java.lang.Boolean]. */
+    final val stateOfToggleSystem = "org.digimead.tabuddy.desktop.editor.Editor/stateOfToggleSystem"
+  }
   /**
    * Dependency injection routines
    */

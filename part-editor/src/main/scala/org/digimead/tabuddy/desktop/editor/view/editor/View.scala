@@ -357,12 +357,18 @@ class View(parent: VComposite, style: Int)
         case e: IllegalArgumentException => // no character under event.x, event.y
       }
     })
-    // reload data
+    View.views += this -> {}
+    // Update newly created view
     View.withRedrawDelayed(this) {
       reload()
       ActionAutoResize(false)
+      if (ActionToggleExpand.isChecked())
+        Tree.expandAll(this)
+      ActionToggleEmpty()
+      ActionToggleSystem()
+      ActionToggleIdentificators()
+      ActionAutoResize(true)
     }
-    View.views += this -> {}
   }
   /** Recreate table columns with preserve table selected elements */
   protected def recreateSmart() {
@@ -465,11 +471,10 @@ object View extends Loggable {
   //private val refreshEventsExpandAggregator = WritableValue(Set[Element[_ <: Stash]]())
   /** All views. */
   val views = new ViewWeakHashMap with mutable.SynchronizedMap[View, Unit]
-
+  /** withRedraw counter that allows nested usage. It is valid only within UI thread. */
+  protected var withRedrawCounter = 0
   /** Create editor view */
   /*def apply(parent: VComposite, style: Int): View = {
-    val view = new View(parent, style)
-
     // handle view changes
     /*view.context.toolbarView.view.addChangeListener { (_, _) =>
       withRedrawDelayed(view) {
@@ -489,27 +494,26 @@ object View extends Loggable {
         view.table.tableViewer.refresh()
       }
     }*/
-    // initial update of tree state
-    View.withRedrawDelayed(view) {
-      if (view.ActionToggleExpand.isChecked())
-        Tree.expandAll(view)
-      view.ActionToggleEmpty()
-      view.ActionToggleSystem()
-      view.ActionToggleIdentificators()
-      view.ActionAutoResize(true)
-    }
-    view
   }*/
   /** Disable the redraw while updating */
   def withRedrawDelayed[T](view: View)(f: => T): T = {
-    view.getSashForm.setRedraw(false)
-    view.table.tableViewer.getTable.setRedraw(false)
-    view.tree.treeViewer.getTree.setRedraw(false)
-    val result = f
-    view.tree.treeViewer.getTree.setRedraw(true)
-    view.table.tableViewer.getTable.setRedraw(true)
-    view.getSashForm.setRedraw(true)
-    result
+    App.assertUIThread()
+    withRedrawCounter += 1
+    if (withRedrawCounter == 1) {
+      view.getSashForm.setRedraw(false)
+      view.table.tableViewer.getTable.setRedraw(false)
+      view.tree.treeViewer.getTree.setRedraw(false)
+    }
+    try {
+      f
+    } finally {
+      if (withRedrawCounter == 1) {
+        view.tree.treeViewer.getTree.setRedraw(true)
+        view.table.tableViewer.getTable.setRedraw(true)
+        view.getSashForm.setRedraw(true)
+      }
+      withRedrawCounter -= 1
+    }
   }
   class ViewWeakHashMap extends mutable.WeakHashMap[View, Unit] {
     override def +=(kv: (View, Unit)): this.type = {

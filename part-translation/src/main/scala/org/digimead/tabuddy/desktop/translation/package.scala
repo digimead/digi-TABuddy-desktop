@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop
 
+import org.digimead.digi.lib.DependencyInjection
+
 import com.escalatesoft.subcut.inject.NewBindingModule
 
 package object translation {
@@ -52,4 +54,5 @@ package object translation {
       () => new operation.OperationCustomTranslations()
     }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.translation.Default$DI$")
 }

@@ -62,8 +62,8 @@ import akka.actor.Props
 import javax.inject.Inject
 import javax.inject.Named
 
-/** Toggle visibility of empty rows in the active view. */
-class ToggleEmpty extends JFaceAction(Messages.emptyRows_text, IAction.AS_CHECK_BOX) with Loggable {
+/** Toggle expand in the active view. */
+class ToggleExpand extends JFaceAction(Messages.expandNew_text, IAction.AS_CHECK_BOX) with Loggable {
   @volatile protected var enabled = true
 
   ContextInjectionFactory.inject(this, Core.context)
@@ -71,13 +71,13 @@ class ToggleEmpty extends JFaceAction(Messages.emptyRows_text, IAction.AS_CHECK_
   override def isEnabled(): Boolean = super.isEnabled && enabled
   /** Update checked state from context. */
   @Inject @Optional
-  def onStateOfToggleIdentificatorChanged(@Active @Named(Editor.Id.stateOfToggleEmpty) checked: java.lang.Boolean) =
+  def onStateOfToggleIdentificatorChanged(@Active @Named(Editor.Id.stateOfToggleExpand) checked: java.lang.Boolean) =
     Option(checked) foreach { checked => App.exec { if (checked != isChecked()) setChecked(checked) } }
   /** Runs this action. */
   @log
   override def run() = for {
     v <- App.getActiveView if v.getChildren().headOption.map(_.isInstanceOf[org.digimead.tabuddy.desktop.editor.view.editor.View]).getOrElse(false)
-  } v.getContext.set(Editor.Id.stateOfToggleEmpty, isChecked(): java.lang.Boolean)
+  } v.getContext.set(Editor.Id.stateOfToggleExpand, isChecked(): java.lang.Boolean)
 
   /** Update enabled action state. */
   protected def updateEnabled() = if (isEnabled)
@@ -86,22 +86,22 @@ class ToggleEmpty extends JFaceAction(Messages.emptyRows_text, IAction.AS_CHECK_
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
 
-object ToggleEmpty extends Loggable {
+object ToggleExpand extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** ToggleEmpty action. */
-  @volatile protected var action: Option[ToggleEmpty] = None
+  /** ToggleExpand action. */
+  @volatile protected var action: Option[ToggleExpand] = None
 
-  /** Returns ToggleEmpty action. */
-  def apply(): ToggleEmpty = action.getOrElse {
-    val ToggleEmptyAction = App.execNGet { new ToggleEmpty }
-    action = Some(ToggleEmptyAction)
-    ToggleEmptyAction
+  /** Returns ToggleExpand action. */
+  def apply(): ToggleExpand = action.getOrElse {
+    val ToggleExpandAction = App.execNGet { new ToggleExpand }
+    action = Some(ToggleExpandAction)
+    ToggleExpandAction
   }
-  /** ToggleEmpty actor reference configuration object. */
+  /** ToggleExpand actor reference configuration object. */
   def props = DI.props
 
-  /** ToggleEmpty actor. */
+  /** ToggleExpand actor. */
   class Actor extends akka.actor.Actor {
     log.debug("Start actor " + self.path)
 
@@ -121,7 +121,7 @@ object ToggleEmpty extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** ToggleEmpty actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Editor.Action.ToggleEmpty") getOrElse Props[ToggleEmpty.Actor]
+    /** ToggleExpand actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Editor.Action.ToggleExpand") getOrElse Props[ToggleExpand.Actor]
   }
 }

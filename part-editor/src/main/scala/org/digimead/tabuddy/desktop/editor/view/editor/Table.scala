@@ -52,11 +52,14 @@ import scala.Option.option2Iterable
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.parallel
+import scala.language.reflectiveCalls
 import scala.ref.WeakReference
+import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.editor.Default
+import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.payload.PropertyType
 import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
 import org.digimead.tabuddy.desktop.support.App
@@ -94,8 +97,6 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.graphics.Point
 
 import com.ibm.icu.text.DateFormat
-
-import scala.language.reflectiveCalls
 
 class Table(protected[editor] val view: View, style: Int)
   extends TableActions with TableFields with Loggable {
@@ -172,7 +173,7 @@ class Table(protected[editor] val view: View, style: Int)
     tableViewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() =>
-        //Data.fieldElement.value = selection.getFirstElement().asInstanceOf[TreeProxy.Item].element
+          view.setSelectedElement(selection.getFirstElement().asInstanceOf[TreeProxy.Item].element)
         case selection =>
       }
     })
@@ -444,9 +445,10 @@ object Table extends Loggable {
     override def select(viewer: Viewer, parentElement: Object, element: Object): Boolean = element match {
       case item: TreeProxy.Item =>
         val view = viewer.asInstanceOf[TableViewer].getTable.getData.asInstanceOf[View]
-        /*        view.toolbarView.filter.value match {
+        val selectedFilter = Data.getSelectedViewFilter(view.getParent.getContext)
+        selectedFilter match {
           case Some(filter) =>
-            val filterBy = filter.rules.toSeq.flatMap { rule =>
+            /*val filterBy = filter.rules.toSeq.flatMap { rule =>
               val filterInstance = Filter.map.get(rule.filter): Option[Filter.Interface[_ <: Filter.Argument]]
               val propertyType = PropertyType.container.get(rule.propertyType): Option[PropertyType[_ <: AnyRef with java.io.Serializable]]
               val argument = filterInstance.flatMap(f => f.stringToArgument(rule.argument))
@@ -455,11 +457,11 @@ object Table extends Loggable {
             filterBy.isEmpty || filterBy.forall {
               case ((rule, propertyType, filter, argument)) =>
                 filter.generic.filter(rule.property, propertyType, item.element, argument)
-            }
+            }*/
+            true
           case None =>
             true
-        }*/
-        true
+        }
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
         true
@@ -472,8 +474,7 @@ object Table extends Loggable {
         propertyMap.get(item.element.eScope.modificator).foreach { property =>
           val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
           // as common unknown type
-          //          property.ptype.adapter.cellLabelProvider.asInstanceOf[PropertyType.CellLabelProviderAdapter[AnyRef with java.io.Serializable]].
-          //            update(cell, value)
+          property.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider.update(cell, value)
         }
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
@@ -489,12 +490,11 @@ object Table extends Loggable {
      */
     def getImage(element: AnyRef): Image = element match {
       case item: TreeProxy.Item =>
-        //        propertyMap.get(item.element.eScope.modificator).map { property =>
-        //          val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
-        // as common unknown type
-        //          property.ptype.adapter.labelProvider.asInstanceOf[LabelProviderAdapter[AnyRef with java.io.Serializable]].getImage(value)
-        //        } getOrElse null
-        null
+        propertyMap.get(item.element.eScope.modificator).map { property =>
+          val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
+          // as common unknown type
+          property.ptype.adapter.as[PropertyType.genericAdapter].labelProvider.getImage(value)
+        } getOrElse null
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
         null
@@ -508,12 +508,11 @@ object Table extends Loggable {
      */
     def getText(element: AnyRef): String = element match {
       case item: TreeProxy.Item =>
-        /*        propertyMap.get(item.element.eScope.modificator).map { property =>
+        propertyMap.get(item.element.eScope.modificator).map { property =>
           val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
           // as common unknown type
-          property.ptype.adapter.labelProvider.asInstanceOf[LabelProviderAdapter[AnyRef with java.io.Serializable]].getText(value)
-        } getOrElse ""*/
-        ""
+          property.ptype.adapter.as[PropertyType.genericAdapter].labelProvider.getText(value)
+        } getOrElse ""
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
         ""
@@ -539,12 +538,11 @@ object Table extends Loggable {
 
     /** Returns whether property text is empty */
     def isEmpty(element: Element.Generic) = {
-      /*propertyMap.get(element.eScope.modificator).map { property =>
+      propertyMap.get(element.eScope.modificator).map { property =>
         val value = element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
         // as common unknown type
-        property.ptype.adapter.labelProvider.asInstanceOf[PropertyType.LabelProviderAdapter[AnyRef with java.io.Serializable]].
-          getText(value).isEmpty()
-      } getOrElse (true)*/
+        property.ptype.adapter.as[PropertyType.genericAdapter].labelProvider.getText(value).isEmpty()
+      } getOrElse (true)
       true
     }
 
@@ -555,11 +553,9 @@ object Table extends Loggable {
           case Some(property) =>
             item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get) match {
               case Some(value) if value.getClass() == property.ptype.typeClass =>
-                //                Some(f(property.ptype.adapter.cellLabelProvider, value))
-                None
+                Some(f(property.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider, value))
               case _ =>
-                //                Some(f(property.ptype.adapter.cellLabelProvider, null))
-                None
+                Some(f(property.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider, null))
             }
           case None =>
             None
@@ -612,14 +608,14 @@ object Table extends Loggable {
         null
     }
     /** The time in milliseconds until the tool tip is displayed. */
-    override def getToolTipDisplayDelayTime(obj: Object): Int = 0 //Default.toolTipDisplayDelayTime
+    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
     /**
      * Return the amount of pixels in x and y direction that the tool tip to
      * pop up from the mouse pointer.
      */
-    override def getToolTipShift(obj: Object): Point = null //Default.toolTipShift
+    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
     /** The time in milliseconds the tool tip is shown for. */
-    override def getToolTipTimeDisplayed(obj: Object): Int = 0 //Default.toolTipTimeDisplayed
+    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
     /** Returns whether property text is empty */
     override def isEmpty(element: Element.Generic) = false
   }

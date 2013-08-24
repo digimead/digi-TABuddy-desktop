@@ -59,6 +59,7 @@ import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.viewmod.Default
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.ControlContribution
@@ -89,7 +90,7 @@ class ContributionSelectFilter extends ControlContribution(ContributionSelectFil
       case None =>
         // There is uninitialized context.
         log.debug(s"Initialize ${vcomposite} context.")
-        updateContextValue(Some(ViewToolBarManager.defaultFilter))
+        updateContextValue(Some(Default.ViewMod.filter))
         updateComboBoxValue(None)
       case _ =>
     }
@@ -101,7 +102,7 @@ class ContributionSelectFilter extends ControlContribution(ContributionSelectFil
   /** Invoked at every modification of Data.Id.selectedView. */
   @Inject @Optional // @log
   def onSelectedViewChanged(@Active @Named(Data.Id.selectedView) id: UUID): Unit =
-    App.exec { reloadItems(Option(id).flatMap(Data.viewDefinitions.get) getOrElse { ViewToolBarManager.defaultView }) }
+    App.exec { reloadItems(Option(id).flatMap(Data.viewDefinitions.get) getOrElse { Default.ViewMod.view }) }
 
   /** Create contribution control. */
   override protected def createControl(parent: Composite): Control = {
@@ -125,7 +126,7 @@ class ContributionSelectFilter extends ControlContribution(ContributionSelectFil
   protected def reloadItems() = {
     App.findBranchContextByName(Core.context.getActiveLeaf, VComposite.contextName).foreach(context =>
       Option(context.getLocal(contextValueKey).asInstanceOf[UUID]))
-    reloadItems(ViewToolBarManager.defaultView)
+    reloadItems(Default.ViewMod.view)
   }
   /** Reload filters combo box. */
   protected def reloadItems(view: payload.view.api.View): Unit = for {
@@ -139,8 +140,8 @@ class ContributionSelectFilter extends ControlContribution(ContributionSelectFil
     val actialInput = if (view.filters.isEmpty)
       available.toArray
     else
-      ViewToolBarManager.defaultFilter +: view.filters.flatMap(id =>
-        available.find(_.id == id && id != ViewToolBarManager.defaultFilter.id)).toArray
+      Default.ViewMod.filter +: view.filters.flatMap(id =>
+        available.find(_.id == id && id != Default.ViewMod.filter.id)).toArray
     val previousInput = comboViewer.getInput().asInstanceOf[Array[payload.view.api.Filter]]
     if (previousInput != null && previousInput.nonEmpty && previousInput.corresponds(actialInput)(payload.view.Filter.compareDeep)) {
       log.debug("Skip reload. Elements are the same.")
@@ -183,7 +184,7 @@ class ContributionSelectFilter extends ControlContribution(ContributionSelectFil
     val selection = getSelection
     if (selection == value && value.nonEmpty)
       return
-    if (selection == Some(ViewToolBarManager.defaultFilter) && value.isEmpty)
+    if (selection == Some(Default.ViewMod.filter) && value.isEmpty)
       return
     for (comboViewer <- comboViewer.get)
       value match {
@@ -191,8 +192,8 @@ class ContributionSelectFilter extends ControlContribution(ContributionSelectFil
           log.debug(s"Set UI value to ${filter.id}.")
           comboViewer.setSelection(new StructuredSelection(filter), true)
         case _ =>
-          log.debug(s"Set UI value to ${ViewToolBarManager.defaultFilter.id}.")
-          comboViewer.setSelection(new StructuredSelection(ViewToolBarManager.defaultFilter), true)
+          log.debug(s"Set UI value to ${Default.ViewMod.filter.id}.")
+          comboViewer.setSelection(new StructuredSelection(Default.ViewMod.filter), true)
       }
   }
 }

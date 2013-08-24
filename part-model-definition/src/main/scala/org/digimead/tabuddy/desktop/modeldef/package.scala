@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 
+import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration
 import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
@@ -92,4 +93,5 @@ package object modeldef {
       (before, active, modelId) => new operation.OperationModifyTypeSchemaList(before, active, modelId)
     }
   })
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.modeldef.Default$DI$")
 }
