@@ -41,25 +41,16 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor
+package org.digimead.tabuddy.desktop.element.editor
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.MILLISECONDS
 import scala.ref.WeakReference
 
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Resources
-import org.digimead.tabuddy.desktop.model.editor.Editor.editor2actorRef
-import org.digimead.tabuddy.desktop.model.editor.Editor.editor2actorSRef
-import org.digimead.tabuddy.desktop.model.editor.toolbar.EditorToolBar.toolbar2actorRef
-import org.digimead.tabuddy.desktop.model.editor.toolbar.ElementToolBar.toolbar2actorRef
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.Timeout
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
 import org.osgi.framework.BundleActivator
 import org.osgi.framework.BundleContext
 
@@ -71,13 +62,11 @@ import akka.actor.Terminated
  * OSGi entry point.
  */
 class Activator extends BundleActivator with Loggable {
-  @volatile protected var started = false
-
   /** Start bundle. */
   def start(context: BundleContext) = Activator.startStopLock.synchronized {
     if (Option(Activator.disposable).isEmpty)
       throw new IllegalStateException("Bundle is already disposed. Please reinstall it before activation.")
-    log.debug("Start TABuddy Desktop model editor.")
+    log.debug("Start TABuddy Desktop module definition component.")
     // Setup DI for this bundle
     Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
       map { currencyServiceRef => (currencyServiceRef, context.getService(currencyServiceRef)) } match {
@@ -92,27 +81,27 @@ class Activator extends BundleActivator with Loggable {
           log.warn("DI service not found.")
       }
     DependencyInjection.inject()
-    Editor.actor // Start component actors hierarchy
-    System.out.println("Model editor component is started.")
+    ElementEditor.actor // Start component actors hierarchy
+    System.out.println("Element editor component is started.")
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
-    log.debug("Stop TABuddy Desktop model editor.")
+    log.debug("Stop TABuddy Desktop element editor component.")
     try {
       // Stop component actors.
       val inbox = Inbox.create(App.system)
-      inbox.watch(Editor)
-      Editor ! PoisonPill
+      inbox.watch(ElementEditor)
+      ElementEditor ! PoisonPill
       if (inbox.receive(Timeout.long).isInstanceOf[Terminated])
-        log.debug("Editor actors hierarchy is terminated.")
+        log.debug("ElementEditor actors hierarchy is terminated.")
       else
-        log.fatal("Unable to shutdown Editor actors hierarchy.")
+        log.fatal("Unable to shutdown ElementEditor actors hierarchy.")
     } catch {
       case e if App.system == null =>
         log.debug("Skip Akka cleanup: ecosystem is already shut down.")
     }
     Activator.dispose()
-    System.out.println("Model editor component is stopped.")
+    System.out.println("Element editor component is stopped.")
   }
 }
 

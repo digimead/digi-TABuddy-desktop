@@ -53,28 +53,40 @@ import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
 
+/**
+ * Create a new element from template.
+ */
 object OperationCreateElementFromTemplate extends Loggable {
+  /** Stable identifier with OperationCreateElementFromTemplate DI */
+  lazy val operation = DI.operation
+
+  /**
+   * Build a new 'Create a new element from template' operation.
+   *
+   * @param container container for the new element
+   * @param modelId current model Id
+   * @return 'Create a new element from template' operation
+   */
   @log
-  def apply(template: ElementTemplate, container: Element.Generic): Option[Abstract] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(ElementTemplate, Element[_ <: Stash], Symbol) => Abstract]] match {
-      case Some(factory) =>
-        Option(factory(template, container, modelId))
+  def apply(template: ElementTemplate, container: Element.Generic, modelId: Symbol = Model.eId): Option[Abstract] = {
+    operation match {
+      case Some(operation) =>
+        Some(operation.operation(template, container, modelId).asInstanceOf[Abstract])
       case None =>
         log.error("OperationCreateElementFromTemplate implementation is not defined.")
         None
     }
   }
 
+  /** Bridge between abstract api.Operation[Element.Generic] and concrete Operation[Element.Generic] */
   abstract class Abstract(val template: ElementTemplate, val container: Element.Generic, val modelId: Symbol)
-    extends Operation[Element.Generic](s"Create a new element from $template for $container") with api.OperationCreateElementFromTemplate {
+    extends Operation[Element.Generic](s"Create a new element from $template for $container.") {
     this: Loggable =>
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(ElementTemplate, Element[_ <: Stash], Symbol) => api.OperationCreateElementFromTemplate]
+    lazy val operation = injectOptional[api.OperationCreateElementFromTemplate]
   }
 }

@@ -41,10 +41,14 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.model
 
 import org.digimead.digi.lib.DependencyInjection
 
+import com.escalatesoft.subcut.inject.NewBindingModule
+
 package object editor {
+  lazy val default = new NewBindingModule(module => {})
+
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.model.editor.Default$DI$")
 }

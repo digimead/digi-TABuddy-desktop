@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.definition.dialog;
+package org.digimead.tabuddy.desktop.element.editor.dialog;
 
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;

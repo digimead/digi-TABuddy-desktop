@@ -43,12 +43,27 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.api
 
-import org.digimead.tabuddy.desktop.definition.api.Operation
+import org.digimead.tabuddy.desktop.definition.api
 import org.digimead.tabuddy.model.element.Element
 
 /**
  * OperationCreateElement base trait.
  */
 trait OperationCreateElement {
-  this: Operation[Element.Generic] =>
+  /**
+   * Create a new element.
+   *
+   * @param container container for the new element
+   * @param modelId current model Id
+   * @return the modified/the same filter
+   */
+  def apply(container: Element.Generic, modelId: Symbol): Element.Generic
+  /**
+   * Create 'Create a new element' operation.
+   *
+   * @param container container for the new element
+   * @param modelId current model Id
+   * @return 'Create a new element' operation
+   */
+  def operation(container: Element.Generic, modelId: Symbol): api.Operation[Element.Generic]
 }

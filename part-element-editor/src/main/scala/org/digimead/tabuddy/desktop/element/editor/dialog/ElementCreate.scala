@@ -41,18 +41,25 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.definition.dialog
+package org.digimead.tabuddy.desktop.element.editor.dialog
 
 import java.awt.MouseInfo
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.Resources
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.ResourceManager
+import org.digimead.tabuddy.desktop.Resources
+import org.digimead.tabuddy.desktop.Resources.resources2implementation
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.operation.OperationCreateElementFromTemplate
+import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.element.Element
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
 import org.eclipse.swt.events.PaintEvent
 import org.eclipse.swt.events.PaintListener
 import org.eclipse.swt.graphics.Point
@@ -65,12 +72,14 @@ import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Shell
-import swing2swt.layout.BorderLayout
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
 
+import swing2swt.layout.BorderLayout
+
+/**
+ * Select element template and create a new element.
+ */
 class ElementCreate(val parentShell: Shell, container: Element.Generic)
-  extends ElementCreateSkel(parentShell) with Loggable {
+  extends ElementCreateSkel(parentShell) with Dialog with Loggable {
   /** Newly created element */
   protected var element: Option[Element.Generic] = None
   /** Close dialog on mouse over */
@@ -92,7 +101,10 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
             bounds.width + ElementCreate.gap * 2, bounds.height + ElementCreate.gap * 2)
           if (!adjusted.contains(cursorPoint)) {
             run = false
-            App.exec(parentShell.close())
+            App.exec {
+              ElementCreate.this.setReturnCode(org.eclipse.jface.window.Window.CANCEL)
+              ElementCreate.this.close()
+            }
           }
         }
         Thread.sleep(200)
@@ -101,7 +113,6 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
   })
   /** Available templates */
   val templateList = Data.elementTemplates.values.filter(_.availability).toList.sortBy(_.id.name)
-  assert(ElementCreate.dialog.isEmpty, "ElementCreate dialog is already active")
 
   def getCreatedElement(): Option[Element.Generic] = element
 
@@ -111,7 +122,7 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
     button.setToolTipText(template.name)
     button.setBackground(ResourceManager.getColor(SWT.COLOR_WHITE))
     button.setLayoutData(new GridData(GridData.FILL_BOTH))
-    button.addListener(SWT.Selection, new ElementCreate.ButtonListener(this, template, this.container))
+    button.addListener(SWT.Selection, new ElementCreate.ButtonListener(this, Option(onClose.get()), template, this.container))
     button.setFont(Resources.fontSmall)
     //button.setImage(image)
     button.pack()
@@ -152,12 +163,6 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
         val button = createButton(templateList(total - j - 1), templates)
       }
     }
-    // Add the dispose listener
-    getShell().addDisposeListener(new DisposeListener {
-      def widgetDisposed(e: DisposeEvent) {
-        ElementCreate.dialog = None
-      }
-    })
     // Update the templates size
     val length = templates.getChildren().foldLeft(0) { (acc, child) =>
       val size = child.computeSize(SWT.DEFAULT, SWT.DEFAULT)
@@ -203,31 +208,44 @@ class ElementCreate(val parentShell: Shell, container: Element.Generic)
         val prefferedLocationY = cursorPoint.y - convertHorizontalDLUsToPixels(IDialogConstants.VERTICAL_MARGIN) * 2
         shell.setLocation(prefferedLocationX, prefferedLocationY)
     }
-    ElementCreate.dialog = Some(this)
     container
   }
   /** onActive callback */
-  protected def onActive {
+  override protected def onActive {
     guargThread.setDaemon(true)
     guargThread.start()
   }
 }
 
-object ElementCreate {
-  /** There is may be only one dialog instance at time */
-  @volatile private var dialog: Option[ElementCreate] = None
+object ElementCreate extends Loggable {
   val gap = 10
-  class ButtonListener(dialog: ElementCreate, template: ElementTemplate, container: Element.Generic) extends Listener {
+
+  class ButtonListener(dialog: ElementCreate, callback: Option[(Int) => Any], template: ElementTemplate, container: Element.Generic) extends Listener {
     def handleEvent(event: Event) = {
+      dialog.onClose.remove()
       dialog.close()
-      /*OperationCreateElementFromTemplate(template, container).foreach(_.setOnSucceeded { job =>
-        job.getValue.foreach {
-          case (element) => Main.exec {
-            assert(dialog.element.isEmpty)
-            dialog.element = Some(element)
-          }
+      OperationCreateElementFromTemplate(template, container).foreach { operation =>
+        operation.getExecuteJob() match {
+          case Some(job) =>
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) =>
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (element) => dialog.element = Some(element) }
+                callback.foreach { f => f(org.eclipse.jface.window.Window.OK) }
+              case Operation.Result.Cancel(message) =>
+                log.warn(s"Operation canceled, reason: ${message}.")
+                callback.foreach { f => f(org.eclipse.jface.window.Window.CANCEL) }
+              case other =>
+                log.error(s"Unable to complete operation: ${other}.")
+                callback.foreach { f => f(org.eclipse.jface.window.Window.CANCEL) }
+            }).schedule()
+            job.schedule()
+          case None =>
+            log.fatal(s"Unable to create job for ${operation}.")
+            callback.foreach { f => f(org.eclipse.jface.window.Window.CANCEL) }
         }
-      }.execute)*/
+      }
     }
   }
 }

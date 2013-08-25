@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.definition.dialog
+package org.digimead.tabuddy.desktop.element.editor.dialog
 
 import scala.Option.option2Iterable
 import org.digimead.tabuddy.desktop.logic.Data
@@ -85,9 +85,10 @@ import org.eclipse.ui.forms.widgets.ExpandableComposite
 import org.eclipse.ui.forms.widgets.Section
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.definition.Dialog
 
 class ElementEditor(val parentShell: Shell, element: Element.Generic, template: ElementTemplate, newElement: Boolean)
-  extends ElementEditorSkel(parentShell) with Loggable {
+  extends ElementEditorSkel(parentShell) with Dialog with Loggable {
   /** The property representing the current element id */
   protected lazy val idField = WritableValue[String]
   /** Element properties (property, control, editor). Available only from the UI thread */
@@ -148,7 +149,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
       false
     })).asInstanceOf[Option[Enumeration[T]]]) match {
       case Some(enumeration) =>
-/*        val comboViewer = editor.createCControl(getToolkit, getForm.getBody(), SWT.READ_ONLY)
+        /*        val comboViewer = editor.createCControl(getToolkit, getForm.getBody(), SWT.READ_ONLY)
         comboViewer.getCombo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
         comboViewer.setLabelProvider(property.ptype.adapter.createEnumerationLabelProvider)
         comboViewer.setContentProvider(new ObservableListContentProvider())
@@ -157,7 +158,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
         comboViewer.getCombo()*/
         null.asInstanceOf[Control]
       case None =>
-/*        val control = editor.createControl(getToolkit, getForm.getBody(), SWT.BORDER)
+        /*        val control = editor.createControl(getToolkit, getForm.getBody(), SWT.BORDER)
         control.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
         control.setBackground(getForm.getBackground())
         editor.addValidator(control)
@@ -252,14 +253,14 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     }.flatten
     properties.foreach {
       case ElementEditor.PropertyItem(initial, property, control, editor) =>
-        //editor.data.underlying.addChangeListener(propertiesListener)
+      //editor.data.underlying.addChangeListener(propertiesListener)
     }
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         properties.foreach {
           case ElementEditor.PropertyItem(initial, property, control, editor) =>
-            //editor.data.underlying.removeChangeListener(propertiesListener)
+          //editor.data.underlying.removeChangeListener(propertiesListener)
         }
         ElementEditor.dialog = None
       }
@@ -287,7 +288,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     }
     properties.foreach {
       case ElementEditor.PropertyItem(initialValue, property, control, editor) =>
-        /*if (editor.isEmpty) {
+      /*if (editor.isEmpty) {
           if (element.eGet(property.id, property.ptype.typeSymbol).nonEmpty)
             element.eRemove(property.id, property.ptype.typeSymbol)
         } else {
@@ -301,7 +302,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     super.okPressed()
   }
   /** On dialog active */
-  protected def onActive = {
+  override protected def onActive = {
     // persist the 1st column width
     getLblElementId.getLayoutData.asInstanceOf[GridData].widthHint = getLblElementId.getSize.x
     getForm.getBody.layout()

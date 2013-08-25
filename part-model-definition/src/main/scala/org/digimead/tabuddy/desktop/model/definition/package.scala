@@ -54,7 +54,6 @@ import org.digimead.tabuddy.model.element.Stash
 
 /**
  * Model definition component contains:
- *   create element dialog
  *   modify element template dialog
  *   modify element template list dialog
  *   modify enumeration dialog
@@ -64,10 +63,6 @@ import org.digimead.tabuddy.model.element.Stash
  */
 package object definition {
   lazy val default = new NewBindingModule(module => {
-    // implementation of logic.operation.OperationCreateElement
-    module.bind[(Element[_ <: Stash], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationCreateElement] toSingle {
-      (container, modelId) => new operation.OperationCreateElement(container, modelId)
-    }
     // implementation of logic.operation.OperationModifyElementTemplate
     module.bind[(ElementTemplate, Set[ElementTemplate], Symbol) => org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyElementTemplate] toSingle {
       (template, templateList, modelId) => new operation.OperationModifyElementTemplate(template, templateList, modelId)
