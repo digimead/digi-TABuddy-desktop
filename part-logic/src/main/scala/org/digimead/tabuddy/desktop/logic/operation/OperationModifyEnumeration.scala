@@ -68,6 +68,7 @@ object OperationModifyEnumeration extends Loggable {
     val enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]], val modelId: Symbol)
     extends Operation[Enumeration[_ <: AnyRef with java.io.Serializable]]("Edit %s for model %s".format(enumeration, modelId)) with api.OperationModifyEnumeration {
     this: Loggable =>
+    override protected def checkSubclass() {}
   }
 
   /**

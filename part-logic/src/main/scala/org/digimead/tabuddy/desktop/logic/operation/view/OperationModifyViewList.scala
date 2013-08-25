@@ -54,11 +54,41 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 
 /**
+ * OperationModifyViewList base trait.
+ */
+trait OperationModifyViewList extends api.OperationModifyViewList {
+  /**
+   * Create 'Modify view list' operation.
+   *
+   * @param viewList the list of exists views
+   * @param modelId current model Id
+   * @return 'Modify view list' operation
+   */
+  override def operation(viewList: Set[View], modelId: Symbol): OperationModifyViewList.Abstract
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+}
+
+/**
  * Modify a view list.
  */
 object OperationModifyViewList extends Loggable {
   /** Stable identifier with OperationModifyViewList DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyViewList]]
 
   /**
    * Build a new 'Modify view list' operation
@@ -70,7 +100,7 @@ object OperationModifyViewList extends Loggable {
   def apply(viewList: Set[View], modelId: Symbol = Model.eId): Option[Abstract] = {
     operation match {
       case Some(operation) =>
-        Some(operation.operation(viewList, modelId).asInstanceOf[Abstract])
+        Some(operation.operation(viewList, modelId))
       case None =>
         log.error("OperationModifyViewList implementation is not defined.")
         None

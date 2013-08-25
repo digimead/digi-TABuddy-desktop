@@ -86,6 +86,21 @@ class OperationModelSave extends api.OperationModelSave with Loggable {
   def operation(modelId: Symbol) = new Implemetation(modelId)
 
   /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+  /**
    * Get operation model marker for this operation.
    *
    * This method isn't collect marker of default model.
@@ -120,11 +135,11 @@ class OperationModelSave extends api.OperationModelSave with Loggable {
 
 object OperationModelSave extends Loggable {
   /** Stable identifier with OperationModelSave DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[OperationModelSave]
 
   /** Build a new 'Save model' operation */
   @log
-  def apply(modelId: Symbol): Option[Abstract] = Some(operation.operation(modelId).asInstanceOf[Abstract])
+  def apply(modelId: Symbol): Option[Abstract] = Some(operation.operation(modelId))
 
   /** Bridge between abstract api.Operation[URI] and concrete Operation[URI] */
   abstract class Abstract(val modelId: Symbol) extends Operation[URI](s"Save model ${modelId}.") {

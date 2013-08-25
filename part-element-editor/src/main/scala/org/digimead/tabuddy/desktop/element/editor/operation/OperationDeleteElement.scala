@@ -63,7 +63,7 @@ import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
 
 /** 'Delete the element' operation. */
-class OperationDeleteElement extends api.OperationDeleteElement with Loggable {
+class OperationDeleteElement extends logic.operation.OperationDeleteElement with Loggable {
   /**
    * Delete the element.
    *
@@ -71,7 +71,7 @@ class OperationDeleteElement extends api.OperationDeleteElement with Loggable {
    * @param modelId current model Id
    * @return true on success
    */
-  def apply(element: Element.Generic, modelId: Symbol): Boolean = {
+  def apply(element: Element.Generic, interactive: Boolean, modelId: Symbol): Boolean = {
     log.info(s"Delete element ${element} for model ${modelId}.")
     App.assertUIThread(false)
     if (Model.eId != modelId)
@@ -114,11 +114,11 @@ class OperationDeleteElement extends api.OperationDeleteElement with Loggable {
    * @param modelId current model Id
    * @return 'Delete the element' operation
    */
-  def operation(element: Element.Generic, modelId: Symbol): Operation[Boolean] =
-    new Implemetation(element, modelId)
+  def operation(element: Element.Generic, interactive: Boolean, modelId: Symbol) =
+    new Implemetation(element, interactive, modelId)
 
-  class Implemetation(element: Element.Generic, modelId: Symbol)
-    extends logic.operation.OperationDeleteElement.Abstract(element, modelId) with Loggable {
+  class Implemetation(element: Element.Generic, interactive: Boolean, modelId: Symbol)
+    extends logic.operation.OperationDeleteElement.Abstract(element, interactive, modelId) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -127,7 +127,7 @@ class OperationDeleteElement extends api.OperationDeleteElement with Loggable {
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Boolean] = {
       try {
-        Operation.Result.OK(Option(OperationDeleteElement.this(element, modelId)))
+        Operation.Result.OK(Option(OperationDeleteElement.this(element, interactive, modelId)))
       } catch {
         case e: CancellationException =>
           Operation.Result.Cancel()

@@ -70,6 +70,10 @@ package object editor {
     module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyElement] toSingle {
       new operation.OperationModifyElement()
     }
+    // OperationDeleteElement approver
+    module.bind[org.digimead.tabuddy.desktop.definition.api.OperationApprover] identifiedBy ("ElementEditor.OperationDeleteElement") toSingle {
+      new approver.OperationDeleteElement()
+    }
   })
 
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.element.editor.Default$DI$")

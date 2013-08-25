@@ -41,48 +41,37 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation.view.api
+package org.digimead.tabuddy.desktop.element.editor.approver
 
-import org.digimead.tabuddy.desktop.definition.api
-import org.digimead.tabuddy.desktop.logic.payload.view.api.View
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.OperationApprover
+import org.digimead.tabuddy.desktop.logic.operation.OperationModelDelete
+import org.eclipse.core.commands.operations.IOperationHistory
+import org.eclipse.core.commands.operations.IUndoableOperation
+import org.eclipse.core.runtime.IAdaptable
+import org.eclipse.core.runtime.IStatus
+import org.eclipse.core.runtime.Status
 
-/**
- * OperationModifyViewList base trait.
- */
-trait OperationModifyViewList {
-  checkSubclass()
-
-  /**
-   * Modify view list.
-   *
-   * @param viewList the list of exists views
-   * @param modelId current model Id
-   * @return the modified/the same view list
-   */
-  def apply(viewList: Set[View], modelId: Symbol): Set[View]
-  /**
-   * Create 'Modify view list' operation.
-   *
-   * @param viewList the list of exists views
-   * @param modelId current model Id
-   * @return 'Modify view list' operation
-   */
-  def operation(viewList: Set[View], modelId: Symbol): api.Operation[Set[View]]
-
-  /**
-   * Checks that this class can be subclassed.
-   * <p>
-   * The API class is intended to be subclassed only at specific,
-   * controlled point. This method enforces this rule
-   * unless it is overridden.
-   * </p><p>
-   * <em>IMPORTANT:</em> By providing an implementation of this
-   * method that allows a subclass of a class which does not
-   * normally allow subclassing to be created, the implementer
-   * agrees to be fully responsible for the fact that any such
-   * subclass will likely fail.
-   * </p>
-   */
-  protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyViewList instead.")
+class OperationDeleteElement extends OperationApprover with Loggable {
+  def proceedExecuting(operation: IUndoableOperation, history: IOperationHistory, info: IAdaptable): IStatus = operation match {
+    case operation: OperationModelDelete.Abstract =>
+      /*App.execNGet {
+        if (!Data.availableModels.contains(operation.newModelID.name)) {
+          // ask user confirmation if model not exists
+          MessageDialog.openConfirm(Window.shell, "Confirm new model creation",
+            "Please confirm creation of %s model".format(operation.newModelID)) match {
+              case true =>
+                Status.OK_STATUS
+              case false =>
+                Main.exec { ActionLocalStorageLock.setChecked(false) }
+                Status.CANCEL_STATUS
+            }
+        } else
+          Status.OK_STATUS
+      }*/
+      Status.CANCEL_STATUS
+    case operation => Status.OK_STATUS
+  }
+  def proceedRedoing(operation: IUndoableOperation, history: IOperationHistory, info: IAdaptable): IStatus = Status.OK_STATUS
+  def proceedUndoing(operation: IUndoableOperation, history: IOperationHistory, info: IAdaptable): IStatus = Status.OK_STATUS
 }

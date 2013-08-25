@@ -65,7 +65,7 @@ import org.eclipse.core.runtime.IProgressMonitor
 import org.eclipse.swt.widgets.Shell
 
 /** 'Modify view' operation. */
-class OperationModifyView extends api.OperationModifyView with Loggable {
+class OperationModifyView extends logic.operation.view.OperationModifyView with Loggable {
   /**
    * Modify view.
    *
@@ -104,7 +104,7 @@ class OperationModifyView extends api.OperationModifyView with Loggable {
    * @param modelId current model Id
    * @return 'Modify view' operation
    */
-  def operation(view: View, viewList: Set[View], modelId: Symbol): Operation[View] =
+  def operation(view: View, viewList: Set[View], modelId: Symbol) =
     new Implemetation(view, viewList, modelId)
 
   class Implemetation(view: View, viewList: Set[View], modelId: Symbol)

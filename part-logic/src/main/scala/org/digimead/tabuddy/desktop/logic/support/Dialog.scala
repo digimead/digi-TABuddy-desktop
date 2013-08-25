@@ -294,6 +294,7 @@ object Dialog {
      */
     def save(fileName: String) = throw new UnsupportedOperationException
 
+    override protected def checkSubclass() {}
     /** Get the current configuration key */
     protected def key = configPrefix + "." + prefix + "." + sectionName
     /** Get the current key */

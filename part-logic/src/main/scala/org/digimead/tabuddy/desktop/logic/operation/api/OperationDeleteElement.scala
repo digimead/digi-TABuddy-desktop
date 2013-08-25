@@ -50,20 +50,41 @@ import org.digimead.tabuddy.model.element.Element
  * OperationDeleteElement base trait.
  */
 trait OperationDeleteElement {
+  checkSubclass()
+
   /**
    * Delete the element.
    *
    * @param element element for delete
+   * @param interactive ask user confirmation
    * @param modelId current model Id
    * @return true on success
    */
-  def apply(element: Element.Generic, modelId: Symbol): Boolean
+  def apply(element: Element.Generic, interactive: Boolean, modelId: Symbol): Boolean
   /**
    * Create 'Delete the element' operation.
    *
    * @param element element for delete
+   * @param interactive ask user confirmation
    * @param modelId current model Id
    * @return 'Delete the element' operation
    */
-  def operation(element: Element.Generic, modelId: Symbol): api.Operation[Boolean]
+  def operation(element: Element.Generic, interactive: Boolean, modelId: Symbol): api.Operation[Boolean]
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.OperationDeleteElement instead.")
 }

@@ -70,6 +70,7 @@ object OperationModifyEnumerationList extends Loggable {
   abstract class Abstract(val enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]], val modelId: Symbol)
     extends Operation[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]("Edit enumeration list of %s model".format(Model.eId)) with api.OperationModifyEnumerationList {
     this: Loggable =>
+    override protected def checkSubclass() {}
   }
 
   /**

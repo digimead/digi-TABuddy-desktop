@@ -70,6 +70,7 @@ object OperationModifyTypeSchema extends Loggable {
     val isActive: Boolean,
     val modelId: Symbol) extends Operation[(TypeSchema, Boolean)]("Edit %s for model %s".format(schema, modelId)) with api.OperationModifyTypeSchema {
     this: Loggable =>
+    override protected def checkSubclass() {}
   }
   /**
    * Dependency injection routines.

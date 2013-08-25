@@ -106,6 +106,22 @@ abstract class Operation[A: universe.TypeTag](label: String) extends AbstractOpe
       }
     }
   }
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
 }
 
 object Operation extends Loggable {
@@ -123,11 +139,13 @@ object Operation extends Loggable {
             val error = s"Unexpected job result: ${other}."
             Option(other.getException()) match {
               case Some(exception) =>
-                log.error(error, exception)
+                if (exception.getMessage() == null && exception.getCause() != null)
+                  f(Result.Error[A](error, exception.getCause()))
+                else
+                  f(Result.Error[A](error, exception))
               case None =>
-                log.fatal(error)
+                f(Result.Error[A](error))
             }
-            f(Result.Error[A](error))
         }
       })
       this
@@ -212,25 +230,21 @@ object Operation extends Loggable {
       val result = None
       val severity = IStatus.CANCEL
     }
-    case class Error[A](val message: String, logAsFatal: Boolean = true)(implicit val tt: universe.TypeTag[Error[A]]) extends Result[A] {
-      val exception = null
+    case class Error[A](val message: String, override val exception: Throwable = null, logAsFatal: Boolean = true)(implicit val tt: universe.TypeTag[Error[A]]) extends Result[A] {
       val result = None
       val severity = IStatus.ERROR
 
-      if (logAsFatal)
-        log.fatal(message)
-      else
+      if (logAsFatal) {
+        if (exception != null)
+          log.error(message, exception)
+        else
+          log.fatal(message)
+      } else
         log.warn(message)
     }
-    case class Exception[A](override val exception: Throwable, logAsFatal: Boolean = true)(implicit val tt: universe.TypeTag[Exception[A]]) extends Result[A] {
-      val message = "Error: " + exception
-      val severity = IStatus.ERROR
-      val result = None
-
-      if (logAsFatal)
-        log.error(exception.toString(), exception)
-      else
-        log.warn(exception.toString())
+    object Error {
+      def apply[A: universe.TypeTag](exception: Throwable): Error[A] = Error[A]("Error: " + exception.getMessage(), exception)
+      def apply[A: universe.TypeTag](message: String, logAsFatal: Boolean): Error[A] = Error[A](message, null, logAsFatal)
     }
     case class OK[A](val result: Option[A] = None, val message: String = "operation complete")(implicit val tt: universe.TypeTag[OK[A]]) extends Result[A] {
       val severity = IStatus.OK

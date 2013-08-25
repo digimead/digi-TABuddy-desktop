@@ -53,8 +53,11 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.Core.core2actorRef
+import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.gui.GUI
+import org.digimead.tabuddy.desktop.logic.Actions.configurator2implementation
 import org.digimead.tabuddy.desktop.logic.Config.config2implementation
+import org.digimead.tabuddy.desktop.logic.operation.OperationModelOpen
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
@@ -67,6 +70,7 @@ import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.commands.ToggleState
 
 import akka.actor.ActorRef
@@ -170,9 +174,23 @@ class Logic extends akka.actor.Actor with Loggable {
     // load last active model at startup
     Configgy.getString("payload.model").foreach(lastModelID =>
       Payload.listModels.find(m => m.isValid && m.id.name == lastModelID).foreach { marker =>
-        Payload.acquireModel(marker)
-        //TODO OperationModelAcquire
-        //OperationModelAcquire(None, Symbol(lastModelID)).foreach(_.execute)
+        OperationModelOpen(None, Symbol(lastModelID), true).foreach { operation =>
+          operation.getExecuteJob() match {
+            case Some(job) =>
+              job.setPriority(Job.LONG)
+              job.onComplete(_ match {
+                case Operation.Result.OK(result, message) =>
+                  log.info(s"Operation completed successfully: ${result}")
+                case Operation.Result.Cancel(message) =>
+                  log.warn(s"Operation canceled, reason: ${message}.")
+                case other =>
+                  log.error(s"Unable to complete operation: ${other}.")
+              }).schedule()
+              job.schedule(Timeout.shortest.toMillis)
+            case None =>
+              log.fatal(s"Unable to create job for ${operation}.")
+          }
+        }
       })
   }
   /** This callback is invoked at an every model initialization. */
@@ -198,8 +216,6 @@ class Logic extends akka.actor.Actor with Loggable {
       // Startup sequence.
       Config.start(context) // Initialize the application configuration based on Configgy
       //Transport.start() // Initialize the network transport(s)
-      //Job.start()           // Initialize the job handler
-      //Approver.start()           // Initialize the job approver
       Actions.configure
       App.markAsStarted(Logic.getClass)
       future { onApplicationStartup() } onFailure {
@@ -215,8 +231,6 @@ class Logic extends akka.actor.Actor with Loggable {
     App.markAsStopped(Logic.getClass())
     // Prepare for shutdown.
     Actions.unconfigure
-    //Approver.stop()
-    //Job.stop()
     //Transport.stop()
     Config.stop(context)
     closeContainer()
@@ -239,7 +253,6 @@ class Logic extends akka.actor.Actor with Loggable {
     Logic.container.open(progressMonitor)
     App.publish(App.Message.Consistent(this, self))
   }
-
 }
 
 object Logic {

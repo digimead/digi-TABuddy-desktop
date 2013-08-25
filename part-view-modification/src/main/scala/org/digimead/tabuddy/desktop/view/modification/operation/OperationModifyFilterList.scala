@@ -65,7 +65,7 @@ import org.eclipse.core.runtime.IProgressMonitor
 import org.eclipse.swt.widgets.Shell
 
 /** 'Modify filter list' operation. */
-class OperationModifyFilterList extends api.OperationModifyFilterList with Loggable {
+class OperationModifyFilterList extends logic.operation.view.OperationModifyFilterList with Loggable {
   /**
    * Modify filter list.
    *
@@ -102,7 +102,7 @@ class OperationModifyFilterList extends api.OperationModifyFilterList with Logga
    * @param modelId current model Id
    * @return 'Modify filter list' operation
    */
-  def operation(filterList: Set[Filter], modelId: Symbol): Operation[Set[Filter]] =
+  def operation(filterList: Set[Filter], modelId: Symbol) =
     new Implemetation(filterList, modelId)
 
   class Implemetation(filterList: Set[Filter], modelId: Symbol)

@@ -63,7 +63,7 @@ import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
 
 /** 'Modify the element' operation. */
-class OperationModifyElement extends api.OperationModifyElement with Loggable {
+class OperationModifyElement extends logic.operation.OperationModifyElement with Loggable {
   /**
    * Modify the element.
    *
@@ -114,7 +114,7 @@ class OperationModifyElement extends api.OperationModifyElement with Loggable {
    * @param modelId current model Id
    * @return 'Modify the element' operation
    */
-  def operation(element: Element.Generic, modelId: Symbol): Operation[Boolean] =
+  def operation(element: Element.Generic, modelId: Symbol) =
     new Implemetation(element, modelId)
 
   class Implemetation(element: Element.Generic, modelId: Symbol)

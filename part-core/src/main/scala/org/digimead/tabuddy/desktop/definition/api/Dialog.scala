@@ -44,5 +44,25 @@
 package org.digimead.tabuddy.desktop.definition.api
 
 object Dialog {
-  abstract class Settings(val sectionName: String, val prefix: String)
+  /** IDialogSettings base class that is compatible with DI. */
+  abstract class Settings(val sectionName: String, val prefix: String) {
+    checkSubclass()
+
+    /**
+     * Checks that this class can be subclassed.
+     * <p>
+     * The API class is intended to be subclassed only at specific,
+     * controlled point. This method enforces this rule
+     * unless it is overridden.
+     * </p><p>
+     * <em>IMPORTANT:</em> By providing an implementation of this
+     * method that allows a subclass of a class which does not
+     * normally allow subclassing to be created, the implementer
+     * agrees to be fully responsible for the fact that any such
+     * subclass will likely fail.
+     * </p>
+     */
+    protected def checkSubclass(): Unit =
+      throw new IllegalAccessException("Please, override this method in subclass with org.eclipse.jface.dialogs.IDialogSettings.")
+  }
 }

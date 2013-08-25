@@ -54,11 +54,42 @@ import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.element.Stash
 
 /**
+ * OperationCreateElementFromTemplate base trait.
+ */
+trait OperationCreateElementFromTemplate extends api.OperationCreateElementFromTemplate {
+  /**
+   * Create 'Create a new element from template' operation.
+   *
+   * @param template template for the new element
+   * @param container container for the new element
+   * @param modelId current model Id
+   * @return 'Create a new element from template' operation
+   */
+  override def operation(template: ElementTemplate, container: Element.Generic, modelId: Symbol): OperationCreateElementFromTemplate.Abstract
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+}
+
+/**
  * Create a new element from template.
  */
 object OperationCreateElementFromTemplate extends Loggable {
   /** Stable identifier with OperationCreateElementFromTemplate DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[Option[OperationCreateElementFromTemplate]]
 
   /**
    * Build a new 'Create a new element from template' operation.
@@ -71,7 +102,7 @@ object OperationCreateElementFromTemplate extends Loggable {
   def apply(template: ElementTemplate, container: Element.Generic, modelId: Symbol = Model.eId): Option[Abstract] = {
     operation match {
       case Some(operation) =>
-        Some(operation.operation(template, container, modelId).asInstanceOf[Abstract])
+        Some(operation.operation(template, container, modelId))
       case None =>
         log.error("OperationCreateElementFromTemplate implementation is not defined.")
         None

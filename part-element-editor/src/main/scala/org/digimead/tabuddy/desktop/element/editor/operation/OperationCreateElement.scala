@@ -64,7 +64,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Shell
 
 /** 'Create a new element' operation. */
-class OperationCreateElement extends api.OperationCreateElement with Loggable {
+class OperationCreateElement extends logic.operation.OperationCreateElement with Loggable {
   /**
    * Create a new element.
    *
@@ -100,7 +100,7 @@ class OperationCreateElement extends api.OperationCreateElement with Loggable {
    * @param modelId current model Id
    * @return 'Create a new element' operation
    */
-  def operation(container: Element.Generic, modelId: Symbol): Operation[Element.Generic] =
+  def operation(container: Element.Generic, modelId: Symbol) =
     new Implemetation(container, modelId)
 
   class Implemetation(container: Element.Generic, modelId: Symbol)

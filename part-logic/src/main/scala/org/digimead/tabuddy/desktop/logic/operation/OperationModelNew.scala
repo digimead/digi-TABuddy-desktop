@@ -116,8 +116,24 @@ class OperationModelNew extends api.OperationModelNew with Loggable {
    * @param interactive show model creation wizard
    * @return 'New model' operation
    */
-  def operation(name: Option[String], location: Option[File], interactive: Boolean): Operation[logic.api.ModelMarker] =
+  def operation(name: Option[String], location: Option[File], interactive: Boolean) =
     new Implemetation(name, location, interactive)
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
 
   class Implemetation(name: Option[String], location: Option[File], interactive: Boolean)
     extends OperationModelNew.Abstract(name, location, interactive) with Loggable {
@@ -144,12 +160,12 @@ class OperationModelNew extends api.OperationModelNew with Loggable {
 
 object OperationModelNew extends Loggable {
   /** Stable identifier with OperationModelNew DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[OperationModelNew]
 
   /** Build a new 'New model' operation */
   @log
   def apply(name: Option[String], location: Option[File], interactive: Boolean): Option[Abstract] =
-    Some(operation.operation(name, location, interactive).asInstanceOf[Abstract])
+    Some(operation.operation(name, location, interactive))
 
   /** Bridge between abstract api.Operation[logic.api.ModelMarker] and concrete Operation[logic.api.ModelMarker] */
   abstract class Abstract(val name: Option[String], val location: Option[File], val interactive: Boolean)

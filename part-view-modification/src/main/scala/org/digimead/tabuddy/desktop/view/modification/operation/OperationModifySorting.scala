@@ -65,7 +65,7 @@ import org.eclipse.core.runtime.IProgressMonitor
 import org.eclipse.swt.widgets.Shell
 
 /** 'Modify sorting' operation. */
-class OperationModifySorting extends api.OperationModifySorting with Loggable {
+class OperationModifySorting extends logic.operation.view.OperationModifySorting with Loggable {
   /**
    * Modify sorting.
    *
@@ -104,7 +104,7 @@ class OperationModifySorting extends api.OperationModifySorting with Loggable {
    * @param modelId current model Id
    * @return 'Modify sorting' operation
    */
-  def operation(sorting: Sorting, sortingList: Set[Sorting], modelId: Symbol): Operation[Sorting] =
+  def operation(sorting: Sorting, sortingList: Set[Sorting], modelId: Symbol) =
     new Implemetation(sorting, sortingList, modelId)
 
   class Implemetation(sorting: Sorting, sortingList: Set[Sorting], modelId: Symbol)

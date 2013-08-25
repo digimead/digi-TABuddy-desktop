@@ -54,11 +54,41 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 
 /**
+ * OperationModifyFilterList base trait.
+ */
+trait OperationModifyFilterList extends api.OperationModifyFilterList {
+  /**
+   * Create 'Modify filter list' operation.
+   *
+   * @param filterList the list of exists filters
+   * @param modelId current model Id
+   * @return 'Modify filter list' operation
+   */
+  override def operation(filterList: Set[Filter], modelId: Symbol): OperationModifyFilterList.Abstract
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+}
+
+/**
  * Modify a view's filter list.
  */
 object OperationModifyFilterList extends Loggable {
   /** Stable identifier with OperationModifyFilterList DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyFilterList]]
 
   /**
    * Build a new 'Modify filter list' operation
@@ -70,7 +100,7 @@ object OperationModifyFilterList extends Loggable {
   def apply(filterList: Set[Filter], modelId: Symbol = Model.eId): Option[Abstract] = {
     operation match {
       case Some(operation) =>
-        Some(operation.operation(filterList, modelId).asInstanceOf[Abstract])
+        Some(operation.operation(filterList, modelId))
       case None =>
         log.error("OperationModifyFilterList implementation is not defined.")
         None

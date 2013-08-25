@@ -65,7 +65,7 @@ import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
 
 /** 'Create a new element from template' operation. */
-class OperationCreateElementFromTemplate extends api.OperationCreateElementFromTemplate with Loggable {
+class OperationCreateElementFromTemplate extends logic.operation.OperationCreateElementFromTemplate with Loggable {
   /**
    * Create a new element from template.
    *
@@ -85,7 +85,6 @@ class OperationCreateElementFromTemplate extends api.OperationCreateElementFromT
         case Some(shell) =>
           val newElementID = Payload.generateNew("New" + template.element.eScope, "_", newId => container.eChildren.exists(_.eId.name == newId))
           val element = template.factory(container, Symbol(newElementID), template.id)
-          log.___glance("!!!" + shell.isDisposed())
           val dialog = new ElementEditor(shell, element, template, true)
           dialog.openOrFocus {
             case result if result == org.eclipse.jface.window.Window.OK =>
@@ -111,7 +110,7 @@ class OperationCreateElementFromTemplate extends api.OperationCreateElementFromT
    * @param modelId current model Id
    * @return 'Create a new element from template' operation
    */
-  def operation(template: ElementTemplate, container: Element.Generic, modelId: Symbol): Operation[Element.Generic] =
+  def operation(template: ElementTemplate, container: Element.Generic, modelId: Symbol) =
     new Implemetation(template, container, modelId)
 
   class Implemetation(template: ElementTemplate, container: Element.Generic, modelId: Symbol)

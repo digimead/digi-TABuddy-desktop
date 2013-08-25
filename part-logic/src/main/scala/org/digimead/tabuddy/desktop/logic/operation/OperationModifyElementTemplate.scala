@@ -79,6 +79,7 @@ object OperationModifyElementTemplate extends Loggable {
     val modelId: Symbol)
     extends Operation[ElementTemplate](s"Edit $template for model $modelId") with api.OperationModifyElementTemplate {
     this: Loggable =>
+    override protected def checkSubclass() {}
   }
   /**
    * Dependency injection routines.

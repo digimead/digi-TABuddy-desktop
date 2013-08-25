@@ -54,24 +54,56 @@ import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 
 /**
+ * OperationDeleteElement base trait.
+ */
+trait OperationDeleteElement extends api.OperationDeleteElement {
+  /**
+   * Create 'Delete the element' operation.
+   *
+   * @param element element for delete
+   * @param interactive ask user confirmation
+   * @param modelId current model Id
+   * @return 'Delete the element' operation
+   */
+  override def operation(element: Element.Generic, interactive: Boolean, modelId: Symbol): OperationDeleteElement.Abstract
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+}
+
+/**
  * Delete the element.
  */
 object OperationDeleteElement extends Loggable {
   /** Stable identifier with OperationDeleteElement DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[Option[OperationDeleteElement]]
 
   /**
    * Build a new 'Delete the element' operation.
    *
    * @param element element for delete
+   * @param interactive ask user confirmation
    * @param modelId current model Id
    * @return 'Delete the element' operation
    */
   @log
-  def apply(element: Element.Generic, modelId: Symbol = Model.eId): Option[Abstract] = {
+  def apply(element: Element.Generic, interactive: Boolean = true, modelId: Symbol = Model.eId): Option[Abstract] = {
     operation match {
       case Some(operation) =>
-        Some(operation.operation(element, modelId).asInstanceOf[Abstract])
+        Some(operation.operation(element, interactive, modelId))
       case None =>
         log.error("OperationDeleteElement implementation is not defined.")
         None
@@ -79,7 +111,7 @@ object OperationDeleteElement extends Loggable {
   }
 
   /** Bridge between abstract api.Operation[Boolean] and concrete Operation[Boolean] */
-  abstract class Abstract(val element: Element.Generic, val modelId: Symbol)
+  abstract class Abstract(val element: Element.Generic, val interactive: Boolean, val modelId: Symbol)
     extends Operation[Boolean](s"Delete $element.") {
     this: Loggable =>
   }

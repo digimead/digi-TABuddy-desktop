@@ -87,9 +87,24 @@ class OperationModelDelete extends api.OperationModelDelete with Loggable {
    * @param askBefore askUser before delete
    * @return 'Delete model' operation
    */
-  def operation(modelId: Symbol, askBefore: Boolean): Operation[logic.api.ModelMarker] =
+  def operation(modelId: Symbol, askBefore: Boolean) =
     new Implementation(modelId, askBefore)
 
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
   /**
    * Get operation model marker for this operation.
    *
@@ -126,12 +141,12 @@ class OperationModelDelete extends api.OperationModelDelete with Loggable {
 
 object OperationModelDelete extends Loggable {
   /** Stable identifier with OperationModelDelete DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[OperationModelDelete]
 
   /** Build a new 'Delete model' operation */
   @log
   def apply(modelId: Symbol, askBefore: Boolean): Option[Abstract] =
-    Some(operation.operation(modelId, askBefore).asInstanceOf[Abstract])
+    Some(operation.operation(modelId, askBefore))
 
   /** Bridge between abstract api.Operation[logic.api.ModelMarker] and concrete Operation[logic.api.ModelMarker] */
   abstract class Abstract(val modelId: Symbol, val askBefore: Boolean) extends Operation[logic.api.ModelMarker](s"Delete model ${modelId}.") {

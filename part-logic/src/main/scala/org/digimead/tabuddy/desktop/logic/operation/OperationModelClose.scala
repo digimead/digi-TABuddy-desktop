@@ -91,6 +91,21 @@ class OperationModelClose extends api.OperationModelClose with Loggable {
     new Implemetation(modelId, force: Boolean)
 
   /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+  /**
    * Get operation model marker for this operation.
    *
    * This method isn't collect marker of default model.
@@ -171,12 +186,12 @@ class OperationModelClose extends api.OperationModelClose with Loggable {
 
 object OperationModelClose extends Loggable {
   /** Stable identifier with OperationModelClose DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[OperationModelClose]
 
   /** Build a new 'Close model' operation */
   @log
   def apply(modelId: Symbol, force: Boolean): Option[Abstract] =
-    Some(operation.operation(modelId, force).asInstanceOf[Abstract])
+    Some(operation.operation(modelId, force))
 
   /** Bridge between abstract api.Operation[logic.api.ModelMarker] and concrete Operation[logic.api.ModelMarker] */
   abstract class Abstract(val modelId: Symbol, force: Boolean) extends Operation[logic.api.ModelMarker](s"Close model ${modelId}.") {

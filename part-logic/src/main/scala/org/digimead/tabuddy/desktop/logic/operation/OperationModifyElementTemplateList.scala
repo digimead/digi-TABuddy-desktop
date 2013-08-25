@@ -70,6 +70,7 @@ object OperationModifyElementTemplateList extends Loggable {
   abstract class Abstract(val elementTemplates: Set[ElementTemplate], val modelId: Symbol)
     extends Operation[Set[ElementTemplate]]("Edit the element template list of %s model".format(Model.eId)) with api.OperationModifyElementTemplateList {
     this: Loggable =>
+    override protected def checkSubclass() {}
   }
   /**
    * Dependency injection routines.

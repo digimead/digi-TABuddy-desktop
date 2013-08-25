@@ -43,15 +43,19 @@
 
 package org.digimead.tabuddy.desktop
 
+import scala.Option.option2Iterable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Actions.configurator2implementation
 import org.digimead.tabuddy.desktop.core.Views.configurator2implementation
 import org.digimead.tabuddy.desktop.definition.Context
 import org.digimead.tabuddy.desktop.definition.Context.appContext2rich
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.definition.api.OperationApprover
 import org.digimead.tabuddy.desktop.gui.GUI
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -120,6 +124,7 @@ class Core extends akka.actor.Actor with Loggable {
     case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
       future {
         App.verifyApplicationEnvironment
+        Core.DI.approvers.foreach(Operation.history.addOperationApprover)
         core.Actions.configure
         core.Views.configure
         App.markAsStarted(Core.getClass)
@@ -133,6 +138,7 @@ class Core extends akka.actor.Actor with Loggable {
       future {
         core.Views.unconfigure
         core.Actions.unconfigure
+        Core.DI.approvers.foreach(Operation.history.removeOperationApprover)
         App.markAsStopped(Core.getClass)
       } onFailure {
         case e: Exception => log.error(e.getMessage(), e)
@@ -148,7 +154,7 @@ class Core extends akka.actor.Actor with Loggable {
   }
 }
 
-object Core {
+object Core extends Loggable {
   implicit def core2actorRef(c: Core.type): ActorRef = c.actor
   implicit def core2actorSRef(c: Core.type): ScalaActorRef = c.actor
   /** Core actor reference. */
@@ -171,6 +177,19 @@ object Core {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** Collection of operation approvers. */
+    lazy val approvers = bindingModule.bindings.filter {
+      case (key, value) => classOf[org.digimead.tabuddy.desktop.definition.api.OperationApprover].isAssignableFrom(key.m.runtimeClass)
+    }.map {
+      case (key, value) =>
+        key.name match {
+          case Some(name) =>
+            log.debug(s"${name} operation approver loaded.")
+          case None =>
+            log.debug(s"Unnamed operation approver loaded.")
+        }
+        bindingModule.injectOptional(key).asInstanceOf[Option[org.digimead.tabuddy.desktop.definition.OperationApprover]]
+    }.flatten
     /** Core Akka factory. */
     lazy val props = injectOptional[Props]("Core") getOrElse Props[Core]
   }

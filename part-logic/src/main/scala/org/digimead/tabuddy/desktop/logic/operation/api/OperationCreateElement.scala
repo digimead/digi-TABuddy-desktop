@@ -50,6 +50,8 @@ import org.digimead.tabuddy.model.element.Element
  * OperationCreateElement base trait.
  */
 trait OperationCreateElement {
+  checkSubclass()
+
   /**
    * Create a new element.
    *
@@ -66,4 +68,21 @@ trait OperationCreateElement {
    * @return 'Create a new element' operation
    */
   def operation(container: Element.Generic, modelId: Symbol): api.Operation[Element.Generic]
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.OperationCreateElement instead.")
 }

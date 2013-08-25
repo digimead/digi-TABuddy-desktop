@@ -41,34 +41,13 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation.view.api
+package org.digimead.tabuddy.desktop.definition
 
-import org.digimead.tabuddy.desktop.definition.api
-import org.digimead.tabuddy.desktop.logic.payload.view.api.View
+import org.digimead.digi.lib.log.api.Loggable
+import org.eclipse.core.commands.operations.IOperationApprover2
 
-/**
- * OperationModifyViewList base trait.
- */
-trait OperationModifyViewList {
-  checkSubclass()
-
-  /**
-   * Modify view list.
-   *
-   * @param viewList the list of exists views
-   * @param modelId current model Id
-   * @return the modified/the same view list
-   */
-  def apply(viewList: Set[View], modelId: Symbol): Set[View]
-  /**
-   * Create 'Modify view list' operation.
-   *
-   * @param viewList the list of exists views
-   * @param modelId current model Id
-   * @return 'Modify view list' operation
-   */
-  def operation(viewList: Set[View], modelId: Symbol): api.Operation[Set[View]]
-
+abstract class OperationApprover extends IOperationApprover2 with api.OperationApprover {
+  this: Loggable =>
   /**
    * Checks that this class can be subclassed.
    * <p>
@@ -83,6 +62,5 @@ trait OperationModifyViewList {
    * subclass will likely fail.
    * </p>
    */
-  protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyViewList instead.")
+  override protected def checkSubclass() {}
 }

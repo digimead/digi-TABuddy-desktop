@@ -95,6 +95,21 @@ class OperationModelOpen extends api.OperationModelOpen with Loggable {
     new Implemetation(oldModelId, newModelId, force: Boolean)
 
   /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+  /**
    * Get model markers for this operation.
    *
    * This method isn't collect marker of default model.
@@ -108,7 +123,7 @@ class OperationModelOpen extends api.OperationModelOpen with Loggable {
         if (Model.eId != oldModelId)
           throw new IllegalArgumentException("An unexpected model %s, expect %s".format(Model.eId, oldModelId))
       case None =>
-        if (Model.eId == Payload.defaultModel.eId)
+        if (Model.eId != Payload.defaultModel.eId)
           throw new IllegalAccessException("An unexpected model %s, expect %s".format(Model.eId, Payload.defaultModel.eId))
     }
     if (newModelId == Payload.defaultModel.eId)
@@ -154,7 +169,7 @@ class OperationModelOpen extends api.OperationModelOpen with Loggable {
         Operation.Result.OK(this.after)
       } catch {
         case e: Throwable =>
-          Operation.Result.Error(s"Unable to open model ${newModelId}.")
+          Operation.Result.Error(s"Unable to open model ${newModelId}.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor,
@@ -199,12 +214,12 @@ class OperationModelOpen extends api.OperationModelOpen with Loggable {
 
 object OperationModelOpen extends Loggable {
   /** Stable identifier with OperationModelOpen DI */
-  lazy val operation = DI.operation
+  lazy val operation = DI.operation.asInstanceOf[OperationModelOpen]
 
   /** Build a new 'Open model' operation */
   @log
   def apply(oldModelId: Option[Symbol], newModelId: Symbol, force: Boolean): Option[Abstract] =
-    Some(operation.operation(oldModelId, newModelId, force).asInstanceOf[Abstract])
+    Some(operation.operation(oldModelId, newModelId, force))
 
   /** Bridge between abstract api.Operation[logic.api.ModelMarker] and concrete Operation[logic.api.ModelMarker] */
   abstract class Abstract(val oldModelId: Option[Symbol], val newModelId: Symbol, force: Boolean)
