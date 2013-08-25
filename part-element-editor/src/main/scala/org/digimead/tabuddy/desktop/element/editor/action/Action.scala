@@ -108,6 +108,7 @@ class Action extends Actor with Loggable {
     val editorToolbar = WindowToolbar(window, Action.elementToolbar)
     editorToolbar.getToolBarManager().add(ActionCreateElement())
     editorToolbar.getToolBarManager().add(ActionModifyElement())
+    editorToolbar.getToolBarManager().add(ActionDeleteElement())
     window.getCoolBarManager2().update(true)
   }
 }

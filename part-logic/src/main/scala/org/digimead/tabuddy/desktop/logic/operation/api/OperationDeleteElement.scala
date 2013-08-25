@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,36 +41,29 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.element
+package org.digimead.tabuddy.desktop.logic.operation.api
 
-import org.digimead.digi.lib.DependencyInjection
-
-import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.tabuddy.desktop.definition.api
+import org.digimead.tabuddy.model.element.Element
 
 /**
- * Element editor component contains:
- *   create element dialog
- *   modify element dialog
+ * OperationDeleteElement base trait.
  */
-package object editor {
-  lazy val default = new NewBindingModule(module => {
-    // implementation of logic.operation.OperationCreateElement
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationCreateElement] toSingle {
-      new operation.OperationCreateElement()
-    }
-    // implementation of logic.operation.OperationCreateElementFromTemplate
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationCreateElementFromTemplate] toSingle {
-      new operation.OperationCreateElementFromTemplate()
-    }
-    // implementation of logic.operation.OperationDeleteElement
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationDeleteElement] toSingle {
-      new operation.OperationDeleteElement()
-    }
-    // implementation of logic.operation.OperationModifyElement
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyElement] toSingle {
-      new operation.OperationModifyElement()
-    }
-  })
-
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.element.editor.Default$DI$")
+trait OperationDeleteElement {
+  /**
+   * Delete the element.
+   *
+   * @param element element for delete
+   * @param modelId current model Id
+   * @return true on success
+   */
+  def apply(element: Element.Generic, modelId: Symbol): Boolean
+  /**
+   * Create 'Delete the element' operation.
+   *
+   * @param element element for delete
+   * @param modelId current model Id
+   * @return 'Delete the element' operation
+   */
+  def operation(element: Element.Generic, modelId: Symbol): api.Operation[Boolean]
 }

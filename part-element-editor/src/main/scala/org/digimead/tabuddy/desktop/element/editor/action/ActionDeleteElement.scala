@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElement
+import org.digimead.tabuddy.desktop.logic.operation.OperationDeleteElement
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -69,11 +69,11 @@ import akka.actor.Props
 import javax.inject.Inject
 import javax.inject.Named
 
-/** Modify the element. */
-class ActionModifyElement private () extends JFaceAction(Messages.edit_text) with Loggable {
+/** Delete the element. */
+class ActionDeleteElement private () extends JFaceAction(Messages.delete_text) with Loggable {
   @volatile var selected: Option[Element.Generic] = None
 
-  ContextInjectionFactory.inject(ActionModifyElement.this, Core.context)
+  ContextInjectionFactory.inject(ActionDeleteElement.this, Core.context)
 
   override def isEnabled(): Boolean = super.isEnabled && (Model.eId != Payload.defaultModel.eId) && selected.nonEmpty
   /** Invoked at every modification of Data.Id.selectedElement. */
@@ -86,7 +86,7 @@ class ActionModifyElement private () extends JFaceAction(Messages.edit_text) wit
   @log
   override def run() = selected match {
     case Some(selected) =>
-      OperationModifyElement(selected).foreach { operation =>
+      OperationDeleteElement(selected).foreach { operation =>
         operation.getExecuteJob() match {
           case Some(job) =>
             job.setPriority(Job.SHORT)
@@ -114,22 +114,22 @@ class ActionModifyElement private () extends JFaceAction(Messages.edit_text) wit
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
 
-object ActionModifyElement extends Loggable {
+object ActionDeleteElement extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** ModifyElement action. */
-  @volatile protected var action: Option[ActionModifyElement] = None
+  /** DeleteElement action. */
+  @volatile protected var action: Option[ActionDeleteElement] = None
 
-  /** Returns ModifyElement action. */
-  def apply(): ActionModifyElement = action.getOrElse {
-    val modifyElementAction = App.execNGet { new ActionModifyElement }
-    action = Some(modifyElementAction)
-    modifyElementAction
+  /** Returns DeleteElement action. */
+  def apply(): ActionDeleteElement = action.getOrElse {
+    val deleteElementAction = App.execNGet { new ActionDeleteElement }
+    action = Some(deleteElementAction)
+    deleteElementAction
   }
-  /** ModifyElement action actor reference configuration object. */
+  /** DeleteElement action actor reference configuration object. */
   def props = DI.props
 
-  /** ModifyElement action actor. */
+  /** DeleteElement action actor. */
   class Actor extends akka.actor.Actor {
     log.debug("Start actor " + self.path)
 
@@ -156,7 +156,7 @@ object ActionModifyElement extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** ModifyElement actor reference configuration object. */
-    lazy val props = injectOptional[Props]("ElementEditor.Action.ModifyElement") getOrElse Props[ActionModifyElement.Actor]
+    /** DeleteElement actor reference configuration object. */
+    lazy val props = injectOptional[Props]("ElementEditor.Action.DeleteElement") getOrElse Props[ActionDeleteElement.Actor]
   }
 }

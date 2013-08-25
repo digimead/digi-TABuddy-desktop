@@ -55,7 +55,7 @@ trait OperationModifyElement {
    *
    * @param element modified element
    * @param modelId current model Id
-   * @return the modified/the same filter
+   * @return true if modified
    */
   def apply(element: Element.Generic, modelId: Symbol): Boolean
   /**

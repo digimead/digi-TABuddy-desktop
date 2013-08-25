@@ -1,6 +1,6 @@
 /**
  * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,36 +41,52 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.element
+package org.digimead.tabuddy.desktop.logic.operation
 
-import org.digimead.digi.lib.DependencyInjection
+import scala.reflect.runtime.universe
 
-import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.element.Element
 
 /**
- * Element editor component contains:
- *   create element dialog
- *   modify element dialog
+ * Delete the element.
  */
-package object editor {
-  lazy val default = new NewBindingModule(module => {
-    // implementation of logic.operation.OperationCreateElement
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationCreateElement] toSingle {
-      new operation.OperationCreateElement()
-    }
-    // implementation of logic.operation.OperationCreateElementFromTemplate
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationCreateElementFromTemplate] toSingle {
-      new operation.OperationCreateElementFromTemplate()
-    }
-    // implementation of logic.operation.OperationDeleteElement
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationDeleteElement] toSingle {
-      new operation.OperationDeleteElement()
-    }
-    // implementation of logic.operation.OperationModifyElement
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyElement] toSingle {
-      new operation.OperationModifyElement()
-    }
-  })
+object OperationDeleteElement extends Loggable {
+  /** Stable identifier with OperationDeleteElement DI */
+  lazy val operation = DI.operation
 
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.element.editor.Default$DI$")
+  /**
+   * Build a new 'Delete the element' operation.
+   *
+   * @param element element for delete
+   * @param modelId current model Id
+   * @return 'Delete the element' operation
+   */
+  @log
+  def apply(element: Element.Generic, modelId: Symbol = Model.eId): Option[Abstract] = {
+    operation match {
+      case Some(operation) =>
+        Some(operation.operation(element, modelId).asInstanceOf[Abstract])
+      case None =>
+        log.error("OperationDeleteElement implementation is not defined.")
+        None
+    }
+  }
+
+  /** Bridge between abstract api.Operation[Boolean] and concrete Operation[Boolean] */
+  abstract class Abstract(val element: Element.Generic, val modelId: Symbol)
+    extends Operation[Boolean](s"Delete $element.") {
+    this: Loggable =>
+  }
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    lazy val operation = injectOptional[api.OperationDeleteElement]
+  }
 }

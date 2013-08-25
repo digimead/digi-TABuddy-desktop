@@ -63,7 +63,7 @@ object OperationModifyElement extends Loggable {
   /**
    * Build a new 'Modify the element' operation.
    *
-   * @param container container for the new element
+   * @param element modified element
    * @param modelId current model Id
    * @return 'Modify the element' operation
    */
