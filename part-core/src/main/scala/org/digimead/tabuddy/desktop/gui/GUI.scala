@@ -77,11 +77,11 @@ class GUI extends Loggable {
     var result = false
     var duration = 0L
     while (exitCode.get.isEmpty) try {
-      ts = System.currentTimeMillis()
+//      ts = System.currentTimeMillis()
       result = display.readAndDispatch()
-      duration = System.currentTimeMillis() - ts
-      if (duration > 500)
-        log.error(s"Too heavy UI operation: ${duration}ms.")
+//      duration = System.currentTimeMillis() - ts
+//      if (duration > 500)
+//        log.error(s"Too heavy UI operation: ${duration}ms.")
       if (!result)
         display.sleep()
     } catch {

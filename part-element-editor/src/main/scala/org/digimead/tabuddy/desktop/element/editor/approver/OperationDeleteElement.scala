@@ -43,33 +43,40 @@
 
 package org.digimead.tabuddy.desktop.element.editor.approver
 
+import scala.reflect.runtime.universe
+
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.definition.OperationApprover
-import org.digimead.tabuddy.desktop.logic.operation.OperationModelDelete
+import org.digimead.tabuddy.desktop.logic.operation.OperationDeleteElement.Abstract
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.eclipse.core.commands.operations.IOperationHistory
 import org.eclipse.core.commands.operations.IUndoableOperation
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IStatus
 import org.eclipse.core.runtime.Status
+import org.eclipse.jface.dialogs.MessageDialog
 
 class OperationDeleteElement extends OperationApprover with Loggable {
   def proceedExecuting(operation: IUndoableOperation, history: IOperationHistory, info: IAdaptable): IStatus = operation match {
-    case operation: OperationModelDelete.Abstract =>
-      /*App.execNGet {
-        if (!Data.availableModels.contains(operation.newModelID.name)) {
-          // ask user confirmation if model not exists
-          MessageDialog.openConfirm(Window.shell, "Confirm new model creation",
-            "Please confirm creation of %s model".format(operation.newModelID)) match {
-              case true =>
-                Status.OK_STATUS
-              case false =>
-                Main.exec { ActionLocalStorageLock.setChecked(false) }
-                Status.CANCEL_STATUS
-            }
-        } else
-          Status.OK_STATUS
-      }*/
-      Status.CANCEL_STATUS
+    case operation: Abstract if operation.interactive =>
+      App.execBlocking {
+        App.getActiveShell match {
+          case Some(shell) =>
+            // ask user confirmation
+            MessageDialog.openConfirm(shell, "Are you sure?",
+              "Please confirm delete of %s element".format(operation.element)) match {
+                case true =>
+                  Status.OK_STATUS
+                case false =>
+                  Operation.Result.Cancel()
+              }
+          case None =>
+            log.error("Unable to find active shell.")
+            Status.OK_STATUS
+        }
+      }
     case operation => Status.OK_STATUS
   }
   def proceedRedoing(operation: IUndoableOperation, history: IOperationHistory, info: IAdaptable): IStatus = Status.OK_STATUS

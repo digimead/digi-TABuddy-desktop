@@ -201,7 +201,6 @@ object Operation extends Loggable {
      */
     def isOK() = getSeverity match {
       case IStatus.OK => true
-      case IStatus.CANCEL => true
       case _ => false
     }
     /**
