@@ -44,14 +44,20 @@
 package org.digimead.tabuddy.desktop.element.editor.dialog
 
 import scala.Option.option2Iterable
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration
-import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplatePropertyGroup
+import scala.reflect.runtime.universe
+
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.ResourceManager
+import org.digimead.tabuddy.desktop.definition.Dialog
+import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration
+import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
+import org.digimead.tabuddy.desktop.logic.payload.api.TemplatePropertyGroup
+import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.desktop.support.SymbolValidator
 import org.digimead.tabuddy.desktop.support.WritableList
 import org.digimead.tabuddy.desktop.support.WritableValue
@@ -83,9 +89,6 @@ import org.eclipse.ui.forms.events.ExpansionAdapter
 import org.eclipse.ui.forms.events.ExpansionEvent
 import org.eclipse.ui.forms.widgets.ExpandableComposite
 import org.eclipse.ui.forms.widgets.Section
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.definition.Dialog
 
 class ElementEditor(val parentShell: Shell, element: Element.Generic, template: ElementTemplate, newElement: Boolean)
   extends ElementEditorSkel(parentShell) with Dialog with Loggable {
@@ -149,28 +152,26 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
       false
     })).asInstanceOf[Option[Enumeration[T]]]) match {
       case Some(enumeration) =>
-        /*        val comboViewer = editor.createCControl(getToolkit, getForm.getBody(), SWT.READ_ONLY)
+        val comboViewer = editor.asEditor[payload.PropertyType.genericEditor].createCControl(getToolkit, getForm.getBody(), SWT.READ_ONLY)
         comboViewer.getCombo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
-        comboViewer.setLabelProvider(property.ptype.adapter.createEnumerationLabelProvider)
+        comboViewer.setLabelProvider(property.ptype.adapter.asAdapter[payload.PropertyType.genericAdapter].createEnumerationLabelProvider)
         comboViewer.setContentProvider(new ObservableListContentProvider())
         comboViewer.setInput(WritableList(enumeration.constants.toList.sortBy(_.view)).underlying)
         comboViewer.setSelection(new StructuredSelection(enumeration.getConstantSafe(property)), true)
-        comboViewer.getCombo()*/
-        null.asInstanceOf[Control]
+        comboViewer.getCombo()
       case None =>
-        /*        val control = editor.createControl(getToolkit, getForm.getBody(), SWT.BORDER)
+        val control = editor.asEditor[payload.PropertyType.genericEditor].createControl(getToolkit, getForm.getBody(), SWT.BORDER)
         control.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
         control.setBackground(getForm.getBackground())
-        editor.addValidator(control)
-        control*/
-        null.asInstanceOf[Control]
+        editor.asEditor[payload.PropertyType.genericEditor].addValidator(control)
+        control
     }
     // manually convert all fields to the common one
     ElementEditor.PropertyItem[AnyRef with java.io.Serializable](
       initial,
       property.asInstanceOf[TemplateProperty[AnyRef with java.io.Serializable]],
       control,
-      editor.asInstanceOf[PropertyType.Editor[AnyRef with java.io.Serializable]])
+      editor.asEditor[payload.PropertyType.genericEditor])
   }
   /** Adjust the form height to content if possible */
   protected def adjustFormHeight() {
@@ -253,14 +254,14 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     }.flatten
     properties.foreach {
       case ElementEditor.PropertyItem(initial, property, control, editor) =>
-      //editor.data.underlying.addChangeListener(propertiesListener)
+        editor.data.underlying.addChangeListener(propertiesListener)
     }
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         properties.foreach {
           case ElementEditor.PropertyItem(initial, property, control, editor) =>
-          //editor.data.underlying.removeChangeListener(propertiesListener)
+            editor.data.underlying.removeChangeListener(propertiesListener)
         }
         ElementEditor.dialog = None
       }
@@ -288,7 +289,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     }
     properties.foreach {
       case ElementEditor.PropertyItem(initialValue, property, control, editor) =>
-      /*if (editor.isEmpty) {
+        if (editor.isEmpty) {
           if (element.eGet(property.id, property.ptype.typeSymbol).nonEmpty)
             element.eRemove(property.id, property.ptype.typeSymbol)
         } else {
@@ -297,7 +298,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
             val value = Value.static(editor.data.value)(element, Manifest.classType(property.ptype.typeClass))
             element.eSet(property.id, property.ptype.typeSymbol, Some(value))
           }
-        }*/
+        }
     }
     super.okPressed()
   }
@@ -321,8 +322,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
         // The content is modified
         !properties.forall {
           case ElementEditor.PropertyItem(initial, property, control, editor) =>
-            //initial == Option(editor.data.value) || (initial.isEmpty && editor.isEmpty)
-            false
+            initial == Option(editor.data.value) || (initial.isEmpty && editor.isEmpty)
         }
     }
   }))
@@ -336,5 +336,5 @@ object ElementEditor {
     val initial: Option[T],
     val property: TemplateProperty[T],
     val control: Control,
-    val editor: PropertyType.Editor[T])
+    val editor: payload.PropertyType.Editor[T])
 }

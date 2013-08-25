@@ -56,7 +56,6 @@ import org.digimead.tabuddy.desktop.support.App.app2implementation
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
-import org.digimead.tabuddy.desktop.logic
 
 /**
  * Register action in new windows.
@@ -108,6 +107,7 @@ class Action extends Actor with Loggable {
   protected def adjustToolbar(window: AppWindow) {
     val editorToolbar = WindowToolbar(window, Action.elementToolbar)
     editorToolbar.getToolBarManager().add(ActionCreateElement())
+    editorToolbar.getToolBarManager().add(ActionModifyElement())
     window.getCoolBarManager2().update(true)
   }
 }

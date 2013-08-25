@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.operation.OperationCreateElement
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElement
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
@@ -70,10 +70,10 @@ import javax.inject.Inject
 import javax.inject.Named
 
 /** Create a new element. */
-class ActionCreateElement private () extends JFaceAction(Messages.new_text) with Loggable {
+class ActionModifyElement private () extends JFaceAction(Messages.edit_text) with Loggable {
   @volatile var selected: Option[Element.Generic] = None
 
-  ContextInjectionFactory.inject(ActionCreateElement.this, Core.context)
+  ContextInjectionFactory.inject(ActionModifyElement.this, Core.context)
 
   override def isEnabled(): Boolean = super.isEnabled && (Model.eId != Payload.defaultModel.eId) && selected.nonEmpty
   /** Invoked at every modification of Data.Id.selectedElement. */
@@ -86,7 +86,7 @@ class ActionCreateElement private () extends JFaceAction(Messages.new_text) with
   @log
   override def run() = selected match {
     case Some(selected) =>
-      OperationCreateElement(selected).foreach { operation =>
+      OperationModifyElement(selected).foreach { operation =>
         operation.getExecuteJob() match {
           case Some(job) =>
             job.setPriority(Job.SHORT)
@@ -115,17 +115,17 @@ class ActionCreateElement private () extends JFaceAction(Messages.new_text) with
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
 
-object ActionCreateElement extends Loggable {
+object ActionModifyElement extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** CreateElement action. */
-  @volatile protected var action: Option[ActionCreateElement] = None
+  @volatile protected var action: Option[ActionModifyElement] = None
 
   /** Returns CreateElement action. */
-  def apply(): ActionCreateElement = action.getOrElse {
-    val createElementAction = App.execNGet { new ActionCreateElement }
-    action = Some(createElementAction)
-    createElementAction
+  def apply(): ActionModifyElement = action.getOrElse {
+    val modifyElementAction = App.execNGet { new ActionModifyElement }
+    action = Some(modifyElementAction)
+    modifyElementAction
   }
   /** CreateElement action actor reference configuration object. */
   def props = DI.props
@@ -158,6 +158,6 @@ object ActionCreateElement extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** CreateElement actor reference configuration object. */
-    lazy val props = injectOptional[Props]("ElementEditor.Action.CreateElement") getOrElse Props[ActionCreateElement.Actor]
+    lazy val props = injectOptional[Props]("ElementEditor.Action.CreateElement") getOrElse Props[ActionModifyElement.Actor]
   }
 }

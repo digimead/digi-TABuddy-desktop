@@ -474,7 +474,7 @@ object Table extends Loggable {
         propertyMap.get(item.element.eScope.modificator).foreach { property =>
           val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
           // as common unknown type
-          property.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider.update(cell, value)
+          property.ptype.adapter.asAdapter[PropertyType.genericAdapter].cellLabelProvider.update(cell, value)
         }
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
@@ -493,7 +493,7 @@ object Table extends Loggable {
         propertyMap.get(item.element.eScope.modificator).map { property =>
           val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
           // as common unknown type
-          property.ptype.adapter.as[PropertyType.genericAdapter].labelProvider.getImage(value)
+          property.ptype.adapter.asAdapter[PropertyType.genericAdapter].labelProvider.getImage(value)
         } getOrElse null
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
@@ -511,7 +511,7 @@ object Table extends Loggable {
         propertyMap.get(item.element.eScope.modificator).map { property =>
           val value = item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
           // as common unknown type
-          property.ptype.adapter.as[PropertyType.genericAdapter].labelProvider.getText(value)
+          property.ptype.adapter.asAdapter[PropertyType.genericAdapter].labelProvider.getText(value)
         } getOrElse ""
       case unknown =>
         log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
@@ -541,7 +541,7 @@ object Table extends Loggable {
       propertyMap.get(element.eScope.modificator).map { property =>
         val value = element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
         // as common unknown type
-        property.ptype.adapter.as[PropertyType.genericAdapter].labelProvider.getText(value).isEmpty()
+        property.ptype.adapter.asAdapter[PropertyType.genericAdapter].labelProvider.getText(value).isEmpty()
       } getOrElse (true)
       true
     }
@@ -553,9 +553,9 @@ object Table extends Loggable {
           case Some(property) =>
             item.element.eGet(property.id, property.ptype.typeSymbol).map(_.get) match {
               case Some(value) if value.getClass() == property.ptype.typeClass =>
-                Some(f(property.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider, value))
+                Some(f(property.ptype.adapter.asAdapter[PropertyType.genericAdapter].cellLabelProvider, value))
               case _ =>
-                Some(f(property.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider, null))
+                Some(f(property.ptype.adapter.asAdapter[PropertyType.genericAdapter].cellLabelProvider, null))
             }
           case None =>
             None

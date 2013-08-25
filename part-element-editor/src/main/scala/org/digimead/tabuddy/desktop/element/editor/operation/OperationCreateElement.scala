@@ -83,7 +83,10 @@ class OperationCreateElement extends api.OperationCreateElement with Loggable {
       val dialog = new ElementCreate(customShell, container)
       dialog.openOrFocus {
         case result if result == org.eclipse.jface.window.Window.OK =>
-          exchanger.exchange(null)
+          dialog.getCreatedElement match {
+            case Some(element) => exchanger.exchange(element)
+            case None => exchanger.exchange(null)
+          }
         case result =>
           exchanger.exchange(null)
       }

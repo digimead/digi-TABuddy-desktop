@@ -62,6 +62,10 @@ package object editor {
     module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationCreateElementFromTemplate] toSingle {
       new operation.OperationCreateElementFromTemplate()
     }
+    // implementation of logic.operation.OperationModifyElement
+    module.bind[org.digimead.tabuddy.desktop.logic.operation.api.OperationModifyElement] toSingle {
+      new operation.OperationModifyElement()
+    }
   })
 
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.element.editor.Default$DI$")

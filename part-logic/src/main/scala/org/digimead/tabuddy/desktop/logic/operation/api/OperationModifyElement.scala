@@ -43,11 +43,27 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.api
 
-import org.digimead.tabuddy.desktop.definition.api.Operation
+import org.digimead.tabuddy.desktop.definition.api
+import org.digimead.tabuddy.model.element.Element
 
 /**
  * OperationModifyElement base trait.
  */
 trait OperationModifyElement {
-  this: Operation[Boolean] =>
+  /**
+   * Modify the element.
+   *
+   * @param element modified element
+   * @param modelId current model Id
+   * @return the modified/the same filter
+   */
+  def apply(element: Element.Generic, modelId: Symbol): Boolean
+  /**
+   * Create 'Modify the element' operation.
+   *
+   * @param element modified element
+   * @param modelId current model Id
+   * @return 'Modify the element' operation
+   */
+  def operation(element: Element.Generic, modelId: Symbol): api.Operation[Boolean]
 }

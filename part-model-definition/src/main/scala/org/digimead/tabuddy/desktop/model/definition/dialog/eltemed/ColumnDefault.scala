@@ -66,7 +66,7 @@ object ColumnDefault extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item =>
-        item.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider.update(cell, item.default)
+        item.ptype.adapter.asAdapter[PropertyType.genericAdapter].cellLabelProvider.update(cell, item.default)
         item.defaultError.foreach(err => cell.setImage(err._2))
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
@@ -98,9 +98,9 @@ object ColumnDefault extends Loggable {
       case item: ElementTemplateEditor.Item =>
         item.default match {
           case Some(value) if value.getClass() == item.ptype.typeClass =>
-            Some(f(item.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider, value, item.defaultError))
+            Some(f(item.ptype.adapter.asAdapter[PropertyType.genericAdapter].cellLabelProvider, value, item.defaultError))
           case _ =>
-            Some(f(item.ptype.adapter.as[PropertyType.genericAdapter].cellLabelProvider, null, item.defaultError))
+            Some(f(item.ptype.adapter.asAdapter[PropertyType.genericAdapter].cellLabelProvider, null, item.defaultError))
         }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())
@@ -113,12 +113,12 @@ object ColumnDefault extends Loggable {
         item.enumeration match {
           case Some(enumeration) =>
             val cellEditor = new ComboBoxViewerCellEditor(viewer.getControl().asInstanceOf[Composite], SWT.READ_ONLY)
-            cellEditor.setLabelProvider(item.ptype.adapter.as[PropertyType.genericAdapter].createEnumerationLabelProvider)
+            cellEditor.setLabelProvider(item.ptype.adapter.asAdapter[PropertyType.genericAdapter].createEnumerationLabelProvider)
             cellEditor.setContentProvider(new ObservableListContentProvider())
             cellEditor.setInput(WritableList(enumeration.constants.toList.sortBy(_.view)).underlying)
             cellEditor
           case None =>
-            item.ptype.adapter.as[PropertyType.genericAdapter].createCellEditor(viewer.getControl().asInstanceOf[Composite])
+            item.ptype.adapter.asAdapter[PropertyType.genericAdapter].createCellEditor(viewer.getControl().asInstanceOf[Composite])
         }
       case unknown =>
         log.fatal("Unknown item " + unknown.getClass())

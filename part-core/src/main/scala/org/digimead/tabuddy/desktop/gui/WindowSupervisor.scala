@@ -77,7 +77,7 @@ import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.IValueChangeListener
 import org.eclipse.core.databinding.observable.value.ValueChangeEvent
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
-import org.eclipse.jface.window.{Window => JWindow}
+import org.eclipse.jface.window.{ Window => JWindow }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.widgets.Listener
@@ -322,14 +322,22 @@ class WindowSupervisor extends Actor with Loggable {
     val focusEvent = WritableValue[FocusEvent]
     /** Focus event delay, ms. */
     val antiSpamDelay = 100
+    /** Intercepted shells: shell -> timestamp. */
+    val shellMap = new mutable.WeakHashMap[Shell, Long]() with mutable.SynchronizedMap[Shell, Long]
 
     Observables.observeDelayedValue(antiSpamDelay, focusEvent).addValueChangeListener(new IValueChangeListener {
       def handleValueChange(event: ValueChangeEvent) =
         event.getObservableValue().asInstanceOf[DelayedObservableValue].getValue().asInstanceOf[FocusEvent].fire()
     })
     def handleEvent(event: Event) {
-      if (event.widget != null && event.widget.isInstanceOf[Shell])
-        Core.context.set(GUI.shellContextKey, event.widget)
+      if (event.widget != null && event.widget.isInstanceOf[Shell]) {
+        val shell = event.widget.asInstanceOf[Shell]
+        shellMap += shell -> System.currentTimeMillis()
+        //head is last active shell
+        val (active, disposed) = shellMap.toSeq.sortBy(-_._2).map(_._1).partition(!_.isDisposed)
+        shellMap --= disposed
+        Core.context.set(GUI.shellContextKey, active)
+      }
       App.findShell(event.widget).foreach { shell =>
         Option(shell.getData(GUI.swtId).asInstanceOf[UUID]).foreach { id =>
           event.`type` match {
@@ -362,28 +370,28 @@ class WindowSupervisor extends Actor with Loggable {
     /** Start event by SWT.FocusIn. */
     case class StrictStartFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
-        log.debug(s"Focus gained by window %08X for widget %s.".format(id.hashCode(), widget))
+        log.debug("Focus gained by window %08X for widget %s.".format(id.hashCode(), widget))
         self ! App.Message.Start(Left(id, widget))
       }
     }
     /** Start event without explicit focus widget. */
     case class FuzzyStartFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
-        log.debug(s"Window %08X activated.".format(id.hashCode()))
+        log.debug("Window %08X activated.".format(id.hashCode()))
         self ! App.Message.Start(Left(id, widget))
       }
     }
     /** Stop event by SWT.FocusOut. */
     case class StrictStopFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
-        log.debug(s"Focus lost by window %08X.".format(id.hashCode()))
+        log.debug("Focus lost by window %08X.".format(id.hashCode()))
         self ! App.Message.Stop(Left(id, widget))
       }
     }
     /** Stop event without explicit focus widget. */
     case class FuzzyStopFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
-        log.debug(s"Window %08X deactivated.".format(id.hashCode()))
+        log.debug("Window %08X deactivated.".format(id.hashCode()))
         self ! App.Message.Stop(Left(id, widget))
       }
     }

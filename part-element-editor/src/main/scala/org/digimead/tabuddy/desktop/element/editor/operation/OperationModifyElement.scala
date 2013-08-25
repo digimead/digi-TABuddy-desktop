@@ -52,10 +52,8 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.element.editor.dialog.ElementEditor
 import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.operation.api
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
 import org.digimead.tabuddy.desktop.support.App
 import org.digimead.tabuddy.desktop.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
@@ -64,34 +62,40 @@ import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
 
-/** 'Create a new element from template' operation. */
-class OperationCreateElementFromTemplate extends api.OperationCreateElementFromTemplate with Loggable {
+/** 'Modify the element' operation. */
+class OperationModifyElement extends api.OperationModifyElement with Loggable {
   /**
-   * Create a new element from template.
+   * Modify the element.
    *
-   * @param template template for the new element
-   * @param container container for the new element
+   * @param element modified element
    * @param modelId current model Id
    * @return the modified/the same filter
    */
-  def apply(template: ElementTemplate, container: Element.Generic, modelId: Symbol): Element.Generic = {
-    log.info(s"Create new element inside ${container} for model ${modelId}.")
+  def apply(element: Element.Generic, modelId: Symbol): Boolean = {
+    log.info(s"Modify element ${element} for model ${modelId}.")
     App.assertUIThread(false)
     if (Model.eId != modelId)
-      throw new IllegalStateException(s"Unable to create new element inside ${container}. Unexpected model ${Model.eId} is loaded.")
-    val exchanger = new Exchanger[Either[Throwable, Element.Generic]]()
+      throw new IllegalStateException(s"Unable to modify element ${element}. Unexpected model ${Model.eId} is loaded.")
+    val exchanger = new Exchanger[Either[Throwable, Boolean]]()
     App.exec {
       App.getActiveShell() match {
         case Some(shell) =>
-          val newElementID = Payload.generateNew("New" + template.element.eScope, "_", newId => container.eChildren.exists(_.eId.name == newId))
-          val element = template.factory(container, Symbol(newElementID), template.id)
-          log.___glance("!!!" + shell.isDisposed())
-          val dialog = new ElementEditor(shell, element, template, true)
-          dialog.openOrFocus {
-            case result if result == org.eclipse.jface.window.Window.OK =>
-              exchanger.exchange(Right(element))
-            case result =>
-              element.eParent.foreach(_.eChildren -= element)
+          Data.elementTemplates.get(element.eScope.modificator) match {
+            case Some(template) =>
+              if (!template.element.canEqual(element.getClass(), element.eStash.getClass())) {
+                log.warn(s"Unable to edit ${element}: incompatible template ${template} vs ${element.getClass()} ${element.eStash.getClass()}")
+                exchanger.exchange(null)
+              } else {
+                val dialog = new ElementEditor(shell, element, template, false)
+                dialog.openOrFocus {
+                  case result if result == org.eclipse.jface.window.Window.OK =>
+                    exchanger.exchange(Right(true))
+                  case result =>
+                    exchanger.exchange(Right(false))
+                }
+              }
+            case _ =>
+              log.warn(s"Element template for ${element} not found.")
               exchanger.exchange(null)
           }
         case None =>
@@ -104,35 +108,34 @@ class OperationCreateElementFromTemplate extends api.OperationCreateElementFromT
     }
   }
   /**
-   * Create 'Create a new element from template' operation.
+   * Create 'Modify the element' operation.
    *
-   * @param template template for the new element
-   * @param container container for the new element
+   * @param element modified element
    * @param modelId current model Id
-   * @return 'Create a new element from template' operation
+   * @return 'Modify the element' operation
    */
-  def operation(template: ElementTemplate, container: Element.Generic, modelId: Symbol): Operation[Element.Generic] =
-    new Implemetation(template, container, modelId)
+  def operation(element: Element.Generic, modelId: Symbol): Operation[Boolean] =
+    new Implemetation(element, modelId)
 
-  class Implemetation(template: ElementTemplate, container: Element.Generic, modelId: Symbol)
-    extends logic.operation.OperationCreateElementFromTemplate.Abstract(template, container, modelId) with Loggable {
+  class Implemetation(element: Element.Generic, modelId: Symbol)
+    extends logic.operation.OperationModifyElement.Abstract(element, modelId) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Boolean] = {
       try {
-        Operation.Result.OK(Option(OperationCreateElementFromTemplate.this(template, container, modelId)))
+        Operation.Result.OK(Option(OperationModifyElement.this(element, modelId)))
       } catch {
         case e: CancellationException =>
           Operation.Result.Cancel()
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Boolean] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Boolean] =
       throw new UnsupportedOperationException
   }
 }

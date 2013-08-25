@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.logic.operation
 
+import scala.reflect.runtime.universe
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -50,30 +52,41 @@ import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
 
+/**
+ * Modify the element.
+ */
 object OperationModifyElement extends Loggable {
+  /** Stable identifier with OperationModifyElement DI */
+  lazy val operation = DI.operation
+
+  /**
+   * Build a new 'Modify the element' operation.
+   *
+   * @param container container for the new element
+   * @param modelId current model Id
+   * @return 'Modify the element' operation
+   */
   @log
-  def apply(element: Element.Generic): Option[Abstract] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Element[_ <: Stash], Symbol) => Abstract]] match {
-      case Some(factory) =>
-        Option(factory(element, modelId))
+  def apply(element: Element.Generic, modelId: Symbol = Model.eId): Option[Abstract] = {
+    operation match {
+      case Some(operation) =>
+        Some(operation.operation(element, modelId).asInstanceOf[Abstract])
       case None =>
         log.error("OperationModifyElement implementation is not defined.")
         None
     }
   }
 
+  /** Bridge between abstract api.Operation[Boolean] and concrete Operation[Boolean] */
   abstract class Abstract(val element: Element.Generic, val modelId: Symbol)
-    extends Operation[Boolean](s"Modify $element") with api.OperationModifyElement {
+    extends Operation[Boolean](s"Modify $element.") {
     this: Loggable =>
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-    lazy val jobFactory = injectOptional[(Element[_ <: Stash], Symbol) => api.OperationModifyElement]
+    lazy val operation = injectOptional[api.OperationModifyElement]
   }
 }

@@ -97,7 +97,7 @@ object PropertyType extends Loggable {
     val tt: universe.TypeTag[_ <: Adapter[A]]
 
     /** Alias asInstanceOf. */
-    def as[B <: Adapter[_ >: A]: universe.TypeTag](): B =
+    def asAdapter[B <: Adapter[_ >: A]: universe.TypeTag](): B =
       if (tt.tpe.erasure weak_<:< universe.typeOf[B].erasure)
         this.asInstanceOf[B]
       else
@@ -109,6 +109,13 @@ object PropertyType extends Loggable {
   trait Editor[A <: AnyRef with java.io.Serializable] extends Viewer[A] {
     /** Editor type tag. */
     val tt: universe.TypeTag[_ <: Editor[A]]
+
+    /** Alias asInstanceOf. */
+    def asEditor[B <: Editor[_ >: A]: universe.TypeTag](): B =
+      if (tt.tpe.erasure weak_<:< universe.typeOf[B].erasure)
+        this.asInstanceOf[B]
+      else
+        throw new IllegalArgumentException(s"Unable to convert type from ${tt.tpe} to ${universe.typeOf[B]}.")
   }
   /**
    * Element property trait that provides a viewer widget
@@ -118,7 +125,7 @@ object PropertyType extends Loggable {
     val tt: universe.TypeTag[_ <: Viewer[A]]
 
     /** Alias asInstanceOf. */
-    def as[B <: Adapter[_ >: A]: universe.TypeTag](): B =
+    def asViewer[B <: Viewer[_ >: A]: universe.TypeTag](): B =
       if (tt.tpe.erasure weak_<:< universe.typeOf[B].erasure)
         this.asInstanceOf[B]
       else

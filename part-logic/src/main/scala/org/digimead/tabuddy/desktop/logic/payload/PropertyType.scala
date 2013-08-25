@@ -125,6 +125,8 @@ trait PropertyType[T <: AnyRef with java.io.Serializable] extends api.PropertyTy
 
 object PropertyType extends Loggable {
   type genericAdapter = Adapter[AnyRef with java.io.Serializable]
+  type genericViewer = Viewer[AnyRef with java.io.Serializable]
+  type genericEditor = Editor[AnyRef with java.io.Serializable]
 
   /** Get the default type class (for new element property, for example) */
   def defaultType(): api.PropertyType[_ <: AnyRef with java.io.Serializable] = DI.types.get('String).getOrElse(DI.types.head._2)
