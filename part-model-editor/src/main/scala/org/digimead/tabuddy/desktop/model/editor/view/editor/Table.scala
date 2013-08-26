@@ -52,9 +52,7 @@ import scala.Option.option2Iterable
 import scala.collection.immutable
 import scala.collection.mutable
 import scala.collection.parallel
-import scala.language.reflectiveCalls
 import scala.ref.WeakReference
-import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
@@ -97,6 +95,8 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.graphics.Point
 
 import com.ibm.icu.text.DateFormat
+
+import language.reflectiveCalls
 
 class Table(protected[editor] val view: View, style: Int)
   extends TableActions with TableFields with Loggable {

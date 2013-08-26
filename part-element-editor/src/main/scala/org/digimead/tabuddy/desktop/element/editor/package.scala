@@ -71,7 +71,7 @@ package object editor {
       new operation.OperationModifyElement()
     }
     // OperationDeleteElement approver
-    module.bind[org.digimead.tabuddy.desktop.definition.api.OperationApprover] identifiedBy ("ElementEditor.OperationDeleteElement") toSingle {
+    module.bind[org.digimead.tabuddy.desktop.definition.api.OperationApprover] identifiedBy ("Approver.ElementEditor.OperationDeleteElement") toSingle {
       new approver.OperationDeleteElement()
     }
   })

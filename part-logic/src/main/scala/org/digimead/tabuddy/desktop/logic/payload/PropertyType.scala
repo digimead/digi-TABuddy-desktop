@@ -277,9 +277,26 @@ object PropertyType extends Loggable {
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Predefined element property types that are available for this application */
     lazy val types = injectTypes
-
+    /**
+     * Collection of type properties.
+     *
+     * Each collected type must be:
+     *  1. an instance of api.PropertyType
+     *  2. has name that starts with "PropertyType."
+     */
     private def injectTypes(): immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]] = {
-      val types = inject[Seq[api.PropertyType[_ <: AnyRef with java.io.Serializable]]]
+      val types = bindingModule.bindings.filter {
+        case (key, value) => classOf[api.PropertyType[_ <: AnyRef with java.io.Serializable]].isAssignableFrom(key.m.runtimeClass)
+      }.map {
+        case (key, value) =>
+          key.name match {
+            case Some(name) if name.startsWith("PropertyType.") =>
+              log.debug(s"'${name}' loaded.")
+            case _ =>
+              log.debug(s"'${key.name.getOrElse("Unnamed")}' property type skipped.")
+          }
+          bindingModule.injectOptional(key).asInstanceOf[Option[api.PropertyType[_ <: AnyRef with java.io.Serializable]]]
+      }.flatten.toSeq
       val result = immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]](types.map(n => (n.id, n)): _*)
       assert(result.nonEmpty, "Unable to start application with empty properyTypes map.")
 

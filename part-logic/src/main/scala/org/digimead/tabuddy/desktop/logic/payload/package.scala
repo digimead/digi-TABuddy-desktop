@@ -89,9 +89,8 @@ package object payload {
     module.bind[Serialization[Array[Byte]]] identifiedBy "Payload.Serialization" toSingle { new YAMLSerialization }
     module.bind[api.Payload] toModuleSingle { implicit module => new Payload }
     /** The map of the application property types (UI factories) */
-    module.bind[Seq[api.PropertyType[_ <: AnyRef with java.io.Serializable]]] toSingle {
-      Seq[api.PropertyType[_ <: AnyRef with java.io.Serializable]](StringType, TextType)
-    }
+    module.bind[api.PropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.String" toSingle { StringType }
+    module.bind[api.PropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Text" toSingle { TextType }
     /** The sequence of the application predefined templates */
     module.bind[Seq[api.ElementTemplate]] identifiedBy "User" toProvider {
       Seq[api.ElementTemplate](

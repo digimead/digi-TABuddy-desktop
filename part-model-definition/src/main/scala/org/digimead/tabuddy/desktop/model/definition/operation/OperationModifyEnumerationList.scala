@@ -45,8 +45,6 @@ package org.digimead.tabuddy.desktop.model.definition.operation
 
 import java.util.concurrent.Exchanger
 
-import scala.reflect.runtime.universe
-
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration

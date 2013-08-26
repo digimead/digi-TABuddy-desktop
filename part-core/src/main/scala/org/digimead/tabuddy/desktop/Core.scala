@@ -177,16 +177,22 @@ object Core extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Collection of operation approvers. */
+    /**
+     * Collection of operation approvers.
+     *
+     * Each collected approver must be:
+     *  1. an instance of definition.api.OperationApprover
+     *  2. has name that starts with "Approver."
+     */
     lazy val approvers = bindingModule.bindings.filter {
       case (key, value) => classOf[org.digimead.tabuddy.desktop.definition.api.OperationApprover].isAssignableFrom(key.m.runtimeClass)
     }.map {
       case (key, value) =>
         key.name match {
-          case Some(name) =>
-            log.debug(s"${name} operation approver loaded.")
-          case None =>
-            log.debug(s"Unnamed operation approver loaded.")
+          case Some(name) if name.startsWith("Approver.") =>
+            log.debug(s"Operation '${name}' loaded.")
+          case _ =>
+            log.debug(s"'${key.name.getOrElse("Unnamed")}' operation approver skipped.")
         }
         bindingModule.injectOptional(key).asInstanceOf[Option[org.digimead.tabuddy.desktop.definition.OperationApprover]]
     }.flatten

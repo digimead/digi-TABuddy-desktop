@@ -46,8 +46,6 @@ package org.digimead.tabuddy.desktop.logic.operation
 import java.io.File
 import java.util.concurrent.CancellationException
 
-import scala.reflect.runtime.universe
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable

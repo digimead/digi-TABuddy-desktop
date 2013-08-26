@@ -46,8 +46,6 @@ package org.digimead.tabuddy.desktop.view.modification.operation
 import java.util.concurrent.CancellationException
 import java.util.concurrent.Exchanger
 
-import scala.reflect.runtime.universe
-
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Core
 import org.digimead.tabuddy.desktop.definition.Operation

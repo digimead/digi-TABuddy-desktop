@@ -44,8 +44,6 @@
 package org.digimead.tabuddy.desktop.element.editor.dialog
 
 import scala.Option.option2Iterable
-import scala.reflect.runtime.universe
-
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.Messages
 import org.digimead.tabuddy.desktop.ResourceManager
@@ -89,6 +87,7 @@ import org.eclipse.ui.forms.events.ExpansionAdapter
 import org.eclipse.ui.forms.events.ExpansionEvent
 import org.eclipse.ui.forms.widgets.ExpandableComposite
 import org.eclipse.ui.forms.widgets.Section
+import org.digimead.tabuddy.desktop.logic.Logic
 
 class ElementEditor(val parentShell: Shell, element: Element.Generic, template: ElementTemplate, newElement: Boolean)
   extends ElementEditorSkel(parentShell) with Dialog with Loggable {
@@ -98,7 +97,6 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
   var properties = Seq[ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]()
   /** Element properties listener */
   val propertiesListener = new IChangeListener() { override def handleChange(event: ChangeEvent) = updateOK() }
-  assert(ElementEditor.dialog.isEmpty, "ElementCreate dialog is already active")
 
   /** Add the group title to creation form */
   def addGroupTitle(group: TemplatePropertyGroup): Section = {
@@ -145,10 +143,11 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
   }
   /** Add the property value field */
   def addCellEditor[T <: AnyRef with java.io.Serializable: Manifest](property: TemplateProperty[T]): ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable] = {
+    Model.assertNonGeneric[T]
     val initial = element.eGet[T](property.id).map(_.get) orElse property.defaultValue
     val editor = property.ptype.createEditor(initial, property.id, element)
     val control = property.enumeration.flatMap(id => Data.enumerations.get(id).find(enum => (if (enum.ptype == property.ptype) true else {
-      log.error("enumeration %s has incompatible type %s vs %s".format(id, enum.ptype, property.ptype))
+      log.error(s"Enumeration ${id} has incompatible type ${enum.ptype} vs ${property.ptype}.")
       false
     })).asInstanceOf[Option[Enumeration[T]]]) match {
       case Some(enumeration) =>
@@ -215,13 +214,19 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     // Sort by group priority
     properties = template.properties.toSeq.sortBy(_._1.priority).map {
       case (group, properties) =>
+        // Add group title to this form.
         val section = addGroupTitle(group)
+        // Add group marker to this form.
         val marker = addGroupMarker(group, properties.size)
+        // Transform api.TemplateProperty -> ElementEditor.PropertyItem.
         val propertySeq = properties.map { property =>
+          // Add label for property to this form.
           val label = addLabel(property)
-          val editor = addCellEditor(property)
-          (label, editor)
+          // Add editor for property to this form.
+          val propertyItem = addCellEditor(property)(Manifest.classType(property.ptype.typeClass))
+          (label, propertyItem)
         }
+        // Add Expand/Collapse logic
         section.addExpansionListener(new ExpansionAdapter() {
           val expanded = true
           override def expansionStateChanged(e: ExpansionEvent) = {
@@ -252,6 +257,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
         })
         propertySeq.map(_._2)
     }.flatten
+    // Invoke updateOk on every 'editor.data' modification of any property.
     properties.foreach {
       case ElementEditor.PropertyItem(initial, property, control, editor) =>
         editor.data.underlying.addChangeListener(propertiesListener)
@@ -263,14 +269,12 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
           case ElementEditor.PropertyItem(initial, property, control, editor) =>
             editor.data.underlying.removeChangeListener(propertiesListener)
         }
-        ElementEditor.dialog = None
       }
     })
     // set dialog message
     setMessage(Messages.elementEditorDescription_text.format(Model.eId.name))
     // set dialog window title
     getShell().setText(Messages.elementEditorDialog_text.format(element.eId.name))
-    ElementEditor.dialog = Some(this)
     container
   }
   /** Return the initial size of the dialog. */
@@ -329,9 +333,6 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
 }
 
 object ElementEditor {
-  /** There is may be only one dialog instance at time */
-  @volatile private var dialog: Option[ElementEditor] = None
-
   case class PropertyItem[T <: AnyRef with java.io.Serializable](
     val initial: Option[T],
     val property: TemplateProperty[T],

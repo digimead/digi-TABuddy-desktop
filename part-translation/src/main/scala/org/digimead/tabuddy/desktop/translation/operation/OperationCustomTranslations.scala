@@ -43,8 +43,6 @@
 
 package org.digimead.tabuddy.desktop.translation.operation
 
-import scala.reflect.runtime.universe
-
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.api.Translation.NLS
 import org.digimead.tabuddy.desktop.definition.Operation

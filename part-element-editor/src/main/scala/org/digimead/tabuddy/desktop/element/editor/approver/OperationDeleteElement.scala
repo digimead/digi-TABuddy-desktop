@@ -43,8 +43,6 @@
 
 package org.digimead.tabuddy.desktop.element.editor.approver
 
-import scala.reflect.runtime.universe
-
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.definition.Operation
 import org.digimead.tabuddy.desktop.definition.OperationApprover
