@@ -44,7 +44,6 @@
 package org.digimead.tabuddy.desktop.logic.payload
 
 import scala.collection.immutable
-import scala.reflect.runtime.universe
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -138,7 +137,7 @@ object PropertyType extends Loggable {
   /**
    * Element property adapter
    */
-  abstract class Adapter[A <: AnyRef with java.io.Serializable: universe.TypeTag] extends api.PropertyType.Adapter[A] {
+  abstract class Adapter[A <: AnyRef with java.io.Serializable] extends api.PropertyType.Adapter[A] {
     /** Cell label provider singleton with limited API for proxy use case */
     val cellLabelProvider: CellLabelProviderAdapter[A]
     /** Label provider singleton with limited API for proxy use case */

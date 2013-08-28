@@ -138,7 +138,11 @@ trait Dialog extends org.eclipse.jface.dialogs.Dialog {
       val parent = parentShell.getBounds()
       val initialWidth = (parent.width * 0.9).toInt
       val initialHeight = (parent.height * 0.8).toInt
-      new Point(math.min(math.max(initialWidth, default.x), parent.width), math.min(math.max(initialHeight, default.y), parent.height))
+      val lowerX = math.min(math.max(initialWidth, default.x), parent.width)
+      val lowerY = math.min(math.max(initialHeight, default.y), parent.height)
+      val upperX = math.max(lowerX, default.x)
+      val upperY = math.max(lowerY, default.y)
+      new Point(upperX, upperY)
     }
   /** Return the initial location to use for the shell. */
   override protected def getInitialLocation(initialSize: Point): Point =

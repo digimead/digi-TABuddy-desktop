@@ -302,6 +302,7 @@ trait GUI {
     case None =>
       Seq()
   }
+
   /** Get all GUI components. */
   @tailrec
   private def widgetHierarchy(widget: Widget, acc: Seq[Widget]): Seq[Widget] = {

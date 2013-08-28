@@ -43,8 +43,6 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.api
 
-import scala.reflect.runtime.universe
-
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.model.element.Element
 
@@ -93,42 +91,57 @@ object PropertyType extends Loggable {
    * Element property adapter
    */
   abstract class Adapter[A <: AnyRef with java.io.Serializable] {
-    /** Adapter type tag. */
-    val tt: universe.TypeTag[_ <: Adapter[A]]
-
     /** Alias asInstanceOf. */
-    def asAdapter[B <: Adapter[_ >: A]: universe.TypeTag](): B =
-      if (tt.tpe.erasure weak_<:< universe.typeOf[B].erasure)
+    def asAdapter[B <: Adapter[_ >: A]]()(implicit marg: Manifest[A], mb: Manifest[B]): B = {
+      // :-/ TypeTags are not thread safe #SI-6240, but Manifests are already deprecated.
+      val thisClass = getClass
+      val thisClassArgument = marg.runtimeClass
+      val thatClass = mb.runtimeClass
+      val thatClassArgument = mb.typeArguments
+      // this class must be superclass of that class (MyStringAdapter -> Adapter)
+      // this argument must be superclass of that argument (String -> Object)
+      if (thatClass.isAssignableFrom(thisClass) && thatClassArgument.forall(_.runtimeClass.isAssignableFrom(thisClassArgument)))
         this.asInstanceOf[B]
       else
-        throw new IllegalArgumentException(s"Unable to convert type from ${tt.tpe} to ${universe.typeOf[B]}.")
+        throw new IllegalArgumentException(s"Unable to convert type from ${thisClass.getName}[${marg}] to ${mb}.")
+    }
   }
   /**
    * Element property trait that provides an editor widget
    */
   trait Editor[A <: AnyRef with java.io.Serializable] extends Viewer[A] {
-    /** Editor type tag. */
-    val tt: universe.TypeTag[_ <: Editor[A]]
-
     /** Alias asInstanceOf. */
-    def asEditor[B <: Editor[_ >: A]: universe.TypeTag](): B =
-      if (tt.tpe.erasure weak_<:< universe.typeOf[B].erasure)
+    def asEditor[B <: Editor[_ >: A]]()(implicit marg: Manifest[A], mb: Manifest[B]): B = {
+      // :-/ TypeTags are not thread safe #SI-6240, but Manifests are already deprecated.
+      val thisClass = getClass
+      val thisClassArgument = marg.runtimeClass
+      val thatClass = mb.runtimeClass
+      val thatClassArgument = mb.typeArguments
+      // this class must be superclass of that class (MyStringEditor -> Editor)
+      // this argument must be superclass of that argument (String -> Object)
+      if (thatClass.isAssignableFrom(thisClass) && thatClassArgument.forall(_.runtimeClass.isAssignableFrom(thisClassArgument)))
         this.asInstanceOf[B]
       else
-        throw new IllegalArgumentException(s"Unable to convert type from ${tt.tpe} to ${universe.typeOf[B]}.")
+        throw new IllegalArgumentException(s"Unable to convert type from ${thisClass.getName}[${marg}] to ${mb}.")
+    }
   }
   /**
    * Element property trait that provides a viewer widget
    */
   trait Viewer[A <: AnyRef with java.io.Serializable] {
-    /** Viewer type tag. */
-    val tt: universe.TypeTag[_ <: Viewer[A]]
-
     /** Alias asInstanceOf. */
-    def asViewer[B <: Viewer[_ >: A]: universe.TypeTag](): B =
-      if (tt.tpe.erasure weak_<:< universe.typeOf[B].erasure)
+    def asViewer[B <: Viewer[_ >: A]]()(implicit marg: Manifest[A], mb: Manifest[B]): B = {
+      // :-/ TypeTags are not thread safe #SI-6240, but Manifests are already deprecated.
+      val thisClass = getClass
+      val thisClassArgument = marg.runtimeClass
+      val thatClass = mb.runtimeClass
+      val thatClassArgument = mb.typeArguments
+      // this class must be superclass of that class (MyStringViewer -> Viewer)
+      // this argument must be superclass of that argument (String -> Object)
+      if (thatClass.isAssignableFrom(thisClass) && thatClassArgument.forall(_.runtimeClass.isAssignableFrom(thisClassArgument)))
         this.asInstanceOf[B]
       else
-        throw new IllegalArgumentException(s"Unable to convert type from ${tt.tpe} to ${universe.typeOf[B]}.")
+        throw new IllegalArgumentException(s"Unable to convert type from ${thisClass.getName}[${marg}] to ${mb}.")
+    }
   }
 }

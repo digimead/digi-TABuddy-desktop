@@ -98,7 +98,7 @@ class OperationModelNew extends api.OperationModelNew with Loggable {
             }
           }
         case None =>
-          throw new IllegalStateException("Unable to create interacive new model without parent shell.")
+          throw new IllegalStateException("Unable to create new model dialog without parent shell.")
       }
     else {
       val marker = Payload.createModel(new File(location.get, name.get))
