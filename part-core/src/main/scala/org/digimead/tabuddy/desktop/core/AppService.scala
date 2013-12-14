@@ -92,7 +92,7 @@ class AppService extends api.Main with Disposable.Default with Loggable {
         loglevel = "DEBUG"
       }
     """)
-    ActorSystem("DesktopTA BuddySystem", config.withFallback(ConfigFactory.load()), getClass.getClassLoader())
+    ActorSystem("DesktopTABuddySystem", config.withFallback(ConfigFactory.load()), getClass.getClassLoader())
   }
 
   /**

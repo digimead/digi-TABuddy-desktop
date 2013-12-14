@@ -70,7 +70,7 @@ trait Akka {
   this: EventLoop.Consumer with Loggable =>
   /** Support actor. */
   // System.nanoTime is needed because we may have more than one supportActor per JVM
-  protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "TA BuddyAppSupport." + System.currentTimeMillis() + System.nanoTime())
+  protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "TABuddyAppSupport." + System.currentTimeMillis() + System.nanoTime())
 
   /** Send argument to the actor and waiting for answer. */
   def askActor[A, B](path: Seq[String], argument: A): Option[B] = {
