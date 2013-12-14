@@ -1,0 +1,36 @@
+Initialization diagram
+======================
+
+<div style="text-align: center;">
+  <div style="border: 1px solid grey;">
+    <div id="panzoom" style="visibility: hidden;"></div>
+  </div>
+  <div style="display:inline-block;margin-left:auto;margin-right:auto;">
+    <button class="zoom-in">Zoom In</button>
+    <button class="zoom-out">Zoom Out</button>
+    <input type="range" class="zoom-range"></input>
+    <button class="reset">Reset</button>
+  </div>
+</div>
+<link rel="stylesheet" type="text/css" href="css/jquery.svg.css"></link>
+<script type="text/javascript" src="files/jquery.svg.js"></script>
+<script type="text/javascript" src="files/jquery.svgdom.js"></script>
+<script type="text/javascript" src="files/jquery.panzoom.min.js"></script>
+<script type="text/javascript">
+$('#panzoom').height($(window).height()/3*2).svg({});
+var svg = $('#panzoom').svg('get');
+svg.load("files/initialization.svg", {
+  addTo: false,
+  changeSize: true,
+  onLoad: function() {
+    var mapContainer = $('#panzoom');
+    mapContainer.panzoom({
+      $zoomIn: $(".zoom-in"),
+      $zoomOut: $(".zoom-out"),
+      $zoomRange: $(".zoom-range"),
+      $reset: $(".reset")
+    });
+    mapContainer.css("visibility", "visible");
+  }
+});
+</script>

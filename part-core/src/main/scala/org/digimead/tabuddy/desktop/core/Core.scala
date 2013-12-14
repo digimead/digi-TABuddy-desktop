@@ -1,0 +1,248 @@
+/**
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Global License version 3
+ * as published by the Free Software Foundation with the addition of the
+ * following permission added to Section 15 as permitted in Section 7(a):
+ * FOR ANY PART OF THE COVERED WORK IN WHICH THE COPYRIGHT IS OWNED
+ * BY Limited Liability Company «MEZHGALAKTICHESKIJ TORGOVYJ ALIANS»,
+ * Limited Liability Company «MEZHGALAKTICHESKIJ TORGOVYJ ALIANS» DISCLAIMS
+ * THE WARRANTY OF NON INFRINGEMENT OF THIRD PARTY RIGHTS.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Global License for more details.
+ * You should have received a copy of the GNU Affero General Global License
+ * along with this program; if not, see http://www.gnu.org/licenses or write to
+ * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA, 02110-1301 USA, or download the license from the following URL:
+ * http://www.gnu.org/licenses/agpl.html
+ *
+ * The interactive user interfaces in modified source and object code versions
+ * of this program must display Appropriate Legal Notices, as required under
+ * Section 5 of the GNU Affero General Global License.
+ *
+ * In accordance with Section 7(b) of the GNU Affero General Global License,
+ * you must retain the producer line in every report, form or document
+ * that is created or manipulated using TA Buddy.
+ *
+ * You can be released from the requirements of the license by purchasing
+ * a commercial license. Buying such a license is mandatory as soon as you
+ * develop commercial activities involving the TA Buddy software without
+ * disclosing the source code of your own applications.
+ * These activities include: offering paid services to customers,
+ * serving files in a web or/and network application,
+ * shipping TA Buddy with a closed source product.
+ *
+ * For more information, please contact Digimead Team at this
+ * address: ezh@ezh.msk.ru
+ */
+
+package org.digimead.tabuddy.desktop.core
+
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.ScalaActorRef
+import akka.actor.UnhandledMessage
+import java.util.concurrent.atomic.AtomicLong
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.api.Main
+import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.definition.NLS
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.definition.api.OperationApprover
+import org.digimead.tabuddy.desktop.core.support.App
+import org.osgi.framework.BundleContext
+import org.osgi.framework.BundleEvent
+import org.osgi.framework.BundleListener
+import org.osgi.framework.ServiceRegistration
+import scala.concurrent.Future
+import scala.language.implicitConversions
+
+/**
+ * Root actor of the Core component.
+ */
+class Core extends akka.actor.Actor with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Inconsistent elements. */
+  @volatile protected var inconsistentSet = Set[AnyRef](Console, Core)
+  @volatile protected var mainRegistration: Option[ServiceRegistration[api.Main]] = None
+  log.debug("Start actor " + self.path)
+
+  /** Console actor. */
+  val consoleRef = context.actorOf(console.Console.props, console.Console.id)
+
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[UnhandledMessage])
+    // Stop "main" service.
+    mainRegistration.foreach { serviceRegistration ⇒
+      log.debug("Unregister TA Buddy Desktop application entry point service.")
+      serviceRegistration.unregister()
+    }
+    mainRegistration = None
+    log.debug(self.path.name + " actor is stopped.")
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[UnhandledMessage])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
+    log.debug(self.path.name + " actor is started.")
+  }
+  def receive = {
+    case message @ App.Message.Attach(props, name) ⇒ App.traceMessage(message) {
+      sender ! context.actorOf(props, name)
+    }
+
+    case message @ App.Message.Inconsistent(element, from) if from != Some(self) ⇒ App.traceMessage(message) {
+      if (inconsistentSet.isEmpty) {
+        log.debug("Lost consistency.")
+        context.system.eventStream.publish(App.Message.Inconsistent(Core, self))
+      }
+      inconsistentSet = inconsistentSet + element
+    }
+
+    case message @ App.Message.Consistent(element, from) if from != Some(self) ⇒ App.traceMessage(message) {
+      inconsistentSet = inconsistentSet - element
+      if (inconsistentSet.isEmpty) {
+        log.debug("Return integrity.")
+        context.system.eventStream.publish(App.Message.Consistent(Core, self))
+      }
+    }
+
+    case message @ App.Message.Consistency(set, from) if set.isEmpty ⇒ App.traceMessage(message) {
+      from.foreach(_ ! App.Message.Consistency(inconsistentSet, Some(self)))
+    }
+
+    case message @ App.Message.Start(Right(EventLoop), _) ⇒ App.traceMessage(message) {
+      Future {
+        App.verifyApplicationEnvironment
+        // Wait for translationService
+        NLS.translationService
+        // Translate all messages
+        Messages
+        if (App.isUIAvailable) {
+          log.info("Start application with GUI.")
+          Core.DI.approvers.foreach(Operation.history.addOperationApprover)
+        } else
+          log.info("Start application without GUI.")
+        command.Commands.configure()
+        App.markAsStarted(Core.getClass)
+        Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
+        Console ! Console.Message.Notice("Core component is started.")
+        Console ! App.Message.Start(Left(Console))
+        App.publish(App.Message.Start(Right(Core)))
+      } onFailure {
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
+      }
+    }
+
+    case message @ App.Message.Stop(Right(EventLoop), _) ⇒ App.traceMessage(message) {
+      Future {
+        command.Commands.unconfigure()
+        if (App.isUIAvailable)
+          Core.DI.approvers.foreach(Operation.history.removeOperationApprover)
+        App.markAsStopped(Core.getClass)
+        Console ! Console.Message.Notice("Core component is stopped.")
+        App.publish(App.Message.Stop(Right(Core)))
+      } onFailure {
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
+      }
+    }
+
+    case message @ App.Message.Consistent(element, from) if from == Some(self) ⇒ // skip
+    case message @ App.Message.Inconsistent(element, from) if from == Some(self) ⇒ // skip
+    case message @ App.Message.Start(_, _) ⇒ // skip
+    case message @ App.Message.Stop(_, _) ⇒ // skip
+
+    case message: BundleContext ⇒ App.traceMessage(message) { main(message) }
+
+    case UnhandledMessage(message, sender, self) ⇒
+      log.fatal(s"Received unexpected message '${sender}' -> '${self}': '${message}'")
+  }
+
+  /** Starts main service when OSGi environment will be stable. */
+  protected def main(context: BundleContext) {
+    val lastEventTS = new AtomicLong(System.currentTimeMillis())
+    context.addBundleListener(new BundleListener {
+      def bundleChanged(event: BundleEvent) = lastEventTS.set(System.currentTimeMillis())
+    })
+    // OSGi is infinite black box of bundles
+    // waiting for stabilization
+    log.debug("Waiting OSGi for stabilization.")
+    val frame = 400 // 0.4s for decision
+    while ((System.currentTimeMillis - lastEventTS.get()) < frame)
+      Thread.sleep(100) // 0.1s for iteration
+    log.debug("OSGi stabilization is achieved.")
+    // Start "main" service
+    mainRegistration = Option(context.registerService(classOf[api.Main], AppService, null))
+    mainRegistration match {
+      case Some(service) ⇒ log.debug("Register TA Buddy Desktop application entry point service as: " + service)
+      case None ⇒ log.error("Unable to register TA Buddy Desktop application entry point service.")
+    }
+    self ! App.Message.Consistent(Core, None)
+  }
+}
+
+object Core extends Loggable {
+  implicit def core2actorRef(c: Core.type): ActorRef = c.actor
+  implicit def core2actorSRef(c: Core.type): ScalaActorRef = c.actor
+  /** Core actor reference. */
+  lazy val actor = App.system.actorOf(props, id)
+  /** Root context. */
+  val context = Context("Core"): Context.Rich
+  /** Singleton identificator. */
+  val id = getClass.getSimpleName().dropRight(1)
+  /** Component name. */
+  val name = "digi-tabuddy-desktop-core"
+  /** Core actor path. */
+  lazy val path = actor.path
+
+  /** Core actor reference configuration object. */
+  def props = DI.props
+
+  override def toString = "Core[Singleton]"
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /**
+     * Collection of operation approvers.
+     *
+     * Each collected approver must be:
+     *  1. an instance of definition.api.OperationApprover
+     *  2. has name that starts with "Approver."
+     */
+    lazy val approvers = bindingModule.bindings.filter {
+      case (key, value) ⇒ classOf[org.digimead.tabuddy.desktop.core.definition.api.OperationApprover].isAssignableFrom(key.m.runtimeClass)
+    }.map {
+      case (key, value) ⇒
+        key.name match {
+          case Some(name) if name.startsWith("Approver.") ⇒
+            log.debug(s"Operation '${name}' loaded.")
+          case _ ⇒
+            log.debug(s"'${key.name.getOrElse("Unnamed")}' operation approver skipped.")
+        }
+        bindingModule.injectOptional(key).asInstanceOf[Option[org.digimead.tabuddy.desktop.core.definition.OperationApprover]]
+    }.flatten
+    /** Core Akka factory. */
+    lazy val props = injectOptional[Props]("Core") getOrElse Props[Core]
+  }
+}

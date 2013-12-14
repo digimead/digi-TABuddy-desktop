@@ -1,0 +1,16 @@
+Application components
+======================
+
+### Core
+
+### Core UI
+
+### Element editor
+
+### Logic
+
+### Model definition
+
+### Model editor
+
+### Translation
