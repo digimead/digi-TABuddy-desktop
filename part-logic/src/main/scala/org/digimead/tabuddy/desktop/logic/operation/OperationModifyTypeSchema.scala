@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -46,36 +46,68 @@ package org.digimead.tabuddy.desktop.logic.operation
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.graph.Graph
 
+/**
+ * OperationModifyTypeSchema base trait.
+ */
+trait OperationModifyTypeSchema extends api.OperationModifyTypeSchema {
+  /**
+   * Create 'Modify a type schema' operation.
+   *
+   * @param graph graph that contains a type schema
+   * @param schema the initial type schema
+   * @param schemaList exists type schemas
+   * @param isSchemaActive the flag whether the type schema is active
+   * @return 'Modify a type schema' operation
+   */
+  def operation(graph: Graph[_ <: Model.Like], schema: TypeSchema, schemaList: Set[TypeSchema], isSchemaActive: Boolean): OperationModifyTypeSchema.Abstract
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+}
+
+/**
+ * Modify a type schema.
+ */
 object OperationModifyTypeSchema extends Loggable {
+  /** Stable identifier with OperationModifyTypeSchema DI */
+  lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyTypeSchema]]
+
   @log
-  def apply(schema: TypeSchema, schemaList: Set[TypeSchema], isSchemaActive: Boolean): Option[Abstract] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(TypeSchema, Set[TypeSchema], Boolean, Symbol) => Abstract]] match {
-      case Some(factory) =>
-        Option(factory(schema, schemaList, isSchemaActive, modelId))
-      case None =>
+  def apply(graph: Graph[_ <: Model.Like], schema: TypeSchema, schemaList: Set[TypeSchema], isSchemaActive: Boolean): Option[Abstract] =
+    operation match {
+      case Some(operation) ⇒
+        Some(operation.operation(graph, schema, schemaList, isSchemaActive))
+      case None ⇒
         log.error("OperationModifyTypeSchema implementation is not defined.")
         None
     }
-  }
 
-  abstract class Abstract(
-    val schema: TypeSchema,
-    val schemaList: Set[TypeSchema],
-    val isActive: Boolean,
-    val modelId: Symbol) extends Operation[(TypeSchema, Boolean)]("Edit %s for model %s".format(schema, modelId)) with api.OperationModifyTypeSchema {
-    this: Loggable =>
-    override protected def checkSubclass() {}
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val schema: TypeSchema, val schemaList: Set[TypeSchema], val isActive: Boolean)
+    extends Operation[(TypeSchema, Boolean)](s"Edit $schema for graph $graph.") {
+    this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val jobFactory = injectOptional[(TypeSchema, Set[TypeSchema], Boolean, Symbol) => api.OperationModifyTypeSchema]
+    lazy val operation = injectOptional[api.OperationModifyTypeSchema]
   }
 }

@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -46,36 +46,73 @@ package org.digimead.tabuddy.desktop.logic.operation
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.graph.Graph
+
+/**
+ * OperationModifyElementTemplateList base trait.
+ */
+trait OperationModifyElementTemplateList extends api.OperationModifyElementTemplateList {
+  /**
+   * Create 'Modify an element template list' operation.
+   *
+   * @param graph graph that contains a template list
+   * @param templateList exists templates
+   * @return 'Modify an element template list' operation
+   */
+  override def operation(graph: Graph[_ <: Model.Like], templateList: Set[ElementTemplate]): OperationModifyElementTemplateList.Abstract
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+}
 
 /**
  * Modify an element template list.
  */
 object OperationModifyElementTemplateList extends Loggable {
+  /** Stable identifier with OperationModifyElementTemplateList DI */
+  lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyElementTemplateList]]
+
+  /**
+   * Build a new 'Modify an element template list' operation.
+   *
+   * @param graph graph that contains a filter
+   * @param templateList exists templates
+   * @return 'Modify an element template list' operation
+   */
   @log
-  def apply(elementTemplateList: Set[ElementTemplate]): Option[Abstract] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Set[ElementTemplate], Symbol) => Abstract]] match {
-      case Some(factory) =>
-        Option(factory(elementTemplateList, modelId))
-      case None =>
+  def apply(graph: Graph[_ <: Model.Like], templateList: Set[ElementTemplate]): Option[Abstract] =
+    operation match {
+      case Some(operation) ⇒
+        Some(operation.operation(graph, templateList))
+      case None ⇒
         log.error("OperationModifyElementTemplateList implementation is not defined.")
         None
     }
-  }
 
-  abstract class Abstract(val elementTemplates: Set[ElementTemplate], val modelId: Symbol)
-    extends Operation[Set[ElementTemplate]]("Edit the element template list of %s model".format(Model.eId)) with api.OperationModifyElementTemplateList {
-    this: Loggable =>
-    override protected def checkSubclass() {}
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val elementTemplates: Set[ElementTemplate])
+    extends Operation[Set[ElementTemplate]](s"Edit the element template list for graph $graph") {
+    this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val jobFactory = injectOptional[(Set[ElementTemplate], Symbol) => api.OperationModifyElementTemplateList]
+    lazy val operation = injectOptional[api.OperationModifyElementTemplateList]
   }
 }

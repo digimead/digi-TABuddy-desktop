@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -46,36 +46,75 @@ package org.digimead.tabuddy.desktop.logic.operation
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.graph.Graph
 
 /**
- * Modify an immutable type schema list
+ * OperationModifyTypeSchemaList base trait.
+ */
+trait OperationModifyTypeSchemaList extends api.OperationModifyTypeSchemaList {
+  /**
+   * Create 'Modify a type schema list' operation.
+   *
+   * @param graph graph that contains a type schema list
+   * @param schemaList the initial type schema list
+   * @param activeSchema the active type schema
+   * @return 'Modify a type schema list' operation
+   */
+  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema], activeSchema: TypeSchema): OperationModifyTypeSchemaList.Abstract
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  override protected def checkSubclass() {}
+}
+
+/**
+ * Modify a type schema list.
  */
 object OperationModifyTypeSchemaList extends Loggable {
+  /** Stable identifier with OperationModifyTypeSchemaList DI */
+  lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyTypeSchemaList]]
+
+  /**
+   * Build a new 'Modify a type schema list' operation.
+   *
+   * @param graph graph that contains a type schema list
+   * @param schemaList the initial type schema list
+   * @param activeSchema the active type schema
+   * @return 'Modify a type schema list' operation
+   */
   @log
-  def apply(schemaList: Set[TypeSchema], activeSchema: TypeSchema): Option[Abstract] = {
-    val modelId = Model.eId
-    DI.jobFactory.asInstanceOf[Option[(Set[TypeSchema], TypeSchema, Symbol) => Abstract]] match {
-      case Some(factory) =>
-        Option(factory(schemaList, activeSchema, modelId))
-      case None =>
+  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema], activeSchema: TypeSchema): Option[Abstract] =
+    operation match {
+      case Some(operation) ⇒
+        Some(operation.operation(graph, schemaList, activeSchema))
+      case None ⇒
         log.error("OperationModifyTypeSchemaList implementation is not defined.")
         None
     }
-  }
 
-  abstract class Abstract(val before: Set[TypeSchema], val active: TypeSchema, val modelId: Symbol)
-    extends Operation[(Set[TypeSchema], TypeSchema)]("Edit type schema list of model " + Model.eId) with api.OperationModifyTypeSchemaList {
-    this: Loggable =>
-    override protected def checkSubclass() {}
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val before: Set[TypeSchema], val active: TypeSchema)
+    extends Operation[(Set[TypeSchema], TypeSchema)](s"Edit type schema list for graph $graph.") {
+    this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val jobFactory = injectOptional[(Set[TypeSchema], TypeSchema, Symbol) => api.OperationModifyTypeSchemaList]
+    lazy val operation = injectOptional[api.OperationModifyTypeSchemaList]
   }
 }

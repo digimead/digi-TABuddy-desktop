@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,40 +43,26 @@
 
 package org.digimead.tabuddy.desktop.logic.payload
 
-import scala.Array.canBuildFrom
-
-import scala.Option.option2Iterable
-import scala.collection.immutable
-
+import java.util.UUID
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload.DSL._
-import org.digimead.tabuddy.desktop.support.App
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
-import org.digimead.tabuddy.model.dsl.DSLType.dsltype2implementation
-import org.digimead.tabuddy.model.element.Context
-import org.digimead.tabuddy.model.element.Coordinate
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
-import org.digimead.tabuddy.model.element.Value
-import org.digimead.tabuddy.model.element.Value.bool2value
-import org.digimead.tabuddy.model.element.Value.string2value
-import org.digimead.tabuddy.model.predef.Note
-import org.digimead.tabuddy.model.predef.Task
+import org.digimead.tabuddy.model.element.{ Element, Value }
+import scala.collection.{ immutable, mutable }
 
 class ElementTemplate(
   /** The template element */
-  val element: Element.Generic,
+  val element: Element,
   /** The factory for the element that contains template data */
-  val factory: (Element.Generic, Symbol, Symbol) => Element.Generic,
+  val factory: (Element, Symbol, Symbol) ⇒ Element,
   /** Fn thats do something before the instance initialization */
-  preinitialization: ElementTemplate => Unit = _ => {}) extends ElementTemplate.Interface with Loggable {
-  def this(element: Element.Generic, factory: (Element.Generic, Symbol, Symbol) => Element.Generic,
+  preinitialization: ElementTemplate ⇒ Unit = _ ⇒ {}) extends ElementTemplate.Interface with Loggable {
+  def this(element: Element, factory: (Element, Symbol, Symbol) ⇒ Element,
     initialName: String, initialAvailability: Boolean, initialProperties: api.ElementTemplate.propertyMap) = {
-    this(element, factory, (template) => {
+    this(element, factory, (template) ⇒ {
       // This code is invoked before availability, name and properties fields initialization
       if (template.element.eGet[java.lang.Boolean](template.getFieldIDAvailability).map(_.get) != Some(initialAvailability))
         template.element.eSet(template.getFieldIDAvailability, initialAvailability)
@@ -84,21 +70,21 @@ class ElementTemplate(
         template.element.eSet(template.getFieldIDName, initialName, "")
       if (!ElementTemplate.compareDeep(template.getProperties(), initialProperties))
         initialProperties.foreach {
-          case (group, properties) =>
-            properties.foreach(property => template.setProperty(property.id, property.ptype, group, Some(property)))
+          case (group, properties) ⇒
+            properties.foreach(property ⇒ template.setProperty(property.id, property.ptype, group, Some(property)))
         }
     })
   }
   preinitialization(this)
   /** The flag that indicates whether template available for user or not */
   val availability: Boolean = element.eGet[java.lang.Boolean](getFieldIDAvailability) match {
-    case Some(value) => value.get
-    case _ => true
+    case Some(value) ⇒ value.get
+    case _ ⇒ true
   }
   /** The template name */
   val name: String = element.eGet[String](getFieldIDName) match {
-    case Some(value) => value.get
-    case _ => ""
+    case Some(value) ⇒ value.get
+    case _ ⇒ ""
   }
   /** The template id */
   val id = element.eId
@@ -108,36 +94,44 @@ class ElementTemplate(
   /** The copy constructor */
   def copy(availability: Boolean = this.availability,
     name: String = this.name,
-    element: Element.Generic = this.element,
-    factory: (Element.Generic, Symbol, Symbol) => Element.Generic = this.factory,
+    element: Element = this.element,
+    factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
     id: Symbol = this.id,
     properties: api.ElementTemplate.propertyMap = this.properties) =
     if (id == this.id)
       new ElementTemplate(element, factory, name, availability, properties).asInstanceOf[this.type]
     else {
-      element.asInstanceOf[Element[Stash]].eStash = element.eStash.copy(id = id)
-      new ElementTemplate(element, factory, name, availability, properties).asInstanceOf[this.type]
+      element.eNode.parent match {
+        case Some(parent) ⇒
+          parent.freezeWrite { node ⇒
+            val nodeCopy = element.eNode.copy(target = node, id = id, unique = UUID.randomUUID())
+            new ElementTemplate(nodeCopy.projection(element.eCoordinate).e, factory, name, availability, properties).asInstanceOf[this.type]
+          }
+        case None ⇒
+          throw new IllegalStateException(s"Unable to copy unbinded $this.")
+      }
     }
 
   protected def getProperties(): api.ElementTemplate.propertyMap =
     immutable.HashMap(getPropertyArray().map {
-      case (id, ptypeID, typeSymbol) =>
+      case (id, ptypeID, typeSymbol) ⇒
         PropertyType.container.get(ptypeID) match {
-          case Some(ptype) if ptype.typeSymbol == typeSymbol =>
-            Some(getProperty(id, ptype)(Manifest.classType(ptype.typeClass))).
+          case Some(ptype) if ptype.typeSymbol == typeSymbol ⇒
+            Some(getProperty(GraphMarker(element.eGraph), id, ptype)(Manifest.classType(ptype.typeClass))).
               // as common TemplateProperty
               asInstanceOf[Option[(api.TemplatePropertyGroup, api.TemplateProperty[_ <: AnyRef with java.io.Serializable])]]
-          case None =>
+          case None ⇒
             log.fatal("unable to get property %s with unknown type wrapper id %s".format(id, ptypeID))
             None
         }
     }.flatten.toSeq.
       // group by TemplatePropertyGroup
-      groupBy(_._1).map(t => (t._1,
+      groupBy(_._1).map(t ⇒ (t._1,
         // transform the value from Seq((group,property), ...) to Seq(property) sorted by id
         t._2.map(_._2).sortBy(_.id.name))).toSeq: _*)
   /** Get property map */
-  protected def getProperty[T <: AnyRef with java.io.Serializable: Manifest](id: Symbol, ptype: api.PropertyType[T]): (TemplatePropertyGroup, TemplateProperty[T]) = {
+  protected def getProperty[T <: AnyRef with java.io.Serializable: Manifest](marker: GraphMarker, id: Symbol,
+    ptype: api.PropertyType[T]): (TemplatePropertyGroup, TemplateProperty[T]) = marker.lockRead { state ⇒
     // get the default field
     val defaultField = element.eGet[T](getFieldIDPropertyDefault(id))
     // get enumeration field
@@ -148,10 +142,10 @@ class ElementTemplate(
     val groupField = element.eGet[String](getFieldIDPropertyGroup(id))
     // result
     val requiredVal = requiredField.map(_.get).getOrElse(Boolean.box(false))
-    val elementPropertyEnumeration = enumerationField.flatMap { idRaw =>
+    val elementPropertyEnumeration = enumerationField.flatMap { idRaw ⇒
       val id = Symbol(idRaw)
       App.execNGet {
-        val enumeration = Data.enumerations.get(id).find(_.ptype == ptype).asInstanceOf[Option[api.Enumeration[T]]]
+        val enumeration = state.payload.enumerations.get(id).find(_.ptype == ptype).asInstanceOf[Option[api.Enumeration[T]]]
         if (enumeration.isEmpty)
           log.error(s"Unable to load an unknown enumeration $idRaw")
         enumeration
@@ -164,33 +158,33 @@ class ElementTemplate(
   /** Build array[property.id, ptype.id, ptype.typesymbol] of properties from getFieldProperties() field */
   protected def getPropertyArray(): Array[(Symbol, Symbol, Symbol)] = {
     val properties = (element.eGet[Array[Symbol]](getFieldIDProperties()).map(_.get) getOrElse Array[Symbol]()).
-      grouped(3).filter(element =>
+      grouped(3).filter(element ⇒
         element match {
-          case Array(id, ptypeId, typeSymbol) if DSLType.symbols(typeSymbol) && PropertyType.container.get(ptypeId).map(_.typeSymbol == typeSymbol) == Some(true) =>
+          case Array(id, ptypeId, typeSymbol) if DSLType.symbols(typeSymbol) && PropertyType.container.get(ptypeId).map(_.typeSymbol == typeSymbol) == Some(true) ⇒
             // pass only arrays with 3 elements and known ptype and typeSymbol
             true
-          case broken =>
+          case broken ⇒
             log.fatal("skip illegal element property: [%s]".format(broken.mkString(",")))
             false
         })
-    properties.map(arr => Tuple3(arr(0), arr(1), arr(2))).toArray
+    properties.map(arr ⇒ Tuple3(arr(0), arr(1), arr(2))).toArray
   }
   /** Set property map */
   protected def setProperty(id: Symbol, ptype: api.PropertyType[_], group: api.TemplatePropertyGroup, data: Option[api.TemplateProperty[_ <: AnyRef with java.io.Serializable]]) {
     val properties = getPropertyArray()
     data match {
-      case Some(elementProperty) =>
+      case Some(elementProperty) ⇒
         // update the default field
         // asInstanceOf[Value.Static[_ <: AnyRef with java.io.Serializable]] is workaround for existential type warning
-        val defaultValue = elementProperty.defaultValue.map(default =>
-          new Value.Static(default, Context.virtual(element))(Manifest.classType(elementProperty.ptype.typeClass)).
+        val defaultValue = elementProperty.defaultValue.map(default ⇒
+          new Value.Static(default)(Manifest.classType(elementProperty.ptype.typeClass)).
             asInstanceOf[Value.Static[_ <: AnyRef with java.io.Serializable]])
         element.eSet(getFieldIDPropertyDefault(id), ptype.typeSymbol, defaultValue)
         // update the enumeration field
         elementProperty.enumeration match {
-          case Some(enumeration) =>
+          case Some(enumeration) ⇒
             element.eSet(getFieldIDPropertyEnumeration(id), 'String, enumeration.name)
-          case None =>
+          case None ⇒
             element.eSet(getFieldIDPropertyEnumeration(id), 'String, None)
         }
         // update the required field
@@ -199,9 +193,9 @@ class ElementTemplate(
         element.eSet(getFieldIDPropertyGroup(id), 'String, group.id.name)
         // update the property list
         // filter if any then add
-        val newProperties = (properties.filterNot(t => t._1 == id) :+ (id, ptype.id, ptype.typeSymbol)).map(t => Array(t._1, t._2, t._3)).flatten
-        element.eSet(getFieldIDProperties, Some(new Value.Static(newProperties, Context.virtual(element))))
-      case None =>
+        val newProperties = (properties.filterNot(t ⇒ t._1 == id) :+ (id, ptype.id, ptype.typeSymbol)).map(t ⇒ Array(t._1, t._2, t._3)).flatten
+        element.eSet(getFieldIDProperties, Some(new Value.Static(newProperties)))
+      case None ⇒
         // update the default field
         element.eSet(getFieldIDPropertyDefault(id), ptype.typeSymbol, None)
         // update the enumeration field
@@ -211,8 +205,8 @@ class ElementTemplate(
         // update the group field
         element.eSet(getFieldIDPropertyGroup(id), 'String, None)
         // update the property list
-        val newProperties = properties.filterNot(t => t._1 == id).map(t => Array(t._1, t._2, t._3)).flatten
-        element.eSet(getFieldIDProperties, Some(new Value.Static(newProperties, Context.virtual(element))))
+        val newProperties = properties.filterNot(t ⇒ t._1 == id).map(t ⇒ Array(t._1, t._2, t._3)).flatten
+        element.eSet(getFieldIDProperties, Some(new Value.Static(newProperties)))
     }
   }
 }
@@ -235,32 +229,31 @@ object ElementTemplate extends Loggable {
     val aKeys = a.keys.toList.sortBy(_.id.name)
     val bKeys = b.keys.toList.sortBy(_.id.name)
     if (!aKeys.sameElements(bKeys)) return false
-    aKeys.forall { key =>
+    aKeys.forall { key ⇒
       val aProperties = a(key).sortBy(_.id.name)
       val bProperties = b(key).sortBy(_.id.name)
       if (!aProperties.sameElements(bProperties)) return false
       (aProperties, bProperties).zipped.forall(TemplateProperty.compareDeep(_, _))
     }
   }
-  /** Predefined element templates container. */
-  def container() = DI.definition
   /** Get all element templates. */
-  def load(): Set[api.ElementTemplate] = {
-    log.debug("Load element template list for model " + Model.eId)
-    val templates: scala.collection.mutable.LinkedHashSet[api.ElementTemplate] =
-      ElementTemplate.container.eChildren.map({ element =>
-        ElementTemplate.predefined.find(predefined =>
+  def load(marker: GraphMarker): Set[api.ElementTemplate] = marker.lockRead { state ⇒
+    log.debug("Load element template list for graph " + state.graph)
+    val container = PredefinedElements.eElementTemplate(state.graph)
+    val templates: mutable.LinkedHashSet[api.ElementTemplate] =
+      mutable.LinkedHashSet(container.eNode.freezeRead(_.children.map(_.rootBox.e).map { element ⇒
+        ElementTemplate.predefined.find(predefined ⇒
           element.canEqual(predefined.element.getClass(), predefined.element.eStash.getClass())) match {
-          case Some(predefined) =>
+          case Some(predefined) ⇒
             log.debug("Load template %s based on %s".format(element, predefined))
-            Some(new ElementTemplate(element, predefined.factory))
-          case None =>
+            Some[api.ElementTemplate](new ElementTemplate(element, predefined.factory))
+          case None ⇒
             log.warn("Unable to find apropriate element wrapper for " + element)
             None
         }
-      }).flatten
+      }).flatten: _*)
     // add predefined element templates if not exists
-    ElementTemplate.predefined.foreach { predefined =>
+    ElementTemplate.predefined.foreach { predefined ⇒
       if (!templates.exists(_.element.eId == predefined.element.eId)) {
         log.debug("Template for predefined element %s not found, recreate".format(predefined))
         templates += predefined
@@ -270,94 +263,28 @@ object ElementTemplate extends Loggable {
     templates.toSet
   }
   /** This function is invoked at every model initialization */
-  def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = {
+  def onModelInitialization(oldModel: Model.Like, newModel: Model.Like, modified: Element.Timestamp) = {
     userPredefinedTemplates = DI.user // get or create user templates
     originalPredefinedTemplates = DI.original // get or create original templates
     assert(userPredefinedTemplates.map(_.id) == originalPredefinedTemplates.map(_.id),
       "User modified predefined template list must contain the same elements as original predefined template list")
   }
-  /** Update only modified element templates */
-  def save(templates: Set[api.ElementTemplate]) = App.exec {
-    log.debug("Save element template list for model " + Model.eId)
-    val oldTemplates = Data.elementTemplates.values
-    val deleted = oldTemplates.filterNot(oldTemplate => templates.exists(compareDeep(_, oldTemplate)))
-    val added = templates.filterNot(newTemplate => oldTemplates.exists(compareDeep(_, newTemplate)))
+  /** Update only modified element templates. */
+  def save(marker: GraphMarker, templates: Set[api.ElementTemplate]) = marker.lockUpdate { state ⇒
+    log.debug("Save element template list for graph " + state.graph)
+    val oldTemplates = App.execNGet { state.payload.elementTemplates.values }
+    val deleted = oldTemplates.filterNot(oldTemplate ⇒ templates.exists(compareDeep(_, oldTemplate)))
+    val added = templates.filterNot(newTemplate ⇒ oldTemplates.exists(compareDeep(_, newTemplate)))
+    val container = PredefinedElements.eElementTemplate(state.graph)
     if (deleted.nonEmpty) {
       log.debug("Delete Set(%s)".format(deleted.mkString(", ")))
-      deleted.foreach { template =>
-        Data.elementTemplates.remove(template.id)
-        container.eChildren -= template.element
-      }
+      App.execNGet { deleted.foreach { template ⇒ state.payload.elementTemplates.remove(template.id) } }
+      container.eNode.safeWrite(_ --= deleted.map(_.element.eNode))
     }
     if (added.nonEmpty) {
       log.debug("Add Set(%s)".format(added.mkString(", ")))
-      added.foreach { template =>
-        container.eChildren += template.element
-        Data.elementTemplates(template.id) = template
-      }
-    }
-  }
-  /**
-   * Predefined custom record template
-   * 'lazy' modifier prohibited, modify current model while construction
-   */
-  def initPredefinedCustom(sample: Boolean) = {
-    val id = Record.scope.modificator
-    val factory = (container: Element.Generic, id: Symbol, scopeModificator: Symbol) =>
-      Record(container, id, new Record.Scope(scopeModificator), Coordinate.root.coordinate)
-    if (sample || (container & RecordLocation(id)).isEmpty) {
-      log.debug("initialize new predefined Record template")
-      val element = if (sample)
-        Record(id, Coordinate.root.coordinate)
-      else
-        factory(ElementTemplate.container, id, id)
-      new ElementTemplate(element, factory, "Predefined custom element", true,
-        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('name, false, None, PropertyType.get('String)))))
-    } else {
-      log.debug("initialize exists predefined Record template")
-      new ElementTemplate(factory(ElementTemplate.container, id, id), factory)
-    }
-  }
-  /**
-   * Predefined note record template
-   * 'lazy' modifier prohibited, modify current model while construction
-   */
-  def initPredefinedNote(sample: Boolean) = {
-    val id = Note.scope.modificator
-    val factory = (container: Element.Generic, id: Symbol, scopeModificator: Symbol) =>
-      Note(container, id, new Note.Scope(scopeModificator), Coordinate.root.coordinate)
-    if (sample || (container & NoteLocation(id)).isEmpty) {
-      log.debug("initialize new predefined Note template")
-      val element = if (sample)
-        Record(id, Coordinate.root.coordinate)
-      else
-        factory(ElementTemplate.container, id, id)
-      new ElementTemplate(element, factory, "Predefined note element", true,
-        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('name, false, None, PropertyType.get('String)))))
-    } else {
-      log.debug("initialize exists predefined Note template")
-      new ElementTemplate(factory(ElementTemplate.container, id, id), factory)
-    }
-  }
-  /**
-   * Predefined task record template
-   * 'lazy' modifier prohibited, modify current model while construction
-   */
-  def initPredefinedTask(sample: Boolean) = {
-    val id = Task.scope.modificator
-    val factory = (container: Element.Generic, id: Symbol, scopeModificator: Symbol) =>
-      Task(container, id, new Task.Scope(scopeModificator), Coordinate.root.coordinate)
-    if (sample || (container & TaskLocation(id)).isEmpty) {
-      log.debug("Initialize new predefined Task template.")
-      val element = if (sample)
-        Record(id, Coordinate.root.coordinate)
-      else
-        factory(ElementTemplate.container, id, id)
-      new ElementTemplate(element, factory, "Predefined task element", true,
-        immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('name, false, None, PropertyType.get('String)))))
-    } else {
-      log.debug("Initialize exists predefined Task template.")
-      new ElementTemplate(factory(ElementTemplate.container, id, id), factory)
+      container.eNode.safeWrite(_ ++= added.map(_.element.eNode))
+      App.execNGet { added.foreach { template ⇒ state.payload.elementTemplates(template.id) = template } }
     }
   }
   def original() = originalPredefinedTemplates
@@ -372,9 +299,9 @@ object ElementTemplate extends Loggable {
     /** The template name */
     val name: String
     /** The template element */
-    val element: Element.Generic
+    val element: Element
     /** The factory for the element that contains template data */
-    val factory: (Element.Generic, Symbol, Symbol) => Element.Generic
+    val factory: (Element, Symbol, Symbol) ⇒ Element
     /** The template id/name/element scope */
     val id: Symbol
     /**
@@ -387,8 +314,8 @@ object ElementTemplate extends Loggable {
     /** The copy constructor */
     def copy(availability: Boolean = this.availability,
       name: String = this.name,
-      element: Element.Generic = this.element,
-      factory: (Element.Generic, Symbol, Symbol) => Element.Generic = this.factory,
+      element: Element = this.element,
+      factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
       id: Symbol = this.id,
       properties: api.ElementTemplate.propertyMap = this.properties): this.type
     /** Returns an ID for the availability field */
@@ -415,7 +342,7 @@ object ElementTemplate extends Loggable {
     def canEqual(other: Any) =
       other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate]
     override def equals(other: Any) = other match {
-      case that: org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate =>
+      case that: org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate ⇒
         (this eq that) || {
           that.canEqual(this) &&
             availability == that.availability &&
@@ -423,7 +350,7 @@ object ElementTemplate extends Loggable {
             id == that.id &&
             properties == that.properties
         }
-      case _ => false
+      case _ ⇒ false
     }
     override def hashCode() = {
       /*
@@ -441,11 +368,9 @@ object ElementTemplate extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Interface[_ <: Record.Stash]]("eElementTemplate")
-    org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.ElementTemplate]]("Original")
-    org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.ElementTemplate]]("User")
-    /** Get or create dynamically eElementTemplate container inside current active model. */
-    def definition = inject[Record.Interface[_ <: Record.Stash]]("eElementTemplate")
+    //org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Like]("eElementTemplate")
+    //org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.ElementTemplate]]("Original")
+    //org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.ElementTemplate]]("User")
     /** Get or create the sequence of the application predefined templates, marked as samples, inside current active model. */
     def original = inject[Seq[api.ElementTemplate]]("Original")
     /** Get or create the sequence of the application predefined templates inside current active model. */

@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,9 +43,10 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.view.api
 
-import org.digimead.tabuddy.desktop.definition.api
-import org.digimead.tabuddy.desktop.definition.api.Operation
+import org.digimead.tabuddy.desktop.core.definition.api
 import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyFilter base trait.
@@ -56,21 +57,21 @@ trait OperationModifyFilter {
   /**
    * Modify filter.
    *
+   * @param graph graph that contains a filter
    * @param filter the initial filter
-   * @param filterList the list of exists filters
-   * @param modelId current model Id
-   * @return the modified/the same filter
+   * @param filterList exists filters
+   * @return the modified filter
    */
-  def apply(filter: Filter, filterList: Set[Filter], modelId: Symbol): Filter
+  def apply(graph: Graph[_ <: Model.Like], filter: Filter, filterList: Set[Filter]): Filter
   /**
    * Create 'Modify filter' operation.
    *
+   * @param graph graph that contains a filter
    * @param filter the initial filter
-   * @param filterList the list of exists filters
-   * @param modelId current model Id
+   * @param filterList exists filters
    * @return 'Modify filter' operation
    */
-  def operation(filter: Filter, filterList: Set[Filter], modelId: Symbol): api.Operation[Filter]
+  def operation(graph: Graph[_ <: Model.Like], filter: Filter, filterList: Set[Filter]): api.Operation[Filter]
 
   /**
    * Checks that this class can be subclassed.

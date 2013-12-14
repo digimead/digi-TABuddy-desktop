@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -44,9 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.comparator.api
 
 import java.util.UUID
-
-import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
+import org.digimead.tabuddy.desktop.logic.payload.api.{ PropertyType, TemplateProperty }
 import org.digimead.tabuddy.model.element.Element
 
 /** The Base interface of the model comparator */
@@ -67,10 +65,10 @@ trait Comparator[T <: Comparator.Argument] {
   /** Check whether comparation is available */
   def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean
   /** Compare two element's properties */
-  def compare[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e1: Element.Generic, e2: Element.Generic, argument: Option[T]): Int =
+  def compare[U <: AnyRef with java.io.Serializable](property: TemplateProperty[U], e1: Element, e2: Element, argument: Option[T]): Int =
     compare(property.id, property.ptype, e1, e2, argument)
   /** Compare two element's properties */
-  def compare[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[U], e1: Element.Generic, e2: Element.Generic, argument: Option[T]): Int
+  def compare[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[U], e1: Element, e2: Element, argument: Option[T]): Int
   /** Convert the serialized argument to Argument instance */
   def stringToArgument(argument: String): Option[T]
   /** Convert the serialized argument to the text representation for the user */

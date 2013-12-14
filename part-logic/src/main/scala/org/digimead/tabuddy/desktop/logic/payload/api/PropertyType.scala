@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -45,21 +45,23 @@ package org.digimead.tabuddy.desktop.logic.payload.api
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * Base class of the handler for the property of the particular type
  * The equality is based on id: Symbol
  */
 trait PropertyType[A <: AnyRef with java.io.Serializable] extends Equals {
-  /** The property that determines that enumeration is supported */
+  /** The property that determines that enumeration is supported. */
   val enumerationSupported: Boolean
-  /** The property type name */
+  /** The property type name. */
   val id: Symbol
-  /** The type class */
+  /** The type class. */
   val typeClass: Class[A]
-  /** The type symbol */
+  /** The type symbol. */
   val typeSymbol: Symbol
-  /** The property that contains an adapter for the given type */
+  /** The property that contains an adapter for the given type. */
   def adapter(): PropertyType.Adapter[A]
 
   /**
@@ -70,19 +72,19 @@ trait PropertyType[A <: AnyRef with java.io.Serializable] extends Equals {
    * x > 0 iff value1 > value2
    */
   def compare(value1: A, value2: A): Int
-  /** Create an editor for the given type */
-  def createEditor(initial: Option[A], propertyId: Symbol, element: Element.Generic): PropertyType.Editor[A]
-  /** Returns the new value */
+  /** Create an editor for the given type. */
+  def createEditor(initial: Option[A], propertyId: Symbol, element: Element): PropertyType.Editor[A]
+  /** Returns the new value. */
   def createValue: A
-  /** Returns an iterator for the new value generation */
+  /** Returns an iterator for the new value generation. */
   def createValues: Iterator[A]
-  /** Create a viewer for the given type */
-  def createViewer(initial: Option[A], propertyId: Symbol, element: Element.Generic): PropertyType.Viewer[A]
-  /** Get name of the ptype from the type schema */
-  def name: String
-  /** Convert value to string */
+  /** Create a viewer for the given type. */
+  def createViewer(initial: Option[A], propertyId: Symbol, element: Element): PropertyType.Viewer[A]
+  /** Get name of the ptype from the type schema of the graph. */
+  def name(graph: Graph[_ <: Model.Like]): String
+  /** Convert value to string. */
   def valueToString(value: A): String
-  /** Convert string to value */
+  /** Convert string to value. */
   def valueFromString(value: String): A
 }
 

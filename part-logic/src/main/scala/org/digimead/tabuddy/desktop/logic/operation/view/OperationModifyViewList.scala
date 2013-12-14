@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -46,10 +46,10 @@ package org.digimead.tabuddy.desktop.logic.operation.view
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload.view.api.View
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyViewList base trait.
@@ -58,11 +58,11 @@ trait OperationModifyViewList extends api.OperationModifyViewList {
   /**
    * Create 'Modify view list' operation.
    *
-   * @param viewList the list of exists views
-   * @param modelId current model Id
+   * @param graph graph that contains a view list
+   * @param viewList exists views
    * @return 'Modify view list' operation
    */
-  override def operation(viewList: Set[View], modelId: Symbol): OperationModifyViewList.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], viewList: Set[View]): OperationModifyViewList.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -89,26 +89,26 @@ object OperationModifyViewList extends Loggable {
   lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyViewList]]
 
   /**
-   * Build a new 'Modify view list' operation
-   * @param viewList the list of exists views
-   * @param modelId current model Id
+   * Build a new 'Modify view list' operation.
+   *
+   * @param graph graph that contains a view list
+   * @param viewList exists views
    * @return 'Modify view list' operation
    */
   @log
-  def apply(viewList: Set[View], modelId: Symbol = Model.eId): Option[Abstract] = {
+  def apply(graph: Graph[_ <: Model.Like], viewList: Set[View]): Option[Abstract] =
     operation match {
-      case Some(operation) =>
-        Some(operation.operation(viewList, modelId))
-      case None =>
+      case Some(operation) ⇒
+        Some(operation.operation(graph, viewList))
+      case None ⇒
         log.error("OperationModifyViewList implementation is not defined.")
         None
     }
-  }
 
   /** Bridge between abstract api.Operation[Set[View]] and concrete Operation[Set[View]] */
-  abstract class Abstract(val viewList: Set[View], val modelId: Symbol)
-    extends Operation[Set[View]](s"Edit view list for model $modelId.") {
-    this: Loggable =>
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val viewList: Set[View])
+    extends Operation[Set[View]](s"Edit view list for graph $graph.") {
+    this: Loggable ⇒
   }
   /**
    * Dependency injection routines.

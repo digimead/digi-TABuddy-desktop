@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -46,10 +46,10 @@ package org.digimead.tabuddy.desktop.logic.operation.view
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Operation
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyFilterList base trait.
@@ -58,11 +58,11 @@ trait OperationModifyFilterList extends api.OperationModifyFilterList {
   /**
    * Create 'Modify filter list' operation.
    *
-   * @param filterList the list of exists filters
-   * @param modelId current model Id
+   * @param graph graph that contains a filter list
+   * @param filterList exists filters
    * @return 'Modify filter list' operation
    */
-  override def operation(filterList: Set[Filter], modelId: Symbol): OperationModifyFilterList.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], filterList: Set[Filter]): OperationModifyFilterList.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -86,29 +86,29 @@ trait OperationModifyFilterList extends api.OperationModifyFilterList {
  */
 object OperationModifyFilterList extends Loggable {
   /** Stable identifier with OperationModifyFilterList DI */
-  lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyFilterList]]
+  def operation = DI.operation.asInstanceOf[Option[OperationModifyFilterList]]
 
   /**
    * Build a new 'Modify filter list' operation
+   *
+   * @param graph graph that contains a filter list
    * @param filterList the list of exists filters
-   * @param modelId current model Id
    * @return 'Modify filter list' operation
    */
   @log
-  def apply(filterList: Set[Filter], modelId: Symbol = Model.eId): Option[Abstract] = {
+  def apply(graph: Graph[_ <: Model.Like], filterList: Set[Filter]): Option[Abstract] =
     operation match {
-      case Some(operation) =>
-        Some(operation.operation(filterList, modelId))
-      case None =>
+      case Some(operation) ⇒
+        Some(operation.operation(graph, filterList))
+      case None ⇒
         log.error("OperationModifyFilterList implementation is not defined.")
         None
     }
-  }
 
   /** Bridge between abstract api.Operation[Set[Filter]] and concrete Operation[Set[Filter]] */
-  abstract class Abstract(val filterList: Set[Filter], val modelId: Symbol)
-    extends Operation[Set[Filter]](s"Edit filter list for model $modelId.") {
-    this: Loggable =>
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val filterList: Set[Filter])
+    extends Operation[Set[Filter]](s"Edit filter list for graph $graph.") {
+    this: Loggable ⇒
   }
   /**
    * Dependency injection routines.

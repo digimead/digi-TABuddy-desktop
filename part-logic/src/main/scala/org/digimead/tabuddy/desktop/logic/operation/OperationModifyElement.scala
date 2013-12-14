@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -46,9 +46,7 @@ package org.digimead.tabuddy.desktop.logic.operation
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.model.element.Element
 
 /**
@@ -58,11 +56,10 @@ trait OperationModifyElement extends api.OperationModifyElement {
   /**
    * Create 'Modify the element' operation.
    *
-   * @param element modified element
-   * @param modelId current model Id
+   * @param element element for modification
    * @return 'Modify the element' operation
    */
-  override def operation(element: Element.Generic, modelId: Symbol): OperationModifyElement.Abstract
+  override def operation(element: Element): OperationModifyElement.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -89,27 +86,25 @@ object OperationModifyElement extends Loggable {
   lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyElement]]
 
   /**
-   * Build a new 'Modify the element' operation.
+   * Build a new 'Modify an element' operation.
    *
-   * @param element modified element
-   * @param modelId current model Id
-   * @return 'Modify the element' operation
+   * @param element element for modification
+   * @return 'Modify an element' operation
    */
   @log
-  def apply(element: Element.Generic, modelId: Symbol = Model.eId): Option[Abstract] = {
+  def apply(element: Element): Option[Abstract] =
     operation match {
-      case Some(operation) =>
-        Some(operation.operation(element, modelId).asInstanceOf[Abstract])
-      case None =>
+      case Some(operation) ⇒
+        Some(operation.operation(element).asInstanceOf[Abstract])
+      case None ⇒
         log.error("OperationModifyElement implementation is not defined.")
         None
     }
-  }
 
-  /** Bridge between abstract api.Operation[Boolean] and concrete Operation[Boolean] */
-  abstract class Abstract(val element: Element.Generic, val modelId: Symbol)
-    extends Operation[Boolean](s"Modify $element.") {
-    this: Loggable =>
+  /** Bridge between abstract api.Operation[Element] and concrete Operation[Element] */
+  abstract class Abstract(val element: Element)
+    extends Operation[Element](s"Modify $element.") {
+    this: Loggable ⇒
   }
   /**
    * Dependency injection routines.

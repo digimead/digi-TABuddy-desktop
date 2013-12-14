@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,31 +43,23 @@
 
 package org.digimead.tabuddy.desktop.logic.payload
 
-import scala.collection.immutable
-
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.logic.Default
-import org.digimead.tabuddy.desktop.support.Validator
-import org.digimead.tabuddy.desktop.support.WritableValue
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.ui.support.Validator
+import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.element.Element
-import org.eclipse.jface.viewers.CellEditor
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.ComboViewer
-import org.eclipse.jface.viewers.LabelProvider
-import org.eclipse.jface.viewers.ViewerCell
+import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.jface.viewers.{ CellEditor, ComboViewer, LabelProvider, ViewerCell }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.VerifyEvent
-import org.eclipse.swt.graphics.Color
-import org.eclipse.swt.graphics.Font
-import org.eclipse.swt.graphics.Image
-import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.graphics.{ Color, Font, Image, Point }
+import org.eclipse.swt.widgets.{ Composite, Control }
 import org.eclipse.ui.forms.widgets.FormToolkit
-
-import com.escalatesoft.subcut.inject.BindingModule
+import scala.collection.immutable
 
 /**
  * Base class of the handler for the property of the particular type
@@ -94,15 +86,15 @@ trait PropertyType[T <: AnyRef with java.io.Serializable] extends api.PropertyTy
    */
   def compare(value1: T, value2: T): Int
   /** Create an editor for the given type */
-  def createEditor(initial: Option[T], propertyId: Symbol, element: Element.Generic): PropertyType.Editor[T]
+  def createEditor(initial: Option[T], propertyId: Symbol, element: Element): PropertyType.Editor[T]
   /** Returns the new value */
   def createValue: T
   /** Returns an iterator for the new value generation */
   def createValues: Iterator[T]
   /** Create a viewer for the given type */
-  def createViewer(initial: Option[T], propertyId: Symbol, element: Element.Generic): PropertyType.Viewer[T]
+  def createViewer(initial: Option[T], propertyId: Symbol, element: Element): PropertyType.Viewer[T]
   /** Get name of the ptype from the type schema */
-  def name: String = TypeSchema.getTypeName(id)
+  def name(graph: Graph[_ <: Model.Like]): String = TypeSchema.getTypeName(GraphMarker(graph), id)
   /** Convert value to string */
   def valueToString(value: T): String
   /** Convert string to value */
@@ -111,12 +103,12 @@ trait PropertyType[T <: AnyRef with java.io.Serializable] extends api.PropertyTy
   def canEqual(other: Any) =
     other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.PropertyType[_]]
   override def equals(other: Any) = other match {
-    case that: org.digimead.tabuddy.desktop.logic.payload.PropertyType[_] =>
+    case that: org.digimead.tabuddy.desktop.logic.payload.PropertyType[_] ⇒
       (this eq that) || {
         that.canEqual(this) &&
           id == that.id
       }
-    case _ => false
+    case _ ⇒ false
   }
   override def hashCode() = id.hashCode
   override def toString() = s"PropertyType[$id]"
@@ -159,7 +151,7 @@ object PropertyType extends Loggable {
     /** An actual value */
     val data: WritableValue[T]
     /** An actual value container */
-    val element: Element.Generic
+    val element: Element
 
     /** Add the validator */
     def addValidator(control: Control, showOnlyOnFocus: Boolean = true): Option[Validator]
@@ -185,7 +177,7 @@ object PropertyType extends Loggable {
     /** The property representing the UI control value */
     val data: WritableValue[T]
     /** An actual value container */
-    val element: Element.Generic
+    val element: Element
 
     /** Get an UI control */
     def createControl(parent: Composite): Control = createControl(parent, SWT.NONE)
@@ -246,9 +238,9 @@ object PropertyType extends Loggable {
   /** The default enumeration label provider */
   class EnumerationLabelProvider extends LabelProvider {
     override def getText(element: AnyRef): String = element match {
-      case constant: Enumeration.Constant[_] =>
+      case constant: Enumeration.Constant[_] ⇒
         constant.view
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         unknown.toString()
     }
@@ -266,8 +258,8 @@ object PropertyType extends Loggable {
      * <code>toString</code> string.
      */
     def getText(value: Option[T]): String = value match {
-      case Some(value) if value != null => value.toString()
-      case _ => ""
+      case Some(value) if value != null ⇒ value.toString()
+      case _ ⇒ ""
     }
   }
   /**
@@ -285,24 +277,24 @@ object PropertyType extends Loggable {
      */
     private def injectTypes(): immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]] = {
       val types = bindingModule.bindings.filter {
-        case (key, value) => classOf[api.PropertyType[_ <: AnyRef with java.io.Serializable]].isAssignableFrom(key.m.runtimeClass)
+        case (key, value) ⇒ classOf[api.PropertyType[_ <: AnyRef with java.io.Serializable]].isAssignableFrom(key.m.runtimeClass)
       }.map {
-        case (key, value) =>
+        case (key, value) ⇒
           key.name match {
-            case Some(name) if name.startsWith("PropertyType.") =>
+            case Some(name) if name.startsWith("PropertyType.") ⇒
               log.debug(s"'${name}' loaded.")
-            case _ =>
+            case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' property type skipped.")
           }
           bindingModule.injectOptional(key).asInstanceOf[Option[api.PropertyType[_ <: AnyRef with java.io.Serializable]]]
       }.flatten.toSeq
-      val result = immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]](types.map(n => (n.id, n)): _*)
+      val result = immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]](types.map(n ⇒ (n.id, n)): _*)
       assert(result.nonEmpty, "Unable to start application with empty properyTypes map.")
 
-      result.values.foreach(ptype => try {
+      result.values.foreach(ptype ⇒ try {
         log.debug("Register property handler [type symbol:%s -> id:%s].".format(ptype.typeSymbol, ptype.id.name))
       } catch {
-        case e: NoSuchElementException =>
+        case e: NoSuchElementException ⇒
           log.error(s"Unable to register $ptype, DSL type not found.", e)
           throw e
       })

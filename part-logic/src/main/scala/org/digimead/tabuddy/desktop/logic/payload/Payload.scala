@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,164 +43,113 @@
 
 package org.digimead.tabuddy.desktop.logic.payload
 
-import java.io.BufferedInputStream
-import java.io.BufferedOutputStream
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileFilter
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.IOException
-import java.net.URI
-import java.util.Properties
 import java.util.UUID
-
-import scala.collection.immutable
-import scala.collection.mutable
-
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.digi.lib.util.FileUtil
-import org.digimead.tabuddy.desktop.Report
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.ModelMarker
-import org.digimead.tabuddy.desktop.logic.{ api => lapi }
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.Stash
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.Record
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Reference
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.WritableMap
+import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Filter
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
+import org.digimead.tabuddy.desktop.logic.payload.view.View
 import org.digimead.tabuddy.model.serialization.Serialization
-import org.eclipse.core.resources.IResource
-import org.osgi.framework.BundleActivator
-import org.osgi.framework.BundleContext
-
-import com.escalatesoft.subcut.inject.BindingModule
-import com.escalatesoft.subcut.inject.Injectable
-import com.google.common.base.Charsets
-import com.google.common.io.Files
-
-import language.implicitConversions
 
 /**
- * Singleton that contains information about loaded models and provides high level model serialization API.
+ * Singleton that contains information related to specific graph.
  */
-class Payload(implicit val bindingModule: BindingModule) extends api.Payload with Injectable with Loggable {
-  val elementNameTemplate = "e %s {%08X}" // hash prevents case insensitivity collision
-  /** File extension for the serialized element. */
-  val extensionElement = Payload.DI.extensionElement
-  /** File extension for the model descriptors. */
-  val extensionModel = "model"
-  /** Type schemas folder name. */
-  val folderTypeSchemas = "typeSchemas"
-  /** The element's record name template */
-  /** Loaded models marker registry populated by 'acquireModel'. */
-  protected lazy val markerRegistry = {
-    val map = new mutable.WeakHashMap[Model.Interface[_ <: Model.Stash], lapi.ModelMarker]() with mutable.SynchronizedMap[Model.Interface[_ <: Model.Stash], lapi.ModelMarker]
-    map(Payload.defaultModel) = new ModelMarker.DefaultModelMarker
-    map
-  }
-  protected val modelLock = new Object
+class Payload(val marker: GraphMarker) extends Loggable {
+  /** The property representing all available element templates for user, contains at least one predefined element. */
+  lazy val elementTemplates = WritableMap[Symbol, api.ElementTemplate]
+  /** The property representing all available enumerations. */
+  lazy val enumerations = WritableMap[Symbol, api.Enumeration[_ <: AnyRef with java.io.Serializable]]
+  /** Predefined type schemas that are available for this application. */
+  lazy val predefinedTypeSchemas: Seq[api.TypeSchema] = Seq()
+  /*
+   * Symbol ::= plainid
+   *
+   * op ::= opchar {opchar}
+   * varid ::= lower idrest
+   * plainid ::= upper idrest
+   *           | varid
+   *           | op
+   * id ::= plainidO
+   *        | ‘\‘’ stringLit ‘\‘’
+   * idrest ::= {letter | digit} [‘_’ op]
+   *
+   * Ll Letter, Lowercase
+   * Lu Letter, Uppercase
+   * Lt Letter, Titlecase
+   * Lo Letter, Other
+   * Lm Letter, Modifier
+   * Nd Number, Decimal Digit
+   * Nl (letter numbers like roman numerals)
+   *
+   * drop So, Sm and \u0020-\u007F
+   */
+  val symbolPattern = """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}]+[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}_]*""".r.pattern
+  /** The property representing all available type schemas */
+  lazy val typeSchemas = WritableMap[UUID, api.TypeSchema]
+  /** The property representing the active type schema */
+  lazy val typeSchema = WritableValue[api.TypeSchema]
+  /** The property representing all available view definitions */
+  lazy val viewDefinitions = WritableMap[UUID, view.api.View]
+  /** The property representing all available view filters */
+  lazy val viewFilters = WritableMap[UUID, view.api.Filter]
+  /** The property representing all available view sortings */
+  lazy val viewSortings = WritableMap[UUID, view.api.Sorting]
 
-  /**
-   * Load the specific model from the predefined directory ${location}/id/
-   */
-  @log
-  def acquireModel(marker: lapi.ModelMarker): Option[Model.Interface[_ <: Model.Stash]] = modelLock.synchronized {
-    log.debug(s"Acquire model with marker ${marker}.")
-    try {
-      loadModel(marker) orElse {
-        log.info("Create new empty model " + marker.id)
-        // try to create model if we are unable to load it
-        val stash = new Model.Stash(marker.id, marker.uuid)
-        /**
-         * TABuddy - global TA Buddy space
-         *  +-Settings - global TA Buddy settings
-         *     +-Templates - global TA Buddy element templates
-         *  +-Temp - temporary TA Buddy elements
-         *     +-Templates - predefined TA Buddy element templates
-         */
-        val model = new org.digimead.tabuddy.desktop.logic.payload.PayloadModel(stash)
-        markerRegistry(model) = marker
-        Model.reset(model)
-        Some(model)
-      }
-    } catch {
-      // catch all throwables from serialization process
-      case e: Throwable =>
-        log.error("Unable to load model that marked with id %s: %s".format(marker, e), e)
-        Model.reset()
-        None
-    }
+  /** Get user enumerations */
+  def getAvailableElementTemplates(): List[api.ElementTemplate] =
+    App.execNGet { elementTemplates.values.filter(_.availability).toList }
+  /** Get user enumerations */
+  def getAvailableEnumerations(): List[api.Enumeration[_ <: AnyRef with java.io.Serializable]] =
+    App.execNGet { enumerations.values.filter(_.availability).toList }
+  /** Get user types */
+  def getAvailableTypes(defaultValue: Boolean = true): List[api.PropertyType[_ <: AnyRef with java.io.Serializable]] = App.execNGet {
+    val currentTypeSchema = typeSchema.value
+    PropertyType.container.values.toList.filter(ptype ⇒
+      currentTypeSchema.entity.get(ptype.id).map(_.availability).getOrElse(defaultValue))
   }
-  /**
-   * Close the active model.
-   */
-  @log
-  def closeModel(marker: lapi.ModelMarker) = modelLock.synchronized {
-    log.info(s"Close model '${Model}' with '${marker}'.")
-    try {
-      marker.save()
-    } finally {
-      Model.reset(Payload.defaultModel)
-    }
+  /** Get all available view definitions. */
+  def getAvailableViewDefinitions(): Set[view.api.View] = App.execNGet {
+    val result = View.displayName +: viewDefinitions.values.filter(_.availability).toList.sortBy(_.name)
+    if (result.isEmpty) Set(View.displayName) else result.toSet
   }
-  /**
-   * Delete model.
-   */
-  @log
-  def deleteModel(marker: lapi.ModelMarker): lapi.ModelMarker = modelLock.synchronized {
-    log.info(s"Delete model '${Model.inner}' with '${marker}'.")
-    marker match {
-      case marker: ModelMarker =>
-        if (marker.id == Model.eId)
-          Model.reset(Payload.defaultModel)
-        val modelDescriptorFile = new File(marker.path, marker.id + "." + Payload.extensionModel)
-        val toDelete = markerRegistry.filter { case (model, mm) => mm == marker }
-        toDelete.foreach { case (model, mm) => markerRegistry.remove(model) }
-        log.debug(s"Delete ${marker.path}")
-        FileUtil.deleteFile(marker.path)
-        log.debug(s"Delete ${marker.descriptor}")
-        FileUtil.deleteFile(marker.descriptor)
-        val roMarker = ModelMarker.delete(marker)
-        App.exec { Data.updateAvailableModels }
-        roMarker
-      case other =>
-        throw new IllegalArgumentException("Unexpected model marker type ${other.getClass}. ")
-    }
+  /** Get all available view filters. */
+  def getAvailableViewFilters(): Set[view.api.Filter] = App.execNGet {
+    val result = Filter.allowAllFilter +: viewFilters.values.filter(_.availability).toList.sortBy(_.name)
+    if (result.isEmpty) Set(Filter.allowAllFilter) else result.toSet
   }
-  /**
-   * Create the specific model at the specific directory.
-   */
-  @log
-  def createModel(fullPath: File): lapi.ModelMarker = modelLock.synchronized {
-    log.info(s"Create model at '${fullPath.getCanonicalPath()}'.")
-    val resourceUUID = UUID.randomUUID()
-    val createdAt = System.currentTimeMillis()
-    val creator = Model.origin
-    ModelMarker(resourceUUID, fullPath, createdAt, creator)
+  /** Get all available view sortings. */
+  def getAvailableViewSortings(): Set[view.api.Sorting] = App.execNGet {
+    val result = Sorting.simpleSorting +: viewSortings.values.filter(_.availability).toList.sortBy(_.name)
+    if (result.isEmpty) Set(Sorting.simpleSorting) else result.toSet
   }
-  /**
-   * Store the specific model to the predefined directory ${location}/id/
-   */
-  @log
-  def saveModel(marker: lapi.ModelMarker, model: Model.Interface[_ <: Model.Stash]): URI = modelLock.synchronized {
-    log.debug(s"Freeze model ${model}.")
-    if (marker.id != model.eId)
-      throw new IllegalArgumentException(s"Model marker id ${marker.id} and model id ${model.eId} are different.")
-    val saveF = saveModelElements(marker.path, _: Element.Generic, _: Array[Byte])
-    Payload.serialization.freeze(Model, saveF)
-    val typeSchemas = App.execNGet { Data.typeSchemas.values.toSet }
-    saveTypeSchemas(marker, typeSchemas)
-    marker.path.toURI
-  }
+  /** Get selected view definitions. */
+  def getSelectedViewDefinition(context: Context, local: Boolean = false): Option[view.api.View] = {
+    if (local)
+      Option(context.getLocal(Payload.Id.selectedView).asInstanceOf[UUID])
+    else
+      Option(context.get(Payload.Id.selectedView).asInstanceOf[UUID])
+  } flatMap (viewDefinitions.get)
+  /** Get selected view filter. */
+  def getSelectedViewFilter(context: Context, local: Boolean = false): Option[view.api.Filter] = {
+    if (local)
+      Option(context.getLocal(Payload.Id.selectedFilter).asInstanceOf[UUID])
+    else
+      Option(context.get(Payload.Id.selectedFilter).asInstanceOf[UUID])
+  } flatMap (viewFilters.get)
+  /** Get selected view sorting. */
+  def getSelectedViewSorting(context: Context, local: Boolean = false): Option[view.api.Sorting] = {
+    if (local)
+      Option(context.getLocal(Payload.Id.selectedSorting).asInstanceOf[UUID])
+    else
+      Option(context.get(Payload.Id.selectedSorting).asInstanceOf[UUID])
+  } flatMap (viewSortings.get)
   /** Generate new name/id/... */
-  def generateNew(base: String, suffix: String, exists: (String) => Boolean): String = {
+  def generateNew(base: String, suffix: String, exists: (String) ⇒ Boolean): String = {
     val iterator = new Iterator[String] {
       @volatile private var n = 0
       def hasNext = true
@@ -215,186 +164,6 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
       newValue = iterator.next
     newValue
   }
-  /** Returns the element storage */
-  def getElementStorage(marker: lapi.ModelMarker, reference: Reference): Option[URI] = {
-    Model.e(reference) match {
-      case Some(element) if element.eStash.model == Some(Model.inner) =>
-        val ancestors = element.eAncestors
-        if (ancestors.isEmpty) {
-          log.warn(s"unable to get storage for element $reference. There are no ancestors")
-          return None
-        }
-        val base = marker.path
-        val ancestorDirectory = new File(base, element.eAncestors.map(e =>
-          elementNameTemplate.format(e.eId.name, e.eId.name.hashCode())).reverse.mkString(File.separator))
-        val elementDirectory = new File(ancestorDirectory,
-          elementNameTemplate.format(element.eId.name, element.eId.name.hashCode()))
-        if (!elementDirectory.exists())
-          if (!elementDirectory.mkdirs()) {
-            log.warn(s"unable to get storage for element $reference. Unable to create directory " + elementDirectory.getAbsolutePath())
-            return None
-          }
-        Some(elementDirectory.toURI())
-      case _ =>
-        log.warn(s"unable to get storage for element $reference. Element not found or not attached")
-        None
-    }
-  }
-  /** Get marker for loaded model. */
-  def getModelMarker(model: Model.Interface[_ <: Model.Stash]): Option[lapi.ModelMarker] =
-    markerRegistry.get(model)
-  /** Get a model list. */
-  def listModels(): Seq[lapi.ModelMarker] = modelLock.synchronized {
-    modelMarker(Payload.defaultModel) +: Logic.container.members.flatMap { resource =>
-      if (resource.getFileExtension() == extensionModel)
-        try {
-          val uuid = UUID.fromString(resource.getName().takeWhile(_ != '.'))
-          Some(ModelMarker(uuid))
-        } catch {
-          case e: Throwable =>
-            log.warn("Skip model marker with invalid name: " + resource.getName)
-            None
-        }
-      else
-        None
-    }
-  }
-  /** Load type schemas. */
-  @log
-  def loadTypeSchemas(marker: lapi.ModelMarker): immutable.HashSet[api.TypeSchema] = modelLock.synchronized {
-    val typeSchemasStorage = new File(marker.path, folderTypeSchemas)
-    log.debug(s"Load type schemas from $typeSchemasStorage")
-    if (!typeSchemasStorage.exists())
-      return immutable.HashSet()
-    val prefix = marker.path.getCanonicalPath().size + 1
-    var schemas = immutable.HashSet[api.TypeSchema]()
-    typeSchemasStorage.listFiles(new FileFilter { def accept(file: File) = file.isFile() && file.getName().endsWith(".yaml") }).foreach { file =>
-      try {
-        log.debug("Load ... " + file.getCanonicalPath().substring(prefix))
-        val yaml = Files.toString(file, Charsets.UTF_8)
-        try {
-          TypeSchema.YAML.from(yaml).foreach(schema => schemas = schemas + schema)
-        } catch {
-          case e: Throwable =>
-            log.error("Unable to load type schema %s: %s".format(file.getName(), e), e)
-        }
-      } catch {
-        case e: IOException =>
-          log.error("Unable to load type schema %s: %s".format(file.getName(), e))
-      }
-    }
-    schemas
-  }
-  /** Get marker for loaded model or throw error. */
-  def modelMarker(model: Model.Interface[_ <: Model.Stash]): lapi.ModelMarker =
-    getModelMarker(model) getOrElse { throw new IllegalArgumentException("Marker is unavailable for model " + model) }
-  /** Save type schemas. */
-  @log
-  def saveTypeSchemas(marker: lapi.ModelMarker, schemas: immutable.Set[api.TypeSchema]) = modelLock.synchronized {
-    val typeSchemasStorage = new File(marker.path, folderTypeSchemas)
-    log.debug(s"Save type schemas to $typeSchemasStorage")
-    if (!typeSchemasStorage.exists())
-      if (!typeSchemasStorage.mkdirs())
-        throw new RuntimeException("Unable to create type schemas storage at " + typeSchemasStorage.getAbsolutePath())
-    typeSchemasStorage.listFiles(new FileFilter { def accept(file: File) = file.isFile() && file.getName().endsWith(".yaml") }).foreach(_.delete())
-    schemas.foreach(schema =>
-      Files.write(TypeSchema.YAML.to(schema), new File(typeSchemasStorage, schema.id.toString() + ".yaml"), Charsets.UTF_8))
-  }
-  /** Get a model settings container */
-  // Element[_ <: Stash] == Element.Generic, avoid 'erroneous or inaccessible type' error
-  def settings(): Record.Generic = inject[Record.Interface[_ <: Record.Stash]]("eSettings")
-
-  protected def loadFilter(element: Element.Generic): Option[Element.Generic] = {
-    element match {
-      case model: Model.Generic =>
-      case element =>
-    }
-    Some(element)
-  }
-  /** Load the model. */
-  @log
-  protected def loadModel(marker: lapi.ModelMarker): Option[Model.Interface[_ <: Model.Stash]] = {
-    if (!marker.isValid)
-      return None
-    val treeFilter = new FileFilter() {
-      def accept(file: File): Boolean = file.isDirectory() ||
-        (file.getName().startsWith("e ") && file.getName.endsWith("." + extensionElement))
-    }
-    def treeFiles(root: File, skipHidden: Boolean, filter: FileFilter): Stream[File] =
-      if (!root.exists || (skipHidden && root.isHidden)) Stream.empty
-      else root #:: (
-        root.listFiles(filter) match {
-          case null => Stream.empty
-          case files => files.toStream.flatMap(treeFiles(_, skipHidden, filter))
-        })
-    val elements = treeFiles(marker.path, false, treeFilter).iterator
-    val loadF = () => loadModelElements(marker, elements)
-    val loaded: Option[_ <: Model.Interface[_ <: Model.Stash]] = if (marker.path.listFiles().isEmpty) {
-      log.info(s"Load model ${marker.id} with empty model.")
-      Some(new PayloadModel(new Model.Stash(marker.id, marker.uuid)))
-    } else {
-      log.info(s"Load model ${marker.id} from ${marker.path.getAbsolutePath()}.")
-      Payload.serialization.acquire[Model.Interface[Model.Stash], Model.Stash](loadF)
-    }
-    loaded.foreach { model =>
-      markerRegistry(model) = marker
-      Model.reset(model)
-    }
-    loaded
-  }
-  /** Load model elements */
-  protected def loadModelElements(marker: lapi.ModelMarker, iterator: Iterator[File]): Option[Array[Byte]] = {
-    val prefix = marker.path.getCanonicalPath().size + 1
-    while (iterator.hasNext) {
-      val next = iterator.next
-      if (next.isFile) {
-        log.debug("Load ... " + next.getCanonicalPath().substring(prefix))
-        val elementStream = new BufferedInputStream(new FileInputStream(next))
-        val elementData = new ByteArrayOutputStream()
-        val result = try {
-          FileUtil.writeToStream(elementStream, elementData)
-          Some(elementData.toByteArray())
-        } catch {
-          case e: Throwable =>
-            log.error("unable to acquire element %s: %s".format(next.getName, e))
-            None
-        } finally {
-          elementStream.close()
-          elementData.flush()
-          elementData.close()
-        }
-        if (result.nonEmpty)
-          return result
-      }
-    }
-    None
-  }
-  /** Save model elements */
-  protected def saveModelElements(base: File, element: Element.Generic, data: Array[Byte]) {
-    val elementDirectory = new File(base, element.eAncestors.map(e =>
-      elementNameTemplate.format(e.eId.name, e.eId.name.hashCode())).reverse.mkString(File.separator)).getAbsoluteFile()
-    log.debug("save element " + element)
-    if (elementDirectory.isDirectory() || elementDirectory.mkdirs()) {
-      val elementFile = new File(elementDirectory, elementNameTemplate.format(element.eId.name, element.eId.name.hashCode()) + "." + extensionElement)
-      val in = new ByteArrayInputStream(data)
-      val out = new BufferedOutputStream(new FileOutputStream(elementFile))
-      try {
-        FileUtil.writeToStream(in, out)
-      } finally {
-        out.close()
-        in.close()
-      }
-    } else {
-      log.error("Unable to create directory " + elementDirectory)
-    }
-  }
-  protected def saveFilter(element: Element.Generic): Option[Element.Generic] = {
-    element match {
-      case model: Model.Generic =>
-      case element =>
-    }
-    Some(element)
-  }
 }
 
 /**
@@ -403,25 +172,43 @@ class Payload(implicit val bindingModule: BindingModule) extends api.Payload wit
  * - Records, binded to Model
  */
 object Payload extends Loggable {
-  implicit def payload2implementation(p: Payload.type): api.Payload = p.inner
-  @volatile private var active: Boolean = false
-  PayloadModel // initialize
-
-  def defaultModel() = DI.defaultModel
-  def inner() = DI.implementation
+  /** The local origin. */
+  def origin = DI.origin
   def serialization() = DI.serialization
+  /** File extension for the graph descriptor. */
+  def extensionGraph = DI.extensionGraph
 
+  object Id {
+    /** Value of the various UI elements with model id [String] value. */
+    final val modelIdUserInput = "org.digimead.tabuddy.desktop.logic.Data/modelIdUserInput"
+    /** Value of the selected model element [Element]. */
+    final val selectedElement = "org.digimead.tabuddy.desktop.logic.Data/selectedElement"
+    /** Value of the selected view ID [UUID]. */
+    final val selectedView = "org.digimead.tabuddy.desktop.logic.Data/selectedView"
+    /** Value of the selected sorting ID [UUID]. */
+    final val selectedSorting = "org.digimead.tabuddy.desktop.logic.Data/selectedSorting"
+    /** Value of the selected filter ID [UUID]. */
+    final val selectedFilter = "org.digimead.tabuddy.desktop.logic.Data/selectedFilter"
+    /** Flag indicating whether this view is using 'view definitions/filters/sortings' [java.lang.Boolean]. */
+    final val usingViewDefinition = "org.digimead.tabuddy.desktop.logic.Data/usingViewDefinition"
+  }
+  trait YAMLProcessor[T] {
+    /** Convert YAML to object */
+    def from(yaml: String): Option[T]
+    /** Convert object to YAML */
+    def to(obj: T): String
+  }
   /**
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Default model identifier. */
-    lazy val defaultModel = inject[Model.Interface[Model.Stash]]
-    /** File extension for the serialized element. */
-    lazy val extensionElement = inject[String]("Payload.Element.Extension")
-    /** Payload implementation. */
-    lazy val implementation = inject[api.Payload]
+    /** File extension for the graph descriptor. */
+    lazy val extensionGraph = injectOptional[Symbol]("Payload.Extension.Graph") getOrElse "graph"
+    /** The local origin. */
+    lazy val origin = injectOptional[Symbol]("Origin") getOrElse 'default
+    /** UUID of the default TypeSchema. */
+    lazy val default = inject[UUID]("Payload.TypeSchema.Default")
     /** Serialization. */
-    lazy val serialization = inject[Serialization[Array[Byte]]]("Payload.Serialization")
+    lazy val serialization = inject[Serialization.Identifier]("Payload.Serialization")
   }
 }

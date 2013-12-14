@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,43 +43,17 @@
 
 package org.digimead.tabuddy.desktop.logic
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
-
-import org.digimead.configgy.Configgy
-import org.digimead.configgy.Configgy.getImplementation
+import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Core
-import org.digimead.tabuddy.desktop.Core.core2actorRef
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.desktop.gui.GUI
-import org.digimead.tabuddy.desktop.logic.Actions.configurator2implementation
-import org.digimead.tabuddy.desktop.logic.Config.config2implementation
-import org.digimead.tabuddy.desktop.logic.operation.OperationModelOpen
-import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Timeout
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
-import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.commands.ToggleState
-
-import akka.actor.ActorRef
-import akka.actor.Inbox
-import akka.actor.Props
-import akka.actor.ScalaActorRef
-import akka.actor.actorRef2Scala
-
-import language.implicitConversions
+import scala.language.implicitConversions
 
 /**
  * Root actor of the Logic component.
@@ -97,11 +71,10 @@ class Logic extends akka.actor.Actor with Loggable {
   /*
    * Logic component actors.
    */
-  val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  val actionRef = if (App.isUIAvailable) context.actorOf(ui.UI.props, ui.UI.id) else null
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
-    App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
@@ -114,46 +87,31 @@ class Logic extends akka.actor.Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
-    App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Attach(props, name) => App.traceMessage(message) {
+    case message @ App.Message.Attach(props, name) ⇒ App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
-    case message @ App.Message.Inconsistent(element, _) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
-      if (inconsistentSet.isEmpty) {
-        log.debug("Lost consistency.")
-        context.system.eventStream.publish(App.Message.Inconsistent(Logic, self))
-      }
-      inconsistentSet = inconsistentSet + element
-    }
-    case message @ App.Message.Consistent(element, _) if element != Logic && App.bundle(element.getClass()) == thisBundle => App.traceMessage(message) {
+    case message @ App.Message.Consistent(element, _) if element != Logic && App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
         context.system.eventStream.publish(App.Message.Consistent(Logic, self))
       }
     }
-    case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
-      if (fGUIStarted) onModelInitialization(oldModel, newModel, modified)
-    }
-    case message @ App.Message.Start(Right(GUI), _) => App.traceMessage(message) {
-      fGUIStarted = true
-      future { onGUIValid() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+    case message @ App.Message.Inconsistent(element, _) if element != Logic && App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
+      if (inconsistentSet.isEmpty) {
+        log.debug("Lost consistency.")
+        context.system.eventStream.publish(App.Message.Inconsistent(Logic, self))
       }
+      inconsistentSet = inconsistentSet + element
     }
-    case message @ App.Message.Stop(Right(GUI), _) => App.traceMessage(message) {
-      fGUIStarted = false
-      future { onGUIInvalid } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
-      }
-    }
-    case message @ App.Message.Inconsistent(element, _) => // skip
-    case message @ App.Message.Consistent(element, _) => // skip
+
+    case message @ App.Message.Consistent(element, _) ⇒ // skip
+    case message @ App.Message.Inconsistent(element, _) ⇒ // skip
+    case message @ App.Message.Start(_, _) ⇒ // skip
+    case message @ App.Message.Stop(_, _) ⇒ // skip
   }
 
   /** Close infrastructure wide container. */
@@ -162,85 +120,36 @@ class Logic extends akka.actor.Actor with Loggable {
     log.info(s"Close infrastructure wide container '${Logic.container.getName()}' ")
     App.publish(App.Message.Inconsistent(this, self))
     val progressMonitor = new NullProgressMonitor()
-    if (Logic.container.isOpen()) {
-      Payload.getModelMarker(Model).foreach(_.save)
+    /*if (Logic.container.isOpen()) {
+      Payload.getGraphMarker(Model).foreach(_.save)
       Logic.container.close(progressMonitor)
-    }
+    }*/
     App.publish(App.Message.Consistent(this, self))
   }
   /** This callback is invoked when UI initialization complete */
   @log
   def onApplicationStartup() {
     // load last active model at startup
-    Configgy.getString("payload.model").foreach(lastModelID =>
-      Payload.listModels.find(m => m.isValid && m.id.name == lastModelID).foreach { marker =>
-        OperationModelOpen(None, Symbol(lastModelID), true).foreach { operation =>
+    /*Configgy.getString("payload.model").foreach(lastModelID ⇒
+      Payload.listModels.find(m ⇒ m.isValid && m.id.name == lastModelID).foreach { marker ⇒
+        OperationModelOpen(None, Symbol(lastModelID), true).foreach { operation ⇒
           operation.getExecuteJob() match {
-            case Some(job) =>
+            case Some(job) ⇒
               job.setPriority(Job.LONG)
               job.onComplete(_ match {
-                case Operation.Result.OK(result, message) =>
+                case Operation.Result.OK(result, message) ⇒
                   log.info(s"Operation completed successfully: ${result}")
-                case Operation.Result.Cancel(message) =>
+                case Operation.Result.Cancel(message) ⇒
                   log.warn(s"Operation canceled, reason: ${message}.")
-                case other =>
+                case other ⇒
                   log.error(s"Unable to complete operation: ${other}.")
               }).schedule()
               job.schedule(Timeout.shortest.toMillis)
-            case None =>
+            case None ⇒
               log.fatal(s"Unable to create job for ${operation}.")
           }
         }
-      })
-  }
-  /** This callback is invoked at an every model initialization. */
-  @log
-  protected def onModelInitialization(oldModel: Model.Generic, newModel: Model.Generic, modified: Element.Timestamp) = try {
-    TypeSchema.onModelInitialization(oldModel, newModel, modified)
-    ElementTemplate.onModelInitialization(oldModel, newModel, modified)
-    Data.onModelInitialization(oldModel, newModel, modified)
-    Config.save()
-  } catch {
-    case e: Throwable =>
-      log.error(e.getMessage, e)
-  }
-  /** This callback is invoked when GUI is valid. */
-  @log
-  protected def onGUIValid() = initializationLock.synchronized {
-    App.afterStart("Desktop Logic", Timeout.normal.toMillis, Core.getClass()) {
-      val context = thisBundle.getBundleContext()
-      openContainer()
-      // Prepare for startup.
-      // Reset for sure. There is maybe still something in memory after the bundle reload.
-      Model.reset(Payload.defaultModel)
-      // Startup sequence.
-      Config.start(context) // Initialize the application configuration based on Configgy
-      //Transport.start() // Initialize the network transport(s)
-      Actions.configure
-      App.markAsStarted(Logic.getClass)
-      future { onApplicationStartup() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
-      }
-    }
-  }
-  /** This callback is invoked when GUI is invalid. */
-  @log
-  protected def onGUIInvalid() = initializationLock.synchronized {
-    val context = thisBundle.getBundleContext()
-    App.markAsStopped(Logic.getClass())
-    // Prepare for shutdown.
-    Actions.unconfigure
-    //Transport.stop()
-    Config.stop(context)
-    closeContainer()
-    // Avoid deadlock.
-    App.system.eventStream.unsubscribe(self, classOf[org.digimead.tabuddy.model.element.Element.Event.ModelReplace[_ <: org.digimead.tabuddy.model.Model.Interface[_ <: org.digimead.tabuddy.model.Model.Stash], _ <: org.digimead.tabuddy.model.Model.Interface[_ <: org.digimead.tabuddy.model.Model.Stash]]])
-    Model.reset(Payload.defaultModel)
-    if (inconsistentSet.nonEmpty)
-      log.fatal("Inconsistent elements detected: " + inconsistentSet)
-    // The everything is stopped. Absolutely consistent.
-    App.publish(App.Message.Consistent(Logic, self))
+      })*/
   }
   /** Open infrastructure wide container. */
   @log
@@ -253,6 +162,20 @@ class Logic extends akka.actor.Actor with Loggable {
     Logic.container.open(progressMonitor)
     App.publish(App.Message.Consistent(this, self))
   }
+  /** Invoked on Core started. */
+  protected def onCoreStarted() {
+    //core.command.Commands.configure()
+    //core.view.Views.configure()
+    App.markAsStarted(Logic.getClass)
+    App.publish(App.Message.Start(Right(Logic)))
+  }
+  /** Invoked on Core stopped. */
+  protected def onCoreStopped() {
+    //core.view.Views.unconfigure()
+    //core.command.Commands.unconfigure()
+    App.markAsStopped(Logic.getClass)
+    App.publish(App.Message.Stop(Right(Logic)))
+  }
 }
 
 object Logic {
@@ -263,9 +186,9 @@ object Logic {
     val inbox = Inbox.create(App.system)
     inbox.send(Core, App.Message.Attach(props, id))
     inbox.receive(Timeout.long) match {
-      case actorRef: ActorRef =>
+      case actorRef: ActorRef ⇒
         actorRef
-      case other =>
+      case other ⇒
         throw new IllegalStateException(s"Unable to attach actor ${id} to ${Core.path}.")
     }
   }
@@ -281,7 +204,8 @@ object Logic {
     root.getProject(Logic.containerName)
   }
   // Initialize descendant actor singletons
-  action.Action
+  if (App.isUIAvailable)
+    ui.UI
 
   def containerName() = DI.infrastructureWideProjectName
   override def toString = "Logic[Singleton]"

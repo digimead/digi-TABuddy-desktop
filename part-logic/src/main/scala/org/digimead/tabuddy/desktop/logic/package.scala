@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,40 +43,18 @@
 
 package org.digimead.tabuddy.desktop
 
-import java.io.File
-
+import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.digi.lib.util.Util
 import org.digimead.tabuddy.desktop.logic.Config
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-
 package object logic {
-  lazy val default = new NewBindingModule(module => {
-    // Get 'data' path from System.getProperty("data") or
-    // Try to get jar location or get current directory
-    module.bind[File] identifiedBy "Data" toSingle { Util.getPath("data", getClass) }
-    // Configuration file located at {data}/configuration/tabuddy.conf by default
-    module.bind[File] identifiedBy "Config" toModuleSingle { module =>
-      val configName = "tabuddy.conf"
-      val dataPath = module.inject[File](Some("Data"))
-      val configurationPath = new File(dataPath, "configuration")
-      new File(configurationPath, configName)
-    }
-    module.bind[api.Config] toModuleSingle { implicit module => new Config }
-    // Dialog persist settings class factory
-    module.bind[(String, String) => org.digimead.tabuddy.desktop.definition.api.Dialog.Settings] toSingle {
-      (sectionName, prefix) => new support.Dialog.Settings(sectionName, prefix)
-    }
+  lazy val default = new NewBindingModule(module ⇒ {
+    module.bind[api.Config] toModuleSingle { implicit module ⇒ new Config }
   }) ~
-    //report.default ~
-    //mesh.transport.default ~
     payload.default ~
     payload.view.default ~
     comparator.default ~
     filter.default ~
     operation.default
-  //approver.default ~
-  //debug.default
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.Default$DI$")
 }
