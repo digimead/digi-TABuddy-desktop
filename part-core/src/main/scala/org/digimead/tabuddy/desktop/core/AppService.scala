@@ -327,7 +327,7 @@ class AppService extends api.Main with Disposable.Default with Loggable {
 }
 
 object AppService extends Loggable {
-  implicit def main2implementation(c: AppService.type): AppService = c.inner
+  implicit def main2implementation(a: AppService.type): AppService = a.inner
   private val disposeableLock = new Object
 
   /** Main service implementation. */

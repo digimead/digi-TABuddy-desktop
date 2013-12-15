@@ -44,20 +44,18 @@
 package org.digimead.tabuddy.desktop.core.command
 
 import java.util.UUID
-import java.util.concurrent.CancellationException
-import java.util.concurrent.Exchanger
-
-import scala.concurrent.Future
-
+import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.definition.command.Command.parser.commandLiteral
 import org.digimead.tabuddy.desktop.core.operation.OperationExit
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.eclipse.core.runtime.jobs.Job
+import scala.concurrent.Future
 
 /**
  * Exit command that starts Exit operation.

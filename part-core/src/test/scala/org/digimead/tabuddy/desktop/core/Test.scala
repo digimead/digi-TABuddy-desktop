@@ -50,14 +50,18 @@ import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.lib.test.{ LoggingHelper, OSGiHelper }
 import org.digimead.tabuddy.desktop.core.support.App
+import org.eclipse.ui.internal.WorkbenchPlugin
 import org.mockito.Mockito
 import org.osgi.framework.Bundle
 import org.scalatest.{ Matchers, Tag }
 import scala.collection.JavaConversions.asScalaIterator
+import scala.concurrent.Future
 
 object Test {
-  trait Base extends Matchers with OSGiHelper with LoggingHelper with Loggable {
-    val testBundleClass = org.digimead.digi.lib.default.getClass()
+  trait Base extends Matchers with OSGiHelper with LoggingHelper with Loggable with EventLoop.Initializer {
+    val testBundleClass = org.digimead.tabuddy.desktop.core.default.getClass()
+    val app = new ThreadLocal[Future[AnyRef]]()
+    val wp = new ThreadLocal[WorkbenchPlugin]()
 
     after { afterTest() }
     before { beforeTest() }
@@ -126,6 +130,18 @@ object Test {
       // stop is invoked on test shutdown
       adjustLoggingAfter
     }
+    def startEventLoop() {
+      wp.set(new WorkbenchPlugin())
+      WorkbenchPlugin.getDefault() should not be (null)
+      EventLoop.thread.start()
+      eventLoopThreadSync()
+      app.set(Future { AppService.start() }(App.system.dispatcher))
+      EventLoop.thread.waitWhile { _ == null }
+    }
+    def stopEventLoop() {
+      AppService.stop()
+      EventLoop.thread.waitWhile { _.isEmpty }
+    }
 
     class TestApp extends App {
       override def bundle(clazz: Class[_]) = clazz.getName() match {
@@ -133,6 +149,8 @@ object Test {
         case "org.digimead.tabuddy.desktop.core.Messages$" ⇒ coreBundle
         case c ⇒ throw new RuntimeException("TestApp unknown class " + c)
       }
+      def watchSetT = watchSet
+      def watchRefT = watchRef
     }
 
     object Mark extends Tag("Mark")

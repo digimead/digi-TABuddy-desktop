@@ -43,13 +43,11 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
-import scala.collection.JavaConversions._
-import scala.collection.immutable
-
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.eclipse.core.databinding.observable.map.WritableMap
-
-import language.reflectiveCalls
+import scala.collection.JavaConversions.asScalaSet
+import scala.collection.immutable
+import scala.language.reflectiveCalls
 
 trait Reflection {
   this: Thread ⇒

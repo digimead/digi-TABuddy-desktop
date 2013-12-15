@@ -44,12 +44,9 @@
 package org.digimead.tabuddy.desktop.core.support
 
 import java.util.concurrent.TimeUnit
-
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
-import scala.language.implicitConversions
-
 import org.digimead.digi.lib.api.DependencyInjection
+import scala.concurrent.duration.{ Duration, FiniteDuration }
+import scala.language.implicitConversions
 
 object Timeout {
   implicit def int2Duration(int: Int): FiniteDuration = Duration(int, TimeUnit.MILLISECONDS)

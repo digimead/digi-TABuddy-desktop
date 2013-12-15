@@ -44,16 +44,12 @@
 package org.digimead.tabuddy.desktop.core.support
 
 import java.util.ArrayList
-
-import scala.collection.JavaConversions._
-import scala.collection.mutable
-
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.Realm
+import org.digimead.tabuddy.desktop.core.support.App.app2implementation
+import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener, Realm }
 import org.eclipse.core.databinding.observable.list.{ WritableList ⇒ OriginalWritableList }
-
-import language.implicitConversions
+import scala.collection.JavaConversions.{ asScalaIterator, seqAsJavaList }
+import scala.collection.mutable
+import scala.language.implicitConversions
 
 class WritableList[A](val underlying: OriginalWritableList) extends mutable.Buffer[A] with Equals {
   def length = {

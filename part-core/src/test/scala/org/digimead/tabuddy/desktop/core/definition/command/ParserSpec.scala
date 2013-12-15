@@ -46,10 +46,10 @@ package org.digimead.tabuddy.desktop.core.definition.command
 import Command.parser.{ commandLiteral, opt, sp }
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.Test
-import org.digimead.tabuddy.desktop.core.definition.command.Command.{ Failure, MissingCompletionOrFailure, Success, cmdLine2implementation }
-import org.scalatest.{ Finders, WordSpec }
-import scala.concurrent.Future
 import org.digimead.tabuddy.desktop.core.command.CommandHelp
+import org.digimead.tabuddy.desktop.core.definition.command.Command.{ MissingCompletionOrFailure, Success, cmdLine2implementation }
+import org.scalatest.WordSpec
+import scala.concurrent.Future
 
 class ParserTest extends WordSpec with Test.Base {
   "A Parser" should {

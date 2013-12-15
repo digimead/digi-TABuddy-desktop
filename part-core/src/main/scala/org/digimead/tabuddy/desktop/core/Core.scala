@@ -64,6 +64,7 @@ import org.osgi.framework.BundleListener
 import org.osgi.framework.ServiceRegistration
 import scala.concurrent.Future
 import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.core.support.Timeout
 
 /**
  * Root actor of the Core component.
@@ -101,6 +102,12 @@ class Core extends akka.actor.Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
+    App.watch(AppService) always () makeAfterStart {
+      if (!App.isActive(Core.getClass()))
+        App.watch(Core) on { onAppStarted() }
+    } makeBeforeStop {
+      App.watch(Core) off { onAppStopped() }
+    }
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
@@ -129,38 +136,14 @@ class Core extends akka.actor.Actor with Loggable {
     }
 
     case message @ App.Message.Start(Right(EventLoop), _) ⇒ App.traceMessage(message) {
-      Future {
-        App.verifyApplicationEnvironment
-        // Wait for translationService
-        NLS.translationService
-        // Translate all messages
-        Messages
-        if (App.isUIAvailable) {
-          log.info("Start application with GUI.")
-          Core.DI.approvers.foreach(Operation.history.addOperationApprover)
-        } else
-          log.info("Start application without GUI.")
-        command.Commands.configure()
-        App.markAsStarted(Core.getClass)
-        Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
-        Console ! Console.Message.Notice("Core component is started.")
-        Console ! App.Message.Start(Left(Console))
-        App.publish(App.Message.Start(Right(Core)))
-      } onFailure {
+      Future { onAppStarted() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
     }
 
     case message @ App.Message.Stop(Right(EventLoop), _) ⇒ App.traceMessage(message) {
-      Future {
-        command.Commands.unconfigure()
-        if (App.isUIAvailable)
-          Core.DI.approvers.foreach(Operation.history.removeOperationApprover)
-        App.markAsStopped(Core.getClass)
-        Console ! Console.Message.Notice("Core component is stopped.")
-        App.publish(App.Message.Stop(Right(Core)))
-      } onFailure {
+      Future { onAppStopped() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
@@ -197,6 +180,30 @@ class Core extends akka.actor.Actor with Loggable {
       case None ⇒ log.error("Unable to register TA Buddy Desktop application entry point service.")
     }
     self ! App.Message.Consistent(Core, None)
+  }
+  /** Invoked when application started. */
+  protected def onAppStarted() {
+    App.verifyApplicationEnvironment
+    // Wait for translationService
+    NLS.translationService
+    // Translate all messages
+    Messages
+    if (App.isUIAvailable) {
+      log.info("Start application with GUI.")
+      Core.DI.approvers.foreach(Operation.history.addOperationApprover)
+    } else
+      log.info("Start application without GUI.")
+    command.Commands.configure()
+    Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
+    Console ! App.Message.Start(Left(Console))
+    Console ! Console.Message.Notice("Core component is started.")
+  }
+  /** Invoked when application stopped. */
+  protected def onAppStopped() {
+    command.Commands.unconfigure()
+    if (App.isUIAvailable)
+      Core.DI.approvers.foreach(Operation.history.removeOperationApprover)
+    Console ! Console.Message.Notice("Core component is stopped.")
   }
 }
 

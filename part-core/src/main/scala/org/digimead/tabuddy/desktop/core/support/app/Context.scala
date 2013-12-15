@@ -43,16 +43,12 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
-import scala.annotation.tailrec
-import scala.collection.JavaConversions._
-
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-import org.digimead.tabuddy.desktop.core.definition
-import org.digimead.tabuddy.desktop.core.definition.Context.rich2appContext
-import org.eclipse.e4.core.contexts.EclipseContextFactory
-import org.eclipse.e4.core.contexts.IEclipseContext
+import org.digimead.tabuddy.desktop.core.{ Core, definition }
+import org.eclipse.e4.core.contexts.{ EclipseContextFactory, IEclipseContext }
 import org.eclipse.e4.core.internal.contexts.EclipseContext
+import scala.annotation.tailrec
+import scala.collection.JavaConversions.{ asJavaCollection, asScalaSet, mapAsScalaMap }
 
 trait Context {
   this: Loggable with Generic ⇒

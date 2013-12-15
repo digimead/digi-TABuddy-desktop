@@ -43,8 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.support
 
-import scala.collection.immutable
-import scala.collection.mutable
+import scala.collection.{ immutable, mutable }
 
 /**
  * Condition map that allow to invoke test F(conditions) after each change.
@@ -58,10 +57,10 @@ trait ConditionMap[T] {
   /** Set new value. */
   def set(key: String, value: Option[T]) = testLock.synchronized {
     value match {
-      case Some(value) =>
+      case Some(value) ⇒
         conditions(key) = value
         test
-      case None =>
+      case None ⇒
         conditions -= key
         test
     }

@@ -43,14 +43,11 @@
 
 package org.digimead.tabuddy.desktop.core.support
 
-import scala.collection.mutable
-
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.Realm
+import org.digimead.tabuddy.desktop.core.support.App.app2implementation
+import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener, Realm }
 import org.eclipse.core.databinding.observable.map.{ WritableMap ⇒ OriginalWritableMap }
-
-import language.implicitConversions
+import scala.collection.mutable
+import scala.language.implicitConversions
 
 class WritableMap[A, B](val underlying: OriginalWritableMap) extends mutable.Map[A, B] with mutable.MapLike[A, B, WritableMap[A, B]] with Equals {
   override def size = {

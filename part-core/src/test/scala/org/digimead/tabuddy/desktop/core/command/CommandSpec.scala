@@ -51,7 +51,7 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.{ Core, Test }
-import org.scalatest.{ Finders, WordSpec }
+import org.scalatest.WordSpec
 import scala.concurrent.Await
 import scala.language.reflectiveCalls
 import scala.util.{ Success, Try }
@@ -75,7 +75,7 @@ class CommandSpec extends WordSpec with Test.Base {
         result match {
           case Success(r @ list) ⇒
             list should have size (3)
-            CommandHelp.converter(CommandHelp.descriptor, r).isInstanceOf[String] should be(true)
+            CommandHelp.converter(CommandHelp.descriptor, r) shouldBe a [String]
             CommandHelp.converter(CommandHelp.descriptor, r) should not be ('empty)
           case unexpected ⇒
             fail("Unexpected result: " + unexpected)

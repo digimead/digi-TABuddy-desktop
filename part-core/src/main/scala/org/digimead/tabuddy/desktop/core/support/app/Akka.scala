@@ -43,38 +43,27 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
+import akka.actor.{ ActorIdentity, ActorPath, ActorRef, ActorSelection, Identify, Props, actorRef2Scala }
+import akka.pattern.ask
 import java.util.concurrent.atomic.AtomicReference
-
-import scala.concurrent.Await
-
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.digi.lib.log.api.RichLogger
+import org.digimead.digi.lib.log.api.{ Loggable, RichLogger }
 import org.digimead.tabuddy.desktop.core.EventLoop
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.core.support.Timeout
-
-import akka.actor.ActorIdentity
-import akka.actor.ActorPath
-import akka.actor.ActorRef
-import akka.actor.ActorSelection
-import akka.actor.Identify
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import akka.pattern.ask
+import scala.concurrent.Await
 
 /**
  * Akka support trait
  */
 trait Akka {
-  this: EventLoop.Consumer with Loggable =>
+  this: EventLoop.Consumer with Loggable ⇒
   /** Support actor. */
   // System.nanoTime is needed because we may have more than one supportActor per JVM
   protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "TABuddyAppSupport." + System.currentTimeMillis() + System.nanoTime())
 
   /** Send argument to the actor and waiting for answer. */
   def askActor[A, B](path: Seq[String], argument: A): Option[B] = {
-    getActorRef(path: _*).map { ref =>
+    getActorRef(path: _*).map { ref ⇒
       implicit val ec = App.system.dispatcher
       implicit val timeout = akka.util.Timeout(Timeout.shortest)
       Await.result(ref ? argument, Timeout.short).asInstanceOf[B]
@@ -85,7 +74,7 @@ trait Akka {
     log.debug("Lookup for reference via " + selection)
     val mark = System.currentTimeMillis() + timeout
     val result = new AtomicReference[Option[ActorRef]](null)
-    val f: Option[ActorRef] => Unit = (ref) => result.synchronized {
+    val f: Option[ActorRef] ⇒ Unit = (ref) ⇒ result.synchronized {
       result.set(ref)
       result.notifyAll()
     }
@@ -97,10 +86,10 @@ trait Akka {
       }
 
     Option(result.get) getOrElse None match {
-      case result @ Some(_) =>
+      case result @ Some(_) ⇒
         log.debug(s"Lookup for ${selection} (${System.currentTimeMillis() - (mark - timeout)}ms) successful.")
         result
-      case result @ None =>
+      case result @ None ⇒
         log.debug(s"Lookup for ${selection} (${System.currentTimeMillis() - (mark - timeout)}ms) failed.")
         result
     }
@@ -134,7 +123,7 @@ trait Akka {
     log.debug("Lookup for reference via " + selection)
     val mark = System.currentTimeMillis() + timeout
     val result = new AtomicReference[Option[ActorRef]](null)
-    val f: Option[ActorRef] => Unit = (ref) => result.synchronized {
+    val f: Option[ActorRef] ⇒ Unit = (ref) ⇒ result.synchronized {
       result.set(ref)
       result.notifyAll()
     }
@@ -146,10 +135,10 @@ trait Akka {
       }
 
     Option(result.get) getOrElse None match {
-      case result @ Some(_) =>
+      case result @ Some(_) ⇒
         log.debug(s"Lookup for ${selection} (${System.currentTimeMillis() - (mark - timeout)}ms) successful.")
         result
-      case result @ None =>
+      case result @ None ⇒
         log.debug(s"Lookup for ${selection} (${System.currentTimeMillis() - (mark - timeout)}ms) failed.")
         result
     }
@@ -159,13 +148,13 @@ trait Akka {
   /** Send argument to the actor. */
   def tellActor[A](path: Seq[String], argument: A): Unit =
     getActorRef(path: _*).map { _ ! argument }
-  def traceMessage[T](message: AnyRef)(f: => T)(implicit l: RichLogger): Option[T] = try {
+  def traceMessage[T](message: AnyRef)(f: ⇒ T)(implicit l: RichLogger): Option[T] = try {
     l.trace(s"enteringHandler '${message}'")
     val result = f
     l.trace(s"leavingHandler '${message}'")
     Some(result)
   } catch {
-    case e: Throwable =>
+    case e: Throwable ⇒
       l.error(e.getMessage, e)
       None
   }
@@ -176,12 +165,12 @@ object Akka extends Loggable {
     log.debug("Start internal actor " + self.path)
 
     def receive = {
-      case ActorIdentity(id, Some(actorRef)) =>
+      case ActorIdentity(id, Some(actorRef)) ⇒
         if (id.isInstanceOf[Function1[_, _]])
-          id.asInstanceOf[Option[ActorRef] => Unit](Some(actorRef))
-      case ActorIdentity(id, None) => // not alive
+          id.asInstanceOf[Option[ActorRef] ⇒ Unit](Some(actorRef))
+      case ActorIdentity(id, None) ⇒ // not alive
         if (id.isInstanceOf[Function1[_, _]])
-          id.asInstanceOf[Option[ActorRef] => Unit](None)
+          id.asInstanceOf[Option[ActorRef] ⇒ Unit](None)
     }
   }
 }

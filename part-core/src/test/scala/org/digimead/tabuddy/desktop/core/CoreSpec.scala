@@ -43,22 +43,20 @@
 
 package org.digimead.tabuddy.desktop.core
 
-import java.util.concurrent.Exchanger
-import java.util.concurrent.TimeUnit
-
+import akka.actor.ActorDSL.{ Act, actor }
+import java.util.concurrent.{ Exchanger, TimeUnit }
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
+import org.eclipse.core.databinding.observable.Realm
+import org.eclipse.ui.internal.WorkbenchPlugin
 import org.mockito.Mockito
 import org.scalatest.WordSpec
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.concurrent.Future
 
-import akka.actor.ActorDSL._
-
-import scala.collection.JavaConverters._
-
-class CoreSpec extends WordSpec with Test.Base {
+class CoreSpec000 extends WordSpec with Test.Base {
   "A Core" must {
     "be consistent after startup" in {
-      implicit val option = Mockito.times(31)
+      implicit val option = Mockito.times(32)
       withLogCaptor {
         coreBundle.start()
         implicit val akka = App.system
@@ -82,5 +80,35 @@ class CoreSpec extends WordSpec with Test.Base {
       }
       // stop is invoked on test shutdown
     }
+  }
+}
+
+class CoreSpec001 extends WordSpec with Test.Base with EventLoop.Initializer {
+  private val appService = new ThreadLocal[Future[AnyRef]]()
+  "A Core" must {
+    "be able to start/stop event loop" in {
+      val wp = new WorkbenchPlugin()
+      WorkbenchPlugin.getDefault() should not be (null)
+      EventLoop.thread.start()
+      eventLoopThreadSync()
+      appService.set(Future { AppService.start() }(App.system.dispatcher))
+      EventLoop.thread.waitWhile { _ == null }
+
+      App.bindingContext should not be (null)
+      App.display should not be (null)
+      App.realm should not be (null)
+      var realmTId = 0L
+      Realm.runWithDefault(App.realm, new Runnable { def run = realmTId = Thread.currentThread().getId() })
+      realmTId should be(Thread.currentThread().getId())
+      intercept[RuntimeException] { Realm.runWithDefault(App.realm, new Runnable { def run = throw new RuntimeException() }) }
+
+      AppService.stop()
+      EventLoop.thread.waitWhile { _.isEmpty }
+    }
+  }
+
+  override def beforeAll(configMap: org.scalatest.ConfigMap) {
+    super.beforeAll(configMap)
+    startCoreBeforeAll()
   }
 }

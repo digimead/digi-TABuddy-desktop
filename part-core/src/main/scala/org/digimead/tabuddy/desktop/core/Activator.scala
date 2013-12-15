@@ -117,6 +117,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     Core.actor
     // Start global components that haven't dispose methods.
     Command
+    // Start application environment
     Core ! context
   }
   /** Stop bundle. */

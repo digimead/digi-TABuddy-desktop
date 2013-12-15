@@ -50,11 +50,11 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.{ Messages, Report }
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
 import org.digimead.tabuddy.desktop.core.operation.OperationInfo
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
 
 /**
  * Info command that starts 'Get information' operation.

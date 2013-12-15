@@ -162,7 +162,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
     var ts = 0L
     var result = false
     var duration = 0L
-    App.publish(App.Message.Start(Right(EventLoop)))
+    App.watch(EventLoop) on {}
     while (exitCodeValue.get.isEmpty) try {
       // ts = System.currentTimeMillis()
       result = display.readAndDispatch()
@@ -175,7 +175,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
       case e: Throwable ⇒
         log.error(e.getMessage, e)
     }
-    App.publish(App.Message.Stop(Right(EventLoop)))
+    App.watch(EventLoop) off {}
     log.debug("Event loop is finishing. Process pending events.")
     // Process events until the display is disposed.
     while (!display.isDisposed()) try {

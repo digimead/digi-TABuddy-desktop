@@ -43,16 +43,12 @@
 
 package org.digimead.tabuddy.desktop.core.support
 
+import akka.actor.{ Actor, ActorRef, Props }
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import scala.language.implicitConversions
 
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.Props
-
-import language.implicitConversions
-
-class App extends Loggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection
+class App extends Loggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection with app.Watch
 
 /** Application singleton. */
 object App {

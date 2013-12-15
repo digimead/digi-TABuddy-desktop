@@ -43,23 +43,14 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
-import java.io.PrintWriter
-import java.io.StringWriter
-
-import scala.Array.canBuildFrom
-import scala.collection.mutable
-
+import java.io.{ PrintWriter, StringWriter }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.EventLoop
-import org.eclipse.core.databinding.observable.Realm
-import org.eclipse.core.runtime.IStatus
-import org.eclipse.core.runtime.MultiStatus
-import org.eclipse.core.runtime.Status
+import org.eclipse.core.runtime.{ IStatus, MultiStatus, Status }
 import org.eclipse.core.runtime.preferences.InstanceScope
 import org.eclipse.jface.preference.IPreferenceStore
 import org.eclipse.ui.preferences.ScopedPreferenceStore
-import org.osgi.framework.Bundle
-import org.osgi.framework.FrameworkUtil
+import org.osgi.framework.{ Bundle, FrameworkUtil }
 
 trait Generic extends EventLoop.Consumer {
   this: Loggable with Context with Thread ⇒
@@ -67,10 +58,6 @@ trait Generic extends EventLoop.Consumer {
   @volatile var debug = true
   /** Application preference store. */
   protected lazy val preferenceStore = new ScopedPreferenceStore(InstanceScope.INSTANCE, bundle(getClass).getSymbolicName())
-  /** Hash with started classes. Class name -> running. */
-  protected val started = new mutable.HashMap[String, Boolean]() with mutable.SynchronizedMap[String, Boolean]
-  /** Started lock */
-  protected val startedLock = new AnyRef
   /*
    * Symbol ::= plainid
    *
@@ -95,34 +82,6 @@ trait Generic extends EventLoop.Consumer {
    */
   val symbolPattern = """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}]+[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}_]*""".r.pattern
 
-  /** Call F(x) after workbench startup. */
-  def afterStart[T](origin: String, timeout: Long, classes: Class[_]*)(f: ⇒ T) = new java.lang.Thread(new Runnable {
-    def run = Realm.runWithDefault(realm, new Runnable {
-      def run = try {
-        val end = System.currentTimeMillis() + timeout
-        val names = classes.map(_.getName())
-        log.debug(origin + " is waiting for " + names.mkString(",") + " " + (timeout.toDouble / 1000) + "s")
-        var executed = false
-        while ((System.currentTimeMillis() < end) && (names.forall(started.get(_) == Some(true)) match {
-          case true ⇒
-            log.debug(s"Precondition for $origin is asserted. Processing.")
-            executed = true; f; false
-          case false ⇒
-            true
-        })) startedLock.synchronized {
-          val duration = end - System.currentTimeMillis()
-          if (duration > 0)
-            startedLock.wait(duration)
-        }
-        if (!executed)
-          log.warn(s"Unable to run F(x) for $origin: TIMEOUT.")
-      } catch {
-        case e: Throwable ⇒
-          val classNames = classes.map(_.getName).mkString
-          log.error(s"Unable to run F(x) for $origin : " + e.getMessage(), e)
-      }
-    })
-  }, origin + " afterStart").start
   /** Assert the current thread against the event one. */
   def assertEventThread(EventLoop: Boolean = true) = if (EventLoop) {
     if (!isEventLoop) {
@@ -151,33 +110,8 @@ trait Generic extends EventLoop.Consumer {
     case e: ClassNotFoundException ⇒ false
     case e: NullPointerException ⇒ false // NPE is thrown while PojoSR initialization
   }
-  /** Clear all started entries. */
-  def clearStarted() = startedLock.synchronized {
-    started.clear()
-    startedLock.notifyAll()
-  }
   /** Get application preference store. */
   def getPreferenceStore(): IPreferenceStore = preferenceStore
-  /** Mark class as started. */
-  def markAsStarted(clazz: Class[_]) = startedLock.synchronized {
-    if (started.get(clazz.getName()) != Some(true)) {
-      log.debug("Mark as started: " + clazz.getName())
-      started(clazz.getName()) = true
-      startedLock.notifyAll()
-    } else {
-      log.debug("Already marked as started: " + clazz.getName())
-    }
-  }
-  /** Mark class as stopped. */
-  def markAsStopped(clazz: Class[_]) = startedLock.synchronized {
-    if (started.get(clazz.getName()) == Some(true)) {
-      log.debug("Mark as stopped: " + clazz.getName())
-      started(clazz.getName()) = false
-      startedLock.notifyAll()
-    } else {
-      log.debug("Already marked as stopped: " + clazz.getName())
-    }
-  }
   /** Convert throwable to MultiStatus. */
   def throwableToMultiStatus(t: Throwable, bundle: Bundle): MultiStatus = {
     val sw = new StringWriter()

@@ -43,15 +43,11 @@
 
 package org.digimead.tabuddy.desktop.core.support
 
+import akka.actor.{ Actor, actorRef2Scala }
+import akka.event.Logging
+import akka.event.Logging.{ InitializeLogger, LogEvent, LoggerInitialized }
 import org.digimead.digi.lib.log.api.Loggable
 import org.slf4j.LoggerFactory
-
-import akka.actor.Actor
-import akka.actor.actorRef2Scala
-import akka.event.Logging
-import akka.event.Logging.InitializeLogger
-import akka.event.Logging.LogEvent
-import akka.event.Logging.LoggerInitialized
 
 /**
  * Akka log bridge.
@@ -62,7 +58,7 @@ class AkkaLogBridge extends Actor with Loggable {
     case event: LogEvent ⇒ try {
       record(event)
     } catch {
-      case e: Throwable =>
+      case e: Throwable ⇒
         log.error(s"Unable to process '${event}': ${e.getMessage}", e)
     }
   }
@@ -71,12 +67,12 @@ class AkkaLogBridge extends Actor with Loggable {
     event match {
       case e: Logging.Error ⇒
         Option(e.message) match {
-          case Some(message) =>
+          case Some(message) ⇒
             if (e.cause != null)
               log.error(e.message.toString, e.cause)
             else
               log.error(e.message.toString)
-          case None => log.error(e.cause.getMessage(), e.cause.getCause())
+          case None ⇒ log.error(e.cause.getMessage(), e.cause.getCause())
         }
       case e: Logging.Warning ⇒ log.warn(e.message.toString)
       case e: Logging.Info ⇒ log.info(e.message.toString)

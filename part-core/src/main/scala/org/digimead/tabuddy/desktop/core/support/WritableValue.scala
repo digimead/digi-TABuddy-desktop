@@ -43,12 +43,9 @@
 
 package org.digimead.tabuddy.desktop.core.support
 
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.Realm
+import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener, Realm }
 import org.eclipse.core.databinding.observable.value.{ WritableValue ⇒ OriginalWritableValue }
-
-import language.implicitConversions
+import scala.language.implicitConversions
 
 class WritableValue[A <: AnyRef](val underlying: OriginalWritableValue) extends Equals {
   def getValue(): A = {

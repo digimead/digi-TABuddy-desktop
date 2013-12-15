@@ -43,10 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
-import java.util.concurrent.Exchanger
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
-
+import java.util.concurrent.{ Exchanger, TimeUnit, TimeoutException }
 import org.digimead.digi.lib.log.api.Loggable
 
 trait Thread {

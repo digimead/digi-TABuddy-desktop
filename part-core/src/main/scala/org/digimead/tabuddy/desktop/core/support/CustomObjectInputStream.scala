@@ -43,9 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.support
 
-import java.io.InputStream
-import java.io.ObjectInputStream
-import java.io.ObjectStreamClass
+import java.io.{ InputStream, ObjectInputStream, ObjectStreamClass }
 
 /**
  * ObjectInputStream helper that try to load classes from thread ContextClassLoader

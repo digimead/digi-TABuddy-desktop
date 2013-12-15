@@ -44,16 +44,11 @@
 package org.digimead.tabuddy.desktop.core.support
 
 import java.util.HashSet
-
-import scala.collection.JavaConversions._
-import scala.collection.mutable
-
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.Realm
+import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener, Realm }
 import org.eclipse.core.databinding.observable.set.{ WritableSet ⇒ OriginalWritableSet }
-
-import language.implicitConversions
+import scala.collection.JavaConversions.{ asScalaIterator, seqAsJavaList }
+import scala.collection.mutable
+import scala.language.implicitConversions
 
 class WritableSet[A](val underlying: OriginalWritableSet) extends mutable.Set[A] with mutable.SetLike[A, WritableSet[A]] with Equals {
   override def size = {

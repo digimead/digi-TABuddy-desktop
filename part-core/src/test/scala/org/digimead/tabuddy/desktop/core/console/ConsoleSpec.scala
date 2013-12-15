@@ -53,7 +53,6 @@ import org.digimead.tabuddy.desktop.core.{ Core, Test }
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.mockito.Mockito.{ never, reset, spy, timeout, times, verify }
 import org.scalatest.WordSpec
 import scala.concurrent.{ Await, Future }
