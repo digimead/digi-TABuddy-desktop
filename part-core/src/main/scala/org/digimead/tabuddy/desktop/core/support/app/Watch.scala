@@ -43,23 +43,12 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
-import java.io.{ PrintWriter, StringWriter }
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.EventLoop
-import org.eclipse.core.databinding.observable.Realm
-import org.eclipse.core.runtime.{ IStatus, MultiStatus, Status }
-import org.eclipse.core.runtime.preferences.InstanceScope
-import org.eclipse.jface.preference.IPreferenceStore
-import org.eclipse.ui.preferences.ScopedPreferenceStore
-import org.osgi.framework.{ Bundle, FrameworkUtil }
-import scala.Array.canBuildFrom
-import scala.collection.mutable
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import scala.concurrent.duration.Duration
-import org.digimead.tabuddy.desktop.core.support.App
-import scala.concurrent.Future
-import scala.concurrent.Await
 import java.util.concurrent.ExecutionException
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
+import scala.collection.mutable
+import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration.Duration
 
 trait Watch {
   /** Map of watchers. */
@@ -68,7 +57,7 @@ trait Watch {
   protected val watchSet = new mutable.HashSet[Int]()
 
   /** Get new watcher. */
-  def watch(refs: AnyRef*): Watch.Watcher = new Watch.Watcher(refs.map(System.identityHashCode).distinct, new Throwable("Refs: " + refs.mkString(",")))
+  def watch(refs: AnyRef*): Watch.Watcher = new Watch.Watcher(refs.map(System.identityHashCode).toSet, new Throwable("Refs: " + refs.mkString(",")))
   /** Reset watchers. */
   def watchResetList() = watchSet.synchronized {
     watchRef.clear()
@@ -84,7 +73,7 @@ trait Watch {
 object Watch extends Loggable {
   implicit lazy val ec = App.system.dispatcher
   /** Watcher implementation. */
-  class Watcher(val ids: Seq[Int], val t: Throwable) {
+  class Watcher(val ids: Set[Int], val t: Throwable) {
     protected var hookAfterStart = Seq.empty[(Int, Function0[_])]
     protected var hookAfterStop = Seq.empty[(Int, Function0[_])]
     protected var hookBeforeStart = Seq.empty[(Int, Function0[_])]
@@ -109,6 +98,7 @@ object Watch extends Loggable {
       this
     }
     def once(): Watcher = times(1)
+    /** Reset and remove this watcher. */
     def reset(): Unit = App.watchSet.synchronized {
       hookAfterStart = Seq.empty
       hookAfterStop = Seq.empty
@@ -116,54 +106,67 @@ object Watch extends Loggable {
       hookBeforeStop = Seq.empty
       compress()
     }
+    /** Stop Id's. */
     def off[A](f: ⇒ A = {}): Watcher = {
-      val (before, after) = App.watchSet.synchronized {
+      val (before, after, watchers) = App.watchSet.synchronized {
         if (ids.forall(!App.watchSet(_)))
           throw new IllegalStateException(this + " is already off")
         App.watchSet --= ids
-        val before = hookBeforeStop.map(_._2)
-        hookBeforeStop = hookBeforeStop.map {
-          case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
-          case (times, callback) if times > 1 ⇒ Some(times - 1, callback) // Reduce
-          case (times, callback) ⇒ None // Delete
-        }.flatten
-        val after = hookAfterStop.map(_._2)
-        hookAfterStop = hookAfterStop.map {
-          case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
-          case (times, callback) if times > 1 ⇒ Some(times - 1, callback) // Reduce
-          case (times, callback) ⇒ None // Delete
-        }.flatten
-        (before, after)
+        val availableWatchers = ids.map(App.watchRef.get).flatten // get all watchers sequences for Id set
+        val likeThisWatchers = (if (availableWatchers.size == ids.size) availableWatchers.reduceLeft(_ union _).filter(_.ids == ids) else Nil)
+        val (before, after) = likeThisWatchers.map { watcher ⇒
+          val before = watcher.hookBeforeStop.map(_._2)
+          watcher.hookBeforeStop = watcher.hookBeforeStop.map {
+            case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
+            case (times, callback) if times > 1 ⇒ Some(times - 1, callback) // Decrement
+            case (times, callback) ⇒ None // Delete
+          }.flatten
+          val after = watcher.hookAfterStop.map(_._2)
+          watcher.hookAfterStop = watcher.hookAfterStop.map {
+            case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
+            case (times, callback) if times > 1 ⇒ Some(times - 1, callback) // Decrement
+            case (times, callback) ⇒ None // Delete
+          }.flatten
+          (before, after)
+        }.unzip
+        (before.flatten, after.flatten, likeThisWatchers)
       }
       process(before)
       f
-      process(after :+ (() ⇒ App.watchSet.synchronized { compress }))
+      process(after ++ watchers.map(w ⇒ () ⇒ App.watchSet.synchronized { w.compress }))
       this
     }
+    /** Start Id's. */
     def on[A](f: ⇒ A = {}): Watcher = {
-      val (before, after) = App.watchSet.synchronized {
+      val (before, after, watchers) = App.watchSet.synchronized {
         if (ids.forall(App.watchSet))
           throw new IllegalStateException(this + " is already on")
         App.watchSet ++= ids
-        val before = hookBeforeStart.map(_._2)
-        hookBeforeStart = hookBeforeStart.map {
-          case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
-          case (times, callback) if times > 1 ⇒ Some(times - 1, callback) // Reduce
-          case (times, callback) ⇒ None // Delete
-        }.flatten
-        val after = hookAfterStart.map(_._2)
-        hookAfterStart = hookAfterStart.map {
-          case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
-          case (times, callback) if times > 1 ⇒ Some(times - 1, callback) // Reduce
-          case (times, callback) ⇒ None // Delete
-        }.flatten
-        (before, after)
+        val availableWatchers = ids.map(App.watchRef.get).flatten // get all watchers sequences for Id set
+        val likeThisWatchers = (if (availableWatchers.size == ids.size) availableWatchers.reduceLeft(_ union _).filter(_.ids == ids) else Nil)
+        val (before, after) = likeThisWatchers.map { watcher ⇒
+          val before = watcher.hookBeforeStart.map(_._2)
+          watcher.hookBeforeStart = watcher.hookBeforeStart.map {
+            case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
+            case (times, callback) if times > 1 ⇒ Some(times - 1, callback) // Decrement
+            case (times, callback) ⇒ None // Delete
+          }.flatten
+          val after = watcher.hookAfterStart.map(_._2)
+          watcher.hookAfterStart = watcher.hookAfterStart.map {
+            case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
+            case (times, callback) if times > 1 ⇒ Some(times - 1, callback) // Decrement
+            case (times, callback) ⇒ None // Delete
+          }.flatten
+          (before, after)
+        }.unzip
+        (before.flatten, after.flatten, likeThisWatchers)
       }
       process(before)
       f
-      process(after :+ (() ⇒ compress))
+      process(after ++ watchers.map(w ⇒ () ⇒ App.watchSet.synchronized { w.compress }))
       this
     }
+    /** Set times argument for new hooks */
     def times(n: Int): Watcher = App.watchSet.synchronized {
       argTimes = n
       this

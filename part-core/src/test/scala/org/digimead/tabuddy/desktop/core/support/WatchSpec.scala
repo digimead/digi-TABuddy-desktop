@@ -75,13 +75,26 @@ class WatchSpec extends FunSpec with Test.Base {
         app.watchSetT should have size (2)
         verify(tester, timeout(1000).times(1)).a
         verify(tester, timeout(1000).times(1)).a1
-        w.reset()
-        app.watchRefT should have size (1)
         intercept[IllegalStateException] { w on { tester.a1 } }
         w.off()
-        w.on()
+        w.on { tester.a1 }
         verify(tester, timeout(1000).times(2)).a
-        verify(tester, timeout(1000).times(1)).a1
+        verify(tester, timeout(1000).times(2)).a1
+        tester.a
+        tester.a1
+        verify(tester, timeout(1000).times(3)).a
+        verify(tester, timeout(1000).times(3)).a1
+        intercept[IllegalStateException] { app.watch(A) on () }
+        app.watch(A) off ()
+        app.watch(A) on ()
+        verify(tester, timeout(1000).times(4)).a
+        verify(tester, timeout(1000).times(3)).a1
+        w.reset()
+        app.watchRefT should have size (1)
+        app.watch(A) off ()
+        app.watch(A) on ()
+        verify(tester, timeout(1000).times(4)).a
+        verify(tester, timeout(1000).times(3)).a1
       }
       it("should have proper beforeStart implementation1") {
         /* val app = App.inner.asInstanceOf[TestApp]
