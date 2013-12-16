@@ -45,13 +45,15 @@ package org.digimead.tabuddy.desktop.core
 
 import akka.actor.ActorDSL.{ Act, actor }
 import com.escalatesoft.subcut.inject.NewBindingModule
+import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.{ Exchanger, TimeUnit }
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.lib.test.{ LoggingHelper, OSGiHelper }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.ui.internal.WorkbenchPlugin
-import org.mockito.Mockito
+import org.mockito.{ ArgumentCaptor, InOrder, Mockito }
+import org.mockito.verification.VerificationMode
 import org.osgi.framework.Bundle
 import org.scalatest.{ Matchers, Tag }
 import scala.collection.JavaConversions.asScalaIterator
@@ -90,6 +92,16 @@ object Test {
     })
     /** Get Core bundle. */
     def coreBundle = osgiRegistry.get.getBundleContext().getBundles().find(_.getSymbolicName() == "org.digimead.tabuddy.desktop.core").get
+    /** Get protected method via reflection. */
+    def getViaReflection[T](instance: AnyRef, name: String): T =
+      instance.getClass().getDeclaredMethods().find(_.getName() == name) match {
+        case Some(method) ⇒
+          if (method.isAccessible())
+            method.setAccessible(true)
+          method.invoke(instance).asInstanceOf[T]
+        case None ⇒
+          throw new IllegalArgumentException(s"Method '${name}' not found.")
+      }
     /** Start OSGi environment. */
     def startOSGiEnv() {
       for {
@@ -142,7 +154,46 @@ object Test {
       AppService.stop()
       EventLoop.thread.waitWhile { _.isEmpty }
     }
-
+    /**
+     * Verify via reflection.
+     */
+    @inline
+    def verifyReflection[A, B](mock: A, mode: VerificationMode, methodName: String)(test: Seq[ArgumentCaptor[_]] ⇒ B): B = {
+      mock.getClass.getDeclaredMethods().find(_.getName() == methodName) match {
+        case Some(method) ⇒
+          if (method.isAccessible())
+            method.setAccessible(true)
+          val args = method.getParameterTypes().map(clazz ⇒ ArgumentCaptor.forClass(clazz)).toSeq
+          try method.invoke(org.mockito.Mockito.verify(mock, mode), args.map(_.capture().asInstanceOf[AnyRef]): _*)
+          catch {
+            case e: InvocationTargetException if e.getCause() != null && e.getCause().isInstanceOf[AssertionError] ⇒
+              throw e.getCause()
+          }
+          test(args)
+        case None ⇒
+          throw new IllegalArgumentException(s"Method '${methodName}' not found.")
+      }
+    }
+    /**
+     * Verify via reflection.
+     */
+    @inline
+    def verifyReflection[A, B](inOrder: InOrder, mock: A, mode: VerificationMode, methodName: String)(test: Seq[ArgumentCaptor[_]] ⇒ B): B = {
+      mock.getClass.getDeclaredMethods().find(_.getName() == methodName) match {
+        case Some(method) ⇒
+          if (method.isAccessible())
+            method.setAccessible(true)
+          val args = method.getParameterTypes().map(clazz ⇒ ArgumentCaptor.forClass(clazz)).toSeq
+          try method.invoke(inOrder.verify(mock, mode), args.map(_.capture().asInstanceOf[AnyRef]): _*)
+          catch {
+            case e: InvocationTargetException if e.getCause() != null && e.getCause().isInstanceOf[AssertionError] ⇒
+              throw e.getCause()
+          }
+          test(args)
+        case None ⇒
+          throw new IllegalArgumentException(s"Method '${methodName}' not found.")
+      }
+    }
     class TestApp extends App {
       override def bundle(clazz: Class[_]) = clazz.getName() match {
         case "org.digimead.tabuddy.desktop.core.Report$DI$" ⇒ coreBundle

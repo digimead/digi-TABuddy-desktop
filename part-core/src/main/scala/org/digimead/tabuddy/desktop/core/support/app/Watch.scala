@@ -80,32 +80,37 @@ object Watch extends Loggable {
     protected var hookBeforeStop = Seq.empty[(Int, Function0[_])]
     protected var argTimes = 1
 
-    def makeAfterStart[A](f: ⇒ A): Watcher = App.watchSet.synchronized {
-      hookAfterStart = addHook(() ⇒ f, hookAfterStart)
-      this
-    }
-    def makeAfterStop[A](f: ⇒ A): Watcher = App.watchSet.synchronized {
-      hookAfterStop = addHook(() ⇒ f, hookAfterStop)
-      this
-    }
+    /** Execute always. */
     def always(): Watcher = times(-1)
-    def makeBeforeStart[A](f: ⇒ A): Watcher = App.watchSet.synchronized {
-      hookBeforeStart = addHook(() ⇒ f, hookBeforeStart)
-      this
+    /** Get all hooks for such type of watchers. */
+    def hooks: (Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])]) = App.watchSet.synchronized {
+      val availableWatchers = ids.map(App.watchRef.get).flatten // get all watchers sequences for Id set
+      val likeThisWatchers = (if (availableWatchers.size == ids.size) availableWatchers.reduceLeft(_ union _).filter(_.ids == ids) else Nil)
+      val seqAfterStart = hookAfterStart.genericBuilder[Seq[(Int, Function0[_])]]
+      val seqAfterStop = hookAfterStop.genericBuilder[Seq[(Int, Function0[_])]]
+      val seqBeforeStart = hookBeforeStart.genericBuilder[Seq[(Int, Function0[_])]]
+      val seqBeforeStop = hookBeforeStop.genericBuilder[Seq[(Int, Function0[_])]]
+      for (abcd ← likeThisWatchers.map(w ⇒ (w.hookAfterStart, w.hookAfterStop, w.hookBeforeStart, w.hookBeforeStop))) {
+        val (a, b, c, d) = abcd
+        seqAfterStart += a
+        seqAfterStop += b
+        seqBeforeStart += c
+        seqBeforeStop += d
+      }
+      (seqAfterStart.result().flatten, seqAfterStop.result().flatten, seqBeforeStart.result().flatten, seqBeforeStop.result().flatten)
     }
-    def makeBeforeStop[A](f: ⇒ A): Watcher = App.watchSet.synchronized {
-      hookBeforeStop = addHook(() ⇒ f, hookBeforeStop)
-      this
-    }
-    def once(): Watcher = times(1)
-    /** Reset and remove this watcher. */
-    def reset(): Unit = App.watchSet.synchronized {
-      hookAfterStart = Seq.empty
-      hookAfterStop = Seq.empty
-      hookBeforeStart = Seq.empty
-      hookBeforeStop = Seq.empty
-      compress()
-    }
+    /** Make AfterStart hook. */
+    def makeAfterStart[A](f: ⇒ A): Watcher =
+      App.watchSet.synchronized { hookAfterStart = addHook(() ⇒ f, hookAfterStart); this }
+    /** Make AfterStop hook. */
+    def makeAfterStop[A](f: ⇒ A): Watcher =
+      App.watchSet.synchronized { hookAfterStop = addHook(() ⇒ f, hookAfterStop); this }
+    /** Make BeforeStart hook. */
+    def makeBeforeStart[A](f: ⇒ A): Watcher =
+      App.watchSet.synchronized { hookBeforeStart = addHook(() ⇒ f, hookBeforeStart); this }
+    /** Make BeforeStop hook. */
+    def makeBeforeStop[A](f: ⇒ A): Watcher =
+      App.watchSet.synchronized { hookBeforeStop = addHook(() ⇒ f, hookBeforeStop); this }
     /** Stop Id's. */
     def off[A](f: ⇒ A = {}): Watcher = {
       val (before, after, watchers) = App.watchSet.synchronized {
@@ -165,6 +170,16 @@ object Watch extends Loggable {
       f
       process(after ++ watchers.map(w ⇒ () ⇒ App.watchSet.synchronized { w.compress }))
       this
+    }
+    /** Execute once. */
+    def once(): Watcher = times(1)
+    /** Reset and remove this watcher. */
+    def reset(): Unit = App.watchSet.synchronized {
+      hookAfterStart = Seq.empty
+      hookAfterStop = Seq.empty
+      hookBeforeStart = Seq.empty
+      hookBeforeStop = Seq.empty
+      compress()
     }
     /** Set times argument for new hooks */
     def times(n: Int): Watcher = App.watchSet.synchronized {
