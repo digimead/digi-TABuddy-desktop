@@ -50,6 +50,9 @@ import scala.collection.mutable
 import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration.Duration
 
+/**
+ * Watch trait that adds ability to track references(objects) and call hooks on start/stop
+ */
 trait Watch {
   /** Map of watchers. */
   protected val watchRef = new mutable.HashMap[Int, Seq[Watch.Watcher]]()
@@ -90,12 +93,11 @@ object Watch extends Loggable {
       val seqAfterStop = hookAfterStop.genericBuilder[Seq[(Int, Function0[_])]]
       val seqBeforeStart = hookBeforeStart.genericBuilder[Seq[(Int, Function0[_])]]
       val seqBeforeStop = hookBeforeStop.genericBuilder[Seq[(Int, Function0[_])]]
-      for (abcd ← likeThisWatchers.map(w ⇒ (w.hookAfterStart, w.hookAfterStop, w.hookBeforeStart, w.hookBeforeStop))) {
-        val (a, b, c, d) = abcd
-        seqAfterStart += a
-        seqAfterStop += b
-        seqBeforeStart += c
-        seqBeforeStop += d
+      likeThisWatchers.foreach { watcher ⇒
+        seqAfterStart += watcher.hookAfterStart
+        seqAfterStop += watcher.hookAfterStop
+        seqBeforeStart += watcher.hookBeforeStart
+        seqBeforeStop += watcher.hookBeforeStop
       }
       (seqAfterStart.result().flatten, seqAfterStop.result().flatten, seqBeforeStart.result().flatten, seqBeforeStop.result().flatten)
     }
@@ -116,10 +118,13 @@ object Watch extends Loggable {
       val (before, after, watchers) = App.watchSet.synchronized {
         if (ids.forall(!App.watchSet(_)))
           throw new IllegalStateException(this + " is already off")
+        val activeWatchers = ids.flatMap {
+          case id if App.watchSet(id) ⇒ App.watchRef.get(id)
+          case _ ⇒ None
+        }.flatten // get all active watchers sequences for Id set
         App.watchSet --= ids
-        val availableWatchers = ids.map(App.watchRef.get).flatten // get all watchers sequences for Id set
-        val likeThisWatchers = (if (availableWatchers.size == ids.size) availableWatchers.reduceLeft(_ union _).filter(_.ids == ids) else Nil)
-        val (before, after) = likeThisWatchers.map { watcher ⇒
+        val inactiveWatchers = activeWatchers
+        val (before, after) = inactiveWatchers.map { watcher ⇒
           val before = watcher.hookBeforeStop.map(_._2)
           watcher.hookBeforeStop = watcher.hookBeforeStop.map {
             case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
@@ -134,7 +139,7 @@ object Watch extends Loggable {
           }.flatten
           (before, after)
         }.unzip
-        (before.flatten, after.flatten, likeThisWatchers)
+        (before.flatten, after.flatten, inactiveWatchers)
       }
       process(before)
       f
@@ -146,10 +151,13 @@ object Watch extends Loggable {
       val (before, after, watchers) = App.watchSet.synchronized {
         if (ids.forall(App.watchSet))
           throw new IllegalStateException(this + " is already on")
-        App.watchSet ++= ids
-        val availableWatchers = ids.map(App.watchRef.get).flatten // get all watchers sequences for Id set
-        val likeThisWatchers = (if (availableWatchers.size == ids.size) availableWatchers.reduceLeft(_ union _).filter(_.ids == ids) else Nil)
-        val (before, after) = likeThisWatchers.map { watcher ⇒
+        val inactiveWatchers = ids.flatMap {
+          case id if !App.watchSet(id) ⇒ App.watchRef.get(id)
+          case _ ⇒ None
+        }.flatten // get all inactive watchers sequences for Id set
+        App.watchSet ++= ids // activate
+        val activeWatchers = inactiveWatchers.filter(_.ids.forall(App.watchSet))
+        val (before, after) = activeWatchers.map { watcher ⇒
           val before = watcher.hookBeforeStart.map(_._2)
           watcher.hookBeforeStart = watcher.hookBeforeStart.map {
             case t @ (times, callback) if times == -1 ⇒ Some(t) // Infinite
@@ -164,7 +172,7 @@ object Watch extends Loggable {
           }.flatten
           (before, after)
         }.unzip
-        (before.flatten, after.flatten, likeThisWatchers)
+        (before.flatten, after.flatten, activeWatchers)
       }
       process(before)
       f
@@ -200,7 +208,7 @@ object Watch extends Loggable {
       container :+ (argTimes, f)
     }
     /** Process hooks. */
-    protected def process(callbacks: Seq[Function0[_]]) =
+    protected def process(callbacks: Iterable[Function0[_]]) =
       Await.ready(Future.sequence(callbacks.map { cb ⇒
         val f = Future[Unit] { cb() }
         f onFailure {

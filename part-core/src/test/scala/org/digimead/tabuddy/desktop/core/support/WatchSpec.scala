@@ -73,7 +73,7 @@ class WatchSpec extends FunSpec with Test.Base {
         verifyNoMoreInteractions(w)
         w on { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[List[_]] }
+        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
 
         app.watchRefT should have size (2)
         app.watchSetT should have size (2)
@@ -114,7 +114,7 @@ class WatchSpec extends FunSpec with Test.Base {
         verifyNoMoreInteractions(w)
         w on { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[List[_]] }
+        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
 
         app.watchRefT should have size (2)
         app.watchSetT should have size (2)
@@ -160,9 +160,9 @@ class WatchSpec extends FunSpec with Test.Base {
         intercept[IllegalStateException] { w on { tester.a1 } }
         w.off { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, calls(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[List[_]] }
+        verifyReflection(inOrderW, w, calls(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
         verifyReflection(inOrderW, w, times(1), "off") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[List[_]] }
+        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
         inOrderT.verify(tester).a
         inOrderT.verify(tester).a1
         w.on()
@@ -202,9 +202,9 @@ class WatchSpec extends FunSpec with Test.Base {
         intercept[IllegalStateException] { w on { tester.a1 } }
         w.off { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, calls(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[List[_]] }
+        verifyReflection(inOrderW, w, calls(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
         verifyReflection(inOrderW, w, times(1), "off") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[List[_]] }
+        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
         inOrderT.verify(tester).a1
         inOrderT.verify(tester).a
         w.on()
@@ -410,11 +410,97 @@ class WatchSpec extends FunSpec with Test.Base {
     }
 
     it("should handle arguments") {
-
+      val app = App.inner.asInstanceOf[TestApp]
+      app.watchRefT should have size (1)
+      app.watchSetT should have size (1)
+      val w = spy(app.watch(A))
+      getViaReflection[Seq[(Int, Function0[_])]](w, "argTimes") should be(1)
+      w times (2)
+      getViaReflection[Seq[(Int, Function0[_])]](w, "argTimes") should be(2)
+      w once ()
+      getViaReflection[Seq[(Int, Function0[_])]](w, "argTimes") should be(1)
+      w always ()
+      getViaReflection[Seq[(Int, Function0[_])]](w, "argTimes") should be(-1)
     }
 
     it("should handle complex behaviour") {
+      var state = Set.empty[String]
+      val app = App.inner.asInstanceOf[TestApp]
+      val ab = spy(app.watch(A, B)) always () makeAfterStart { app.synchronized { state += "ab" } } makeAfterStop { app.synchronized { state -= "ab" } }
+      val ac = spy(app.watch(A, C)) always () makeAfterStart { app.synchronized { state += "ac" } } makeAfterStop { app.synchronized { state -= "ac" } }
+      val bc = spy(app.watch(B, C)) always () makeAfterStart { app.synchronized { state += "bc" } } makeAfterStop { app.synchronized { state -= "bc" } }
+      val abc = spy(app.watch(A, B, C)) always () makeAfterStart { app.synchronized { state += "abc" } } makeAfterStop { app.synchronized { state -= "abc" } }
+      state should be('empty)
+      app.watch(A) on ()
+      state should be('empty)
+      app.watch(A, B) on ()
+      state should be(Set("ab"))
+      app.watch(B, C) on ()
+      state should be(Set("ab", "bc", "ac", "abc"))
+      app.watch(B) off ()
+      state should be(Set("ac"))
+      app.watch(C) off ()
+      state should be('empty)
+      app.watch(B) on ()
+      state should be(Set("ab"))
+      app.watch(A, B) off ()
+    }
 
+    it("should have proper sequence") {
+      @volatile var state = Seq.empty[String]
+      val app = App.inner.asInstanceOf[TestApp]
+      val a = spy(app.watch(A)).always().
+        makeBeforeStart { app.synchronized { state = state :+ "a makeBeforeStart" } }.
+        makeAfterStart { app.synchronized { state = state :+ "a makeAfterStart" } }.
+        makeBeforeStop { app.synchronized { state = state :+ "a makeBeforeStop" } }.
+        makeAfterStop { app.synchronized { state = state :+ "a makeAfterStop" } }
+      a on { state = state :+ "a on" }
+      a off { state = state :+ "a off" }
+      state should be(List("a makeBeforeStart", "a on", "a makeAfterStart", "a makeBeforeStop", "a off", "a makeAfterStop"))
+      state = Seq.empty
+
+      N3.start
+      N2.start
+      N1.start
+      N2.stop
+      N2.start
+      state should be(List("N3 start", "N2 start", "N1 start", "N1 actualStart", "N2 actualStart", "N3 actualStart",
+        "N3 actualStop", "N2 actualStop", "N2 stop", "N2 start", "N2 actualStart", "N3 actualStart"))
+
+      // N1 <- N2 <- N3
+      object N1 {
+        def start = {
+          App.watch(N1).always().makeAfterStart { actualStart }
+          App.watch(N1).always().makeBeforeStop { actualStop }
+          App.watch(N1) on { state = state :+ "N1 start" }
+        }
+        def stop = App.watch(N1) off { state = state :+ "N1 stop" }
+        def actualStart = App.watch(N1.X) on { state = state :+ "N1 actualStart" }
+        def actualStop = App.watch(N1.X) off { state = state :+ "N1 actualStop" }
+        object X
+      }
+      object N2 {
+        def start = {
+          App.watch(N1.X, N2).always().makeAfterStart { actualStart }
+          App.watch(N1.X, N2).always().makeBeforeStop { actualStop }
+          App.watch(N2) on { state = state :+ "N2 start" }
+        }
+        def stop = App.watch(N2) off { state = state :+ "N2 stop" }
+        def actualStart = App.watch(N2.X) on { state = state :+ "N2 actualStart" }
+        def actualStop = App.watch(N2.X) off { state = state :+ "N2 actualStop" }
+        object X
+      }
+      object N3 {
+        def start = {
+          App.watch(N2.X, N3).always().makeAfterStart { actualStart }
+          App.watch(N2.X, N3).always().makeBeforeStop { actualStop }
+          App.watch(N3) on { state = state :+ "N3 start" }
+        }
+        def stop = App.watch(N3) off { state = state :+ "N3 stop" }
+        def actualStart = App.watch(N3.X) on { state = state :+ "N3 actualStart" }
+        def actualStop = App.watch(N3.X) off { state = state :+ "N3 actualStop" }
+        object X
+      }
     }
   }
 
