@@ -43,28 +43,20 @@
 
 package org.digimead.tabuddy.desktop.core
 
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.ScalaActorRef
-import akka.actor.UnhandledMessage
+import akka.actor.{ ActorRef, Props, ScalaActorRef, UnhandledMessage, actorRef2Scala }
 import java.util.concurrent.atomic.AtomicLong
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.api.Main
 import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
 import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.definition.NLS
-import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.api.OperationApprover
 import org.digimead.tabuddy.desktop.core.support.App
-import org.osgi.framework.BundleContext
-import org.osgi.framework.BundleEvent
-import org.osgi.framework.BundleListener
-import org.osgi.framework.ServiceRegistration
+import org.osgi.framework.{ BundleContext, BundleEvent, BundleListener, ServiceRegistration }
 import scala.concurrent.Future
 import scala.language.implicitConversions
-import org.digimead.tabuddy.desktop.core.support.Timeout
 
 /**
  * Root actor of the Core component.
@@ -87,8 +79,6 @@ class Core extends akka.actor.Actor with Loggable {
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[UnhandledMessage])
@@ -106,8 +96,6 @@ class Core extends akka.actor.Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[UnhandledMessage])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
     App.watch(this) on ()
     log.debug(self.path.name + " actor is started.")
   }
@@ -136,24 +124,8 @@ class Core extends akka.actor.Actor with Loggable {
       from.foreach(_ ! App.Message.Consistency(inconsistentSet, Some(self)))
     }
 
-    case message @ App.Message.Start(Right(EventLoop), _) ⇒ App.traceMessage(message) {
-      Future { onAppStarted() } onFailure {
-        case e: Exception ⇒ log.error(e.getMessage(), e)
-        case e ⇒ log.error(e.toString())
-      }
-    }
-
-    case message @ App.Message.Stop(Right(EventLoop), _) ⇒ App.traceMessage(message) {
-      Future { onAppStopped() } onFailure {
-        case e: Exception ⇒ log.error(e.getMessage(), e)
-        case e ⇒ log.error(e.toString())
-      }
-    }
-
     case message @ App.Message.Consistent(element, from) if from == Some(self) ⇒ // skip
     case message @ App.Message.Inconsistent(element, from) if from == Some(self) ⇒ // skip
-    case message @ App.Message.Start(_, _) ⇒ // skip
-    case message @ App.Message.Stop(_, _) ⇒ // skip
 
     case message: BundleContext ⇒ App.traceMessage(message) { main(message) }
 
@@ -162,11 +134,13 @@ class Core extends akka.actor.Actor with Loggable {
   }
 
   /** Starts main service when OSGi environment will be stable. */
+  @log
   protected def main(context: BundleContext) {
     val lastEventTS = new AtomicLong(System.currentTimeMillis())
-    context.addBundleListener(new BundleListener {
+    val listener = new BundleListener {
       def bundleChanged(event: BundleEvent) = lastEventTS.set(System.currentTimeMillis())
-    })
+    }
+    context.addBundleListener(listener)
     // OSGi is infinite black box of bundles
     // waiting for stabilization
     log.debug("Waiting OSGi for stabilization.")
@@ -174,6 +148,7 @@ class Core extends akka.actor.Actor with Loggable {
     while ((System.currentTimeMillis - lastEventTS.get()) < frame)
       Thread.sleep(100) // 0.1s for iteration
     log.debug("OSGi stabilization is achieved.")
+    context.removeBundleListener(listener)
     // Start "main" service
     mainRegistration = Option(context.registerService(classOf[api.Main], AppService, null))
     mainRegistration match {

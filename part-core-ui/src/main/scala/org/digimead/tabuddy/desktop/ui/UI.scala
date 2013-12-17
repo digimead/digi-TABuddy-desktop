@@ -48,6 +48,7 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.ui.block.WindowSupervisor
@@ -74,20 +75,23 @@ class UI extends akka.actor.Actor with Loggable {
   val coreRef = context.actorOf(core.Core.props, core.Core.id)
   val windowSupervisorRef = context.actorOf(WindowSupervisor.props, WindowSupervisor.id)
 
+  if (App.watch(Activator, Core, this).isEmpty)
+    App.watch(Activator, Core, this).always().
+      makeAfterStart { onCoreStarted() }.
+      makeBeforeStop { onCoreStopped() }.sync()
+
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
+    App.watch(this) off ()
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
-    App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
+    App.watch(this) on ()
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
@@ -108,44 +112,28 @@ class UI extends akka.actor.Actor with Loggable {
       }
       inconsistentSet = inconsistentSet + element
     }
-    case message @ App.Message.Start(Right(Core), _) ⇒ App.traceMessage(message) {
-      Future { onCoreStarted() } onFailure {
-        case e: Exception ⇒ log.error(e.getMessage(), e)
-        case e ⇒ log.error(e.toString())
-      }
-    }
-    case message @ App.Message.Stop(Right(Core), _) ⇒ App.traceMessage(message) {
-      Future { onCoreStopped() } onFailure {
-        case e: Exception ⇒ log.error(e.getMessage(), e)
-        case e ⇒ log.error(e.toString())
-      }
-    }
 
     case message @ App.Message.Consistent(_, _) ⇒ // skip
     case message @ App.Message.Inconsistent(_, _) ⇒ // skip
-    case message @ App.Message.Start(_, _) ⇒ // skip
-    case message @ App.Message.Stop(_, _) ⇒ // skip
   }
 
   /** Invoked on Core started. */
-  protected def onCoreStarted() {
+  protected def onCoreStarted() = App.watch(UI) on {
     App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }
     core.command.Commands.configure()
     core.view.Views.configure()
     WindowSupervisor ! App.Message.Restore
-    App.markAsStarted(UI.getClass)
-    App.publish(App.Message.Start(Right(UI)))
+    Console ! Console.Message.Notice("UI component is started.")
   }
   /** Invoked on Core stopped. */
-  protected def onCoreStopped() {
+  protected def onCoreStopped() = App.watch(UI) off {
     core.view.Views.unconfigure()
     core.command.Commands.unconfigure()
-    App.markAsStopped(UI.getClass)
-    App.publish(App.Message.Stop(Right(UI)))
     val display = App.display
     while (!display.isDisposed())
       Thread.sleep(100)
     Resources.validateOnShutdown()
+    Console ! Console.Message.Notice("UI component is stopped.")
     Resources.stop(App.bundle(getClass).getBundleContext())
   }
 }

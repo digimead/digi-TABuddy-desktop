@@ -44,8 +44,10 @@
 package org.digimead.tabuddy.desktop.core.support.app
 
 import java.io.{ PrintWriter, StringWriter }
+import java.util.concurrent.TimeoutException
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.EventLoop
+import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.core.runtime.{ IStatus, MultiStatus, Status }
 import org.eclipse.core.runtime.preferences.InstanceScope
 import org.eclipse.jface.preference.IPreferenceStore
@@ -53,7 +55,7 @@ import org.eclipse.ui.preferences.ScopedPreferenceStore
 import org.osgi.framework.{ Bundle, FrameworkUtil }
 
 trait Generic extends EventLoop.Consumer {
-  this: Loggable with Context with Thread ⇒
+  this: Loggable with Context with Thread with Watch ⇒
   /** Flag indicating whether debug methods is enabled. */
   @volatile var debug = true
   /** Application preference store. */
@@ -81,6 +83,15 @@ trait Generic extends EventLoop.Consumer {
    * drop So, Sm and \u0020-\u007F
    */
   val symbolPattern = """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}]+[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}_]*""".r.pattern
+  /** Flag indicating whether UI available. */
+  lazy val isUIAvailable = try {
+    val state = FrameworkUtil.getBundle(Class.forName("org.digimead.tabuddy.desktop.ui.Activator")).getState()
+    Bundle.ACTIVE == state || watch('UI).waitForStart(Timeout.shortest).isActive
+  } catch {
+    case e: TimeoutException ⇒ false
+    case e: ClassNotFoundException ⇒ false
+    case e: NullPointerException ⇒ false // NPE is thrown while PojoSR initialization
+  }
 
   /** Assert the current thread against the event one. */
   def assertEventThread(EventLoop: Boolean = true) = if (EventLoop) {
@@ -102,14 +113,6 @@ trait Generic extends EventLoop.Consumer {
   def bundle(clazz: Class[_]) = FrameworkUtil.getBundle(clazz)
   /** Check the current thread against the event one. */
   def isEventLoop() = thread.eq(Thread.currentThread())
-  /** Check is the UI available. */
-  def isUIAvailable() = try {
-    val state = FrameworkUtil.getBundle(Class.forName("org.digimead.tabuddy.desktop.ui.Activator")).getState()
-    Bundle.INSTALLED != state && Bundle.UNINSTALLED != state
-  } catch {
-    case e: ClassNotFoundException ⇒ false
-    case e: NullPointerException ⇒ false // NPE is thrown while PojoSR initialization
-  }
   /** Get application preference store. */
   def getPreferenceStore(): IPreferenceStore = preferenceStore
   /** Convert throwable to MultiStatus. */

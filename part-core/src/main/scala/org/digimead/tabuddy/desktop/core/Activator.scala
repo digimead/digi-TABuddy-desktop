@@ -43,40 +43,35 @@
 
 package org.digimead.tabuddy.desktop.core
 
-import java.util.concurrent.atomic.AtomicLong
-
-import scala.concurrent.Future
-import scala.ref.WeakReference
-
-import org.digimead.digi.lib.DependencyInjection
-import org.digimead.digi.lib.Disposable
+import akka.actor.{ Inbox, PoisonPill, Terminated }
+import org.digimead.digi.lib.{ DependencyInjection, Disposable }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.api.Main
+import org.digimead.tabuddy.desktop.core.Core.{ core2actorRef, core2actorSRef }
 import org.digimead.tabuddy.desktop.core.api.Translation
-import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.osgi.framework.BundleActivator
-import org.osgi.framework.BundleContext
-import org.osgi.framework.BundleEvent
-import org.osgi.framework.BundleListener
-import org.osgi.framework.ServiceRegistration
+import org.osgi.framework.{ BundleActivator, BundleContext }
 import org.osgi.util.tracker.ServiceTracker
-
-import akka.actor.Inbox
-import akka.actor.PoisonPill
-import akka.actor.Terminated
+import scala.ref.WeakReference
+import org.osgi.framework.BundleListener
+import org.osgi.framework.BundleEvent
 
 /**
  * OSGi entry point.
  */
-class Activator extends BundleActivator with definition.NLS.Initializer with EventLoop.Initializer with Loggable {
+class Activator extends BundleActivator with BundleListener with definition.NLS.Initializer with EventLoop.Initializer with Loggable {
   @volatile protected var reportServiceTracker: Option[ServiceTracker[AnyRef, AnyRef]] = None
   @volatile protected var translationServiceTracker: Option[ServiceTracker[api.Translation, api.Translation]] = None
 
+  /** Starts 'UI if available. */
+  def bundleChanged(event: BundleEvent) =
+    if (event.getBundle().getSymbolicName() == "org.digimead.tabuddy.desktop.ui" && event.getType() == BundleEvent.STARTED)
+      App.watch('UI) on ()
   /** Start bundle. */
   def start(context: BundleContext) = Activator.startStopLock.synchronized {
+    context.addBundleListener(this)
     if (Option(Activator.disposable).isEmpty)
       throw new IllegalStateException("Bundle is already disposed. Please reinstall it before activation.")
     log.debug("Start TA Buddy Desktop core.")
@@ -155,6 +150,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     translationServiceTracker = None
     reportServiceTracker.foreach(_.close())
     reportServiceTracker = None
+    context.removeBundleListener(this)
     Activator.dispose()
   }
 }

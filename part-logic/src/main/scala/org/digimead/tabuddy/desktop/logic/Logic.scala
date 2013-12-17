@@ -48,6 +48,7 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.core.resources.ResourcesPlugin
@@ -73,20 +74,23 @@ class Logic extends akka.actor.Actor with Loggable {
    */
   val actionRef = if (App.isUIAvailable) context.actorOf(ui.UI.props, ui.UI.id) else null
 
+  if (App.watch(Activator, Core, this).isEmpty)
+    App.watch(Activator, Core, this).always().
+      makeAfterStart { onCoreStarted() }.
+      makeBeforeStop { onCoreStopped() }.sync()
+
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
+    App.watch(this) off ()
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
-    App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
+    App.watch(this) on ()
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
@@ -110,8 +114,6 @@ class Logic extends akka.actor.Actor with Loggable {
 
     case message @ App.Message.Consistent(element, _) ⇒ // skip
     case message @ App.Message.Inconsistent(element, _) ⇒ // skip
-    case message @ App.Message.Start(_, _) ⇒ // skip
-    case message @ App.Message.Stop(_, _) ⇒ // skip
   }
 
   /** Close infrastructure wide container. */
@@ -163,18 +165,16 @@ class Logic extends akka.actor.Actor with Loggable {
     App.publish(App.Message.Consistent(this, self))
   }
   /** Invoked on Core started. */
-  protected def onCoreStarted() {
+  protected def onCoreStarted() = App.watch(Logic) on {
     //core.command.Commands.configure()
     //core.view.Views.configure()
-    App.markAsStarted(Logic.getClass)
-    App.publish(App.Message.Start(Right(Logic)))
+    Console ! Console.Message.Notice("Logic component is started.")
   }
   /** Invoked on Core stopped. */
-  protected def onCoreStopped() {
+  protected def onCoreStopped() = App.watch(Logic) off {
     //core.view.Views.unconfigure()
     //core.command.Commands.unconfigure()
-    App.markAsStopped(Logic.getClass)
-    App.publish(App.Message.Stop(Right(Logic)))
+    Console ! Console.Message.Notice("Logic component is stopped.")
   }
 }
 

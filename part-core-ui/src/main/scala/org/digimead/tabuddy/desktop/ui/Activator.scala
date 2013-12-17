@@ -61,7 +61,7 @@ class Activator extends BundleActivator with Loggable {
       throw new IllegalStateException("Bundle is already disposed. Please reinstall it before activation.")
     log.debug("Start TABuddy Desktop UI interface.")
     // Setup DI for this bundle
-    Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
+    val diReady = Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
       map { currencyServiceRef ⇒ (currencyServiceRef, context.getService(currencyServiceRef)) } match {
         case Some((reference, diService)) ⇒
           diService.getDependencyValidator.foreach { validator ⇒
@@ -70,17 +70,25 @@ class Activator extends BundleActivator with Loggable {
               throw new IllegalArgumentException("Illegal DI keys found: " + invalid.mkString(","))
           }
           context.ungetService(reference)
+          true
         case None ⇒
           log.warn("DI service not found.")
+          false
       }
-    DependencyInjection.inject()
-    // Start component actors hierarchy
-    UI.actor
-    System.out.println("UI component is started.")
+    if (diReady) {
+      DependencyInjection.inject()
+    } else {
+      log.warn("Skip DI initialization in test environment.")
+    }
+    App.watch(Activator) on {
+      // Start component actors hierarchy
+      UI.actor
+    }
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TABuddy Desktop UI interface.")
+    App.watch(Activator) off {}
     try {
       // Stop component actors.
       val inbox = Inbox.create(App.system)
@@ -95,7 +103,6 @@ class Activator extends BundleActivator with Loggable {
         log.debug("Skip Akka cleanup: ecosystem is already shut down.")
     }
     Activator.dispose()
-    System.out.println("UI component is stopped.")
   }
 }
 
