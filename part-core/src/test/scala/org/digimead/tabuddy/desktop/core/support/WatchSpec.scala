@@ -51,37 +51,45 @@ import org.digimead.tabuddy.desktop.core.EventLoop
 import org.digimead.tabuddy.desktop.core.command.Commands
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.support.app.Watch
 import org.digimead.tabuddy.desktop.core.{ Core, Test }
 import org.eclipse.core.runtime.jobs.Job
 import org.mockito.Matchers
 import org.mockito.Mockito._
 import org.scalatest.{ FunSpec, Finders }
+import scala.collection.immutable
 import scala.language.reflectiveCalls
 
 class WatchSpec extends FunSpec with Test.Base {
+  @volatile var savedWRef = immutable.Map[Int, Seq[Watch.Watcher]]()
+  @volatile var savedWSet = Set[Int]()
+
   describe("A watcher") {
     describe("with always parameter") {
       it("should have proper beforeStart implementation") {
         val tester = mock[WatchSpec.Tester]
-        val app = App.inner.asInstanceOf[TestApp]
+        val app = App.inner.asInstanceOf[WatchTestApp]
         val inOrderT = org.mockito.Mockito.inOrder(tester)
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
         val w = spy(app.watch(A)) always () makeBeforeStart { tester.a }
         val inOrderW = org.mockito.Mockito.inOrder(w)
         reset(w)
         verifyNoMoreInteractions(w)
         w on { tester.a1 }
+        w.isActive should be(true)
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
         verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
 
-        app.watchRefT should have size (2)
-        app.watchSetT should have size (2)
+        app.watchRefT should have size (1)
+        app.watchSetT should have size (1)
         inOrderT.verify(tester).a
         inOrderT.verify(tester).a1
         intercept[IllegalStateException] { w on { tester.a1 } }
         w.off()
+        w.isActive should be(false)
         w.on { tester.a1 }
+        w.isActive should be(true)
         inOrderT.verify(tester).a
         inOrderT.verify(tester).a1
         tester.a
@@ -91,23 +99,28 @@ class WatchSpec extends FunSpec with Test.Base {
         verifyNoMoreInteractions(tester)
         intercept[IllegalStateException] { app.watch(A) on () }
         app.watch(A) off ()
+        w.isActive should be(false)
         app.watch(A) on ()
+        w.isActive should be(true)
         inOrderT.verify(tester).a
         w.reset()
-        app.watchRefT should have size (1)
+        app.watchRefT should be('empty)
         app.watch(A) off ()
+        w.isActive should be(false)
         app.watch(A) on ()
+        w.isActive should be(false)
         app.watch(A) off ()
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+
+        app.watchSetT should be('empty)
         verifyNoMoreInteractions(tester)
       }
       it("should have proper afterStart implementation") {
         val tester = mock[WatchSpec.Tester]
-        val app = App.inner.asInstanceOf[TestApp]
+        val app = App.inner.asInstanceOf[WatchTestApp]
         val inOrderT = org.mockito.Mockito.inOrder(tester)
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
         val w = spy(app.watch(A)) always () makeAfterStart { tester.a }
         val inOrderW = org.mockito.Mockito.inOrder(w)
         reset(w)
@@ -116,8 +129,8 @@ class WatchSpec extends FunSpec with Test.Base {
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
         verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
 
-        app.watchRefT should have size (2)
-        app.watchSetT should have size (2)
+        app.watchRefT should have size (1)
+        app.watchSetT should have size (1)
         inOrderT.verify(tester).a1
         inOrderT.verify(tester).a
         intercept[IllegalStateException] { w on { tester.a1 } }
@@ -135,28 +148,29 @@ class WatchSpec extends FunSpec with Test.Base {
         app.watch(A) on ()
         inOrderT.verify(tester).a
         w.reset()
-        app.watchRefT should have size (1)
+        app.watchRefT should be('empty)
         app.watch(A) off ()
         app.watch(A) on ()
         app.watch(A) off ()
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+
+        app.watchSetT should be('empty)
         verifyNoMoreInteractions(tester)
       }
       it("should have proper beforeStop implementation") {
         val tester = mock[WatchSpec.Tester]
-        val app = App.inner.asInstanceOf[TestApp]
+        val app = App.inner.asInstanceOf[WatchTestApp]
         val inOrderT = org.mockito.Mockito.inOrder(tester)
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
         val w = spy(app.watch(A)) always () makeBeforeStop { tester.a }
         val inOrderW = org.mockito.Mockito.inOrder(w)
         reset(w)
         verifyNoMoreInteractions(w)
         w on ()
 
-        app.watchRefT should have size (2)
-        app.watchSetT should have size (2)
+        app.watchRefT should have size (1)
+        app.watchSetT should have size (1)
         intercept[IllegalStateException] { w on { tester.a1 } }
         w.off { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
@@ -177,28 +191,29 @@ class WatchSpec extends FunSpec with Test.Base {
         inOrderT.verify(tester).a1
         app.watch(A) on ()
         w.reset()
-        app.watchRefT should have size (1)
+        app.watchRefT should be('empty)
         app.watch(A) off ()
         app.watch(A) on ()
         app.watch(A) off ()
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+
+        app.watchSetT should be('empty)
         verifyNoMoreInteractions(tester)
       }
       it("should have proper afterStop implementation") {
         val tester = mock[WatchSpec.Tester]
-        val app = App.inner.asInstanceOf[TestApp]
+        val app = App.inner.asInstanceOf[WatchTestApp]
         val inOrderT = org.mockito.Mockito.inOrder(tester)
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
         val w = spy(app.watch(A)) always () makeAfterStop { tester.a }
         val inOrderW = org.mockito.Mockito.inOrder(w)
         reset(w)
         verifyNoMoreInteractions(w)
         w on ()
 
-        app.watchRefT should have size (2)
-        app.watchSetT should have size (2)
+        app.watchRefT should have size (1)
+        app.watchSetT should have size (1)
         intercept[IllegalStateException] { w on { tester.a1 } }
         w.off { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
@@ -219,29 +234,33 @@ class WatchSpec extends FunSpec with Test.Base {
         inOrderT.verify(tester).a
         app.watch(A) on ()
         w.reset()
-        app.watchRefT should have size (1)
+        app.watchRefT should be('empty)
         app.watch(A) off ()
         app.watch(A) on ()
         app.watch(A) off ()
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+
+        app.watchSetT should be('empty)
         verifyNoMoreInteractions(tester)
       }
     }
     describe("with once parameter") {
-      it("should have proper beforeStart implementation") {
+      it("should have proper beforeStart implementation", Mark) {
         val tester = mock[WatchSpec.Tester]
-        val app = App.inner.asInstanceOf[TestApp]
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        val app = App.inner.asInstanceOf[WatchTestApp]
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
         val w = spy(app.watch(A)) once () makeBeforeStart { tester.a }
-        app.watchRefT should have size (2)
-        app.watch(A) on ()
         app.watchRefT should have size (1)
+        app.watch(A) on ()
+        app.watchRefT should have size (1) // it still active, but empty
         app.watch(A) off ()
         verify(tester).a()
         verifyNoMoreInteractions(tester)
         reset(tester)
+        app.watchRefT should be('empty)
+
+        w.isActive should be(false)
 
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStart") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
@@ -252,12 +271,13 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should have size (2)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should be('empty)
-        app.watchRefT should have size (2)
-        app.watchSetT should have size (1)
+        w.hooks._3 should have size (2)
+        app.watchRefT should have size (1)
+        app.watchSetT should be('empty)
         app.watch(A) on ()
         verify(tester, times(2)).a()
         reset(tester)
-        app.watchRefT should have size (2)
+        app.watchRefT should have size (1)
         app.watch(A) off ()
         verify(tester, never).a()
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStart") should be('empty)
@@ -270,19 +290,21 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should be('empty)
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+
+        app.watchSetT should be('empty)
       }
       it("should have proper afterStart implementation") {
         val tester = mock[WatchSpec.Tester]
-        val app = App.inner.asInstanceOf[TestApp]
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        val app = App.inner.asInstanceOf[WatchTestApp]
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
         val w = spy(app.watch(A)) once () makeAfterStart { tester.a }
-        app.watchRefT should have size (2)
+        app.watchRefT should have size (1)
         app.watch(A) on ()
         app.watchRefT should have size (1)
         app.watch(A) off ()
+        app.watchRefT should be('empty)
         verify(tester).a()
         verifyNoMoreInteractions(tester)
         reset(tester)
@@ -296,12 +318,12 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should be('empty)
-        app.watchRefT should have size (2)
-        app.watchSetT should have size (1)
+        app.watchRefT should have size (1)
+        app.watchSetT should be('empty)
         app.watch(A) on ()
         verify(tester, times(2)).a()
         reset(tester)
-        app.watchRefT should have size (2)
+        app.watchRefT should have size (1)
         app.watch(A) off ()
         verify(tester, never).a()
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStart") should have size (1)
@@ -314,20 +336,21 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should be('empty)
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+
+        app.watchSetT should be('empty)
       }
       it("should have proper beforeStop implementation") {
         val tester = mock[WatchSpec.Tester]
-        val app = App.inner.asInstanceOf[TestApp]
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        val app = App.inner.asInstanceOf[WatchTestApp]
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
         val w = spy(app.watch(A)) once () makeBeforeStop { tester.a }
-        app.watchRefT should have size (2)
-        app.watch(A) on ()
-        app.watchRefT should have size (2)
-        app.watch(A) off ()
         app.watchRefT should have size (1)
+        app.watch(A) on ()
+        app.watchRefT should have size (1)
+        app.watch(A) off ()
+        app.watchRefT should be('empty)
         verify(tester).a()
         verifyNoMoreInteractions(tester)
         reset(tester)
@@ -341,11 +364,11 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should have size (2)
-        app.watchRefT should have size (2)
-        app.watchSetT should have size (1)
+        app.watchRefT should have size (1)
+        app.watchSetT should be('empty)
         app.watch(A) on ()
         verify(tester, never).a()
-        app.watchRefT should have size (2)
+        app.watchRefT should have size (1)
         app.watch(A) off ()
         verify(tester, times(2)).a()
         reset(tester)
@@ -359,20 +382,21 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should be('empty)
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+
+        app.watchSetT should be('empty)
       }
       it("should have proper afterStop implementation") {
         val tester = mock[WatchSpec.Tester]
-        val app = App.inner.asInstanceOf[TestApp]
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        val app = App.inner.asInstanceOf[WatchTestApp]
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
         val w = spy(app.watch(A)) once () makeAfterStop { tester.a }
-        app.watchRefT should have size (2)
-        app.watch(A) on ()
-        app.watchRefT should have size (2)
-        app.watch(A) off ()
         app.watchRefT should have size (1)
+        app.watch(A) on ()
+        app.watchRefT should have size (1)
+        app.watch(A) off ()
+        app.watchRefT should be('empty)
         verify(tester).a()
         verifyNoMoreInteractions(tester)
         reset(tester)
@@ -386,11 +410,11 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should have size (2)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should be('empty)
-        app.watchRefT should have size (2)
-        app.watchSetT should have size (1)
+        app.watchRefT should have size (1)
+        app.watchSetT should be('empty)
         app.watch(A) on ()
         verify(tester, never).a()
-        app.watchRefT should have size (2)
+        app.watchRefT should have size (1)
         app.watch(A) off ()
         verify(tester, times(2)).a()
         reset(tester)
@@ -404,15 +428,15 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should be('empty)
-        app.watchRefT should have size (1)
-        app.watchSetT should have size (1)
+        app.watchRefT should be('empty)
+        app.watchSetT should be('empty)
       }
     }
 
     it("should handle arguments") {
-      val app = App.inner.asInstanceOf[TestApp]
-      app.watchRefT should have size (1)
-      app.watchSetT should have size (1)
+      val app = App.inner.asInstanceOf[WatchTestApp]
+      app.watchRefT should be('empty)
+      app.watchSetT should be('empty)
       val w = spy(app.watch(A))
       getViaReflection[Seq[(Int, Function0[_])]](w, "argTimes") should be(1)
       w times (2)
@@ -425,7 +449,7 @@ class WatchSpec extends FunSpec with Test.Base {
 
     it("should handle complex behaviour") {
       var state = Set.empty[String]
-      val app = App.inner.asInstanceOf[TestApp]
+      val app = App.inner.asInstanceOf[WatchTestApp]
       val ab = spy(app.watch(A, B)) always () makeAfterStart { app.synchronized { state += "ab" } } makeAfterStop { app.synchronized { state -= "ab" } }
       val ac = spy(app.watch(A, C)) always () makeAfterStart { app.synchronized { state += "ac" } } makeAfterStop { app.synchronized { state -= "ac" } }
       val bc = spy(app.watch(B, C)) always () makeAfterStart { app.synchronized { state += "bc" } } makeAfterStop { app.synchronized { state -= "bc" } }
@@ -447,60 +471,114 @@ class WatchSpec extends FunSpec with Test.Base {
     }
 
     it("should have proper sequence") {
-      @volatile var state = Seq.empty[String]
-      val app = App.inner.asInstanceOf[TestApp]
+      val state = new collection.mutable.ArrayBuffer[String]() with collection.mutable.SynchronizedBuffer[String]
+      val app = App.inner.asInstanceOf[WatchTestApp]
       val a = spy(app.watch(A)).always().
-        makeBeforeStart { app.synchronized { state = state :+ "a makeBeforeStart" } }.
-        makeAfterStart { app.synchronized { state = state :+ "a makeAfterStart" } }.
-        makeBeforeStop { app.synchronized { state = state :+ "a makeBeforeStop" } }.
-        makeAfterStop { app.synchronized { state = state :+ "a makeAfterStop" } }
-      a on { state = state :+ "a on" }
-      a off { state = state :+ "a off" }
+        makeBeforeStart { app.synchronized { state += "a makeBeforeStart" } }.
+        makeAfterStart { app.synchronized { state += "a makeAfterStart" } }.
+        makeBeforeStop { app.synchronized { state += "a makeBeforeStop" } }.
+        makeAfterStop { app.synchronized { state += "a makeAfterStop" } }
+      a on { state += "a on" }
+      a off { state += "a off" }
       state should be(List("a makeBeforeStart", "a on", "a makeAfterStart", "a makeBeforeStop", "a off", "a makeAfterStop"))
-      state = Seq.empty
+      state.clear()
 
-      N3.start
-      N2.start
-      N1.start
-      N2.stop
-      N2.start
-      state should be(List("N3 start", "N2 start", "N1 start", "N1 actualStart", "N2 actualStart", "N3 actualStart",
-        "N3 actualStop", "N2 actualStop", "N2 stop", "N2 start", "N2 actualStart", "N3 actualStart"))
+      for (i ← 1 until 1000) {
+        N3.start
+        N2.start
+        N1.start
+        N2.stop
+        N2.start
+        N1.stop
+        N3.stop
+        N2.stop
+        val (a1, b1) = state.partition(_.contains("actual"))
+        a1 should be(List("N1 actualStart", "N2 actualStart", "N3 actualStart", "N3 actualStop", "N2 actualStop",
+          "N2 actualStart", "N3 actualStart", "N3 actualStop", "N2 actualStop", "N1 actualStop"))
+        b1 should be(List("N3 start", "N2 start", "N1 start", "N2 stop", "N2 start", "N1 stop", "N3 stop", "N2 stop"))
+        state.clear()
+
+        N1.start
+        N2.start
+        N3.start
+        app.watchRefT should have size (6)
+        App.watch(N1) should not be ('empty)
+        App.watch(N1.X, N2) should not be ('empty)
+        App.watch(N2.X, N3) should not be ('empty)
+        N3.stop
+        N2.stop
+        N1.stop
+        val (a2, b2) = state.partition(_.contains("actual"))
+        a2 should be(Seq("N1 actualStart", "N2 actualStart", "N3 actualStart", "N3 actualStop", "N2 actualStop", "N1 actualStop"))
+        b2 should be(Seq("N1 start", "N2 start", "N3 start", "N3 stop", "N2 stop", "N1 stop"))
+        state.clear()
+        app.watchSetT should be('empty)
+      }
 
       // N1 <- N2 <- N3
       object N1 {
         def start = {
-          App.watch(N1).always().makeAfterStart { actualStart }
-          App.watch(N1).always().makeBeforeStop { actualStop }
-          App.watch(N1) on { state = state :+ "N1 start" }
+          if (App.watch(N1).isEmpty) {
+            App.watch(N1).always().
+              makeAfterStart { actualStart }.
+              makeBeforeStop { actualStop }
+          }
+          App.watch(N1) on { state += "N1 start" }
         }
-        def stop = App.watch(N1) off { state = state :+ "N1 stop" }
-        def actualStart = App.watch(N1.X) on { state = state :+ "N1 actualStart" }
-        def actualStop = App.watch(N1.X) off { state = state :+ "N1 actualStop" }
+        def stop = App.watch(N1) off { state += "N1 stop" }
+        def actualStart = App.watch(N1.X) on { state += "N1 actualStart" }
+        def actualStop = App.watch(N1.X) off { state += "N1 actualStop" }
         object X
       }
       object N2 {
         def start = {
-          App.watch(N1.X, N2).always().makeAfterStart { actualStart }
-          App.watch(N1.X, N2).always().makeBeforeStop { actualStop }
-          App.watch(N2) on { state = state :+ "N2 start" }
+          if (App.watch(N1.X, N2).isEmpty) {
+            App.watch(N1.X, N2).always().
+              makeAfterStart { actualStart }.
+              makeBeforeStop { actualStop }
+          }
+          App.watch(N2) on { state += "N2 start" }
         }
-        def stop = App.watch(N2) off { state = state :+ "N2 stop" }
-        def actualStart = App.watch(N2.X) on { state = state :+ "N2 actualStart" }
-        def actualStop = App.watch(N2.X) off { state = state :+ "N2 actualStop" }
+        def stop = App.watch(N2) off { state += "N2 stop" }
+        def actualStart = App.watch(N2.X) on { state += "N2 actualStart" }
+        def actualStop = App.watch(N2.X) off { state += "N2 actualStop" }
         object X
       }
       object N3 {
         def start = {
-          App.watch(N2.X, N3).always().makeAfterStart { actualStart }
-          App.watch(N2.X, N3).always().makeBeforeStop { actualStop }
-          App.watch(N3) on { state = state :+ "N3 start" }
+          if (App.watch(N2.X, N3).isEmpty) {
+            App.watch(N2.X, N3).always().
+              makeAfterStart { actualStart }.
+              makeBeforeStop { actualStop }
+          }
+          App.watch(N3) on { state += "N3 start" }
         }
-        def stop = App.watch(N3) off { state = state :+ "N3 stop" }
-        def actualStart = App.watch(N3.X) on { state = state :+ "N3 actualStart" }
-        def actualStop = App.watch(N3.X) off { state = state :+ "N3 actualStop" }
+        def stop = App.watch(N3) off { state += "N3 stop" }
+        def actualStart = App.watch(N3.X) on { state += "N3 actualStart" }
+        def actualStop = App.watch(N3.X) off { state += "N3 actualStop" }
         object X
       }
+    }
+    it("should synchronize state after startup if required") {
+      val tester = mock[WatchSpec.Tester]
+      val app = App.inner.asInstanceOf[WatchTestApp]
+      app.watchRefT should be('empty)
+      app.watchSetT should be('empty)
+      app.watch(A) on ()
+      val a = app.watch(A).always().
+        makeBeforeStart { tester.a }.
+        makeAfterStart { tester.a1 }.
+        makeBeforeStop { tester.b }.
+        makeAfterStop { tester.b1 }
+      a.isActive should be(false)
+      a.sync()
+      a.isActive should be(true)
+      verify(tester).a()
+      verify(tester).a1()
+      verify(tester, never).b()
+      verify(tester, never).b1()
+      verifyNoMoreInteractions(tester)
+      a off ()
     }
   }
 
@@ -509,14 +587,40 @@ class WatchSpec extends FunSpec with Test.Base {
     startCoreBeforeAll()
     startEventLoop()
   }
+  override def beforeTest() {
+    super.beforeTest()
+    val app = App.inner.asInstanceOf[WatchTestApp]
+    savedWRef = immutable.HashMap() ++ app.watchRefT
+    savedWSet = Set() ++ app.watchSetT
+    app.watchRefT.clear()
+    app.watchSetT.clear()
+  }
   override def afterAll(configMap: org.scalatest.ConfigMap) {
     stopEventLoop()
     super.afterAll(configMap)
   }
+  override def afterTest() {
+    super.afterTest()
+    val app = App.inner.asInstanceOf[WatchTestApp]
+    app.watchRefT.clear()
+    app.watchSetT.clear()
+    app.watchRefT ++= savedWRef
+    app.watchSetT ++= savedWSet
+    savedWRef = immutable.HashMap()
+    savedWSet = Set()
+  }
+  override def config = new NewBindingModule(module ⇒ {
+    module.bind[App] toSingle { new WatchTestApp }
+  }) ~ super.config
 
   object A
   object B
   object C
+
+  class WatchTestApp extends TestApp {
+    def watchSetT = watchSet
+    def watchRefT = watchRef
+  }
 }
 
 object WatchSpec {

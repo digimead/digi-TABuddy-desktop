@@ -43,29 +43,21 @@
 
 package org.digimead.tabuddy.desktop.core
 
-import scala.collection.JavaConversions._
-
+import akka.actor.ActorSystem
+import com.typesafe.config.ConfigFactory
 import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.core.console.Console
 import org.eclipse.core.runtime.Platform
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.e4.ui.internal.workbench.E4Workbench
-import org.eclipse.equinox.app.IApplication
-import org.eclipse.equinox.app.IApplicationContext
+import org.eclipse.equinox.app.{ IApplication, IApplicationContext }
 import org.eclipse.ui.PlatformUI
-import org.eclipse.ui.internal.services.EvaluationService
 import org.osgi.util.tracker.ServiceTracker
-
-import com.typesafe.config.ConfigFactory
-
-import akka.actor.ActorSystem
-
-import language.implicitConversions
+import scala.collection.JavaConversions.mapAsScalaMap
+import scala.language.implicitConversions
 
 /**
  * Application entry point for Digi Launcher
@@ -162,10 +154,10 @@ class AppService extends api.Main with Disposable.Default with Loggable {
     log.debug("Start application.")
     EventLoop.thread.startEventLoop()
     EventLoop.thread.waitWhile { _.isEmpty } match {
-      case Some(EventLoop.Code.Ok) => IApplication.EXIT_OK
-      case Some(EventLoop.Code.Restart) => IApplication.EXIT_RESTART
-      case Some(EventLoop.Code.Error) => -1
-      case other =>
+      case Some(EventLoop.Code.Ok) ⇒ IApplication.EXIT_OK
+      case Some(EventLoop.Code.Restart) ⇒ IApplication.EXIT_RESTART
+      case Some(EventLoop.Code.Error) ⇒ -1
+      case other ⇒
         log.fatal("Unexpected application exit code: " + other)
         -1
     }

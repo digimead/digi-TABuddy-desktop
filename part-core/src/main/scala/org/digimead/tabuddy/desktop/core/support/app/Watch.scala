@@ -43,7 +43,8 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
-import java.util.concurrent.ExecutionException
+import java.util.concurrent.{ Exchanger, ExecutionException, TimeUnit }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import scala.collection.mutable
@@ -55,9 +56,9 @@ import scala.concurrent.duration.Duration
  */
 trait Watch {
   /** Map of watchers. */
-  protected val watchRef = new mutable.HashMap[Int, Seq[Watch.Watcher]]()
+  protected val watchRef = mutable.HashMap[Int, Seq[Watch.Watcher]]()
   /** Set with started references. */
-  protected val watchSet = new mutable.HashSet[Int]()
+  protected val watchSet = mutable.HashSet[Int]()
 
   /** Get new watcher. */
   def watch(refs: AnyRef*): Watch.Watcher = new Watch.Watcher(refs.map(System.identityHashCode).toSet, new Throwable("Refs: " + refs.mkString(",")))
@@ -76,19 +77,26 @@ trait Watch {
 object Watch extends Loggable {
   implicit lazy val ec = App.system.dispatcher
   /** Watcher implementation. */
-  class Watcher(val ids: Set[Int], val t: Throwable) {
+  class Watcher(val ids: Set[Int], val t: Throwable) extends Loggable {
+    @volatile protected var argActive = false
+    protected var argTimes = 1
     protected var hookAfterStart = Seq.empty[(Int, Function0[_])]
     protected var hookAfterStop = Seq.empty[(Int, Function0[_])]
     protected var hookBeforeStart = Seq.empty[(Int, Function0[_])]
     protected var hookBeforeStop = Seq.empty[(Int, Function0[_])]
-    protected var argTimes = 1
 
+    /** Get active state. */
+    def isActive = App.watchSet.synchronized { argActive }
+    /** Check that there are no hooks. */
+    def isEmpty = {
+      val h = hooks
+      h._1.isEmpty && h._2.isEmpty && h._3.isEmpty && h._4.isEmpty
+    }
     /** Execute always. */
     def always(): Watcher = times(-1)
     /** Get all hooks for such type of watchers. */
     def hooks: (Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])]) = App.watchSet.synchronized {
-      val availableWatchers = ids.map(App.watchRef.get).flatten // get all watchers sequences for Id set
-      val likeThisWatchers = (if (availableWatchers.size == ids.size) availableWatchers.reduceLeft(_ union _).filter(_.ids == ids) else Nil)
+      val likeThisWatchers = ids.flatMap(w ⇒ App.watchRef.get(w).map(_.filter(_.ids == ids))).flatten // get all watchers sequences for Id set
       val seqAfterStart = hookAfterStart.genericBuilder[Seq[(Int, Function0[_])]]
       val seqAfterStop = hookAfterStop.genericBuilder[Seq[(Int, Function0[_])]]
       val seqBeforeStart = hookBeforeStart.genericBuilder[Seq[(Int, Function0[_])]]
@@ -113,8 +121,12 @@ object Watch extends Loggable {
     /** Make BeforeStop hook. */
     def makeBeforeStop[A](f: ⇒ A): Watcher =
       App.watchSet.synchronized { hookBeforeStop = addHook(() ⇒ f, hookBeforeStop); this }
+    /** Check that there is at least one hook. */
+    def nonEmpty = isEmpty
     /** Stop Id's. */
-    def off[A](f: ⇒ A = {}): Watcher = {
+    @log
+    def off[A](f: ⇒ A = {}): A = {
+      log.debug("off " + this)
       val (before, after, watchers) = App.watchSet.synchronized {
         if (ids.forall(!App.watchSet(_)))
           throw new IllegalStateException(this + " is already off")
@@ -123,7 +135,8 @@ object Watch extends Loggable {
           case _ ⇒ None
         }.flatten // get all active watchers sequences for Id set
         App.watchSet --= ids
-        val inactiveWatchers = activeWatchers
+        val inactiveWatchers = activeWatchers.filter(w ⇒ w.argActive && { w.argActive = false; true })
+        argActive = false
         val (before, after) = inactiveWatchers.map { watcher ⇒
           val before = watcher.hookBeforeStop.map(_._2)
           watcher.hookBeforeStop = watcher.hookBeforeStop.map {
@@ -142,12 +155,14 @@ object Watch extends Loggable {
         (before.flatten, after.flatten, inactiveWatchers)
       }
       process(before)
-      f
-      process(after ++ watchers.map(w ⇒ () ⇒ App.watchSet.synchronized { w.compress }))
-      this
+      val result = f
+      process(after + (() ⇒ watchers.map(_.compress)))
+      result
     }
     /** Start Id's. */
-    def on[A](f: ⇒ A = {}): Watcher = {
+    @log
+    def on[A](f: ⇒ A = {}): A = {
+      log.debug("on " + this)
       val (before, after, watchers) = App.watchSet.synchronized {
         if (ids.forall(App.watchSet))
           throw new IllegalStateException(this + " is already on")
@@ -156,7 +171,8 @@ object Watch extends Loggable {
           case _ ⇒ None
         }.flatten // get all inactive watchers sequences for Id set
         App.watchSet ++= ids // activate
-        val activeWatchers = inactiveWatchers.filter(_.ids.forall(App.watchSet))
+        val activeWatchers = inactiveWatchers.filter(w ⇒ w.ids.forall(App.watchSet) && !w.argActive && { w.argActive = true; true })
+        argActive = true
         val (before, after) = activeWatchers.map { watcher ⇒
           val before = watcher.hookBeforeStart.map(_._2)
           watcher.hookBeforeStart = watcher.hookBeforeStart.map {
@@ -175,9 +191,9 @@ object Watch extends Loggable {
         (before.flatten, after.flatten, activeWatchers)
       }
       process(before)
-      f
-      process(after ++ watchers.map(w ⇒ () ⇒ App.watchSet.synchronized { w.compress }))
-      this
+      val result = f
+      process(after + (() ⇒ watchers.map(_.compress)))
+      result
     }
     /** Execute once. */
     def once(): Watcher = times(1)
@@ -187,11 +203,69 @@ object Watch extends Loggable {
       hookAfterStop = Seq.empty
       hookBeforeStart = Seq.empty
       hookBeforeStop = Seq.empty
+      argActive = ids.forall(App.watchSet)
       compress()
+    }
+    /** Synchronize watcher state. */
+    def sync(): Unit = {
+      val hooks = App.watchSet.synchronized {
+        val actual = ids.forall(App.watchSet)
+        if (argActive != actual) {
+          argActive = actual
+          if (actual)
+            hookBeforeStart.map(_._2) ++ hookAfterStart.map(_._2)
+          else
+            hookBeforeStop.map(_._2) ++ hookAfterStop.map(_._2)
+        } else
+          Seq.empty
+      }
+      process(hooks)
     }
     /** Set times argument for new hooks */
     def times(n: Int): Watcher = App.watchSet.synchronized {
       argTimes = n
+      this
+    }
+    /** Wait for start. */
+    def waitForStart(timeout: Duration = Duration.Inf): Watcher = {
+      val exchanger = App.watchSet.synchronized {
+        if (ids.forall(App.watchSet)) {
+          argActive = true
+          return this
+        }
+        argActive = ids.forall(App.watchSet) // force because we will wait termination
+        val exchanger = new Exchanger[Null]
+        val savedArgTimes = argTimes
+        argTimes = 1
+        makeAfterStart { exchanger.exchange(null) }
+        argTimes = savedArgTimes
+        exchanger
+      }
+      if (timeout.isFinite())
+        exchanger.exchange(null, timeout.toMillis, TimeUnit.MILLISECONDS)
+      else
+        exchanger.exchange(null)
+      this
+    }
+    /** Wait for stop. */
+    def waitForStop(timeout: Duration = Duration.Inf): Watcher = {
+      val exchanger = App.watchSet.synchronized {
+        if (ids.forall(!App.watchSet(_))) {
+          argActive = false
+          return this
+        }
+        argActive = ids.forall(App.watchSet) // force because we will wait termination
+        val exchanger = new Exchanger[Null]
+        val savedArgTimes = argTimes
+        argTimes = 1
+        makeAfterStop { exchanger.exchange(null) }
+        argTimes = savedArgTimes
+        exchanger
+      }
+      if (timeout.isFinite())
+        exchanger.exchange(null, timeout.toMillis, TimeUnit.MILLISECONDS)
+      else
+        exchanger.exchange(null)
       this
     }
 
@@ -208,6 +282,7 @@ object Watch extends Loggable {
       container :+ (argTimes, f)
     }
     /** Process hooks. */
+    // callbacks.map(_()) - single threaded version
     protected def process(callbacks: Iterable[Function0[_]]) =
       Await.ready(Future.sequence(callbacks.map { cb ⇒
         val f = Future[Unit] { cb() }
@@ -220,16 +295,20 @@ object Watch extends Loggable {
         f
       }), Duration.Inf)
     /** Drop garbage. */
-    protected def compress() =
+    protected def compress() = App.watchSet.synchronized {
       if (hookAfterStart.isEmpty && hookAfterStop.isEmpty && hookBeforeStart.isEmpty && hookBeforeStop.isEmpty) {
         App.watchRef.foreach {
           case (key, value) ⇒
             val compressed = value.filterNot(_ == this)
-            if (compressed.isEmpty)
-              App.watchRef.remove(key)
-            else if (compressed.size != value.size)
+            if (compressed.isEmpty) {
+              if (!argActive)
+                App.watchRef.remove(key)
+            } else if (compressed.size != value.size)
               App.watchRef(key) = compressed
         }
       }
+    }
+
+    override def toString() = s"Watcher(${t.getMessage()})"
   }
 }

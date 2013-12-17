@@ -80,6 +80,11 @@ class Core extends akka.actor.Actor with Loggable {
   /** Console actor. */
   val consoleRef = context.actorOf(console.Console.props, console.Console.id)
 
+  if (App.watch(Activator, EventLoop, this).isEmpty)
+    App.watch(Activator, EventLoop, this).always().
+      makeAfterStart { onAppStarted() }.
+      makeBeforeStop { onAppStopped() }.sync()
+
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
@@ -93,6 +98,7 @@ class Core extends akka.actor.Actor with Loggable {
       serviceRegistration.unregister()
     }
     mainRegistration = None
+    App.watch(this) off ()
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
@@ -102,12 +108,7 @@ class Core extends akka.actor.Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
-    App.watch(AppService) always () makeAfterStart {
-      if (!App.isActive(Core.getClass()))
-        App.watch(Core) on { onAppStarted() }
-    } makeBeforeStop {
-      App.watch(Core) off { onAppStopped() }
-    }
+    App.watch(this) on ()
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
@@ -182,7 +183,7 @@ class Core extends akka.actor.Actor with Loggable {
     self ! App.Message.Consistent(Core, None)
   }
   /** Invoked when application started. */
-  protected def onAppStarted() {
+  protected def onAppStarted() = App.watch(Core) on {
     App.verifyApplicationEnvironment
     // Wait for translationService
     NLS.translationService
@@ -199,7 +200,7 @@ class Core extends akka.actor.Actor with Loggable {
     Console ! Console.Message.Notice("Core component is started.")
   }
   /** Invoked when application stopped. */
-  protected def onAppStopped() {
+  protected def onAppStopped() = App.watch(Core) off {
     command.Commands.unconfigure()
     if (App.isUIAvailable)
       Core.DI.approvers.foreach(Operation.history.removeOperationApprover)

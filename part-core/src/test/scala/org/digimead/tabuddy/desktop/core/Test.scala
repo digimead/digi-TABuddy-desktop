@@ -51,9 +51,10 @@ import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.lib.test.{ LoggingHelper, OSGiHelper }
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.ui.internal.WorkbenchPlugin
-import org.mockito.{ ArgumentCaptor, InOrder, Mockito }
 import org.mockito.verification.VerificationMode
+import org.mockito.{ ArgumentCaptor, InOrder, Mockito }
 import org.osgi.framework.Bundle
 import org.scalatest.{ Matchers, Tag }
 import scala.collection.JavaConversions.asScalaIterator
@@ -126,7 +127,7 @@ object Test {
         log.debug(s"Bundle $bundle is ACTIVE")
     }
     /** Start Core bundle after OSGi environment. */
-    def startCoreBeforeAll(n: Int = 31) {
+    def startCoreBeforeAll(n: Int = 37) {
       adjustLoggingBefore
       withLogCaptor({
         coreBundle.start()
@@ -149,6 +150,7 @@ object Test {
       eventLoopThreadSync()
       app.set(Future { AppService.start() }(App.system.dispatcher))
       EventLoop.thread.waitWhile { _ == null }
+      assert(App.watch(Core).waitForStart(Timeout.long).isActive, "Unable to start EventLoop and Core actor.")
     }
     def stopEventLoop() {
       AppService.stop()
@@ -200,8 +202,6 @@ object Test {
         case "org.digimead.tabuddy.desktop.core.Messages$" ⇒ coreBundle
         case c ⇒ throw new RuntimeException("TestApp unknown class " + c)
       }
-      def watchSetT = watchSet
-      def watchRefT = watchRef
     }
 
     object Mark extends Tag("Mark")

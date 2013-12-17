@@ -111,23 +111,27 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     } else {
       log.warn("Skip DI initialization and event loop creation in test environment.")
     }
-    // Initialize translation service
-    setTranslationServiceTracker(this.translationServiceTracker)
-    // Start component actors hierarchy
-    Core.actor
-    // Start global components that haven't dispose methods.
-    Command
-    // Start application environment
-    Core ! context
+    App.watch(Activator) on {
+      // Initialize translation service
+      setTranslationServiceTracker(this.translationServiceTracker)
+      // Start component actors hierarchy
+      Core.actor
+      // Start global components that haven't dispose methods.
+      Command
+      // Start application environment
+      Core ! context
+    }
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TA Buddy Desktop core.")
-    // Shutdown event loop.
-    if (EventLoop.thread != null && EventLoop.thread.exitCode.isEmpty) {
-      log.debug("Initiate event loop shutdown. Bundle is stopping.")
-      // Unexpected shutdown.
-      EventLoop.thread.stopEventLoop(EventLoop.Code.Error)
+    App.watch(Activator) off {
+      // Shutdown event loop.
+      if (EventLoop.thread != null && EventLoop.thread.exitCode.isEmpty) {
+        log.debug("Initiate event loop shutdown. Bundle is stopping.")
+        // Unexpected shutdown.
+        EventLoop.thread.stopEventLoop(EventLoop.Code.Error)
+      }
     }
     // Stop component actors.
     val inbox = Inbox.create(App.system)
@@ -143,7 +147,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
       App.exec { display.dispose() }
       // Waiting for event loop termination.
       // 'code' should be null if main service isn't invoked
-      EventLoop.thread.waitWhile(code => (code != null && code.isEmpty))
+      EventLoop.thread.waitWhile(code ⇒ (code != null && code.isEmpty))
       eventLoopThreadSync()
     }
     setTranslationServiceTracker(None)

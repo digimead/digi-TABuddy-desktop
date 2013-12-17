@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.core
 import akka.actor.ActorDSL.{ Act, actor }
 import java.util.concurrent.{ Exchanger, TimeUnit }
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.core.databinding.observable.Realm
 import org.eclipse.ui.internal.WorkbenchPlugin
 import org.mockito.Mockito
@@ -56,7 +57,7 @@ import scala.concurrent.Future
 class CoreSpec000 extends WordSpec with Test.Base {
   "A Core" must {
     "be consistent after startup" in {
-      implicit val option = Mockito.times(32)
+      implicit val option = Mockito.times(37)
       withLogCaptor {
         coreBundle.start()
         implicit val akka = App.system
@@ -78,6 +79,7 @@ class CoreSpec000 extends WordSpec with Test.Base {
         c.find(m ⇒ m.getLevel() == org.apache.log4j.Level.DEBUG &&
           m.getMessage().toString.startsWith("started (org.digimead.tabuddy.desktop.core.Core@")) should not be ('empty)
       }
+      App.isActive(Activator) should be(true)
       // stop is invoked on test shutdown
     }
   }
@@ -87,6 +89,9 @@ class CoreSpec001 extends WordSpec with Test.Base with EventLoop.Initializer {
   private val appService = new ThreadLocal[Future[AnyRef]]()
   "A Core" must {
     "be able to start/stop event loop" in {
+      App.isActive(Core) should be(false)
+      App.isActive(AppService) should be(false)
+      App.isActive(Activator) should be(true)
       val wp = new WorkbenchPlugin()
       WorkbenchPlugin.getDefault() should not be (null)
       EventLoop.thread.start()
@@ -101,9 +106,15 @@ class CoreSpec001 extends WordSpec with Test.Base with EventLoop.Initializer {
       Realm.runWithDefault(App.realm, new Runnable { def run = realmTId = Thread.currentThread().getId() })
       realmTId should be(Thread.currentThread().getId())
       intercept[RuntimeException] { Realm.runWithDefault(App.realm, new Runnable { def run = throw new RuntimeException() }) }
+      App.watch(Core).waitForStart(Timeout.long).isActive should be(true)
+      App.isActive(EventLoop) should be(true)
+      App.isActive(Core) should be(true)
 
       AppService.stop()
       EventLoop.thread.waitWhile { _.isEmpty }
+      App.watch(Core).waitForStop(Timeout.long).isActive should be(false)
+      App.isActive(EventLoop) should be(false)
+      App.isActive(Core) should be(false)
     }
   }
 

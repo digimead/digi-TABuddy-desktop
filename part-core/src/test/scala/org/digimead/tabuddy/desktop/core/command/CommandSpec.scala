@@ -123,7 +123,7 @@ class CommandSpec extends WordSpec with Test.Base {
   }
   override def beforeAll(configMap: org.scalatest.ConfigMap) {
     super.beforeAll(configMap)
-    startCoreBeforeAll(31)
+    startCoreBeforeAll()
   }
   override def config = super.config ~ new NewBindingModule(module ⇒ {
     module.bind[Command] toSingle { new CommandX }

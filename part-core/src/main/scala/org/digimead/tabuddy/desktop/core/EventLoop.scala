@@ -45,7 +45,6 @@ package org.digimead.tabuddy.desktop.core
 
 import java.util.concurrent.Exchanger
 import java.util.concurrent.atomic.AtomicReference
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -55,6 +54,7 @@ import org.eclipse.core.databinding.observable.Realm
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.widgets.Display
 import org.eclipse.ui.PlatformUI
+import scala.concurrent.Future
 
 /**
  * Application event loop that is based on SWT.
@@ -62,6 +62,8 @@ import org.eclipse.ui.PlatformUI
  * It is suitable for headless mode.
  */
 class EventLoop extends Thread("Application event loop") with EventLoop.Initializer with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The global application data binding context. */
   protected lazy val bindingContext = {
     assert(initialized, "EventLoop is not initialized.")
@@ -162,7 +164,9 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
     var ts = 0L
     var result = false
     var duration = 0L
-    App.watch(EventLoop) on {}
+    // Start event in separated thread since watcher is synchronous
+    // and watcher hook may depends on event loop
+    Future { App.watch(EventLoop) on {} }
     while (exitCodeValue.get.isEmpty) try {
       // ts = System.currentTimeMillis()
       result = display.readAndDispatch()
@@ -175,7 +179,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
       case e: Throwable ⇒
         log.error(e.getMessage, e)
     }
-    App.watch(EventLoop) off {}
+    Future { App.watch(EventLoop) off {} }
     log.debug("Event loop is finishing. Process pending events.")
     // Process events until the display is disposed.
     while (!display.isDisposed()) try {
