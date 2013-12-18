@@ -65,17 +65,18 @@ class Core extends akka.actor.Actor with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Inconsistent elements. */
-  @volatile protected var inconsistentSet = Set[AnyRef](Console, Core)
+  protected var inconsistentSet = Set[AnyRef](Console, Core)
   @volatile protected var mainRegistration: Option[ServiceRegistration[api.Main]] = None
+  /** Start/stop initialization lock. */
+  private val initializationLock = new Object
   log.debug("Start actor " + self.path)
 
   /** Console actor. */
   val consoleRef = context.actorOf(console.Console.props, console.Console.id)
 
-  if (App.watch(Activator, EventLoop, this).isEmpty)
+  if (App.watch(Activator, EventLoop, this).hooks.isEmpty)
     App.watch(Activator, EventLoop, this).always().
-      makeAfterStart { onAppStarted() }.
-      makeBeforeStop { onAppStopped() }.sync()
+      makeAfterStart { onAppStarted() }.makeBeforeStop { onAppStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -135,7 +136,7 @@ class Core extends akka.actor.Actor with Loggable {
 
   /** Starts main service when OSGi environment will be stable. */
   @log
-  protected def main(context: BundleContext) {
+  protected def main(context: BundleContext) = try {
     val lastEventTS = new AtomicLong(System.currentTimeMillis())
     val listener = new BundleListener {
       def bundleChanged(event: BundleEvent) = lastEventTS.set(System.currentTimeMillis())
@@ -156,30 +157,37 @@ class Core extends akka.actor.Actor with Loggable {
       case None ⇒ log.error("Unable to register TA Buddy Desktop application entry point service.")
     }
     self ! App.Message.Consistent(Core, None)
-  }
+  } finally App.watch(context).on() // Send notice to Activator that initialization is complete.
   /** Invoked when application started. */
-  protected def onAppStarted() = App.watch(Core) on {
-    App.verifyApplicationEnvironment
-    // Wait for translationService
-    NLS.translationService
-    // Translate all messages
-    Messages
-    if (App.isUIAvailable) {
-      log.info("Start application with GUI.")
-      Core.DI.approvers.foreach(Operation.history.addOperationApprover)
-    } else
-      log.info("Start application without GUI.")
-    command.Commands.configure()
-    Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
-    Console ! App.Message.Start(Left(Console))
-    Console ! Console.Message.Notice("Core component is started.")
+  protected def onAppStarted(): Unit = initializationLock.synchronized {
+    App.watch(Core) on {
+      self ! App.Message.Inconsistent(Core, None)
+      App.verifyApplicationEnvironment
+      // Wait for translationService
+      NLS.translationService
+      // Translate all messages
+      Messages
+      if (App.isUIAvailable) {
+        log.info("Start application with GUI.")
+        Core.DI.approvers.foreach(Operation.history.addOperationApprover)
+      } else
+        log.info("Start application without GUI.")
+      command.Commands.configure()
+      Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
+      Console ! App.Message.Start(Left(Console))
+      Console ! Console.Message.Notice("Core component is started.")
+      self ! App.Message.Consistent(Core, None)
+    }
   }
   /** Invoked when application stopped. */
-  protected def onAppStopped() = App.watch(Core) off {
-    command.Commands.unconfigure()
-    if (App.isUIAvailable)
-      Core.DI.approvers.foreach(Operation.history.removeOperationApprover)
-    Console ! Console.Message.Notice("Core component is stopped.")
+  protected def onAppStopped(): Unit = initializationLock.synchronized {
+    App.watch(Core) off {
+      self ! App.Message.Inconsistent(Core, None)
+      command.Commands.unconfigure()
+      if (App.isUIAvailable)
+        Core.DI.approvers.foreach(Operation.history.removeOperationApprover)
+      Console ! Console.Message.Notice("Core component is stopped.")
+    }
   }
 }
 

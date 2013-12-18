@@ -57,17 +57,17 @@ import scala.concurrent.Future
 class CoreSpec000 extends WordSpec with Test.Base {
   "A Core" must {
     "be consistent after startup" in {
-      implicit val option = Mockito.times(37)
+      implicit val option = Mockito.atLeast(coreStartLogMessages)
       withLogCaptor {
         coreBundle.start()
         implicit val akka = App.system
         val exchanger = new Exchanger[Boolean]()
         val listener = actor(new Act {
-          become { case App.Message.Consistent(Core, _) ⇒ exchanger.exchange(true) }
+          become { case App.Message.Consistent(Core, _) ⇒ exchanger.exchange(true, 1000, TimeUnit.MILLISECONDS) }
           whenStarting { App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]]) }
           whenStopping { App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]]) }
         })
-        exchanger.exchange(false, 1000, TimeUnit.MILLISECONDS) should be(true)
+        exchanger.exchange(false, 10000, TimeUnit.MILLISECONDS) should be(true)
       } { logCaptor ⇒
         val a = logCaptor.getAllValues().asScala
         val b = a.dropWhile(m ⇒ m.getLevel() == org.apache.log4j.Level.DEBUG &&

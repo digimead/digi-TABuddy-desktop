@@ -43,19 +43,25 @@
 
 package org.digimead.tabuddy.desktop.ui
 
-import akka.actor.ActorDSL.{ Act, actor }
+import akka.actor.ActorDSL.{Act, actor}
 import com.escalatesoft.subcut.inject.NewBindingModule
-import java.util.concurrent.{ Exchanger, TimeUnit }
+import java.io.File
+import java.lang.reflect.InvocationTargetException
+import java.util.concurrent.{Exchanger, TimeUnit}
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.lib.test.{ LoggingHelper, OSGiHelper }
-import org.digimead.tabuddy.desktop.core.{ Core, EventLoop }
+import org.digimead.lib.test.{LoggingHelper, OSGiHelper}
+import org.digimead.tabuddy.desktop.core.{Core, EventLoop}
 import org.digimead.tabuddy.desktop.core.AppService
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.eclipse.core.internal.runtime.{FindSupport, InternalPlatform}
+import org.eclipse.osgi.service.environment.EnvironmentInfo
 import org.eclipse.ui.internal.WorkbenchPlugin
-import org.mockito.Mockito
+import org.mockito.{ArgumentCaptor, InOrder, Mockito}
+import org.mockito.verification.VerificationMode
 import org.osgi.framework.Bundle
-import org.scalatest.{ Matchers, Tag }
+import org.scalatest.{Matchers, Tag}
 import scala.collection.JavaConversions.asScalaIterator
 import scala.concurrent.Future
 
@@ -64,6 +70,7 @@ object Test {
     val testBundleClass = org.digimead.tabuddy.desktop.ui.default.getClass()
     val app = new ThreadLocal[Future[AnyRef]]()
     val wp = new ThreadLocal[WorkbenchPlugin]()
+    val coreStartLogMessages = 30
 
     after { afterTest() }
     before { beforeTest() }
@@ -78,6 +85,7 @@ object Test {
     override def beforeAll(configMap: org.scalatest.ConfigMap) {
       adjustLoggingBeforeAll(configMap)
       DependencyInjection(config, false)
+      System.setProperty(FindSupport.PROP_NL, "")
       adjustOSGiBefore
       startOSGiEnv()
     }
@@ -88,10 +96,21 @@ object Test {
     }
     /** Test component config. */
     def config = org.digimead.digi.lib.cache.default ~ org.digimead.digi.lib.default ~ new NewBindingModule(module ⇒ {
+      module.bind[File] identifiedBy ("Config") toSingle { App.bundle(getClass).getDataFile("ui_config") }
       module.bind[App] toSingle { new TestApp }
     })
     /** Get Core bundle. */
     def coreBundle = osgiRegistry.get.getBundleContext().getBundles().find(_.getSymbolicName() == "org.digimead.tabuddy.desktop.core").get
+    /** Get protected method via reflection. */
+    def getViaReflection[T](instance: AnyRef, name: String): T =
+      instance.getClass().getDeclaredMethods().find(_.getName() == name) match {
+        case Some(method) ⇒
+          if (method.isAccessible())
+            method.setAccessible(true)
+          method.invoke(instance).asInstanceOf[T]
+        case None ⇒
+          throw new IllegalArgumentException(s"Method '${name}' not found.")
+      }
     /** Start OSGi environment. */
     def startOSGiEnv() {
       for {
@@ -117,22 +136,29 @@ object Test {
         log.debug(s"Bundle $bundle is ACTIVE")
     }
     /** Start Core bundle after OSGi environment. */
-    def startCoreBeforeAll(n: Int = 31) {
-      adjustLoggingBefore
+    def startCoreBeforeAll(n: Int = coreStartLogMessages, l: Boolean = true) {
+      if (l) adjustLoggingBefore
       withLogCaptor({
         coreBundle.start()
         implicit val akka = App.system
         val exchanger = new Exchanger[Boolean]()
         val listener = actor(new Act {
-          become { case App.Message.Consistent(Core, _) ⇒ exchanger.exchange(true) }
+          become { case App.Message.Consistent(Core, _) ⇒ exchanger.exchange(true, 1000, TimeUnit.MILLISECONDS) }
           whenStarting { App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]]) }
           whenStopping { App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]]) }
         })
-        exchanger.exchange(false, 1000, TimeUnit.MILLISECONDS) should be(true)
-      })(_ ⇒ {})(Mockito.times(n)) // assert that Core bundle started successful
+        exchanger.exchange(false, 10000, TimeUnit.MILLISECONDS) should be(true)
+      })(_ ⇒ {})(Mockito.atLeast(n)) // assert that Core bundle started successful
       // stop is invoked on test shutdown
-      adjustLoggingAfter
+      if (l) adjustLoggingAfter
     }
+    /** Start InternalPlatform after OSGi environment. */
+    def startInternalPlatformBeforeAll() {
+      val environmentInfo = mock[EnvironmentInfo]
+      osgiRegistry.get.registerService(classOf[EnvironmentInfo].getName(), environmentInfo, null)
+      InternalPlatform.getDefault().start(osgiRegistry.get.getBundleContext())
+    }
+    /** Start event loop after core bundle. */
     def startEventLoop() {
       wp.set(new WorkbenchPlugin())
       WorkbenchPlugin.getDefault() should not be (null)
@@ -140,18 +166,61 @@ object Test {
       eventLoopThreadSync()
       app.set(Future { AppService.start() }(App.system.dispatcher))
       EventLoop.thread.waitWhile { _ == null }
+      assert(App.watch(Core).waitForStart(Timeout.long).isActive, "Unable to start EventLoop and Core actor.")
     }
+    /** Stop event loop after core bundle. */
     def stopEventLoop() {
       AppService.stop()
       EventLoop.thread.waitWhile { _.isEmpty }
+      App.watch(Core).waitForStop(Timeout.long).isActive should be(false)
+    }
+    /**
+     * Verify via reflection.
+     */
+    @inline
+    def verifyReflection[A, B](mock: A, mode: VerificationMode, methodName: String)(test: Seq[ArgumentCaptor[_]] ⇒ B): B = {
+      mock.getClass.getDeclaredMethods().find(_.getName() == methodName) match {
+        case Some(method) ⇒
+          if (method.isAccessible())
+            method.setAccessible(true)
+          val args = method.getParameterTypes().map(clazz ⇒ ArgumentCaptor.forClass(clazz)).toSeq
+          try method.invoke(org.mockito.Mockito.verify(mock, mode), args.map(_.capture().asInstanceOf[AnyRef]): _*)
+          catch {
+            case e: InvocationTargetException if e.getCause() != null && e.getCause().isInstanceOf[AssertionError] ⇒
+              throw e.getCause()
+          }
+          test(args)
+        case None ⇒
+          throw new IllegalArgumentException(s"Method '${methodName}' not found.")
+      }
+    }
+    /**
+     * Verify via reflection.
+     */
+    @inline
+    def verifyReflection[A, B](inOrder: InOrder, mock: A, mode: VerificationMode, methodName: String)(test: Seq[ArgumentCaptor[_]] ⇒ B): B = {
+      mock.getClass.getDeclaredMethods().find(_.getName() == methodName) match {
+        case Some(method) ⇒
+          if (method.isAccessible())
+            method.setAccessible(true)
+          val args = method.getParameterTypes().map(clazz ⇒ ArgumentCaptor.forClass(clazz)).toSeq
+          try method.invoke(inOrder.verify(mock, mode), args.map(_.capture().asInstanceOf[AnyRef]): _*)
+          catch {
+            case e: InvocationTargetException if e.getCause() != null && e.getCause().isInstanceOf[AssertionError] ⇒
+              throw e.getCause()
+          }
+          test(args)
+        case None ⇒
+          throw new IllegalArgumentException(s"Method '${methodName}' not found.")
+      }
     }
     /** Get UI bundle. */
     def UIBundle = osgiRegistry.get.getBundleContext().getBundles().find(_.getSymbolicName() == "org.digimead.tabuddy.desktop.ui").get
 
     class TestApp extends App {
       override def bundle(clazz: Class[_]) = clazz.getName() match {
-        case "org.digimead.tabuddy.desktop.core.Report$DI$" ⇒ coreBundle
-        case "org.digimead.tabuddy.desktop.core.Messages$" ⇒ coreBundle
+        case clazzName if clazzName.startsWith("org.digimead.tabuddy.desktop.core.") ⇒ coreBundle
+        case clazzName if clazzName.startsWith("org.digimead.tabuddy.desktop.ui.") ⇒ UIBundle
         case c ⇒ throw new RuntimeException("TestApp unknown class " + c)
       }
     }

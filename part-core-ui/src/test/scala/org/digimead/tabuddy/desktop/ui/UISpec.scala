@@ -54,33 +54,13 @@ import scala.collection.JavaConverters.asScalaBufferConverter
 class UISpec extends WordSpec with Test.Base {
   "A UI" must {
     "be consistent after startup" in {
-      implicit val option = Mockito.times(31)
-      withLogCaptor {
-        coreBundle.start()
-        implicit val akka = App.system
-        val exchanger = new Exchanger[Boolean]()
-        val listener = actor(new Act {
-          become { case App.Message.Consistent(Core, _) ⇒ exchanger.exchange(true) }
-          whenStarting { App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]]) }
-          whenStopping { App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]]) }
-        })
-        exchanger.exchange(false, 1000, TimeUnit.MILLISECONDS) should be(true)
-      } { logCaptor ⇒
-        val a = logCaptor.getAllValues().asScala
-        val b = a.dropWhile(m ⇒ m.getLevel() == org.apache.log4j.Level.DEBUG &&
-          m.getMessage() == "Start TA Buddy Desktop core.")
-        b should not be ('empty)
-        val c = b.dropWhile(m ⇒ m.getLevel() == org.apache.log4j.Level.WARN &&
-          m.getMessage() == "Skip DI initialization and event loop creation in test environment.")
-        c should not be ('empty)
-        c.find(m ⇒ m.getLevel() == org.apache.log4j.Level.DEBUG &&
-          m.getMessage().toString.startsWith("started (org.digimead.tabuddy.desktop.core.Core@")) should not be ('empty)
-      }
-      Thread.sleep(1000)
-      log.___glance("AAAAAAA")
+      implicit val option = Mockito.times(coreStartLogMessages)
+      startInternalPlatformBeforeAll()
+      startCoreBeforeAll(coreStartLogMessages, false)
+      UIBundle.start()
       startEventLoop()
-      /*withLogCaptor {
-        UIBundle.start()
+
+      /*      withLogCaptor {
         implicit val akka = App.system
         val exchanger = new Exchanger[Boolean]()
         val listener = actor(new Act {
@@ -99,9 +79,9 @@ class UISpec extends WordSpec with Test.Base {
         c should not be ('empty)
         c.find(m ⇒ m.getLevel() == org.apache.log4j.Level.DEBUG &&
           m.getMessage().toString.startsWith("started (org.digimead.tabuddy.desktop.core.Core@")) should not be ('empty)
-      }*/
+      }
       Thread.sleep(1000)
-      log.___glance("BBBB")
+      log.___glance("BBBB")*/
       stopEventLoop()
       // stop is invoked on test shutdown
     }

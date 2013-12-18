@@ -49,12 +49,16 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.osgi.framework.{ BundleActivator, BundleContext }
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 /**
  * OSGi entry point.
  */
 class Activator extends BundleActivator with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+
   /** Start bundle. */
   def start(context: BundleContext) = Activator.startStopLock.synchronized {
     if (Option(Activator.disposable).isEmpty)
@@ -80,9 +84,11 @@ class Activator extends BundleActivator with Loggable {
     } else {
       log.warn("Skip DI initialization in test environment.")
     }
-    App.watch(Activator) on {
-      // Start component actors hierarchy
-      UI.actor
+    Future {
+      App.watch(Activator) on {
+        // Start component actors hierarchy
+        UI.actor
+      }
     }
   }
   /** Stop bundle. */

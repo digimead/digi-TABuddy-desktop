@@ -53,10 +53,14 @@ class NLSSpec extends WordSpec with Test.Base {
   "NLS" when {
     "loaded without Translation service" should {
       "be empty" in {
-        implicit val option = Mockito.times(0)
-        val service = withLogCaptor { NLS.translationService } { logCaptor ⇒ }
+        implicit val option = Mockito.atMost(1)
+        val service = withLogCaptor { NLS.translationService } { logCaptor ⇒
+          val v = logCaptor.getAllValues()
+          if(v.size() > 0)
+            fail("Unexpected log message " + v.get(0).getMessage())
+        }
         service should be('empty)
-        Messages.acquire_text should be ("acquire")
+        Messages.acquire_text should be("acquire")
       }
     }
   }

@@ -157,7 +157,7 @@ class ConsoleSpec extends WordSpec with Test.Base {
     reset(consoleMock)
     verify(consoleMock, never).start()
     super.beforeAll(configMap)
-    startCoreBeforeAll(38)
+    startCoreBeforeAll(coreStartLogMessages + 1)
     verify(consoleMock, times(1)).start()
   }
   override def config = super.config ~ new NewBindingModule(module ⇒ {

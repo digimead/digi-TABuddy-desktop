@@ -104,8 +104,9 @@ class WatchSpec extends FunSpec with Test.Base {
         w.isActive should be(true)
         inOrderT.verify(tester).a
         w.reset()
-        app.watchRefT should be('empty)
+        app.watchRefT should not be ('empty)
         app.watch(A) off ()
+        app.watchRefT should be('empty)
         w.isActive should be(false)
         app.watch(A) on ()
         w.isActive should be(false)
@@ -148,8 +149,9 @@ class WatchSpec extends FunSpec with Test.Base {
         app.watch(A) on ()
         inOrderT.verify(tester).a
         w.reset()
-        app.watchRefT should be('empty)
+        app.watchRefT should not be ('empty)
         app.watch(A) off ()
+        app.watchRefT should be('empty)
         app.watch(A) on ()
         app.watch(A) off ()
         app.watchRefT should be('empty)
@@ -191,8 +193,9 @@ class WatchSpec extends FunSpec with Test.Base {
         inOrderT.verify(tester).a1
         app.watch(A) on ()
         w.reset()
-        app.watchRefT should be('empty)
+        app.watchRefT should not be ('empty)
         app.watch(A) off ()
+        app.watchRefT should be('empty)
         app.watch(A) on ()
         app.watch(A) off ()
         app.watchRefT should be('empty)
@@ -234,8 +237,9 @@ class WatchSpec extends FunSpec with Test.Base {
         inOrderT.verify(tester).a
         app.watch(A) on ()
         w.reset()
-        app.watchRefT should be('empty)
+        app.watchRefT should not be ('empty)
         app.watch(A) off ()
+        app.watchRefT should be('empty)
         app.watch(A) on ()
         app.watch(A) off ()
         app.watchRefT should be('empty)
@@ -271,7 +275,7 @@ class WatchSpec extends FunSpec with Test.Base {
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookAfterStop") should be('empty)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStart") should have size (2)
         getViaReflection[Seq[(Int, Function0[_])]](w, "hookBeforeStop") should be('empty)
-        w.hooks._3 should have size (2)
+        w.hookGroups._3 should have size (2)
         app.watchRefT should have size (1)
         app.watchSetT should be('empty)
         app.watch(A) on ()
@@ -502,9 +506,9 @@ class WatchSpec extends FunSpec with Test.Base {
         N2.start
         N3.start
         app.watchRefT should have size (6)
-        App.watch(N1) should not be ('empty)
-        App.watch(N1.X, N2) should not be ('empty)
-        App.watch(N2.X, N3) should not be ('empty)
+        App.watch(N1).hooks should not be ('empty)
+        App.watch(N1.X, N2).hooks should not be ('empty)
+        App.watch(N2.X, N3).hooks should not be ('empty)
         N3.stop
         N2.stop
         N1.stop
@@ -518,7 +522,7 @@ class WatchSpec extends FunSpec with Test.Base {
       // N1 <- N2 <- N3
       object N1 {
         def start = {
-          if (App.watch(N1).isEmpty) {
+          if (App.watch(N1).hooks.isEmpty) {
             App.watch(N1).always().
               makeAfterStart { actualStart }.
               makeBeforeStop { actualStop }
@@ -532,7 +536,7 @@ class WatchSpec extends FunSpec with Test.Base {
       }
       object N2 {
         def start = {
-          if (App.watch(N1.X, N2).isEmpty) {
+          if (App.watch(N1.X, N2).hooks.isEmpty) {
             App.watch(N1.X, N2).always().
               makeAfterStart { actualStart }.
               makeBeforeStop { actualStop }
@@ -546,7 +550,7 @@ class WatchSpec extends FunSpec with Test.Base {
       }
       object N3 {
         def start = {
-          if (App.watch(N2.X, N3).isEmpty) {
+          if (App.watch(N2.X, N3).hooks.isEmpty) {
             App.watch(N2.X, N3).always().
               makeAfterStart { actualStart }.
               makeBeforeStop { actualStop }

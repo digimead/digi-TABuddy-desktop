@@ -205,7 +205,7 @@ object App {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** App implementation */
+    /** App implementation. */
     lazy val implementation = injectOptional[App] getOrElse new App
   }
 }

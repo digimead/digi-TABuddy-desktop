@@ -63,9 +63,10 @@ class UI extends akka.actor.Actor with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Inconsistent elements. */
-  @volatile protected var inconsistentSet = Set[AnyRef]()
+  @volatile protected var inconsistentSet = Set[AnyRef](UI)
   /** Current bundle */
   protected lazy val thisBundle = App.bundle(getClass())
+  /** Start/stop initialization lock. */
   private val initializationLock = new Object
   log.debug("Start actor " + self.path)
 
@@ -75,7 +76,7 @@ class UI extends akka.actor.Actor with Loggable {
   val coreRef = context.actorOf(core.Core.props, core.Core.id)
   val windowSupervisorRef = context.actorOf(WindowSupervisor.props, WindowSupervisor.id)
 
-  if (App.watch(Activator, Core, this).isEmpty)
+  if (App.watch(Activator, Core, this).hooks.isEmpty)
     App.watch(Activator, Core, this).always().
       makeAfterStart { onCoreStarted() }.
       makeBeforeStop { onCoreStopped() }.sync()
@@ -98,14 +99,16 @@ class UI extends akka.actor.Actor with Loggable {
     case message @ App.Message.Attach(props, name) ⇒ App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
-    case message @ App.Message.Consistent(element, _) if element != UI && App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
+    case message @ App.Message.Consistent(element, from) if from != Some(self) &&
+      App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       inconsistentSet = inconsistentSet - element
       if (inconsistentSet.isEmpty) {
         log.debug("Return integrity.")
         context.system.eventStream.publish(App.Message.Consistent(UI, self))
       }
     }
-    case message @ App.Message.Inconsistent(element, _) if element != UI && App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
+    case message @ App.Message.Inconsistent(element, from) if from != Some(self) &&
+      App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
         context.system.eventStream.publish(App.Message.Inconsistent(UI, self))
@@ -118,23 +121,28 @@ class UI extends akka.actor.Actor with Loggable {
   }
 
   /** Invoked on Core started. */
-  protected def onCoreStarted() = App.watch(UI) on {
-    App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }
-    core.command.Commands.configure()
-    core.view.Views.configure()
-    WindowSupervisor ! App.Message.Restore
-    Console ! Console.Message.Notice("UI component is started.")
+  protected def onCoreStarted() = initializationLock.synchronized {
+    App.watch(UI) on {
+      App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }
+      core.command.Commands.configure()
+      core.view.Views.configure()
+      WindowSupervisor ! App.Message.Restore
+      Console ! Console.Message.Notice("UI component is started.")
+      self ! App.Message.Consistent(UI, None)
+    }
   }
   /** Invoked on Core stopped. */
-  protected def onCoreStopped() = App.watch(UI) off {
-    core.view.Views.unconfigure()
-    core.command.Commands.unconfigure()
-    val display = App.display
-    while (!display.isDisposed())
-      Thread.sleep(100)
-    Resources.validateOnShutdown()
-    Console ! Console.Message.Notice("UI component is stopped.")
-    Resources.stop(App.bundle(getClass).getBundleContext())
+  protected def onCoreStopped() = initializationLock.synchronized {
+    App.watch(UI) off {
+      core.view.Views.unconfigure()
+      core.command.Commands.unconfigure()
+      val display = App.display
+      while (!display.isDisposed())
+        Thread.sleep(100)
+      Resources.validateOnShutdown()
+      Console ! Console.Message.Notice("UI component is stopped.")
+      Resources.stop(App.bundle(getClass).getBundleContext())
+    }
   }
 }
 

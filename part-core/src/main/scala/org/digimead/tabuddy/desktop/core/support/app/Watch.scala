@@ -45,10 +45,12 @@ package org.digimead.tabuddy.desktop.core.support.app
 
 import java.util.concurrent.{ Exchanger, ExecutionException, TimeUnit }
 import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.Timeout
 import scala.collection.mutable
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.{ Await, Future, TimeoutException }
 import scala.concurrent.duration.Duration
 
 /**
@@ -87,15 +89,15 @@ object Watch extends Loggable {
 
     /** Get active state. */
     def isActive = App.watchSet.synchronized { argActive }
-    /** Check that there are no hooks. */
-    def isEmpty = {
-      val h = hooks
-      h._1.isEmpty && h._2.isEmpty && h._3.isEmpty && h._4.isEmpty
-    }
     /** Execute always. */
     def always(): Watcher = times(-1)
     /** Get all hooks for such type of watchers. */
-    def hooks: (Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])]) = App.watchSet.synchronized {
+    def hooks = {
+      val groups = hookGroups
+      groups._1 ++ groups._2 ++ groups._3 ++ groups._4
+    }
+    /** Get all hooks per group for such type of watchers. */
+    def hookGroups: (Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])]) = App.watchSet.synchronized {
       val likeThisWatchers = ids.flatMap(w ⇒ App.watchRef.get(w).map(_.filter(_.ids == ids))).flatten // get all watchers sequences for Id set
       val seqAfterStart = hookAfterStart.genericBuilder[Seq[(Int, Function0[_])]]
       val seqAfterStop = hookAfterStop.genericBuilder[Seq[(Int, Function0[_])]]
@@ -121,8 +123,6 @@ object Watch extends Loggable {
     /** Make BeforeStop hook. */
     def makeBeforeStop[A](f: ⇒ A): Watcher =
       App.watchSet.synchronized { hookBeforeStop = addHook(() ⇒ f, hookBeforeStop); this }
-    /** Check that there is at least one hook. */
-    def nonEmpty = isEmpty
     /** Stop Id's. */
     @log
     def off[A](f: ⇒ A = {}): A = {
@@ -207,7 +207,7 @@ object Watch extends Loggable {
       compress()
     }
     /** Synchronize watcher state. */
-    def sync(): Unit = {
+    def sync(): Watcher = {
       val hooks = App.watchSet.synchronized {
         val actual = ids.forall(App.watchSet)
         if (argActive != actual) {
@@ -220,6 +220,7 @@ object Watch extends Loggable {
           Seq.empty
       }
       process(hooks)
+      this
     }
     /** Set times argument for new hooks */
     def times(n: Int): Watcher = App.watchSet.synchronized {
@@ -293,7 +294,7 @@ object Watch extends Loggable {
             log.error(e.getMessage(), exception)
         }
         f
-      }), Duration.Inf)
+      }), DI.maxProcessDuration)
     /** Drop garbage. */
     protected def compress() = App.watchSet.synchronized {
       if (hookAfterStart.isEmpty && hookAfterStop.isEmpty && hookBeforeStart.isEmpty && hookBeforeStop.isEmpty) {
@@ -310,5 +311,13 @@ object Watch extends Loggable {
     }
 
     override def toString() = s"Watcher(${t.getMessage()})"
+  }
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Maximum duration for watcher hooks. */
+    lazy val maxProcessDuration = injectOptional[Duration]("Core.Watcher.Duration") getOrElse Timeout.longer
   }
 }

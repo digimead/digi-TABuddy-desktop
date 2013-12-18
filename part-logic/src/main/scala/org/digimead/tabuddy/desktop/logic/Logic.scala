@@ -74,7 +74,7 @@ class Logic extends akka.actor.Actor with Loggable {
    */
   val actionRef = if (App.isUIAvailable) context.actorOf(ui.UI.props, ui.UI.id) else null
 
-  if (App.watch(Activator, Core, this).isEmpty)
+  if (App.watch(Activator, Core, this).hooks.isEmpty)
     App.watch(Activator, Core, this).always().
       makeAfterStart { onCoreStarted() }.
       makeBeforeStop { onCoreStopped() }.sync()

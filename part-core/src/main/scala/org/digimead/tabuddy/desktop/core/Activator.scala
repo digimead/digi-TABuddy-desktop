@@ -44,24 +44,23 @@
 package org.digimead.tabuddy.desktop.core
 
 import akka.actor.{ Inbox, PoisonPill, Terminated }
-import org.digimead.digi.lib.{ DependencyInjection, Disposable }
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core.{ core2actorRef, core2actorSRef }
+import org.digimead.digi.lib.{ DependencyInjection, Disposable }
 import org.digimead.tabuddy.desktop.core.api.Translation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.osgi.framework.{ BundleActivator, BundleContext }
+import org.osgi.framework.{ BundleActivator, BundleContext, BundleEvent, BundleListener }
 import org.osgi.util.tracker.ServiceTracker
+import scala.concurrent.Future
 import scala.ref.WeakReference
-import org.osgi.framework.BundleListener
-import org.osgi.framework.BundleEvent
 
 /**
  * OSGi entry point.
  */
 class Activator extends BundleActivator with BundleListener with definition.NLS.Initializer with EventLoop.Initializer with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   @volatile protected var reportServiceTracker: Option[ServiceTracker[AnyRef, AnyRef]] = None
   @volatile protected var translationServiceTracker: Option[ServiceTracker[api.Translation, api.Translation]] = None
 
@@ -106,15 +105,31 @@ class Activator extends BundleActivator with BundleListener with definition.NLS.
     } else {
       log.warn("Skip DI initialization and event loop creation in test environment.")
     }
-    App.watch(Activator) on {
-      // Initialize translation service
-      setTranslationServiceTracker(this.translationServiceTracker)
-      // Start component actors hierarchy
-      Core.actor
-      // Start global components that haven't dispose methods.
-      Command
-      // Start application environment
-      Core ! context
+    Future {
+      App.watch(Activator).once.makeBeforeStop {
+        // This hook is hold Activator.stop() while initialization is incomplete.
+        App.watch(context).waitForStart(Timeout.normal) // at Core.main()
+        // Initialization complete.
+        App.watch(context).off()
+      } on {
+        // Initialize translation service
+        setTranslationServiceTracker(this.translationServiceTracker)
+        // Start component actors hierarchy
+        Core.actor
+        /*
+         * Start global components that haven't dispose methods.
+         */
+        Command
+        // Start application environment
+        Core ! context
+        /*
+         * Huge operations that freeze application.
+         */
+        // Initialize messages
+        Future { Messages.default_text }
+        // Initialize UI flag
+        Future { App.isUIAvailable }
+      }
     }
   }
   /** Stop bundle. */
