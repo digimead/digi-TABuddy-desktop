@@ -74,6 +74,14 @@ class Core extends akka.actor.Actor with Loggable {
   /** Console actor. */
   val consoleRef = context.actorOf(console.Console.props, console.Console.id)
 
+  /*
+   *
+   * Core started if:
+   * 	Activator is started
+   * 	This actor is started
+   * 	And someone starts event loop (from application service or directly)
+   *
+   */
   if (App.watch(Activator, EventLoop, this).hooks.isEmpty)
     App.watch(Activator, EventLoop, this).always().
       makeAfterStart { onAppStarted() }.makeBeforeStop { onAppStopped() }.sync()
@@ -125,8 +133,8 @@ class Core extends akka.actor.Actor with Loggable {
       from.foreach(_ ! App.Message.Consistency(inconsistentSet, Some(self)))
     }
 
-    case message @ App.Message.Consistent(element, from) if from == Some(self) ⇒ // skip
-    case message @ App.Message.Inconsistent(element, from) if from == Some(self) ⇒ // skip
+    case message @ App.Message.Consistent(_, _) ⇒ // skip
+    case message @ App.Message.Inconsistent(_, _) ⇒ // skip
 
     case message: BundleContext ⇒ App.traceMessage(message) { main(message) }
 

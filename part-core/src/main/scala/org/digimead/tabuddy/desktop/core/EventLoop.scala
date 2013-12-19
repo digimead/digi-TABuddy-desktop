@@ -166,7 +166,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
     var duration = 0L
     // Start event in separated thread since watcher is synchronous
     // and watcher hook may depends on event loop
-    Future { App.watch(EventLoop) on {} }
+    Future { App.watch(EventLoop) on {} } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
     while (exitCodeValue.get.isEmpty) try {
       // ts = System.currentTimeMillis()
       result = display.readAndDispatch()
@@ -179,7 +179,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
       case e: Throwable ⇒
         log.error(e.getMessage, e)
     }
-    Future { App.watch(EventLoop) off {} }
+    Future { App.watch(EventLoop) off {} } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
     log.debug("Event loop is finishing. Process pending events.")
     // Process events until the display is disposed.
     while (!display.isDisposed()) try {

@@ -43,18 +43,22 @@
 
 package org.digimead.tabuddy.desktop.core.command
 
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.{ Messages, Report }
+import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
 import org.digimead.tabuddy.desktop.core.operation.OperationInfo
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.{ Messages, Report }
 import org.eclipse.core.runtime.jobs.Job
+import org.osgi.framework.Bundle
 import scala.concurrent.Future
+import scala.language.reflectiveCalls
 
 /**
  * Info command that starts 'Get information' operation.
@@ -65,7 +69,31 @@ object CommandInfo extends Loggable {
   implicit lazy val ec = App.system.dispatcher
   /** Console converter. */
   lazy val converter: PartialFunction[(Descriptor, Any), String] = {
-    case (this.descriptor, Some(report)) ⇒ report.toString()
+    case (this.descriptor, Some(report)) ⇒ report match {
+      case info: Report.Info ⇒
+        s"""report path: ${Report.service.map(_.asInstanceOf[{ val path: File }].path.toString()).getOrElse("UNKNOWN")}
+            |os: ${info.os}
+            |arch: ${info.arch}
+            |platform: ${info.platform}
+            |${
+          info.component.map { c ⇒
+            val code = try {
+              App.bundle(getClass).getBundleContext().getBundles().find(_.getSymbolicName() == c.bundleSymbolicName).map(_.getState())
+            } catch {
+              case e: ClassNotFoundException ⇒ None
+              case e: NullPointerException ⇒ None // NPE is thrown while PojoSR initialization
+            }
+            val state = code match {
+              case Some(Bundle.ACTIVE) ⇒ Console.GREEN + "active" + Console.RESET
+              case Some(Bundle.RESOLVED) ⇒ Console.BBLACK + "resolved" + Console.RESET
+              case _ ⇒ Console.BYELLOW + "inconsistent" + Console.RESET
+            }
+            s"${c.name}[${state}]: version: ${c.version}, build: ${Report.dateString(c.build)} (${c.rawBuild})"
+          }.sorted.mkString("\n")
+        }""".stripMargin
+
+      case report ⇒ report.toString()
+    }
     case (this.descriptor, None) ⇒ "Application information is unavailable"
   }
   /** Command description. */

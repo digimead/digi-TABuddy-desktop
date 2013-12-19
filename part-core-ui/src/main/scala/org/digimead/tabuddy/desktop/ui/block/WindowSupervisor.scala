@@ -258,11 +258,15 @@ class WindowSupervisor extends Actor with Loggable {
   /** Save windows configuration. */
   protected def save() {
     implicit val ec = App.system.dispatcher
-    if (!configurationsSave.compareAndSet(None, Some(Future {
-      WindowConfiguration.save(immutable.HashMap(configurations.toSeq: _*))
-      configurationsSave.set(None)
-      if (configurationsSaveRestart.compareAndSet(true, false))
-        save()
+    if (!configurationsSave.compareAndSet(None, Some({
+      val future = Future {
+        WindowConfiguration.save(immutable.HashMap(configurations.toSeq: _*))
+        configurationsSave.set(None)
+        if (configurationsSaveRestart.compareAndSet(true, false))
+          save()
+      }
+      future onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+      future
     }))) configurationsSaveRestart.set(true)
   }
   /** Start window. */

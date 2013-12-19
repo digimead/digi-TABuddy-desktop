@@ -381,11 +381,15 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   /** Save stack configuration. */
   protected def save() {
     implicit val ec = App.system.dispatcher
-    if (!configurationsSave.compareAndSet(None, Some(Future {
-      StackConfiguration.save(windowId, configuration)
-      configurationsSave.set(None)
-      if (configurationsSaveRestart.compareAndSet(true, false))
-        save()
+    if (!configurationsSave.compareAndSet(None, Some({
+      val future = Future {
+        StackConfiguration.save(windowId, configuration)
+        configurationsSave.set(None)
+        if (configurationsSaveRestart.compareAndSet(true, false))
+          save()
+      }
+      future onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+      future
     }))) configurationsSaveRestart.set(true)
   }
   /** Set active view. */

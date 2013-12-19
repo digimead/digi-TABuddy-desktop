@@ -43,25 +43,25 @@
 
 package org.digimead.tabuddy.desktop.ui
 
-import akka.actor.ActorDSL.{Act, actor}
+import akka.actor.ActorDSL.{ Act, actor }
 import com.escalatesoft.subcut.inject.NewBindingModule
 import java.io.File
 import java.lang.reflect.InvocationTargetException
-import java.util.concurrent.{Exchanger, TimeUnit}
+import java.util.concurrent.{ Exchanger, TimeUnit }
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.lib.test.{LoggingHelper, OSGiHelper}
-import org.digimead.tabuddy.desktop.core.{Core, EventLoop}
+import org.digimead.lib.test.{ LoggingHelper, OSGiHelper }
+import org.digimead.tabuddy.desktop.core.{ Core, EventLoop }
 import org.digimead.tabuddy.desktop.core.AppService
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.eclipse.core.internal.runtime.{FindSupport, InternalPlatform}
+import org.eclipse.core.internal.runtime.{ FindSupport, InternalPlatform }
 import org.eclipse.osgi.service.environment.EnvironmentInfo
 import org.eclipse.ui.internal.WorkbenchPlugin
-import org.mockito.{ArgumentCaptor, InOrder, Mockito}
+import org.mockito.{ ArgumentCaptor, InOrder, Mockito }
 import org.mockito.verification.VerificationMode
-import org.osgi.framework.Bundle
-import org.scalatest.{Matchers, Tag}
+import org.osgi.framework.{ Bundle, ServiceRegistration }
+import org.scalatest.{ Matchers, Tag }
 import scala.collection.JavaConversions.asScalaIterator
 import scala.concurrent.Future
 
@@ -71,6 +71,7 @@ object Test {
     val app = new ThreadLocal[Future[AnyRef]]()
     val wp = new ThreadLocal[WorkbenchPlugin]()
     val coreStartLogMessages = 30
+    @volatile var environmentInfoService = Option.empty[ServiceRegistration[_]]
 
     after { afterTest() }
     before { beforeTest() }
@@ -143,7 +144,10 @@ object Test {
         implicit val akka = App.system
         val exchanger = new Exchanger[Boolean]()
         val listener = actor(new Act {
-          become { case App.Message.Consistent(Core, _) ⇒ exchanger.exchange(true, 1000, TimeUnit.MILLISECONDS) }
+          become {
+            case App.Message.Consistent(Core, _) ⇒ exchanger.exchange(true, 1000, TimeUnit.MILLISECONDS)
+            case App.Message.Consistent(_, _) ⇒
+          }
           whenStarting { App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]]) }
           whenStopping { App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]]) }
         })
@@ -153,10 +157,12 @@ object Test {
       if (l) adjustLoggingAfter
     }
     /** Start InternalPlatform after OSGi environment. */
-    def startInternalPlatformBeforeAll() {
-      val environmentInfo = mock[EnvironmentInfo]
-      osgiRegistry.get.registerService(classOf[EnvironmentInfo].getName(), environmentInfo, null)
-      InternalPlatform.getDefault().start(osgiRegistry.get.getBundleContext())
+    def startInternalPlatformBeforeAll(): Unit = environmentInfoService match {
+      case Some(environmentInfoService) ⇒ fail("InternalPlatform already started.")
+      case None ⇒
+        val environmentInfo = mock[EnvironmentInfo]
+        environmentInfoService = Option(osgiRegistry.get.registerService(classOf[EnvironmentInfo].getName(), environmentInfo, null))
+        InternalPlatform.getDefault().start(osgiRegistry.get.getBundleContext())
     }
     /** Start event loop after core bundle. */
     def startEventLoop() {
@@ -173,6 +179,13 @@ object Test {
       AppService.stop()
       EventLoop.thread.waitWhile { _.isEmpty }
       App.watch(Core).waitForStop(Timeout.long).isActive should be(false)
+    }
+    /** Stop InternalPlatform after OSGi environment. */
+    def stopInternalPlatformAfterAll(): Unit = environmentInfoService match {
+      case Some(environmentInfoService) ⇒
+        environmentInfoService.unregister()
+      case None ⇒
+        fail("InternalPlatform isn't started.")
     }
     /**
      * Verify via reflection.

@@ -41,15 +41,18 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core
+package org.digimead.tabuddy.desktop.logic
 
 import akka.actor.ActorDSL.{ Act, actor }
 import com.escalatesoft.subcut.inject.NewBindingModule
+import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.{ Exchanger, TimeUnit }
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.lib.test.{ LoggingHelper, OSGiHelper }
+import org.digimead.tabuddy.desktop.core.{ Core, EventLoop }
+import org.digimead.tabuddy.desktop.core.AppService
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.core.internal.runtime.{ FindSupport, InternalPlatform }
@@ -64,7 +67,7 @@ import scala.concurrent.Future
 
 object Test {
   trait Base extends Matchers with OSGiHelper with LoggingHelper with Loggable with EventLoop.Initializer {
-    val testBundleClass = org.digimead.tabuddy.desktop.core.default.getClass()
+    val testBundleClass = org.digimead.tabuddy.desktop.logic.default.getClass()
     val app = new ThreadLocal[Future[AnyRef]]()
     val wp = new ThreadLocal[WorkbenchPlugin]()
     val coreStartLogMessages = 30
@@ -94,6 +97,7 @@ object Test {
     }
     /** Test component config. */
     def config = org.digimead.digi.lib.cache.default ~ org.digimead.digi.lib.default ~ new NewBindingModule(module ⇒ {
+      module.bind[File] identifiedBy ("Config") toSingle { App.bundle(getClass).getDataFile("ui_config") }
       module.bind[App] toSingle { new TestApp }
     })
     /** Get Core bundle. */
@@ -108,6 +112,8 @@ object Test {
         case None ⇒
           throw new IllegalArgumentException(s"Method '${name}' not found.")
       }
+    /** Get Logic bundle. */
+    def logicBundle = osgiRegistry.get.getBundleContext().getBundles().find(_.getSymbolicName() == "org.digimead.tabuddy.desktop.logic").get
     /** Start OSGi environment. */
     def startOSGiEnv() {
       for {
@@ -229,6 +235,7 @@ object Test {
     class TestApp extends App {
       override def bundle(clazz: Class[_]) = clazz.getName() match {
         case clazzName if clazzName.startsWith("org.digimead.tabuddy.desktop.core.") ⇒ coreBundle
+        case clazzName if clazzName.startsWith("org.digimead.tabuddy.desktop.logic.") ⇒ logicBundle
         case clazzName if clazzName.startsWith("org.digimead.tabuddy.desktop.ui.") ⇒ UIBundle
         case c ⇒ throw new RuntimeException("TestApp unknown class " + c)
       }

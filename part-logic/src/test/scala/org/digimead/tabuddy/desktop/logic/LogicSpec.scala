@@ -43,22 +43,20 @@
 
 package org.digimead.tabuddy.desktop.logic
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.lib.test.{ LoggingHelper, OSGiHelper }
-import org.scalatest.{ Matchers, WordSpec }
+import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.App.app2implementation
+import org.mockito.Mockito
+import org.osgi.framework.Bundle
+import org.scalatest.WordSpec
+import scala.collection.JavaConverters.asScalaBufferConverter
 
-class LogicSpec extends WordSpec with Matchers with OSGiHelper with LoggingHelper with Loggable {
-  val testBundleClass = org.digimead.tabuddy.desktop.logic.default.getClass()
-
-  after {
-    adjustOSGiAfter
-    adjustLoggingAfter
-  }
-  before {
-    EclipseHelper.helpWithContextDebugHelper()
-    val internalPlatform = org.eclipse.core.internal.runtime.InternalPlatform.getDefault()
-    //EnvironmentInfo
-    /*println("!!!!!!!!" + eeeeeee)
+class LogicSpec extends WordSpec with Test.Base {
+  //  before {
+  //    EclipseHelper.helpWithContextDebugHelper()
+  //    val internalPlatform = org.eclipse.core.internal.runtime.InternalPlatform.getDefault()
+  //EnvironmentInfo
+  /*println("!!!!!!!!" + eeeeeee)
     DependencyInjection(
       new NewBindingModule(module ⇒ {
         module.bind[Report] toModuleSingle { implicit module ⇒ null }
@@ -67,10 +65,10 @@ class LogicSpec extends WordSpec with Matchers with OSGiHelper with LoggingHelpe
         org.digimead.tabuddy.desktop.default ~
         org.digimead.tabuddy.model.default ~
         org.digimead.digi.lib.default, false)*/
-    adjustLoggingBefore
-    adjustOSGiBefore
-  }
-  "A Logic" should {
+  //    adjustLoggingBefore
+  //    adjustOSGiBefore
+  //  }
+  /*  "A Logic" should {
     "should successfully loaded" in {
       // All minimal dependencies are correct.
       Activator
@@ -80,5 +78,38 @@ class LogicSpec extends WordSpec with Matchers with OSGiHelper with LoggingHelpe
       Logic
       assert(true)
     }
+  }*/
+  "A Logic" must {
+    "be consistent after startup" in {
+      implicit val option = Mockito.atLeast(1)
+      startInternalPlatformBeforeAll()
+      startCoreBeforeAll(coreStartLogMessages, false)
+      withLogCaptor {
+        logicBundle.start()
+        startEventLoop()
+        App.watch(Logic) waitForStart ()
+      } { logCaptor ⇒
+        val messages = logCaptor.getAllValues().asScala
+        //println(messages.map(m ⇒ "---> " + m.getLoggerName() + m.getMessage()).mkString("\n"))
+        messages.find { event ⇒ event.getLoggerName() == "@logic.Logic" && event.getMessage == "Return integrity." } should not be ('empty)
+      }
+      coreBundle.getBundleContext() should not be (null)
+      coreBundle.getState() should be(Bundle.ACTIVE)
+      UIBundle.getBundleContext() should be(null)
+      logicBundle.getBundleContext() should not be (null)
+      logicBundle.getState() should be(Bundle.ACTIVE)
+      App.isUIAvailable should be(false)
+
+      stopEventLoop()
+      stopInternalPlatformAfterAll()
+      // stop is invoked on test shutdown
+    }
   }
+
+  override def config = super.config ~ new NewBindingModule(module ⇒ {
+    module.bind[api.Config] toModuleSingle { implicit module ⇒ new Config }
+  }) ~ org.digimead.tabuddy.desktop.logic.default ~
+    org.digimead.tabuddy.desktop.core.default ~
+    org.digimead.tabuddy.model.default ~
+    org.digimead.digi.lib.default
 }

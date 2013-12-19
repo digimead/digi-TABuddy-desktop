@@ -85,8 +85,8 @@ trait Generic extends EventLoop.Consumer {
   val symbolPattern = """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}]+[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}_]*""".r.pattern
   /** Flag indicating whether UI available. */
   lazy val isUIAvailable = try {
-    val state = FrameworkUtil.getBundle(Class.forName("org.digimead.tabuddy.desktop.ui.Activator")).getState()
-    Bundle.ACTIVE == state || watch('UI).waitForStart(Timeout.shortest).isActive
+    val state = bundle(Class.forName("org.digimead.tabuddy.desktop.ui.Activator")).getState()
+    Bundle.ACTIVE == state || { watch(UIFlag).waitForStart(Timeout.short); isActive(UIFlag) }
   } catch {
     case e: TimeoutException ⇒ false
     case e: ClassNotFoundException ⇒ false
@@ -136,4 +136,7 @@ trait Generic extends EventLoop.Consumer {
     assert(realm != null, "Realm is not available.")
     assert(bindingContext != null, "Binding context is not available.")
   }
+
+  /** Persistent object for isUIAvailable. */
+  object UIFlag
 }

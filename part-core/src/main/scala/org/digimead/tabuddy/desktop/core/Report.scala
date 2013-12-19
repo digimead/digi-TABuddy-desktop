@@ -44,31 +44,31 @@
 package org.digimead.tabuddy.desktop.core
 
 import java.io.File
-import java.text.{DateFormat, SimpleDateFormat}
+import java.text.{ DateFormat, SimpleDateFormat }
 import java.util.Date
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.api.Info.Component
 import org.digimead.tabuddy.desktop.core.support.App
-import org.osgi.framework.{BundleContext, ServiceReference}
+import org.osgi.framework.{ BundleContext, ServiceReference }
 import org.osgi.util.tracker.ServiceTrackerCustomizer
-import scala.language.{implicitConversions, reflectiveCalls}
+import scala.language.{ implicitConversions, reflectiveCalls }
 
 /**
  * This class interact with launcher report service.
  */
 class Report(context: BundleContext) extends ServiceTrackerCustomizer[AnyRef, AnyRef] with Loggable {
   /** Report service. */
-  protected var service: Option[AnyRef] = None
+  protected var serviceRef: Option[AnyRef] = None
   /** Exception listener. */
   protected val listener = new Runnable { def run = onException() }
   private val modifyServiceLock = new Object
 
   def addingService(reference: ServiceReference[AnyRef]): AnyRef = modifyServiceLock.synchronized {
-    if (service.isEmpty) {
+    if (serviceRef.isEmpty) {
       log.debug("Register report service to TA Buddy application.")
       val service = context.getService(reference)
-      this.service = Some(service)
+      this.serviceRef = Some(service)
       service.asInstanceOf[{ def register(listener: Runnable) }].register(listener)
       // Search to stack traces
       //future { ReportDialog.searchAndSubmit() }
@@ -81,21 +81,21 @@ class Report(context: BundleContext) extends ServiceTrackerCustomizer[AnyRef, An
   def modifiedService(reference: ServiceReference[AnyRef], service: AnyRef) {}
   def removedService(reference: ServiceReference[AnyRef], service: AnyRef) = modifyServiceLock.synchronized {
     context.ungetService(reference)
-    if (Some(service) == this.service) {
+    if (Some(service) == this.serviceRef) {
       log.debug("Unregister report service from TA Buddy application.")
       service.asInstanceOf[{ def unregister(listener: Runnable) }].unregister(listener)
-      this.service = None
+      this.serviceRef = None
     }
   }
 
   /** Returns general information about application. */
-  def info(): Option[Report.Info] = service.flatMap { service ⇒
+  def info(): Option[Report.Info] = serviceRef.flatMap { service ⇒
     try {
       val infoFromOutside = service.asInstanceOf[{ val info: AnyRef }].info.
         asInstanceOf[{ val component: Seq[AnyRef]; val os: String; val arch: String; val platform: String }]
       Some(Report.Info(infoFromOutside.component.map { c ⇒
-        val component = c.asInstanceOf[{ val name: String; val version: String; val build: Date; val rawBuild: String }]
-        Component(component.name, component.version, component.build, component.rawBuild)
+        val component = c.asInstanceOf[{ val name: String; val version: String; val build: Date; val rawBuild: String; val bundleSymbolicName: String }]
+        Component(component.name, component.version, component.build, component.rawBuild, component.bundleSymbolicName)
       }, infoFromOutside.os, infoFromOutside.arch, infoFromOutside.platform))
     } catch {
       case e: Throwable ⇒
@@ -103,8 +103,10 @@ class Report(context: BundleContext) extends ServiceTrackerCustomizer[AnyRef, An
         None
     }
   }
+  /** Get report service reference. */
+  def service = serviceRef
   /** The exception callback. */
-  protected def onException() = service.foreach { service ⇒
+  protected def onException() = serviceRef.foreach { service ⇒
     log.___glance("BOOM!!!")
   }
 }

@@ -43,46 +43,35 @@
 
 package org.digimead.tabuddy.desktop.ui
 
-import akka.actor.ActorDSL.{ Act, actor }
-import java.util.concurrent.{ Exchanger, TimeUnit }
-import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.mockito.Mockito
+import org.osgi.framework.Bundle
 import org.scalatest.WordSpec
 import scala.collection.JavaConverters.asScalaBufferConverter
 
 class UISpec extends WordSpec with Test.Base {
   "A UI" must {
     "be consistent after startup" in {
-      implicit val option = Mockito.times(coreStartLogMessages)
+      implicit val option = Mockito.atLeast(1)
       startInternalPlatformBeforeAll()
       startCoreBeforeAll(coreStartLogMessages, false)
-      UIBundle.start()
-      startEventLoop()
-
-      /*      withLogCaptor {
-        implicit val akka = App.system
-        val exchanger = new Exchanger[Boolean]()
-        val listener = actor(new Act {
-          become { case App.Message.Consistent(UI, _) ⇒ exchanger.exchange(true) }
-          whenStarting { App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]]) }
-          whenStopping { App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]]) }
-        })
-        exchanger.exchange(false, 1000, TimeUnit.MILLISECONDS) should be(true)
+      withLogCaptor {
+        UIBundle.start()
+        startEventLoop()
+        App.watch(UI) waitForStart ()
       } { logCaptor ⇒
-        val a = logCaptor.getAllValues().asScala
-        val b = a.dropWhile(m ⇒ m.getLevel() == org.apache.log4j.Level.DEBUG &&
-          m.getMessage() == "Start TA Buddy Desktop core.")
-        b should not be ('empty)
-        val c = b.dropWhile(m ⇒ m.getLevel() == org.apache.log4j.Level.WARN &&
-          m.getMessage() == "Skip DI initialization and event loop creation in test environment.")
-        c should not be ('empty)
-        c.find(m ⇒ m.getLevel() == org.apache.log4j.Level.DEBUG &&
-          m.getMessage().toString.startsWith("started (org.digimead.tabuddy.desktop.core.Core@")) should not be ('empty)
+        val messages = logCaptor.getAllValues().asScala
+        //println(messages.map(m ⇒ "---> " + m.getLoggerName() + m.getMessage()).mkString("\n"))
+        messages.find { event ⇒ event.getLoggerName() == "@ui.UI" && event.getMessage == "Return integrity." } should not be ('empty)
       }
-      Thread.sleep(1000)
-      log.___glance("BBBB")*/
+      coreBundle.getBundleContext() should not be (null)
+      coreBundle.getState() should be(Bundle.ACTIVE)
+      UIBundle.getBundleContext() should not be (null)
+      UIBundle.getState() should be(Bundle.ACTIVE)
+      App.isUIAvailable should be(true)
+
       stopEventLoop()
+      stopInternalPlatformAfterAll()
       // stop is invoked on test shutdown
     }
   }

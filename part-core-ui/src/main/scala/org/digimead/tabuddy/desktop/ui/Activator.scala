@@ -84,16 +84,20 @@ class Activator extends BundleActivator with Loggable {
     } else {
       log.warn("Skip DI initialization in test environment.")
     }
+    // Mark UI as available; see App.isUIAvailable
+    App.watch(App.UIFlag) on ()
+    // Start component actors hierarchy
     Future {
-      App.watch(Activator) on {
-        // Start component actors hierarchy
-        UI.actor
-      }
+      App.watch(Activator) on { UI.actor }
+    } onFailure {
+      case e: Throwable ⇒ log.error("Error while starting UI: " + e.getMessage(), e)
     }
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TABuddy Desktop UI interface.")
+    // Mark UI as unavailable; see App.isUIAvailable
+    App.watch(App.UIFlag) off ()
     App.watch(Activator) off {}
     try {
       // Stop component actors.

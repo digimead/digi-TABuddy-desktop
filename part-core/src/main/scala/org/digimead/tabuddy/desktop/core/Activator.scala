@@ -58,19 +58,14 @@ import scala.ref.WeakReference
 /**
  * OSGi entry point.
  */
-class Activator extends BundleActivator with BundleListener with definition.NLS.Initializer with EventLoop.Initializer with Loggable {
+class Activator extends BundleActivator with definition.NLS.Initializer with EventLoop.Initializer with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   @volatile protected var reportServiceTracker: Option[ServiceTracker[AnyRef, AnyRef]] = None
   @volatile protected var translationServiceTracker: Option[ServiceTracker[api.Translation, api.Translation]] = None
 
-  /** Starts 'UI if available. */
-  def bundleChanged(event: BundleEvent) =
-    if (event.getBundle().getSymbolicName() == "org.digimead.tabuddy.desktop.ui" && event.getType() == BundleEvent.STARTED)
-      App.watch('UI) on ()
   /** Start bundle. */
   def start(context: BundleContext) = Activator.startStopLock.synchronized {
-    context.addBundleListener(this)
     if (Option(Activator.disposable).isEmpty)
       throw new IllegalStateException("Bundle is already disposed. Please reinstall it before activation.")
     log.debug("Start TA Buddy Desktop core.")
@@ -126,10 +121,12 @@ class Activator extends BundleActivator with BundleListener with definition.NLS.
          * Huge operations that freeze application.
          */
         // Initialize messages
-        Future { Messages.default_text }
+        Future { Messages.default_text } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         // Initialize UI flag
-        Future { App.isUIAvailable }
+        Future { App.isUIAvailable } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       }
+    } onFailure {
+      case e: Throwable ⇒ log.error("Error while starting Core: " + e.getMessage(), e)
     }
   }
   /** Stop bundle. */
@@ -165,7 +162,6 @@ class Activator extends BundleActivator with BundleListener with definition.NLS.
     translationServiceTracker = None
     reportServiceTracker.foreach(_.close())
     reportServiceTracker = None
-    context.removeBundleListener(this)
     Activator.dispose()
   }
 }

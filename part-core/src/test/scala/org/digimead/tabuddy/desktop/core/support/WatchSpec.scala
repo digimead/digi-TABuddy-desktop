@@ -66,7 +66,7 @@ class WatchSpec extends FunSpec with Test.Base {
 
   describe("A watcher") {
     describe("with always parameter") {
-      it("should have proper beforeStart implementation") {
+      it("should have proper beforeStart implementation", Mark) {
         val tester = mock[WatchSpec.Tester]
         val app = App.inner.asInstanceOf[WatchTestApp]
         val inOrderT = org.mockito.Mockito.inOrder(tester)
@@ -79,7 +79,7 @@ class WatchSpec extends FunSpec with Test.Base {
         w on { tester.a1 }
         w.isActive should be(true)
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
+        verifyReflection(inOrderW, w, times(3), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
 
         app.watchRefT should have size (1)
         app.watchSetT should have size (1)
@@ -128,7 +128,7 @@ class WatchSpec extends FunSpec with Test.Base {
         verifyNoMoreInteractions(w)
         w on { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
+        verifyReflection(inOrderW, w, times(3), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
 
         app.watchRefT should have size (1)
         app.watchSetT should have size (1)
@@ -176,9 +176,9 @@ class WatchSpec extends FunSpec with Test.Base {
         intercept[IllegalStateException] { w on { tester.a1 } }
         w.off { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, calls(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
+        verifyReflection(inOrderW, w, calls(3), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
         verifyReflection(inOrderW, w, times(1), "off") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
+        verifyReflection(inOrderW, w, times(3), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
         inOrderT.verify(tester).a
         inOrderT.verify(tester).a1
         w.on()
@@ -220,9 +220,9 @@ class WatchSpec extends FunSpec with Test.Base {
         intercept[IllegalStateException] { w on { tester.a1 } }
         w.off { tester.a1 }
         verifyReflection(inOrderW, w, times(1), "on") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, calls(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
+        verifyReflection(inOrderW, w, calls(3), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
         verifyReflection(inOrderW, w, times(1), "off") { case Seq(f) ⇒ f.getValue() shouldBe a[Function0[_]] }
-        verifyReflection(inOrderW, w, times(2), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
+        verifyReflection(inOrderW, w, times(3), "process") { case Seq(f) ⇒ f.getValue() shouldBe a[Iterable[_]] }
         inOrderT.verify(tester).a1
         inOrderT.verify(tester).a
         w.on()
@@ -249,7 +249,7 @@ class WatchSpec extends FunSpec with Test.Base {
       }
     }
     describe("with once parameter") {
-      it("should have proper beforeStart implementation", Mark) {
+      it("should have proper beforeStart implementation") {
         val tester = mock[WatchSpec.Tester]
         val app = App.inner.asInstanceOf[WatchTestApp]
         app.watchRefT should be('empty)

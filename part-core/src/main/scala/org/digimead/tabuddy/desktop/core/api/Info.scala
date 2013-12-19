@@ -60,5 +60,5 @@ trait Info {
 
 object Info {
   /** Information about application component. */
-  case class Component(val name: String, val version: String, val build: Date, val rawBuild: String)
+  case class Component(val name: String, val version: String, val build: Date, val rawBuild: String, bundleSymbolicName: String)
 }

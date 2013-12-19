@@ -43,11 +43,9 @@
 
 package org.digimead.tabuddy.desktop.core.definition
 
-import org.digimead.tabuddy.desktop.core.Test
+import org.digimead.tabuddy.desktop.core.{ Messages, Test }
 import org.mockito.Mockito
-import org.scalatest.Finders
 import org.scalatest.WordSpec
-import org.digimead.tabuddy.desktop.core.Messages
 
 class NLSSpec extends WordSpec with Test.Base {
   "NLS" when {
@@ -56,8 +54,9 @@ class NLSSpec extends WordSpec with Test.Base {
         implicit val option = Mockito.atMost(1)
         val service = withLogCaptor { NLS.translationService } { logCaptor ⇒
           val v = logCaptor.getAllValues()
-          if(v.size() > 0)
-            fail("Unexpected log message " + v.get(0).getMessage())
+          if (v.size() > 0)
+            if (v.get(0).getMessage() != "Translation service not found.")
+              fail("Unexpected log message " + v.get(0).getMessage())
         }
         service should be('empty)
         Messages.acquire_text should be("acquire")

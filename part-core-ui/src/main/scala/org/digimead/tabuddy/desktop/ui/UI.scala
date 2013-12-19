@@ -136,13 +136,15 @@ class UI extends akka.actor.Actor with Loggable {
     App.watch(UI) off {
       core.view.Views.unconfigure()
       core.command.Commands.unconfigure()
+      Console ! Console.Message.Notice("UI component is stopped.")
+    }
+    Future {
       val display = App.display
       while (!display.isDisposed())
         Thread.sleep(100)
       Resources.validateOnShutdown()
-      Console ! Console.Message.Notice("UI component is stopped.")
       Resources.stop(App.bundle(getClass).getBundleContext())
-    }
+    } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
   }
 }
 

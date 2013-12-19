@@ -121,7 +121,7 @@ abstract class NLS extends Translation.NLS {
         // we know we have a public static non-final field. If we do get an exception, silently
         // log it and continue. This means that the field will (most likely) be un-initialized and
         // will fail later in the code and if so then we will see both the NPE and this error.
-        log.error(s"NLS missing message: ${field.getName()} in: ${NLS.this.getClass}. Service not found.")
+        log.error(s"NLS missing message: ${field.getName()} in: ${NLS.this.getClass}. Translation service not found.")
         field.getName() match {
           case message if message.endsWith("_text") ⇒
             field.set(NLS.this, field.getName().dropRight(5))
@@ -189,8 +189,8 @@ object NLS {
 
   /** Trait that provides access to translationServiceTracker. */
   trait Initializer {
-    def setTranslationServiceTracker(s: Option[ServiceTracker[Translation, Translation]]) = {
-      translationServiceTracker = s
+    def setTranslationServiceTracker(arg: Option[ServiceTracker[Translation, Translation]]) = {
+      translationServiceTracker = arg
       // Get translation service in the separate thread.
       Future { translationService }
     }

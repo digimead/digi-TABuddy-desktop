@@ -78,7 +78,6 @@ class ReportSpec extends WordSpec with Test.Base {
     super.beforeAll(configMap)
     startCoreBeforeAll()
   }
-
   override def config = super.config ~ new NewBindingModule(module ⇒ {
     module.bind[Report] toSingle { ReportX }
   })
