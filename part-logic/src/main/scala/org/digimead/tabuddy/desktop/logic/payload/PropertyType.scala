@@ -283,10 +283,11 @@ object PropertyType extends Loggable {
           key.name match {
             case Some(name) if name.startsWith("PropertyType.") ⇒
               log.debug(s"'${name}' loaded.")
+              bindingModule.injectOptional(key).asInstanceOf[Option[api.PropertyType[_ <: AnyRef with java.io.Serializable]]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' property type skipped.")
+              None
           }
-          bindingModule.injectOptional(key).asInstanceOf[Option[api.PropertyType[_ <: AnyRef with java.io.Serializable]]]
       }.flatten.toSeq
       val result = immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]](types.map(n ⇒ (n.id, n)): _*)
       assert(result.nonEmpty, "Unable to start application with empty properyTypes map.")

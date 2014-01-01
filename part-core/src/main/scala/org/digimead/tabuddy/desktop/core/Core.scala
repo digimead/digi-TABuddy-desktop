@@ -236,10 +236,11 @@ object Core extends Loggable {
         key.name match {
           case Some(name) if name.startsWith("Approver.") ⇒
             log.debug(s"Operation '${name}' loaded.")
+            bindingModule.injectOptional(key).asInstanceOf[Option[org.digimead.tabuddy.desktop.core.definition.OperationApprover]]
           case _ ⇒
             log.debug(s"'${key.name.getOrElse("Unnamed")}' operation approver skipped.")
+            None
         }
-        bindingModule.injectOptional(key).asInstanceOf[Option[org.digimead.tabuddy.desktop.core.definition.OperationApprover]]
     }.flatten
     /** Core Akka factory. */
     lazy val props = injectOptional[Props]("Core") getOrElse Props[Core]

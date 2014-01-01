@@ -110,7 +110,7 @@ object TypeSchema extends Loggable {
   def compareDeep(a: api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable], b: api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]): Boolean =
     (a eq b) || (a.ptypeId == b.ptypeId && a.alias == b.alias && a.availability == b.availability && a.description == b.description)
   /** Get default type schema. */
-  def default() = predefinedSchemas.find(_.id == DI.default).get
+  def default = predefined.find(_.id == DI.default).getOrElse { throw new IllegalStateException("Unable to find default type shema.") }
   /** Get entities set */
   def entities = immutable.HashSet[api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]](
     PropertyType.container.values.toSeq.map(ptype ⇒ new TypeSchema.Entity(ptype.id, "", true,
@@ -155,9 +155,7 @@ object TypeSchema extends Loggable {
     } ++ TypeSchema.predefined.filter(predefined ⇒ !schemas.exists(_.id == predefined.id))
   }
   /** Get predefined type schemas that are available for this application. */
-  def predefinedSchemas: Seq[api.TypeSchema] = Seq()
-  /** Get predefined schemas. */
-  def predefined() = predefinedSchemas
+  def predefined: Seq[api.TypeSchema] = DI.predefinedTypeSchemas
   /** Update only modified type schemas. */
   @log
   def save(marker: GraphMarker, schemas: Set[api.TypeSchema]) = marker.lockUpdate { state ⇒
@@ -341,13 +339,32 @@ object TypeSchema extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.TypeSchema]]
     lazy val default = inject[UUID]("TypeSchema.Default")
     /** Predefined type schemas that are available for this application */
-    def predefinedTypeSchemas: Seq[api.TypeSchema] = {
+    /*def predefinedTypeSchemas: Seq[api.TypeSchema] = {
       val predefinedSchemas = inject[Seq[api.TypeSchema]]
       assert(predefinedSchemas.map(_.name).distinct.size == predefinedSchemas.size, "There are type schemas with duplicated names.")
       predefinedSchemas
-    }
+    }*/
+    /**
+     * Collection of predefined type schemas that are available for this application.
+     *
+     * Each collected type schema must be:
+     *  1. an instance of api.TypeSchema
+     *  2. has name that starts with "Schema."
+     */
+    lazy val predefinedTypeSchemas: Seq[api.TypeSchema] = bindingModule.bindings.filter {
+      case (key, value) ⇒ classOf[api.TypeSchema].isAssignableFrom(key.m.runtimeClass)
+    }.map {
+      case (key, value) ⇒
+        key.name match {
+          case Some(name) if name.startsWith("Schema.") ⇒
+            log.debug(s"Type schema '${name}' loaded.")
+            bindingModule.injectOptional(key).asInstanceOf[Option[api.TypeSchema]]
+          case _ ⇒
+            log.debug(s"'${key.name.getOrElse("Unnamed")}' type schema skipped.")
+            None
+        }
+    }.flatten.toSeq
   }
 }

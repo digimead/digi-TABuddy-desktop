@@ -50,49 +50,49 @@ import scala.collection.immutable
  * model.Element from the application point of view
  */
 trait ElementTemplate extends Equals {
-  /** Availability flag for user (some template may exists, but not involved in new element creation) */
+  /** Availability flag for user (some template may exists, but not involved in new element creation). */
   val availability: Boolean
-  /** The template name */
+  /** The template name. */
   val name: String
-  /** The template element */
+  /** The template element. */
   val element: Element
-  /** The factory for the element that contains template data */
+  /** The factory for the element that contains template data (container, id, scopeModificator). */
   val factory: (Element, Symbol, Symbol) ⇒ Element
-  /** The template id/name/element scope */
+  /** The template id/name/element scope. */
   val id: Symbol
   /**
    * Map of element properties from the model point of view
-   * or map of form fields from the application point of view
+   * or map of form fields from the application point of view.
    * Key - property group, Value - sequence of element properties
    */
   val properties: ElementTemplate.propertyMap
 
-  /** The copy constructor */
+  /** The copy constructor. */
   def copy(availability: Boolean = this.availability,
     name: String = this.name,
     element: Element = this.element,
     factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
     id: Symbol = this.id,
     properties: ElementTemplate.propertyMap = this.properties): this.type
-  /** Returns an ID for the availability field */
+  /** Returns an ID for the availability field. */
   def getFieldIDAvailability(): Symbol
-  /** Returns an ID for the name field */
+  /** Returns an ID for the name field. */
   def getFieldIDName(): Symbol
-  /** Returns an ID for the sequence of id/type tuples field */
+  /** Returns an ID for the sequence of id/type tuples field. */
   def getFieldIDProperties(): Symbol
-  /** Returns an ID for the property default value field */
+  /** Returns an ID for the property default value field. */
   def getFieldIDPropertyDefault(id: Symbol): Symbol
-  /** Returns an ID for the property enumeration field */
+  /** Returns an ID for the property enumeration field. */
   def getFieldIDPropertyEnumeration(id: Symbol): Symbol
-  /** Returns an ID for the property required field */
+  /** Returns an ID for the property required field. */
   def getFieldIDPropertyRequired(id: Symbol): Symbol
   /** Returns an ID for the property group field */
   def getFieldIDPropertyGroup(id: Symbol): Symbol
-  /** Returns a new ElementTemplate with the updated availability */
+  /** Returns a new ElementTemplate with the updated availability. */
   def updated(availability: Boolean): this.type
-  /** Returns a new ElementTemplate with the updated name */
+  /** Returns a new ElementTemplate with the updated name. */
   def updated(name: String): this.type
-  /** Returns a new ElementTemplate with the updated id */
+  /** Returns a new ElementTemplate with the updated id. */
   def updated(id: Symbol): this.type
 }
 

@@ -235,10 +235,11 @@ object Console extends api.Console with Loggable {
           key.name match {
             case Some(name) if name.startsWith("Console.") ⇒
               log.debug(s"'${name}' loaded.")
+              bindingModule.injectOptional(key).asInstanceOf[Option[api.Console.Projection]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' console skipped.")
+              None
           }
-          bindingModule.injectOptional(key).asInstanceOf[Option[api.Console.Projection]]
       }.flatten.toSeq
     }
     /** Converter that transforms command result to text. */
@@ -250,10 +251,11 @@ object Console extends api.Console with Loggable {
           key.name match {
             case Some(name) if name.startsWith("Console.Converter.") ⇒
               log.debug(s"'${name}' loaded.")
+              bindingModule.injectOptional(key).asInstanceOf[Option[PartialFunction[(cmdapi.Command.Descriptor, Any), String]]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' console skipped.")
+              None
           }
-          bindingModule.injectOptional(key).asInstanceOf[Option[PartialFunction[(cmdapi.Command.Descriptor, Any), String]]]
       }.flatten
       (converters ++ Iterator(defaultConverter)).reduceLeft(_ orElse _)
     }

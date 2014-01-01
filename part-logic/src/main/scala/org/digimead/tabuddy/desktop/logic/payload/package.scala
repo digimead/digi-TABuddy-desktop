@@ -72,25 +72,13 @@ package object payload {
     module.bind[Record.Like ⇒ api.ElementTemplate] identifiedBy "Template.Note" toSingle { record: Record.Like ⇒ Predefined.note(record) }
     /** The predefined template for Task element. */
     module.bind[Record.Like ⇒ api.ElementTemplate] identifiedBy "Template.Task" toSingle { record: Record.Like ⇒ Predefined.task(record) }
-    /** The sequence of original templates. */
-    module.bind[Graph[_ <: Model.Like] ⇒ Seq[api.ElementTemplate]] identifiedBy "Original" toProvider { module ⇒
-      graph: Graph[_ <: Model.Like] ⇒ {
-        val eElementTemplateFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eElementTemplateOriginal"))
-        Seq[api.ElementTemplate](
-          Predefined.record(eElementTemplateFn(graph)),
-          Predefined.note(eElementTemplateFn(graph)),
-          Predefined.task(eElementTemplateFn(graph)))
-      }
-    }
-    /** List of predefined type schemas. */
-    module.bind[Seq[api.TypeSchema]] toProvider {
-      Seq[api.TypeSchema]({
-        // add simple localized type schema
-        TypeSchema(UUID.fromString("4ce08a80-6f10-11e2-bcfd-0800200c9a66"),
-          Messages.localizedTypeSchemaName_text,
-          Messages.localizedTypeSchemaDescription_text,
-          immutable.HashMap(TypeSchema.entities.map(e ⇒ (e.ptypeId, e)).toSeq: _*))
-      })
+    /** The default predefined type schema. */
+    module.bind[api.TypeSchema] identifiedBy "Schema.Default" toSingle {
+      // add simple localized type schema
+      TypeSchema(UUID.fromString("4ce08a80-6f10-11e2-bcfd-0800200c9a66"),
+        Messages.localizedTypeSchemaName_text,
+        Messages.localizedTypeSchemaDescription_text,
+        immutable.HashMap(TypeSchema.entities.map(e ⇒ (e.ptypeId, e)).toSeq: _*))
     }
     /** Default type schema. */
     module.bind[UUID] identifiedBy "TypeSchema.Default" toSingle { UUID.fromString("4ce08a80-6f10-11e2-bcfd-0800200c9a66") }
@@ -134,6 +122,20 @@ package object payload {
       graph: Graph[_ <: Model.Like] ⇒ {
         val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eSettings"))
         eSettingsFn(graph) | RecordLocation('Enumerations)
+      }
+    }
+    /** A graph temporary elements container. */
+    module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eTemporary" toProvider { module ⇒
+      graph: Graph[_ <: Model.Like] ⇒ {
+        val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eTABuddy"))
+        eSettingsFn(graph) | RecordLocation('Temporary)
+      }
+    }
+    /** A graph temporary element templates container. */
+    module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eTemporaryTemplate" toProvider { module ⇒
+      graph: Graph[_ <: Model.Like] ⇒ {
+        val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eTemporary"))
+        eSettingsFn(graph) | RecordLocation('Templates)
       }
     }
     /** A graph view modificator elements container. */

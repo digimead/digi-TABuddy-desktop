@@ -95,11 +95,6 @@ class GraphMarker(
     GraphMarker.state(uuid) = state
     state
   }
-  /** Predefined unmodified element templates that are available for this application */
-  val originalTemplates: Seq[api.ElementTemplate] = Seq()
-  /** Predefined element templates modified by user that are available for this application */
-  // The originalTemplates is needed for recovering broken/modified predefined templates
-  @volatile protected var userTemplateSeq: Seq[api.ElementTemplate] = Seq()
 
   /** Load type schemas from local storage. */
   @log
@@ -137,8 +132,6 @@ class GraphMarker(
    */
   @inline
   def lockUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.lockUpdate(f)
-  /** Get list of predefined templates. */
-  def userTemplates: Seq[api.ElementTemplate] = userTemplateSeq
   /** Save type schemas to the local storage. */
   @log
   def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema]) = state.lockWrite { state ⇒
@@ -176,6 +169,16 @@ class GraphMarker(
     log.info(s"Initialize payload for marker ${this}.")
     val payload = new Payload(this)
     // The load order is important
+    // prevents deadlock while initialization
+    App.execNGet {
+      payload.elementTemplates
+      payload.enumerations
+      payload.typeSchemas
+      payload.typeSchema
+      payload.viewDefinitions
+      payload.viewFilters
+      payload.viewSortings
+    }
     /*
      * create elements if needed
      * add description to elements
@@ -189,6 +192,7 @@ class GraphMarker(
     App.execNGet {
       payload.typeSchemas.clear
       typeSchemaSet.foreach(schema ⇒ payload.typeSchemas(schema.id) = schema)
+      payload.typeSchema.value = TypeSchema.default
     }
     // Enumerations
     val enumerationSet = Enumeration.load(this)
@@ -199,13 +203,9 @@ class GraphMarker(
       enumerationSet.foreach(enumeration ⇒ payload.enumerations(enumeration.id) = enumeration)
     }
     // Templates
-    val elementTemplateSet = ElementTemplate.load(this)
     // Reload element templates
     log.debug("Update element templates.")
-    App.execNGet {
-      payload.elementTemplates.clear
-      elementTemplateSet.foreach(template ⇒ payload.elementTemplates(template.id) = template)
-    }
+    payload.originalElementTemplates
     // Set active type schema
     PredefinedElements.eSettings(state.graph).eGet[String]('activeTypeSchema) match {
       case Some(schemaValue) ⇒
@@ -217,7 +217,7 @@ class GraphMarker(
           }
         }
       case None ⇒
-//        App.execNGet { payload.typeSchema.value = TypeSchema.predefined.head }
+        App.execNGet { payload.typeSchema.value = TypeSchema.predefined.head }
     }
     // View
     log.debug("Update view difinitions.")
@@ -286,6 +286,14 @@ class GraphMarker(
     val eViewFilter = PredefinedElements.eViewFilter(state.graph)
     if (eViewFilter.name.trim.isEmpty())
       eViewFilter.name = "View filter"
+    // temporary
+    val eTemporary = PredefinedElements.eTemporary(state.graph)
+    if (eTemporary.name.trim.isEmpty())
+      eTemporary.name = "TABuddy Desktop temporary data"
+    // temporary element templates
+    val eTemporaryElementTemplate = PredefinedElements.eTemporaryElementTemplate(state.graph)
+    if (eTemporaryElementTemplate.name.trim.isEmpty())
+      eTemporaryElementTemplate.name = "TABuddy Desktop temporary element templates"
   }
 }
 

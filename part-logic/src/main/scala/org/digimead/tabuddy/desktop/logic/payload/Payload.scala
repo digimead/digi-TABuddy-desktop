@@ -56,13 +56,31 @@ import org.digimead.tabuddy.model.serialization.Serialization
 /**
  * Singleton that contains information related to specific graph.
  */
+/*
+ * Most of lazy fields of this class is initialized from event loop at GraphMarker.initializePayload
+ */
 class Payload(val marker: GraphMarker) extends Loggable {
   /** The property representing all available element templates for user, contains at least one predefined element. */
   lazy val elementTemplates = WritableMap[Symbol, api.ElementTemplate]
+  /** The property representing original element templates. */
+  lazy val originalElementTemplates = {
+    /*
+     * This property is initialized from GraphMarker.initializePayload, so
+     * 1. This marker is already locked for writing.
+     * 2. ElementTemplate.load will lock marker for reading.
+     * 3. We will modify WritableMap within event loop thread.
+     */
+    val (original, user) = ElementTemplate.load(marker)
+    App.execNGet {
+      elementTemplates.clear
+      user.foreach(template ⇒ elementTemplates(template.id) = template) // push user templates to elementTemplates
+    }
+    original
+  }
   /** The property representing all available enumerations. */
   lazy val enumerations = WritableMap[Symbol, api.Enumeration[_ <: AnyRef with java.io.Serializable]]
   /** Predefined type schemas that are available for this application. */
-  lazy val predefinedTypeSchemas: Seq[api.TypeSchema] = Seq()
+  lazy val predefinedTypeSchemas: Seq[api.TypeSchema] = TypeSchema.predefined
   /*
    * Symbol ::= plainid
    *

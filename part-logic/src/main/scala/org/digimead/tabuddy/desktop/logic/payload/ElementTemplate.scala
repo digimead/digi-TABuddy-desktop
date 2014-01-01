@@ -48,15 +48,15 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.element.{ Element, Value }
-import scala.collection.{ immutable, mutable }
+import scala.collection.immutable
 
 class ElementTemplate(
   /** The template element */
   val element: Element,
-  /** The factory for the element that contains template data */
+  /** The factory for the element that contains template data (container, id, scopeModificator) */
   val factory: (Element, Symbol, Symbol) ⇒ Element,
   /** Fn thats do something before the instance initialization */
   preinitialization: ElementTemplate ⇒ Unit = _ ⇒ {}) extends ElementTemplate.Interface with Loggable {
@@ -218,6 +218,8 @@ object ElementTemplate extends Loggable {
   // The original list is needed for recovering broken/modified predefined templates
   //@volatile private var originalPredefinedTemplates: Seq[api.ElementTemplate] = Seq()
 
+  /** Get list of element template builders. */
+  def builders = DI.builders
   /**
    * The deep comparison of two element templates
    * Comparison is not includes check for element and factory equality
@@ -237,38 +239,53 @@ object ElementTemplate extends Loggable {
     }
   }
   /** Get all element templates. */
-  def load(marker: GraphMarker): Set[api.ElementTemplate] = marker.lockRead { state ⇒
+  def load(marker: GraphMarker): (Set[api.ElementTemplate], Set[api.ElementTemplate]) = marker.lockRead { state ⇒
     log.debug("Load element template list for graph " + state.graph)
-    val container = PredefinedElements.eElementTemplate(state.graph)
-    val templates: mutable.LinkedHashSet[api.ElementTemplate] =
-      mutable.LinkedHashSet(container.eNode.freezeRead(_.children.map(_.rootBox.e).map { element ⇒
-        marker.userTemplates.find(userTemplate ⇒
-          element.canEqual(userTemplate.element.getClass(), userTemplate.element.eStash.getClass())) match {
-          case Some(userTemplate) ⇒
-            log.debug("Load template %s based on %s".format(element, userTemplate))
-            Some[api.ElementTemplate](new ElementTemplate(element, userTemplate.factory))
-          case None ⇒
-            log.warn("Unable to find apropriate element wrapper for " + element)
-            None
-        }
-      }).flatten: _*)
-    // TODO похоже здесь нужно создавать из original
-    // add predefined element templates if not exists
-    marker.userTemplates.foreach { userTemplate ⇒
-      if (!templates.exists(_.element.eId == userTemplate.element.eId)) {
-        log.debug("Template for predefined element %s not found, recreate".format(userTemplate))
-        templates += userTemplate
+    // Renew/update original templates
+    val temp = PredefinedElements.eTemporaryElementTemplate(state.graph)
+    val originalTemplatesContainer = PredefinedElements.eElementTemplateOriginal(state.graph)
+    val userTemplatesContainer = PredefinedElements.eElementTemplateUser(state.graph)
+    temp.eNode.freezeWrite { tempNode ⇒
+      // Create new list of templates per builder from application configuration
+      val temporaryTemplates = builders.map { builder ⇒ (builder(temp.absolute), builder) }
+      // Update original templates
+      // Only add new templates, but keep the old ones and skip unknown.
+      val originalTemplates: Set[api.ElementTemplate] = originalTemplatesContainer.eNode.freezeWrite { node ⇒
+        val original = node.children.map(_.rootBox.e)
+        temporaryTemplates.map {
+          case (example, builder) ⇒
+            original.find(element ⇒ element.canEqual(example.element.getClass(), example.element.eStash.getClass())) match {
+              case Some(original) ⇒
+                log.debug("Keep original template %s based on %s.".format(original, example))
+                new ElementTemplate(original, example.factory)
+              case None ⇒
+                val original = builder(originalTemplatesContainer.absolute)
+                log.debug("Create original template %s based on %s.".format(original, example))
+                original
+            }
+        }.toSet
       }
+      // Update user templates
+      // Only add new templates, but keep the old ones and skip unknown.
+      val userTemplates: Set[api.ElementTemplate] = userTemplatesContainer.eNode.freezeWrite { node ⇒
+        val user = node.children.map(_.rootBox.e)
+        temporaryTemplates.map {
+          case (example, builder) ⇒
+            user.find(element ⇒ element.canEqual(example.element.getClass(), example.element.eStash.getClass())) match {
+              case Some(user) ⇒
+                log.debug("Keep user template %s based on %s.".format(user, example))
+                new ElementTemplate(user, example.factory)
+              case None ⇒
+                val user = builder(userTemplatesContainer.absolute)
+                log.debug("Create user template %s based on %s.".format(user, example))
+                user
+            }
+        }.toSet
+      }
+      assert(userTemplates.nonEmpty, "There are no element templates.")
+      tempNode.clear()
+      (originalTemplates, userTemplates)
     }
-    //assert(templates.nonEmpty, "There are no element templates")
-    templates.toSet
-  }
-  /** This function is invoked on graph initialization */
-  def onGraphInitialization(oldModel: Model.Like, newModel: Model.Like, modified: Element.Timestamp) = {
-//    userPredefinedTemplates = DI.user // get or create user templates
-//    originalPredefinedTemplates = DI.original // get or create original templates
-//    assert(userPredefinedTemplates.map(_.id) == originalPredefinedTemplates.map(_.id),
-//      "User modified predefined template list must contain the same elements as original predefined template list")
   }
   /** Update only modified element templates. */
   def save(marker: GraphMarker, templates: Set[api.ElementTemplate]) = marker.lockUpdate { state ⇒
@@ -367,5 +384,25 @@ object ElementTemplate extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /**
+     * Collection of element template builders.
+     *
+     * Each collected builder must be:
+     *  1. an instance of Record.Like ⇒ api.ElementTemplate
+     *  2. has name that starts with "Template."
+     */
+    lazy val builders = bindingModule.bindings.filter {
+      case (key, value) ⇒ classOf[Record.Like ⇒ api.ElementTemplate].isAssignableFrom(key.m.runtimeClass)
+    }.map {
+      case (key, value) ⇒
+        key.name match {
+          case Some(name) if name.startsWith("Template.") ⇒
+            log.debug(s"Element template builder '${name}' loaded.")
+            bindingModule.injectOptional(key).asInstanceOf[Option[Record.Like ⇒ api.ElementTemplate]]
+          case _ ⇒
+            log.debug(s"'${key.name.getOrElse("Unnamed")}' element template builder skipped.")
+            None
+        }
+    }.flatten
   }
 }

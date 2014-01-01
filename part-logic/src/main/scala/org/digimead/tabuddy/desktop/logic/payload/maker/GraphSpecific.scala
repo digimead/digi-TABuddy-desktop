@@ -45,13 +45,13 @@ package org.digimead.tabuddy.desktop.logic.payload.maker
 
 import java.io.File
 import org.digimead.digi.lib.aop.log
+import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.Serialization
-import org.digimead.tabuddy.desktop.logic.Logic
 
 /**
  * Part of the graph marker that contains graph specific logic.
