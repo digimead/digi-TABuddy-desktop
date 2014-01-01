@@ -213,10 +213,10 @@ class ElementTemplate(
 
 object ElementTemplate extends Loggable {
   /** Predefined element templates modified by user that are available for this application */
-  @volatile private var userPredefinedTemplates: Seq[api.ElementTemplate] = Seq()
+  //@volatile private var userPredefinedTemplates: Seq[api.ElementTemplate] = Seq()
   /** Predefined unmodified element templates that are available for this application */
   // The original list is needed for recovering broken/modified predefined templates
-  @volatile private var originalPredefinedTemplates: Seq[api.ElementTemplate] = Seq()
+  //@volatile private var originalPredefinedTemplates: Seq[api.ElementTemplate] = Seq()
 
   /**
    * The deep comparison of two element templates
@@ -242,32 +242,33 @@ object ElementTemplate extends Loggable {
     val container = PredefinedElements.eElementTemplate(state.graph)
     val templates: mutable.LinkedHashSet[api.ElementTemplate] =
       mutable.LinkedHashSet(container.eNode.freezeRead(_.children.map(_.rootBox.e).map { element ⇒
-        ElementTemplate.predefined.find(predefined ⇒
-          element.canEqual(predefined.element.getClass(), predefined.element.eStash.getClass())) match {
-          case Some(predefined) ⇒
-            log.debug("Load template %s based on %s".format(element, predefined))
-            Some[api.ElementTemplate](new ElementTemplate(element, predefined.factory))
+        marker.userTemplates.find(userTemplate ⇒
+          element.canEqual(userTemplate.element.getClass(), userTemplate.element.eStash.getClass())) match {
+          case Some(userTemplate) ⇒
+            log.debug("Load template %s based on %s".format(element, userTemplate))
+            Some[api.ElementTemplate](new ElementTemplate(element, userTemplate.factory))
           case None ⇒
             log.warn("Unable to find apropriate element wrapper for " + element)
             None
         }
       }).flatten: _*)
+    // TODO похоже здесь нужно создавать из original
     // add predefined element templates if not exists
-    ElementTemplate.predefined.foreach { predefined ⇒
-      if (!templates.exists(_.element.eId == predefined.element.eId)) {
-        log.debug("Template for predefined element %s not found, recreate".format(predefined))
-        templates += predefined
+    marker.userTemplates.foreach { userTemplate ⇒
+      if (!templates.exists(_.element.eId == userTemplate.element.eId)) {
+        log.debug("Template for predefined element %s not found, recreate".format(userTemplate))
+        templates += userTemplate
       }
     }
-    assert(templates.nonEmpty, "There are no element templates")
+    //assert(templates.nonEmpty, "There are no element templates")
     templates.toSet
   }
-  /** This function is invoked at every model initialization */
-  def onModelInitialization(oldModel: Model.Like, newModel: Model.Like, modified: Element.Timestamp) = {
-    userPredefinedTemplates = DI.user // get or create user templates
-    originalPredefinedTemplates = DI.original // get or create original templates
-    assert(userPredefinedTemplates.map(_.id) == originalPredefinedTemplates.map(_.id),
-      "User modified predefined template list must contain the same elements as original predefined template list")
+  /** This function is invoked on graph initialization */
+  def onGraphInitialization(oldModel: Model.Like, newModel: Model.Like, modified: Element.Timestamp) = {
+//    userPredefinedTemplates = DI.user // get or create user templates
+//    originalPredefinedTemplates = DI.original // get or create original templates
+//    assert(userPredefinedTemplates.map(_.id) == originalPredefinedTemplates.map(_.id),
+//      "User modified predefined template list must contain the same elements as original predefined template list")
   }
   /** Update only modified element templates. */
   def save(marker: GraphMarker, templates: Set[api.ElementTemplate]) = marker.lockUpdate { state ⇒
@@ -287,8 +288,6 @@ object ElementTemplate extends Loggable {
       App.execNGet { added.foreach { template ⇒ state.payload.elementTemplates(template.id) = template } }
     }
   }
-  def original() = originalPredefinedTemplates
-  def predefined() = userPredefinedTemplates
 
   /**
    * model.Element from the application point of view
@@ -368,12 +367,5 @@ object ElementTemplate extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    //org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Like]("eElementTemplate")
-    //org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.ElementTemplate]]("Original")
-    //org.digimead.digi.lib.DependencyInjection.assertDynamic[Seq[api.ElementTemplate]]("User")
-    /** Get or create the sequence of the application predefined templates, marked as samples, inside current active model. */
-    def original = inject[Seq[api.ElementTemplate]]("Original")
-    /** Get or create the sequence of the application predefined templates inside current active model. */
-    def user = inject[Seq[api.ElementTemplate]]("User")
   }
 }

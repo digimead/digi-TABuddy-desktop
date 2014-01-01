@@ -110,7 +110,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to close graph $graph.")
+          Operation.Result.Error(s"Unable to close graph $graph.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =

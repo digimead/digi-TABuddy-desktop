@@ -45,24 +45,16 @@ package org.digimead.tabuddy.desktop.logic
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 import java.io.File
-import java.net.URI
 import java.util.UUID
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
-import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.template.Predefined
-import org.digimead.tabuddy.desktop.logic.payload.template.StringType
-import org.digimead.tabuddy.desktop.logic.payload.template.TextType
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Record
-import org.digimead.tabuddy.model.dsl.DSLType
-import org.digimead.tabuddy.model.element.Reference
+import org.digimead.tabuddy.desktop.logic.payload.template.{ StringType, TextType }
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.BuiltinSerialization
-import org.digimead.tabuddy.model.serialization.Serialization
-import org.digimead.tabuddy.model.serialization.YAMLSerialization
+import org.digimead.tabuddy.model.serialization.{ Serialization, YAMLSerialization }
+import org.digimead.tabuddy.model.{ Model, Record }
 import scala.collection.immutable
 
 package object payload {
@@ -71,19 +63,15 @@ package object payload {
       module.inject[File](Some("Config")).getParentFile()
     }
     module.bind[Serialization.Identifier] identifiedBy "Payload.Serialization" toSingle { YAMLSerialization.Identifier }
-    /** The map of the application property types (UI factories) */
+    /** The map of the application property types (UI factories). */
     module.bind[api.PropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.String" toSingle { StringType }
     module.bind[api.PropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Text" toSingle { TextType }
-    /** The sequence of user defined/modified templates. */
-    module.bind[Graph[_ <: Model.Like] ⇒ Seq[api.ElementTemplate]] identifiedBy "User" toProvider { module ⇒
-      graph: Graph[_ <: Model.Like] ⇒ {
-        val eElementTemplateFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eElementTemplateUser"))
-        Seq[api.ElementTemplate](
-          Predefined.record(eElementTemplateFn(graph)),
-          Predefined.note(eElementTemplateFn(graph)),
-          Predefined.task(eElementTemplateFn(graph)))
-      }
-    }
+    /** The predefined template for Record element. */
+    module.bind[Record.Like ⇒ api.ElementTemplate] identifiedBy "Template.Record" toSingle { record: Record.Like ⇒ Predefined.record(record) }
+    /** The predefined template for Note element. */
+    module.bind[Record.Like ⇒ api.ElementTemplate] identifiedBy "Template.Note" toSingle { record: Record.Like ⇒ Predefined.note(record) }
+    /** The predefined template for Task element. */
+    module.bind[Record.Like ⇒ api.ElementTemplate] identifiedBy "Template.Task" toSingle { record: Record.Like ⇒ Predefined.task(record) }
     /** The sequence of original templates. */
     module.bind[Graph[_ <: Model.Like] ⇒ Seq[api.ElementTemplate]] identifiedBy "Original" toProvider { module ⇒
       graph: Graph[_ <: Model.Like] ⇒ {
@@ -94,7 +82,7 @@ package object payload {
           Predefined.task(eElementTemplateFn(graph)))
       }
     }
-    /** List of predefined type schemas */
+    /** List of predefined type schemas. */
     module.bind[Seq[api.TypeSchema]] toProvider {
       Seq[api.TypeSchema]({
         // add simple localized type schema
@@ -104,23 +92,23 @@ package object payload {
           immutable.HashMap(TypeSchema.entities.map(e ⇒ (e.ptypeId, e)).toSeq: _*))
       })
     }
-    /** Default type schema */
+    /** Default type schema. */
     module.bind[UUID] identifiedBy "TypeSchema.Default" toSingle { UUID.fromString("4ce08a80-6f10-11e2-bcfd-0800200c9a66") }
     /*
      * Model elements
      */
-    /** The TABuddy desktop container */
+    /** The TABuddy desktop container. */
     module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eTABuddy" toProvider {
       graph: Graph[_ <: Model.Like] ⇒ graph.model | RecordLocation('TABuddy) | RecordLocation('Desktop)
     }
-    /** A model settings container */
+    /** A model settings container. */
     module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eSettings" toProvider { module ⇒
       graph: Graph[_ <: Model.Like] ⇒ {
         val eTABuddyFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eTABuddy"))
         eTABuddyFn(graph) | RecordLocation('Settings)
       }
     }
-    /** A model element templates container */
+    /** A model element templates container. */
     module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eElementTemplate" toProvider { module ⇒
       graph: Graph[_ <: Model.Like] ⇒ {
         val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eSettings"))
@@ -141,20 +129,46 @@ package object payload {
         eElementTemplateFn(graph) | RecordLocation('User)
       }
     }
-    /** A model enumerations container */
+    /** A model enumerations container. */
     module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eEnumeration" toProvider { module ⇒
       graph: Graph[_ <: Model.Like] ⇒ {
         val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eSettings"))
         eSettingsFn(graph) | RecordLocation('Enumerations)
       }
     }
+    /** A graph view modificator elements container. */
+    module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eView" toProvider { module ⇒
+      graph: Graph[_ <: Model.Like] ⇒ {
+        val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eSettings"))
+        eSettingsFn(graph) | RecordLocation('Views)
+      }
+    }
+    /** A graph view definitions container. */
+    module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eViewDefinition" toProvider { module ⇒
+      graph: Graph[_ <: Model.Like] ⇒ {
+        val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eView"))
+        eSettingsFn(graph) | RecordLocation('Definitions)
+      }
+    }
+    /** A graph view sortings container. */
+    module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eViewSorting" toProvider { module ⇒
+      graph: Graph[_ <: Model.Like] ⇒ {
+        val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eView"))
+        eSettingsFn(graph) | RecordLocation('Definitions)
+      }
+    }
+    /** A graph view filters container. */
+    module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eViewFilter" toProvider { module ⇒
+      graph: Graph[_ <: Model.Like] ⇒ {
+        val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eView"))
+        eSettingsFn(graph) | RecordLocation('Definitions)
+      }
+    }
   })
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.ElementTemplate$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.Enumeration$DI$")
-  // skip DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.Payload$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.Payload$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.PropertyType$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.TypeSchema$DI$")
-  //DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.view.Filter$DI$")
-  //DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.view.Sorting$DI$")
-  //DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.view.View$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.template.Predefined$DI$")
 }

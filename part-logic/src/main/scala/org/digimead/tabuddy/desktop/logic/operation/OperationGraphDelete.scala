@@ -112,7 +112,7 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to delete graph $graph.")
+          Operation.Result.Error(s"Unable to delete graph $graph.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =

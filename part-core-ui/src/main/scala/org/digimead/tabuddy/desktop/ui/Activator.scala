@@ -87,11 +87,18 @@ class Activator extends BundleActivator with Loggable {
     // Mark UI as available; see App.isUIAvailable
     App.watch(App.UIFlag) on ()
     // Start component actors hierarchy
-    Future {
-      App.watch(Activator) on { UI.actor }
-    } onFailure {
-      case e: Throwable ⇒ log.error("Error while starting UI: " + e.getMessage(), e)
+    val f = Future {
+      Activator.startStopLock.synchronized {
+        App.watch(Activator).once.makeBeforeStop {
+          // This hook is hold Activator.stop() while initialization is incomplete.
+          App.watch(context).waitForStart(Timeout.normal)
+          // Initialization complete.
+          App.watch(context).off()
+        } on { UI.actor }
+      }
     }
+    f onFailure { case e: Throwable ⇒ log.error("Error while starting UI: " + e.getMessage(), e) }
+    f onComplete { case _ ⇒ App.watch(context).on() }
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {

@@ -51,6 +51,7 @@ import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.digimead.tabuddy.desktop.logic.Logic
 
 /** 'Save graph' operation. */
 class OperationGraphSave extends api.OperationGraphSave with Loggable {
@@ -61,6 +62,8 @@ class OperationGraphSave extends api.OperationGraphSave with Loggable {
    */
   def apply(graph: Graph[_ <: Model.Like]) = GraphMarker(graph).lockRead { _: GraphMarker.ThreadUnsafeStateReadOnly ⇒
     log.info(s"Save graph $graph.")
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
     GraphMarker(graph).graphFreeze()
   }
   /**
@@ -102,7 +105,7 @@ class OperationGraphSave extends api.OperationGraphSave with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to save graph $graph.")
+          Operation.Result.Error(s"Unable to save graph $graph.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =

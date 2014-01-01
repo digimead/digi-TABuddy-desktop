@@ -52,6 +52,7 @@ import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.digimead.tabuddy.desktop.logic.Logic
 
 /** 'Open graph' operation. */
 class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
@@ -63,6 +64,8 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
   def apply(markerId: UUID): Graph[_ <: Model.Like] = {
     val marker = GraphMarker(markerId)
     log.info(s"Open graph for marker $marker.")
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
     marker.lockUpdate { state ⇒
       if (marker.graphIsLoaded())
         throw new IllegalStateException("Graph is already opened.")
@@ -112,7 +115,7 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to open graph for marker $marker.")
+          Operation.Result.Error(s"Unable to open graph for marker $marker.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor,

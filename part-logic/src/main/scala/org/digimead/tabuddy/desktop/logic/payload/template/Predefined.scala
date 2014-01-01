@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.logic.payload.template
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, PropertyType, TemplateProperty, TemplatePropertyGroup }
+import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.predef.{ Note, Task }

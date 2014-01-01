@@ -55,7 +55,6 @@ import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
 import org.eclipse.jface.commands.ToggleState
 import scala.language.implicitConversions
-import org.digimead.configgy.Configgy
 
 /**
  * Root actor of the Logic component.
@@ -121,13 +120,13 @@ class Logic extends akka.actor.Actor with Loggable {
   /** Close infrastructure wide container. */
   @log
   protected def closeContainer() {
-    log.info(s"Close infrastructure wide container '${Logic.container.getName()}' ")
+    log.info(s"Close infrastructure wide container '${Logic.container.getName()}'.")
     App.publish(App.Message.Inconsistent(this, self))
     val progressMonitor = new NullProgressMonitor()
-    /*if (Logic.container.isOpen()) {
-      Payload.getGraphMarker(Model).foreach(_.save)
+    if (!Logic.container.isOpen()) {
+      //  Payload.getGraphMarker(Model).foreach(_.save)
       Logic.container.close(progressMonitor)
-    }*/
+    }
     App.publish(App.Message.Consistent(this, self))
   }
   /** This callback is invoked when UI initialization complete */
@@ -158,7 +157,7 @@ class Logic extends akka.actor.Actor with Loggable {
   /** Open infrastructure wide container. */
   @log
   protected def openContainer() {
-    log.info(s"Open infrastructure wide container '${Logic.container.getName()}' ")
+    log.info(s"Open infrastructure wide container '${Logic.container.getName()}' at " + Logic.container.getLocationURI())
     App.publish(App.Message.Inconsistent(this, self))
     val progressMonitor = new NullProgressMonitor()
     if (!Logic.container.exists())
@@ -169,6 +168,10 @@ class Logic extends akka.actor.Actor with Loggable {
   /** Invoked on Core started. */
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(Logic) on {
+      val context = thisBundle.getBundleContext()
+      openContainer()
+      Config.start(context) // Initialize the application configuration based on Configgy
+      //Transport.start() // Initialize the network transport(s)
       command.Commands.configure()
       Console ! Console.Message.Notice("Logic component is started.")
       self ! App.Message.Consistent(Logic, None)
@@ -177,7 +180,12 @@ class Logic extends akka.actor.Actor with Loggable {
   /** Invoked on Core stopped. */
   protected def onCoreStopped() = initializationLock.synchronized {
     App.watch(Logic) off {
+      val context = thisBundle.getBundleContext()
       command.Commands.unconfigure()
+      Config.stop(context)
+      closeContainer()
+      if (inconsistentSet.nonEmpty)
+        log.fatal("Inconsistent elements detected: " + inconsistentSet)
       Console ! Console.Message.Notice("Logic component is stopped.")
     }
   }
@@ -206,6 +214,8 @@ object Logic {
   /** Infrastructure wide container. */
   lazy val container = {
     val root = ResourcesPlugin.getWorkspace().getRoot()
+    // Prevents NPE at org.eclipse.core.resources bundle stop() method
+    ResourcesPlugin.getWorkspace().getRuleFactory()
     root.getProject(Logic.containerName)
   }
   // Initialize descendant actor singletons

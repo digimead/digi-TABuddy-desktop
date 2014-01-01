@@ -51,6 +51,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.Serialization
+import org.digimead.tabuddy.desktop.logic.Logic
 
 /**
  * Part of the graph marker that contains graph specific logic.
@@ -61,6 +62,8 @@ trait GraphSpecific {
   /** Load the specific graph from the predefined directory ${location}/id/ */
   def graphAcquire(): Graph[_ <: Model.Like] = state.lockWrite { state ⇒
     log.debug(s"Acquire model with marker ${this}.")
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
     loadGraph() getOrElse {
       log.info("Create new empty model " + graphModelId)
       /**
@@ -71,7 +74,9 @@ trait GraphSpecific {
        *     +-Templates - predefined TA Buddy element templates
        */
       // try to create model because we are unable to load it
-      state.graphObject = Option(Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒ })
+      state.graphObject = Option(Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒
+        g.withData(_(GraphMarker) = GraphSpecific.this)
+      })
       state.payloadObject = Option(initializePayload())
       state.graphObject.get
     }
@@ -93,6 +98,8 @@ trait GraphSpecific {
   /** Store the graph to the predefined directory ${location}/id/ */
   def graphFreeze(): Unit = state.lockWrite { state ⇒
     log.info(s"Freeze graph '${state.graph}'.")
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
     Serialization.freeze(state.graph)
   }
   /** Check whether the graph is loaded. */

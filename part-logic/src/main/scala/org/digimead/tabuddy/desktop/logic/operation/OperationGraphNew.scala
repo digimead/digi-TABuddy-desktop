@@ -58,6 +58,7 @@ import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.digimead.tabuddy.desktop.logic.Logic
 
 /** 'New graph' operation. */
 class OperationGraphNew extends api.OperationGraphNew with Loggable {
@@ -77,6 +78,8 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
       throw new IllegalArgumentException("Unable to create non interactive new graph without name.")
     if (!interactive && location.isEmpty)
       throw new IllegalArgumentException("Unable to create non interactive new graph without location.")
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
     if (interactive)
       UI.getActiveShell match {
         case Some(shell) ⇒
@@ -142,7 +145,7 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to create new graph.")
+          Operation.Result.Error(s"Unable to create new graph.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =

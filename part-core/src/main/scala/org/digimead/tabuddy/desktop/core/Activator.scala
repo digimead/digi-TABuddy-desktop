@@ -101,29 +101,31 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
       log.warn("Skip DI initialization and event loop creation in test environment.")
     }
     Future {
-      App.watch(Activator).once.makeBeforeStop {
-        // This hook is hold Activator.stop() while initialization is incomplete.
-        App.watch(context).waitForStart(Timeout.normal) // at Core.main()
-        // Initialization complete.
-        App.watch(context).off()
-      } on {
-        // Initialize translation service
-        setTranslationServiceTracker(this.translationServiceTracker)
-        // Start component actors hierarchy
-        Core.actor
-        /*
+      Activator.startStopLock.synchronized {
+        App.watch(Activator).once.makeBeforeStop {
+          // This hook is hold Activator.stop() while initialization is incomplete.
+          App.watch(context).waitForStart(Timeout.normal) // at Core.main()
+          // Initialization complete.
+          App.watch(context).off()
+        } on {
+          // Initialize translation service
+          setTranslationServiceTracker(this.translationServiceTracker)
+          // Start component actors hierarchy
+          Core.actor
+          /*
          * Start global components that haven't dispose methods.
          */
-        Command
-        // Start application environment
-        Core ! context
-        /*
+          Command
+          // Start application environment
+          Core ! context
+          /*
          * Huge operations that freeze application.
          */
-        // Initialize messages
-        Future { Messages.default_text } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
-        // Initialize UI flag
-        Future { App.isUIAvailable } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+          // Initialize messages
+          Future { Messages.default_text } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+          // Initialize UI flag
+          Future { App.isUIAvailable } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+        }
       }
     } onFailure {
       case e: Throwable ⇒ log.error("Error while starting Core: " + e.getMessage(), e)

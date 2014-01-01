@@ -95,6 +95,11 @@ class GraphMarker(
     GraphMarker.state(uuid) = state
     state
   }
+  /** Predefined unmodified element templates that are available for this application */
+  val originalTemplates: Seq[api.ElementTemplate] = Seq()
+  /** Predefined element templates modified by user that are available for this application */
+  // The originalTemplates is needed for recovering broken/modified predefined templates
+  @volatile protected var userTemplateSeq: Seq[api.ElementTemplate] = Seq()
 
   /** Load type schemas from local storage. */
   @log
@@ -132,6 +137,8 @@ class GraphMarker(
    */
   @inline
   def lockUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.lockUpdate(f)
+  /** Get list of predefined templates. */
+  def userTemplates: Seq[api.ElementTemplate] = userTemplateSeq
   /** Save type schemas to the local storage. */
   @log
   def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema]) = state.lockWrite { state ⇒
@@ -210,7 +217,7 @@ class GraphMarker(
           }
         }
       case None ⇒
-        App.execNGet { payload.typeSchema.value = TypeSchema.predefined.head }
+//        App.execNGet { payload.typeSchema.value = TypeSchema.predefined.head }
     }
     // View
     log.debug("Update view difinitions.")
@@ -308,6 +315,10 @@ object GraphMarker extends Loggable {
    * @return model marker
    */
   def createInTheWorkspace(resourceUUID: UUID, fullPath: File, created: Element.Timestamp, origin: Symbol): GraphMarker = synchronized {
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
+    val resourceName = resourceUUID.toString + "." + Payload.extensionGraph
+    val resourceFile = Logic.container.getFile(resourceName) // throws IllegalStateException: Workspace is closed.
     val path = fullPath.getParentFile()
     val id = fullPath.getName
     log.debug(s"Prepare model ${Symbol(id)}")
@@ -330,8 +341,6 @@ object GraphMarker extends Loggable {
       case Some(info) ⇒ graphDescriptor.store(new FileOutputStream(graphDescriptorFile), info.toString)
       case None ⇒ graphDescriptor.store(new FileOutputStream(graphDescriptorFile), null)
     }
-    val resourceName = resourceUUID.toString + "." + Payload.extensionGraph
-    val resourceFile = Logic.container.getFile(resourceName)
     if (!resourceFile.exists()) {
       val resourceContent = new Properties
       resourceContent.setProperty(fieldPath, fullPath.getCanonicalPath())

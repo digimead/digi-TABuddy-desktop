@@ -47,13 +47,10 @@ import java.util.UUID
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.{ WritableMap, WritableValue }
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableMap
-import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.Filter
-import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
-import org.digimead.tabuddy.desktop.logic.payload.view.View
+import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.model.serialization.Serialization
 
 /**

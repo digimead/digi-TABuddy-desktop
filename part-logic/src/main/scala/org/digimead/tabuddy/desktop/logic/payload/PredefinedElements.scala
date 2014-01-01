@@ -44,8 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.payload
 
 import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Record
+import org.digimead.tabuddy.model.{ Model, Record }
 import org.digimead.tabuddy.model.graph.Graph
 
 /**

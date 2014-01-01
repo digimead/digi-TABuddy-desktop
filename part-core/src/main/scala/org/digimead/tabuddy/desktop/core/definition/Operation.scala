@@ -209,7 +209,7 @@ object Operation extends Loggable {
     def matches(severityMask: Int) = (severityMask & severity) != 0
   }
   object Result {
-    case class AsyncFinish[A](val result: Option[A] = None, val message: String = "operation complete") extends Result[A] {
+    case class AsyncFinish[A](val result: Option[A] = None, val message: String = "Operation complete.") extends Result[A] {
       val severity = IStatus.OK
       val exception = null
 
@@ -242,7 +242,7 @@ object Operation extends Loggable {
       def apply[A](exception: Throwable): Error[A] = Error[A]("Error: " + exception.getMessage(), exception)
       def apply[A](message: String, logAsFatal: Boolean): Error[A] = Error[A](message, null, logAsFatal)
     }
-    case class OK[A](val result: Option[A] = None, val message: String = "operation complete") extends Result[A] {
+    case class OK[A](val result: Option[A] = None, val message: String = "Operation complete.") extends Result[A] {
       val severity = IStatus.OK
       val exception = null
     }

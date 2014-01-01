@@ -85,11 +85,18 @@ class Activator extends BundleActivator with Loggable {
       log.warn("Skip DI initialization in test environment.")
     }
     // Start component actors hierarchy
-    Future {
-      App.watch(Activator) on { Logic.actor }
-    } onFailure {
-      case e: Throwable ⇒ log.error("Error while starting Logic: " + e.getMessage(), e)
+    val f = Future {
+      Activator.startStopLock.synchronized {
+        App.watch(Activator).once.makeBeforeStop {
+          // This hook is hold Activator.stop() while initialization is incomplete.
+          App.watch(context).waitForStart(Timeout.normal)
+          // Initialization complete.
+          App.watch(context).off()
+        } on { Logic.actor }
+      }
     }
+    f onFailure { case e: Throwable ⇒ log.error("Error while starting Logic: " + e.getMessage(), e) }
+    f onComplete { case _ ⇒ App.watch(context).on() }
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
