@@ -67,11 +67,17 @@ package object payload {
     module.bind[api.PropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.String" toSingle { StringType }
     module.bind[api.PropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Text" toSingle { TextType }
     /** The predefined template for Record element. */
-    module.bind[Record.Like ⇒ api.ElementTemplate] identifiedBy "Template.Record" toSingle { record: Record.Like ⇒ Predefined.record(record) }
+    module.bind[api.ElementTemplate.Builder] identifiedBy "Template.Record" toSingle {
+      new api.ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.record(container) }
+    }
     /** The predefined template for Note element. */
-    module.bind[Record.Like ⇒ api.ElementTemplate] identifiedBy "Template.Note" toSingle { record: Record.Like ⇒ Predefined.note(record) }
+    module.bind[api.ElementTemplate.Builder] identifiedBy "Template.Note" toSingle {
+      new api.ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.note(container) }
+    }
     /** The predefined template for Task element. */
-    module.bind[Record.Like ⇒ api.ElementTemplate] identifiedBy "Template.Task" toSingle { record: Record.Like ⇒ Predefined.task(record) }
+    module.bind[api.ElementTemplate.Builder] identifiedBy "Template.Task" toSingle {
+      new api.ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.task(container) }
+    }
     /** The default predefined type schema. */
     module.bind[api.TypeSchema] identifiedBy "Schema.Default" toSingle {
       // add simple localized type schema

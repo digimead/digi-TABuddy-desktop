@@ -61,11 +61,11 @@ trait GraphSpecific {
 
   /** Load the specific graph from the predefined directory ${location}/id/ */
   def graphAcquire(): Graph[_ <: Model.Like] = state.lockWrite { state ⇒
-    log.debug(s"Acquire model with marker ${this}.")
+    log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     loadGraph() getOrElse {
-      log.info("Create new empty model " + graphModelId)
+      log.info("Create new empty graph " + graphModelId)
       /**
        * TABuddy - global TA Buddy space
        *  +-Settings - global TA Buddy settings
@@ -83,7 +83,7 @@ trait GraphSpecific {
   }
   /** Close the loaded graph. */
   def graphClose() = state.lockWrite { state ⇒
-    log.info(s"Close graph '${state.graph}' with '${this}'.")
+    log.info(s"Close '${state.graph}' with '${this}'.")
     try markerSave() finally {
       state.graphObject = None
       state.payloadObject = None
@@ -97,13 +97,13 @@ trait GraphSpecific {
   def graphDescriptor = new File(graphPath.getParentFile(), graphPath.getName() + "." + Payload.extensionGraph)
   /** Store the graph to the predefined directory ${location}/id/ */
   def graphFreeze(): Unit = state.lockWrite { state ⇒
-    log.info(s"Freeze graph '${state.graph}'.")
+    log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     Serialization.freeze(state.graph)
   }
   /** Check whether the graph is loaded. */
-  def graphIsLoaded(): Boolean = lockRead(_.asInstanceOf[GraphMarker.ThreadUnsafeState].graphObject.nonEmpty)
+  def graphIsOpen(): Boolean = lockRead(_.asInstanceOf[GraphMarker.ThreadUnsafeState].graphObject.nonEmpty)
   /** Model ID. */
   def graphModelId: Symbol = Symbol(graphPath.getName)
   /** Origin of the graph. */

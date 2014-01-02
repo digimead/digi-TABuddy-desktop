@@ -392,7 +392,7 @@ object ElementTemplate extends Loggable {
      *  2. has name that starts with "Template."
      */
     lazy val builders = bindingModule.bindings.filter {
-      case (key, value) ⇒ classOf[Record.Like ⇒ api.ElementTemplate].isAssignableFrom(key.m.runtimeClass)
+      case (key, value) ⇒ classOf[api.ElementTemplate.Builder].isAssignableFrom(key.m.runtimeClass)
     }.map {
       case (key, value) ⇒
         key.name match {

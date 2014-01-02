@@ -70,7 +70,7 @@ trait AbstractMarker {
   /** Store the graph to the predefined directory ${location}/id/ */
   def graphFreeze(): Unit
   /** Check whether the graph is loaded. */
-  def graphIsLoaded(): Boolean
+  def graphIsOpen(): Boolean
   /** Model ID. */
   def graphModelId: Symbol
   /** Origin of the graph. */

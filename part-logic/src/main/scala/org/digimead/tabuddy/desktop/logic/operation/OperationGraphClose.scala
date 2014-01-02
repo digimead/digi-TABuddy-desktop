@@ -47,10 +47,14 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.eclipse.jface.window.Window
+import org.eclipse.swt.SWT
+import org.eclipse.swt.widgets.MessageBox
 
 /** 'Close model' operation. */
 class OperationGraphClose extends api.OperationGraphClose with Loggable {
@@ -61,12 +65,25 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
    * @param force close graph without saving
    */
   def apply(graph: Graph[_ <: Model.Like], force: Boolean) = GraphMarker(graph).lockUpdate { state ⇒
-    log.info(s"Close graph $graph, force is $force.")
-    // save previous model
-    log.___gaze("SAVE")
+    log.info(s"Close $graph, force is $force.")
+    val marker = GraphMarker(graph)
+    if (!marker.graphIsOpen())
+      throw new IllegalStateException(s"$graph is already closed.")
+    if (!graph.stored.contains(graph.modified)) {
+      if (!force && App.isUIAvailable) {
+        val dialog = new MessageBox(null, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL)
+        dialog.setText("Model is modified")
+        dialog.setMessage("Do you want to save modifications?")
+        if (dialog.open() == Window.OK)
+          // save modified model if user permits
+          OperationGraphSave.operation(graph)
+      } else {
+        log.info(s"Close modified $graph without saving.")
+      }
+    }
     // close model
-    GraphMarker(graph).graphClose()
-    log.info(s"Graph $graph is closed.")
+    marker.graphClose()
+    log.info(s"$graph is closed.")
   }
   /**
    * Create 'Close graph' operation.
@@ -110,7 +127,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to close graph $graph.", e)
+          Operation.Result.Error(s"Unable to close $graph.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
@@ -137,7 +154,7 @@ object OperationGraphClose extends Loggable {
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean)
-    extends Operation[Unit](s"Close graph $graph.") {
+    extends Operation[Unit](s"Close $graph.") {
     this: Loggable ⇒
   }
   /**

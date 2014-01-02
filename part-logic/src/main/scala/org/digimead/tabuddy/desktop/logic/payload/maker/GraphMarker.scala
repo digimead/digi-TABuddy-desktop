@@ -464,7 +464,7 @@ object GraphMarker extends Loggable {
     /** Store the graph to the predefined directory ${location}/id/ */
     def graphFreeze(): Unit = throw new UnsupportedOperationException()
     /** Check whether the graph is loaded. */
-    def graphIsLoaded(): Boolean = false
+    def graphIsOpen(): Boolean = false
     /** Load type schemas from local storage. */
     def loadTypeSchemas(): immutable.HashSet[api.TypeSchema] = throw new UnsupportedOperationException()
     /**

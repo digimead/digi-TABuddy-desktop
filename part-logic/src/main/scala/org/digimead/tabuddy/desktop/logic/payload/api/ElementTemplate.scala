@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.api
 
+import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
 import scala.collection.immutable
 
@@ -98,4 +99,5 @@ trait ElementTemplate extends Equals {
 
 object ElementTemplate {
   type propertyMap = immutable.HashMap[TemplatePropertyGroup, Seq[TemplateProperty[_ <: AnyRef with java.io.Serializable]]]
+  trait Builder extends Function1[Record.Like, ElementTemplate]
 }

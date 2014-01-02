@@ -67,7 +67,7 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     marker.lockUpdate { state ⇒
-      if (marker.graphIsLoaded())
+      if (marker.graphIsOpen())
         throw new IllegalStateException("Graph is already opened.")
       marker.graphAcquire()
     }
