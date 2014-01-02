@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -50,17 +50,20 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.{ Properties, UUID }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.util.FileUtil
 import org.digimead.tabuddy.desktop.core.Report
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
+import org.digimead.tabuddy.desktop.logic.payload.maker.api.AbstractMarker
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
-import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PredefinedElements, TypeSchema, api }
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.internal.utils.Policy
 import org.eclipse.core.resources.IFile
 import org.eclipse.core.resources.IResource
 import scala.collection.{ immutable, mutable }
@@ -90,21 +93,29 @@ class GraphMarker(
     Logic.container.getFile(resourceName)
   }
   /** GraphMarker mutable state. */
-  val state: GraphMarker.ThreadSafeState = GraphMarker.state.get(uuid) getOrElse GraphMarker.state.synchronized {
-    val state = new GraphMarker.ThreadUnsafeState()
-    GraphMarker.state(uuid) = state
-    state
+  val state: GraphMarker.ThreadSafeState = GraphMarker.lock.synchronized {
+    GraphMarker.state.get(uuid) getOrElse GraphMarker.state.synchronized {
+      val state = new GraphMarker.ThreadUnsafeState()
+      GraphMarker.state(uuid) = state
+      state
+    }
   }
 
+  /** Assert marker state. */
+  def assertState() = lockRead { state ⇒
+    if (state.asInstanceOf[GraphMarker.ThreadUnsafeState].payloadObject == null)
+      throw new IllegalStateException(s"${this} points to disposed data.")
+  }
   /** Load type schemas from local storage. */
   @log
-  def loadTypeSchemas(): immutable.HashSet[api.TypeSchema] = lockRead { state ⇒
+  def loadTypeSchemas(): immutable.HashSet[payloadapi.TypeSchema] = lockRead { state ⇒
+    assertState()
     val typeSchemasStorage = new File(graphPath, folderTypeSchemas)
     log.debug(s"Load type schemas from $typeSchemasStorage")
     if (!typeSchemasStorage.exists())
       return immutable.HashSet()
     val prefix = graphPath.getCanonicalPath().size + 1
-    var schemas = immutable.HashSet[api.TypeSchema]()
+    var schemas = immutable.HashSet[payloadapi.TypeSchema]()
     typeSchemasStorage.listFiles(new FileFilter { def accept(file: File) = file.isFile() && file.getName().endsWith(".yaml") }).foreach { file ⇒
       try {
         log.debug("Load ... " + file.getCanonicalPath().substring(prefix))
@@ -134,7 +145,8 @@ class GraphMarker(
   def lockUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.lockUpdate(f)
   /** Save type schemas to the local storage. */
   @log
-  def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema]) = state.lockWrite { state ⇒
+  def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema]) = state.lockWrite { state ⇒
+    assertState()
     val typeSchemasStorage = new File(graphPath, folderTypeSchemas)
     log.debug(s"Save type schemas to $typeSchemasStorage")
     if (!typeSchemasStorage.exists())
@@ -147,7 +159,10 @@ class GraphMarker(
 
   /** Get value from graph descriptor with double checking. */
   protected def getValueFromGraphDescriptor[A](f: Properties ⇒ A): A =
-    lockRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒ state.graphDescriptorProperties.map(f) } getOrElse {
+    lockRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒
+      assertState()
+      state.graphDescriptorProperties.map(f)
+    } getOrElse {
       lockUpdate { state ⇒
         state.graphDescriptorProperties.map(f) getOrElse {
           require(state, true)
@@ -157,7 +172,10 @@ class GraphMarker(
     }
   /** Get value from IResource properties with double checking. */
   protected def getValueFromIResourceProperties[A](f: Properties ⇒ A): A =
-    lockRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒ state.resourceProperties.map(f) } getOrElse {
+    lockRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒
+      assertState()
+      state.resourceProperties.map(f)
+    } getOrElse {
       lockUpdate { state ⇒
         state.resourceProperties.map(f) getOrElse {
           require(state, true)
@@ -295,6 +313,15 @@ class GraphMarker(
     if (eTemporaryElementTemplate.name.trim.isEmpty())
       eTemporaryElementTemplate.name = "TABuddy Desktop temporary element templates"
   }
+
+  def canEqual(other: Any) = other.isInstanceOf[GraphMarker]
+  override def equals(other: Any) = other match {
+    case that: GraphMarker ⇒ (this eq that) || { that.canEqual(this) && uuid == that.uuid }
+    case _ ⇒ false
+  }
+  override def hashCode() = uuid.hashCode()
+
+  override def toString() = s"GraphMarker[${uuid}]"
 }
 
 object GraphMarker extends Loggable {
@@ -306,6 +333,8 @@ object GraphMarker extends Loggable {
   val fieldResourceId = "resourceId"
   val fieldSavedMillis = "savedMillis"
   val fieldSavedNanos = "savedNanos"
+  /** GraphMarker lock */
+  val lock = new Object
   /** Application wide GraphMarker states. */
   protected val state = new mutable.HashMap[UUID, ThreadSafeState]() with mutable.SynchronizedMap[UUID, ThreadSafeState]
 
@@ -322,7 +351,7 @@ object GraphMarker extends Loggable {
    * @param origin model owner that launch creation process.
    * @return model marker
    */
-  def createInTheWorkspace(resourceUUID: UUID, fullPath: File, created: Element.Timestamp, origin: Symbol): GraphMarker = synchronized {
+  def createInTheWorkspace(resourceUUID: UUID, fullPath: File, created: Element.Timestamp, origin: Symbol): GraphMarker = lock.synchronized {
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     val resourceName = resourceUUID.toString + "." + Payload.extensionGraph
@@ -363,20 +392,32 @@ object GraphMarker extends Loggable {
     new GraphMarker(resourceUUID, true)
   }
   /** Permanently delete marker from the workspace. */
-  def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = synchronized {
-    //val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.created, marker.origin, marker.id, false, marker.lastAccessed, marker.path)
-    //marker.resource.delete(true, false, null)
-    //readOnlyMarker
-    null
+  def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = lock.synchronized {
+    marker.lockUpdate {
+      case state: ThreadUnsafeState ⇒
+        val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphCreated, marker.graphModelId,
+          marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed)
+        val path = readOnlyMarker.graphPath.getParentFile()
+        val id = readOnlyMarker.graphPath.getName
+        val graphDescriptorFile = new File(path, id + "." + Payload.extensionGraph)
+        if (!FileUtil.deleteFile(marker.graphPath))
+          log.fatal("Unable to delete " + marker)
+        graphDescriptorFile.delete()
+        marker.resource.delete(true, false, Policy.monitorFor(null))
+        state.graphObject = null
+        state.graphDescriptorProperties = null
+        state.graphObject = null
+        state.payloadObject = null
+        GraphMarker.state.remove(marker.uuid)
+        readOnlyMarker
+    }
   }
   /** Get a graph list. */
-  def list(): Seq[GraphMarker] = synchronized {
+  def list(): Seq[UUID] = lock.synchronized {
     Logic.container.members.flatMap { resource ⇒
       if (resource.getFileExtension() == Payload.extensionGraph)
-        try {
-          val uuid = UUID.fromString(resource.getName().takeWhile(_ != '.'))
-          Some(new GraphMarker(uuid))
-        } catch {
+        try Some(UUID.fromString(resource.getName().takeWhile(_ != '.')))
+        catch {
           case e: Throwable ⇒
             log.warn("Skip model marker with invalid name: " + resource.getName)
             None
@@ -452,11 +493,15 @@ object GraphMarker extends Loggable {
   }
   /** Read only marker. */
   class ReadOnlyGraphMarker(val uuid: UUID, val graphCreated: Element.Timestamp, val graphModelId: Symbol,
-    val graphOrigin: Symbol, val graphPath: File, val graphStored: Element.Timestamp,
-    val markerIsValid: Boolean, val markerLastAccessed: Long) extends AbstractMarker {
+    val graphOrigin: Symbol, val graphPath: File, val graphStored: Element.Timestamp, val markerLastAccessed: Long)
+    extends AbstractMarker {
     /** Autoload property file if suitable information needed. */
     val autoload = false
+    /** The validation flag indicating whether the marker is consistent. */
+    val markerIsValid: Boolean = false
 
+    /** Assert marker state. */
+    def assertState() {}
     /** Load the specific graph from the predefined directory ${location}/id/ */
     def graphAcquire(): Graph[_ <: Model.Like] = throw new UnsupportedOperationException()
     /** Close the loaded graph. */
@@ -468,7 +513,7 @@ object GraphMarker extends Loggable {
     /** Check whether the graph is loaded. */
     def graphIsOpen(): Boolean = false
     /** Load type schemas from local storage. */
-    def loadTypeSchemas(): immutable.HashSet[api.TypeSchema] = throw new UnsupportedOperationException()
+    def loadTypeSchemas(): immutable.HashSet[payloadapi.TypeSchema] = throw new UnsupportedOperationException()
     /**
      * Lock this marker for reading.
      */
@@ -482,6 +527,21 @@ object GraphMarker extends Loggable {
     /** Save marker properties. */
     def markerSave() = throw new UnsupportedOperationException()
     /** Save type schemas to the local storage. */
-    def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema]) = throw new UnsupportedOperationException()
+    def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema]) = throw new UnsupportedOperationException()
+
+    def canEqual(other: Any) = other.isInstanceOf[ReadOnlyGraphMarker]
+    override def equals(other: Any) = other match {
+      case that: ReadOnlyGraphMarker ⇒ (this eq that) || {
+        that.canEqual(this) && uuid == that.uuid && graphCreated == that.graphCreated &&
+          graphModelId == that.graphModelId && graphOrigin == that.graphOrigin && graphPath == that.graphPath &&
+          graphStored == that.graphStored && markerLastAccessed == that.markerLastAccessed
+      }
+      case _ ⇒ false
+    }
+    override def hashCode() = lazyHashCode
+    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](uuid, graphCreated,
+      graphModelId, graphOrigin, graphPath, graphStored, Long.box(markerLastAccessed)))
+
+    override def toString() = s"ROGraphMarker[${uuid}]"
   }
 }

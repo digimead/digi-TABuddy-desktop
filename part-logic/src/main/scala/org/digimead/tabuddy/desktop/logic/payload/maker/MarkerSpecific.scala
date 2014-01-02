@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -57,6 +57,7 @@ trait MarkerSpecific {
   /** The validation flag indicating whether the marker is consistent. */
   def markerIsValid: Boolean = state.lockRead { state ⇒
     try {
+      assertState()
       val base = graphPath.getParentFile()
       val id = graphPath.getName
       val descriptor = new File(base, id + "." + Payload.extensionGraph)
@@ -74,6 +75,7 @@ trait MarkerSpecific {
   def markerLastAccessed: Long = getValueFromIResourceProperties { p ⇒ p.getProperty(GraphMarker.fieldLastAccessed).toLong }
   /** Load marker properties. */
   def markerLoad() = state.lockWrite { state ⇒
+    assertState()
     log.debug(s"Load marker with UUID ${uuid}.")
 
     // load IResource part
@@ -98,6 +100,7 @@ trait MarkerSpecific {
   }
   /** Save marker properties. */
   def markerSave() = state.lockWrite { state ⇒
+    assertState()
     log.debug(s"Save marker ${this}.")
     require(state, true, false)
 

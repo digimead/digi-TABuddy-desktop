@@ -41,13 +41,13 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.maker
+package org.digimead.tabuddy.desktop.logic.payload.maker.api
 
 import java.io.File
 import java.util.UUID
 import org.digimead.tabuddy.desktop.logic.payload.api
-import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
 import scala.collection.immutable
 
@@ -61,6 +61,8 @@ trait AbstractMarker {
   /** Container IResource unique id. */
   val uuid: UUID
 
+  /** Assert marker state. */
+  def assertState()
   /** Load the specific graph from the predefined directory ${location}/id/ */
   def graphAcquire(): Graph[_ <: Model.Like]
   /** Close the loaded graph. */
@@ -68,7 +70,7 @@ trait AbstractMarker {
   /** Graph creation timestamp. */
   def graphCreated: Element.Timestamp
   /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze(): Unit
+  def graphFreeze()
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean
   /** Check whether the graph is loaded. */
@@ -83,14 +85,6 @@ trait AbstractMarker {
   def graphStored: Element.Timestamp
   /** Load type schemas from local storage. */
   def loadTypeSchemas(): immutable.HashSet[api.TypeSchema]
-  /**
-   * Lock this marker for reading.
-   */
-  def lockRead[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A
-  /**
-   * Lock marker state for updating.
-   */
-  def lockUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A
   /** The validation flag indicating whether the marker is consistent. */
   def markerIsValid: Boolean
   /** Marker last access timestamp. */

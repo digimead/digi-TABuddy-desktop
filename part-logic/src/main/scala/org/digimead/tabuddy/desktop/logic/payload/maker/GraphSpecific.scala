@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -61,6 +61,7 @@ trait GraphSpecific {
 
   /** Load the specific graph from the predefined directory ${location}/id/ */
   def graphAcquire(): Graph[_ <: Model.Like] = state.lockWrite { state ⇒
+    assertState()
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
@@ -84,6 +85,7 @@ trait GraphSpecific {
   }
   /** Close the loaded graph. */
   def graphClose() = state.lockWrite { state ⇒
+    assertState()
     log.info(s"Close '${state.graph}' with '${this}'.")
     try markerSave() finally {
       state.graphObject = None
@@ -95,9 +97,13 @@ trait GraphSpecific {
     Element.Timestamp(p.getProperty(GraphMarker.fieldCreatedMillis).toLong, p.getProperty(GraphMarker.fieldCreatedNanos).toLong)
   }
   /** Graph descriptor location. */
-  def graphDescriptor = new File(graphPath.getParentFile(), graphPath.getName() + "." + Payload.extensionGraph)
+  def graphDescriptor = {
+    assertState()
+    new File(graphPath.getParentFile(), graphPath.getName() + "." + Payload.extensionGraph)
+  }
   /** Store the graph to the predefined directory ${location}/id/ */
   def graphFreeze(): Unit = state.lockWrite { state ⇒
+    assertState()
     log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
@@ -109,9 +115,15 @@ trait GraphSpecific {
     state.graph.stored.contains(ts)
   }
   /** Check whether the graph is loaded. */
-  def graphIsOpen(): Boolean = lockRead(_.asInstanceOf[GraphMarker.ThreadUnsafeState].graphObject.nonEmpty)
+  def graphIsOpen(): Boolean = lockRead { state ⇒
+    assertState()
+    state.asInstanceOf[GraphMarker.ThreadUnsafeState].graphObject.nonEmpty
+  }
   /** Model ID. */
-  def graphModelId: Symbol = Symbol(graphPath.getName)
+  def graphModelId: Symbol = {
+    assertState()
+    Symbol(graphPath.getName)
+  }
   /** Origin of the graph. */
   def graphOrigin: Symbol = getValueFromGraphDescriptor { p ⇒ Symbol(p.getProperty(GraphMarker.fieldOrigin)) }
   /** Path to the graph: base directory and graph directory name. */
@@ -126,7 +138,9 @@ trait GraphSpecific {
   protected def loadGraph(takeItEasy: Boolean = false): Option[Graph[_ <: Model.Like]] = try {
     if (!markerIsValid)
       return None
-    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphPath.toURI))
+    val graph = Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphPath.toURI))
+    graph.map(_.withData(_(GraphMarker) = GraphSpecific.this))
+    graph
   } catch {
     case e: Throwable ⇒
       if (takeItEasy)

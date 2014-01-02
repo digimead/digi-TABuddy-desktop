@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.operation.api
 
 import org.digimead.tabuddy.desktop.core.definition.api
-import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.logic.payload.maker.api.AbstractMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
@@ -60,7 +60,7 @@ trait OperationGraphClose {
    * @param graph graph to close
    * @param force close graph without saving
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean)
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): AbstractMarker
   /**
    * Create 'Close graph' operation.
    *
@@ -68,7 +68,7 @@ trait OperationGraphClose {
    * @param force close graph without saving
    * @return 'Close graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], force: Boolean): api.Operation[Unit]
+  def operation(graph: Graph[_ <: Model.Like], force: Boolean): api.Operation[AbstractMarker]
 
   /**
    * Checks that this class can be subclassed.

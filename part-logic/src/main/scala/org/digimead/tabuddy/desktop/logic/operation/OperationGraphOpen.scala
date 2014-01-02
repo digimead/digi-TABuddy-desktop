@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -115,7 +115,7 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to open graph for marker $marker.", e)
+          Operation.Result.Error(s"Unable to open graph for $marker.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor,
@@ -143,7 +143,7 @@ object OperationGraphOpen extends Loggable {
 
   /** Bridge between abstract api.Operation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
   abstract class Abstract(val markerId: UUID)
-    extends Operation[Graph[_ <: Model.Like]](s"Open graph in marker with Id $markerId.") {
+    extends Operation[Graph[_ <: Model.Like]](s"Open graph for marker with Id $markerId.") {
     this: Loggable ⇒
   }
   /**
