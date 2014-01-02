@@ -51,14 +51,14 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.ui.{ UI, Wizards }
-import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
-import org.digimead.tabuddy.desktop.logic.Logic
 
 /** 'New graph' operation. */
 class OperationGraphNew extends api.OperationGraphNew with Loggable {

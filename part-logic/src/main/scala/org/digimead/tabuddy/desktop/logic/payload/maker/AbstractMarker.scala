@@ -69,6 +69,8 @@ trait AbstractMarker {
   def graphCreated: Element.Timestamp
   /** Store the graph to the predefined directory ${location}/id/ */
   def graphFreeze(): Unit
+  /** Check whether the graph is modified. */
+  def graphIsDirty(): Boolean
   /** Check whether the graph is loaded. */
   def graphIsOpen(): Boolean
   /** Model ID. */

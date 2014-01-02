@@ -69,7 +69,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
     val marker = GraphMarker(graph)
     if (!marker.graphIsOpen())
       throw new IllegalStateException(s"$graph is already closed.")
-    if (!graph.stored.contains(graph.modified)) {
+    if (marker.graphIsDirty()) {
       if (!force && App.isUIAvailable) {
         val dialog = new MessageBox(null, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL)
         dialog.setText("Model is modified")

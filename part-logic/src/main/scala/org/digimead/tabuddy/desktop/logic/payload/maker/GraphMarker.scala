@@ -329,14 +329,17 @@ object GraphMarker extends Loggable {
     val resourceFile = Logic.container.getFile(resourceName) // throws IllegalStateException: Workspace is closed.
     val path = fullPath.getParentFile()
     val id = fullPath.getName
+    val graphDescriptorFile = new File(path, id + "." + Payload.extensionGraph)
+    if (resourceFile.exists())
+      throw new IllegalStateException("Model marker is already exists at " + resourceFile.getLocationURI())
+    if (graphDescriptorFile.exists())
+      throw new IllegalStateException("Graph marker descriptor is already exists at " + graphDescriptorFile.getAbsolutePath())
     log.debug(s"Prepare model ${Symbol(id)}")
     if (!fullPath.exists())
       if (!fullPath.mkdirs())
-        throw new RuntimeException("Unable to create model storage at " + fullPath.getAbsolutePath())
-    val graphDescriptorFile = new File(path, id + "." + Payload.extensionGraph)
-    if (!graphDescriptorFile.exists())
-      if (!graphDescriptorFile.createNewFile())
-        throw new RuntimeException("Unable to create model descriptor at " + graphDescriptorFile.getAbsolutePath())
+        throw new IOException("Unable to create model storage at " + fullPath.getAbsolutePath())
+    if (!graphDescriptorFile.createNewFile())
+      throw new IOException("Unable to create model descriptor at " + graphDescriptorFile.getAbsolutePath())
     val graphDescriptor = new Properties()
     graphDescriptor.setProperty(fieldCreatedMillis, created.milliseconds.toString)
     graphDescriptor.setProperty(fieldCreatedNanos, created.nanoShift.toString)
@@ -349,17 +352,14 @@ object GraphMarker extends Loggable {
       case Some(info) ⇒ graphDescriptor.store(new FileOutputStream(graphDescriptorFile), info.toString)
       case None ⇒ graphDescriptor.store(new FileOutputStream(graphDescriptorFile), null)
     }
-    if (!resourceFile.exists()) {
-      val resourceContent = new Properties
-      resourceContent.setProperty(fieldPath, fullPath.getCanonicalPath())
-      resourceContent.setProperty(GraphMarker.fieldLastAccessed, created.milliseconds.toString)
-      val output = new ByteArrayOutputStream()
-      resourceContent.store(output, null)
-      val input = new ByteArrayInputStream(output.toByteArray())
-      log.debug(s"Create model marker: ${resourceName}.")
-      resourceFile.create(input, IResource.NONE, null)
-    } else
-      throw new IllegalStateException("Model marker ${marker} is already exists.")
+    val resourceContent = new Properties
+    resourceContent.setProperty(fieldPath, fullPath.getCanonicalPath())
+    resourceContent.setProperty(GraphMarker.fieldLastAccessed, created.milliseconds.toString)
+    val output = new ByteArrayOutputStream()
+    resourceContent.store(output, null)
+    val input = new ByteArrayInputStream(output.toByteArray())
+    log.debug(s"Create model marker: ${resourceName}.")
+    resourceFile.create(input, IResource.NONE, null)
     new GraphMarker(resourceUUID, true)
   }
   /** Permanently delete marker from the workspace. */
@@ -463,6 +463,8 @@ object GraphMarker extends Loggable {
     def graphClose() = throw new UnsupportedOperationException()
     /** Store the graph to the predefined directory ${location}/id/ */
     def graphFreeze(): Unit = throw new UnsupportedOperationException()
+    /** Check whether the graph is modified. */
+    def graphIsDirty(): Boolean = false
     /** Check whether the graph is loaded. */
     def graphIsOpen(): Boolean = false
     /** Load type schemas from local storage. */

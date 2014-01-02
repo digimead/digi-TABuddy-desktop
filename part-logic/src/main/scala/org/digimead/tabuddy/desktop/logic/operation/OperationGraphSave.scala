@@ -60,11 +60,15 @@ class OperationGraphSave extends api.OperationGraphSave with Loggable {
    *
    * @param graph graph to save
    */
-  def apply(graph: Graph[_ <: Model.Like]) = GraphMarker(graph).lockRead { _: GraphMarker.ThreadUnsafeStateReadOnly ⇒
-    log.info(s"Save graph $graph.")
+  def apply(graph: Graph[_ <: Model.Like]) = GraphMarker(graph).lockUpdate { _ ⇒
+    log.info(s"Save $graph.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    GraphMarker(graph).graphFreeze()
+    val marker = GraphMarker(graph)
+    if (!marker.graphIsOpen())
+      throw new IllegalStateException(s"$graph is closed.")
+    if (marker.graphIsDirty())
+      GraphMarker(graph).graphFreeze()
   }
   /**
    * Create 'Save graph' operation.
@@ -105,7 +109,7 @@ class OperationGraphSave extends api.OperationGraphSave with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to save graph $graph.", e)
+          Operation.Result.Error(s"Unable to save $graph.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
@@ -129,7 +133,7 @@ object OperationGraphSave extends Loggable {
   def apply(graph: Graph[_ <: Model.Like]): Option[Abstract] = Some(operation.operation(graph))
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like]) extends Operation[Unit](s"Save graph $graph.") {
+  abstract class Abstract(val graph: Graph[_ <: Model.Like]) extends Operation[Unit](s"Save $graph.") {
     this: Loggable ⇒
   }
   /**

@@ -64,7 +64,7 @@ trait GraphSpecific {
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    loadGraph() getOrElse {
+    loadGraph(takeItEasy = true) getOrElse {
       log.info("Create new empty graph " + graphModelId)
       /**
        * TABuddy - global TA Buddy space
@@ -76,6 +76,7 @@ trait GraphSpecific {
       // try to create model because we are unable to load it
       state.graphObject = Option(Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒
         g.withData(_(GraphMarker) = GraphSpecific.this)
+        g.storages = g.storages :+ this.graphPath.toURI()
       })
       state.payloadObject = Option(initializePayload())
       state.graphObject.get
@@ -102,6 +103,11 @@ trait GraphSpecific {
       throw new IllegalStateException("Workspace is not available.")
     Serialization.freeze(state.graph)
   }
+  /** Check whether the graph is modified. */
+  def graphIsDirty(): Boolean = graphIsOpen && !lockRead { state ⇒
+    val ts = state.graph.modified
+    state.graph.stored.contains(ts)
+  }
   /** Check whether the graph is loaded. */
   def graphIsOpen(): Boolean = lockRead(_.asInstanceOf[GraphMarker.ThreadUnsafeState].graphObject.nonEmpty)
   /** Model ID. */
@@ -117,13 +123,16 @@ trait GraphSpecific {
 
   /** Load the graph. */
   @log
-  protected def loadGraph(): Option[Graph[_ <: Model.Like]] = try {
+  protected def loadGraph(takeItEasy: Boolean = false): Option[Graph[_ <: Model.Like]] = try {
     if (!markerIsValid)
       return None
     Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphPath.toURI))
   } catch {
     case e: Throwable ⇒
-      log.error(s"Unable to load graph ${graphOrigin} from $graphPath: " + e.getMessage(), e)
+      if (takeItEasy)
+        log.debug(s"Unable to load graph ${graphOrigin} from $graphPath: " + e.getMessage())
+      else
+        log.error(s"Unable to load graph ${graphOrigin} from $graphPath: " + e.getMessage(), e)
       None
   }
 }
