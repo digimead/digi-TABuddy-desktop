@@ -107,7 +107,7 @@ trait GraphSpecific {
     log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    Serialization.freeze(state.graph)
+    GraphSpecific.appWideRWLock.synchronized { Serialization.freeze(state.graph) }
   }
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean = graphIsOpen && !lockRead { state ⇒
@@ -138,7 +138,7 @@ trait GraphSpecific {
   protected def loadGraph(takeItEasy: Boolean = false): Option[Graph[_ <: Model.Like]] = try {
     if (!markerIsValid)
       return None
-    val graph = Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphPath.toURI))
+    val graph = GraphSpecific.appWideRWLock.synchronized { Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphPath.toURI)) }
     graph.map(_.withData(_(GraphMarker) = GraphSpecific.this))
     graph
   } catch {
@@ -149,4 +149,8 @@ trait GraphSpecific {
         log.error(s"Unable to load graph ${graphOrigin} from $graphPath: " + e.getMessage(), e)
       None
   }
+}
+
+object GraphSpecific {
+  val appWideRWLock = new Object() // (De)serialization is thread unsafe. SnakeYAML for example.
 }

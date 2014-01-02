@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.operation.api
 
 import org.digimead.tabuddy.desktop.core.definition.api
-import org.digimead.tabuddy.desktop.logic.payload.maker.api.AbstractMarker
+import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
@@ -60,7 +60,7 @@ trait OperationGraphClose {
    * @param graph graph to close
    * @param force close graph without saving
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): AbstractMarker
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker
   /**
    * Create 'Close graph' operation.
    *
@@ -68,7 +68,7 @@ trait OperationGraphClose {
    * @param force close graph without saving
    * @return 'Close graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], force: Boolean): api.Operation[AbstractMarker]
+  def operation(graph: Graph[_ <: Model.Like], force: Boolean): api.Operation[graphapi.GraphMarker]
 
   /**
    * Checks that this class can be subclassed.

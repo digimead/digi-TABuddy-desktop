@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -49,6 +49,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
@@ -63,12 +64,14 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
    * @param askBefore askUser before delete
    * @return deleted graph read only marker
    */
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): UUID = GraphMarker(graph).lockUpdate { state ⇒
-    log.info(s"Delete graph $graph.")
-    GraphMarker(graph).graphClose()
+  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): graphapi.GraphMarker = GraphMarker(graph).lockUpdate { state ⇒
+    log.info(s"Delete $graph.")
+    val marker = GraphMarker(graph)
+    if (marker.graphIsOpen())
+      GraphMarker(graph).graphClose()
     val roMarker = GraphMarker.deleteFromWorkspace(GraphMarker(graph))
-    log.info(s"Graph $graph is deleted.")
-    roMarker.uuid
+    log.info(s"$graph is deleted.")
+    roMarker
   }
   /**
    * Create 'Delete graph' operation.
@@ -104,7 +107,7 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] = {
       require(canExecute, "Execution is disabled.")
       try {
         val result = Option(OperationGraphDelete.this(graph, askBefore))
@@ -112,12 +115,12 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to delete graph $graph.", e)
+          Operation.Result.Error(s"Unable to delete $graph.", e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
       throw new UnsupportedOperationException
   }
 }
@@ -139,7 +142,7 @@ object OperationGraphDelete extends Loggable {
 
   /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val askBefore: Boolean)
-    extends Operation[UUID](s"Delete graph $graph.") {
+    extends Operation[graphapi.GraphMarker](s"Delete $graph.") {
     this: Loggable ⇒
   }
   /**

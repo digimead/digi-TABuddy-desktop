@@ -56,7 +56,6 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
-import org.digimead.tabuddy.desktop.logic.payload.maker.api.AbstractMarker
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
 import org.digimead.tabuddy.model.Model
@@ -84,7 +83,7 @@ class GraphMarker(
   /** Container IResource unique id. */
   val uuid: UUID,
   /** Autoload property file if suitable information needed. */
-  val autoload: Boolean = true) extends AbstractMarker with MarkerSpecific with GraphSpecific with Loggable {
+  val autoload: Boolean = true) extends api.GraphMarker with MarkerSpecific with GraphSpecific with Loggable {
   /** Type schemas folder name. */
   val folderTypeSchemas = "typeSchemas"
   /** Get container resource */
@@ -392,8 +391,8 @@ object GraphMarker extends Loggable {
     new GraphMarker(resourceUUID, true)
   }
   /** Permanently delete marker from the workspace. */
-  def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = lock.synchronized {
-    marker.lockUpdate {
+  def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = marker.lockUpdate {
+    lock.synchronized {
       case state: ThreadUnsafeState ⇒
         val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphCreated, marker.graphModelId,
           marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed)
@@ -437,27 +436,18 @@ object GraphMarker extends Loggable {
     /** State read/write lock. */
     protected val rwl = new ReentrantReadWriteLock()
 
-    /**
-     * Lock this state for reading.
-     */
+    /** Lock this state for reading. */
     def lockRead[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = {
       rwl.readLock().lock()
       try f(this) finally rwl.readLock().unlock()
     }
-    /**
-     * Lock this state for writing.
-     */
+    /** Lock this state for writing. */
     def lockWrite[A](f: ThreadUnsafeState ⇒ A): A = {
       rwl.writeLock().lock()
       try f(this) finally rwl.writeLock().unlock()
     }
-    /**
-     * Lock this state for updating field content.
-     */
-    def lockUpdate[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = {
-      rwl.writeLock().lock()
-      try f(this) finally rwl.writeLock().unlock()
-    }
+    /** Lock this state for updating field content. */
+    def lockUpdate[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = lockWrite(f)
   }
   /**
    * Graph marker thread unsafe read only object.
@@ -494,7 +484,7 @@ object GraphMarker extends Loggable {
   /** Read only marker. */
   class ReadOnlyGraphMarker(val uuid: UUID, val graphCreated: Element.Timestamp, val graphModelId: Symbol,
     val graphOrigin: Symbol, val graphPath: File, val graphStored: Element.Timestamp, val markerLastAccessed: Long)
-    extends AbstractMarker {
+    extends api.GraphMarker {
     /** Autoload property file if suitable information needed. */
     val autoload = false
     /** The validation flag indicating whether the marker is consistent. */

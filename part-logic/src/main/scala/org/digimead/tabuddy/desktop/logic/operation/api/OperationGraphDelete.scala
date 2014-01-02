@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.logic.operation.api
 
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api
+import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
@@ -61,7 +62,7 @@ trait OperationGraphDelete {
    * @param askBefore askUser before delete
    * @return deleted graph marker UUID
    */
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): UUID
+  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): graphapi.GraphMarker
   /**
    * Create 'Delete graph' operation.
    *
@@ -69,7 +70,7 @@ trait OperationGraphDelete {
    * @param askBefore askUser before delete
    * @return 'Delete graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], askBefore: Boolean): api.Operation[UUID]
+  def operation(graph: Graph[_ <: Model.Like], askBefore: Boolean): api.Operation[graphapi.GraphMarker]
 
   /**
    * Checks that this class can be subclassed.

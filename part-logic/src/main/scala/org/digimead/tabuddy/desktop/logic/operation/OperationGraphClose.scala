@@ -49,7 +49,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.maker.api.AbstractMarker
+import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
@@ -66,7 +66,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
    * @param force close graph without saving
    * @return the same marker or read only marker if current one is deleted
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): AbstractMarker = GraphMarker(graph).lockUpdate { state ⇒
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker = GraphMarker(graph).lockUpdate { state ⇒
     log.info(s"Close $graph, force is $force.")
     val marker = GraphMarker(graph)
     if (!marker.graphIsOpen())
@@ -131,7 +131,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[AbstractMarker] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] = {
       require(canExecute, "Execution is disabled.")
       try {
         val result = Option(OperationGraphClose.this(graph, force))
@@ -142,9 +142,9 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
           Operation.Result.Error(s"Unable to close $graph.", e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[AbstractMarker] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[AbstractMarker] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
       throw new UnsupportedOperationException
   }
 }
@@ -166,7 +166,7 @@ object OperationGraphClose extends Loggable {
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean)
-    extends Operation[AbstractMarker](s"Close $graph.") {
+    extends Operation[graphapi.GraphMarker](s"Close $graph.") {
     this: Loggable ⇒
   }
   /**

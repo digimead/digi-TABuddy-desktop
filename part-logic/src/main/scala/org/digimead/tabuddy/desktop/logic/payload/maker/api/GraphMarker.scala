@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -55,7 +55,7 @@ import scala.collection.immutable
  * Graph marker is an object that holds an association between real graph at client
  *   and Eclipse IResource within container(project).
  */
-trait AbstractMarker {
+trait GraphMarker {
   /** Autoload property file if suitable information needed. */
   val autoload: Boolean
   /** Container IResource unique id. */
