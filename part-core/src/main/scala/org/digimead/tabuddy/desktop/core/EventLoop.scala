@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -97,7 +97,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
       assert(bindingContext != null)
       assert(display != null)
       assert(realm != null)
-      log.debug(s"Mark thread with ID ${getId()} as application.")
+      log.debug(s"Mark thread with ID ${getId()} as event loop.")
       eventLoopThreadSync()
       waitWhile { _ == null } match {
         case None ⇒

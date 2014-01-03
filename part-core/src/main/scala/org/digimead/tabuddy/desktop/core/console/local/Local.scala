@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -89,7 +89,7 @@ class Local extends Projection with Loggable {
 object Local extends Loggable {
   @volatile private var instance: Option[Local] = None
 
-  class Reader extends JLineReader(JLineCompletion) with CReader {
+  class Reader extends JLineReader(new Local.JLineCompletion) with CReader {
     override val consoleReader = new LocalConsoleReader()
     override lazy val history: scala.tools.nsc.interpreter.session.JLineHistory =
       try new JLineHistory catch { case x: Exception ⇒ new SimpleHistory() }
@@ -186,7 +186,7 @@ object Local extends Loggable {
       new scala.reflect.io.File(hFile)
     }
   }
-  object JLineCompleter extends Completion.ScalaCompleter {
+  class JLineCompleter extends Completion.ScalaCompleter {
     def complete(buffer: String, cursor: Int): Completion.Candidates = {
       Command.parse(buffer.take(cursor)) match {
         case Command.MissingCompletionOrFailure(true, completionList, message) ⇒
@@ -212,9 +212,9 @@ object Local extends Loggable {
       }
     }
   }
-  object JLineCompletion extends Completion {
+  class JLineCompletion extends Completion {
     type ExecResult = Nothing
     def resetVerbosity() = ()
-    def completer() = JLineCompleter
+    def completer() = new JLineCompleter
   }
 }

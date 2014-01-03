@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -87,18 +87,20 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
               throw new IllegalArgumentException("Illegal DI keys found: " + invalid.mkString(","))
           }
           context.ungetService(reference)
-          true
+          Some(diService.getDependencyInjection())
         case None ⇒
           log.warn("DI service not found.")
-          false
+          None
       }
-    if (diReady) {
-      DependencyInjection.inject()
-      // Start UI thread
-      EventLoop.thread.start()
-      eventLoopThreadSync()
-    } else {
-      log.warn("Skip DI initialization and event loop creation in test environment.")
+    diReady match {
+      case Some(di) ⇒
+        DependencyInjection.reset()
+        DependencyInjection(di, false)
+        // Start UI thread
+        EventLoop.thread.start()
+        eventLoopThreadSync()
+      case None ⇒
+        log.warn("Skip DI initialization and event loop creation in test environment.")
     }
     Future {
       Activator.startStopLock.synchronized {
@@ -159,6 +161,8 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
       EventLoop.thread.waitWhile(code ⇒ (code != null && code.isEmpty))
       eventLoopThreadSync()
     }
+    Core.context.cleanup()
+    Core.context.dispose()
     setTranslationServiceTracker(None)
     translationServiceTracker.foreach(_.close())
     translationServiceTracker = None
