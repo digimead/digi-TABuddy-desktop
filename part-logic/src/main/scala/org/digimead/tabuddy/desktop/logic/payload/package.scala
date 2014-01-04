@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,7 +47,6 @@ import com.escalatesoft.subcut.inject.NewBindingModule
 import java.io.File
 import java.util.UUID
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.template.Predefined

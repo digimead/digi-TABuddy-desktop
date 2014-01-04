@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -60,29 +60,6 @@ trait Generic extends EventLoop.Consumer {
   @volatile var debug = true
   /** Application preference store. */
   protected lazy val preferenceStore = new ScopedPreferenceStore(InstanceScope.INSTANCE, bundle(getClass).getSymbolicName())
-  /*
-   * Symbol ::= plainid
-   *
-   * op ::= opchar {opchar}
-   * varid ::= lower idrest
-   * plainid ::= upper idrest
-   *           | varid
-   *           | op
-   * id ::= plainid
-   *        | ‘\‘’ stringLit ‘\‘’
-   * idrest ::= {letter | digit} [‘_’ op]
-   *
-   * Ll Letter, Lowercase
-   * Lu Letter, Uppercase
-   * Lt Letter, Titlecase
-   * Lo Letter, Other
-   * Lm Letter, Modifier
-   * Nd Number, Decimal Digit
-   * Nl (letter numbers like roman numerals)
-   *
-   * drop So, Sm and \u0020-\u007F
-   */
-  val symbolPattern = """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}]+[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}_]*""".r.pattern
   /** Flag indicating whether UI available. */
   lazy val isUIAvailable = try {
     val state = bundle(Class.forName("org.digimead.tabuddy.desktop.ui.Activator")).getState()

@@ -358,11 +358,6 @@ trait Parsers {
       (for (a ← this; b ← p) yield a).named("<~")
     }
 
-    /* not really useful: V cannot be inferred because Parser is covariant in first type parameter (V is always trivially Nothing)
-    def ~~ [U, V](q: => Parser[U])(implicit combine: (T, U) => V): Parser[V] = new Parser[V] {
-      def apply(in: Input) = seq(Parser.this, q)((x, y) => combine(x,y))(in)
-    }  */
-
     /**
      * A parser combinator for non-back-tracking sequential composition.
      *

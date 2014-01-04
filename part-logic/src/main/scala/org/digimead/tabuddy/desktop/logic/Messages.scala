@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,16 +41,18 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.console
+package org.digimead.tabuddy.desktop.logic
 
-import java.io.PrintWriter
+import org.digimead.tabuddy.desktop.core.definition.NLS
+import org.digimead.digi.lib.log.api.Loggable
 
-/**
- * Console writer.
- */
-trait Writer extends PrintWriter {
-  def echoAndRefresh(msg: String)
-  def echo(msg: String)
-  def echoNoNL(msg: String)
-  def printColumns(items: Seq[String])
+object Messages extends NLS with Loggable {
+  val overViewPanelTitle_text = ""
+  val graph_new_text = ""
+  val graph_newDescriptionShort_text = ""
+  val graph_newDescriptionLong_text = ""
+  val localizedTypeSchemaDescription_text = ""
+  val localizedTypeSchemaName_text = ""
+
+  T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
 }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -74,15 +74,17 @@ class Activator extends BundleActivator with Loggable {
               throw new IllegalArgumentException("Illegal DI keys found: " + invalid.mkString(","))
           }
           context.ungetService(reference)
-          true
+          Some(diService.getDependencyInjection())
         case None ⇒
           log.warn("DI service not found.")
-          false
+          None
       }
-    if (diReady) {
-      DependencyInjection.inject()
-    } else {
-      log.warn("Skip DI initialization in test environment.")
+    diReady match {
+      case Some(di) ⇒
+        DependencyInjection.reset()
+        DependencyInjection(di, false)
+      case None ⇒
+        log.warn("Skip DI initialization in test environment.")
     }
     // Start component actors hierarchy
     val f = Future {

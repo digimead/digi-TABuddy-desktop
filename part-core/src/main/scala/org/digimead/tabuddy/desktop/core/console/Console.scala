@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -172,9 +172,11 @@ object Console extends api.Console with Loggable {
   /** Default hint to text converter. */
   lazy val defaultHintToText = (hintLabel: String, hintDescription: Option[String], proposal: String) ⇒ (proposal, hintDescription) match {
     case (_, Some(description)) if hintLabel == proposal ⇒ s"${CYAN}${hintLabel}${RESET} - ${description}"
-    case (_, Some(description)) ⇒ s"${hintLabel}(${CYAN}${proposal}${RESET}) - ${description}"
+    case (_, Some(description)) if proposal.nonEmpty ⇒ s"${CYAN}${hintLabel}${RESET}(${proposal}) - ${description}"
+    case (_, Some(description)) ⇒ s"${CYAN}${hintLabel}${RESET} - ${description}"
     case (_, None) if hintLabel == proposal ⇒ s"${CYAN}${hintLabel}${RESET} - description is absent"
-    case (_, None) ⇒ s"${hintLabel}(${CYAN}${proposal}${RESET}) - description is absent"
+    case (_, None) if proposal.nonEmpty ⇒ s"${CYAN}${hintLabel}${RESET}(${proposal}) - description is absent"
+    case (_, None) ⇒ s"${CYAN}${hintLabel}${RESET} - description is absent"
     case ("", _) ⇒ s"""proposal is empty for "${hintLabel}""""
   }
   /** Singleton identificator. */

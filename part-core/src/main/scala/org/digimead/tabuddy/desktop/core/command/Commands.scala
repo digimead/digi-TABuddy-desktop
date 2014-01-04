@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -55,7 +55,7 @@ import scala.language.implicitConversions
  * The configurator is responsible for configure/unconfigure core commands.
  */
 class Commands extends Loggable {
-  protected var contextParsers = Seq.empty[UUID]
+  @volatile protected var contextParsers = Seq.empty[UUID]
   private val lock = new Object
 
   /** Configure component actions. */
@@ -69,7 +69,12 @@ class Commands extends Loggable {
     val coreInfo = Command.addToContext(Core.context, CommandInfo.parser)
     Command.register(CommandTest.descriptor)
     //val coreTest = Command.addToContext(Core.context, CommandTest.parser)
-    contextParsers = Seq(coreExit, coreHelp, coreInfo).flatten
+    /*
+     * context
+     */
+    Command.register(context.CommandContextList.descriptor)
+    val coreContextList = Command.addToContext(Core.context, context.CommandContextList.parser)
+    contextParsers = Seq(coreExit, coreHelp, coreInfo, coreContextList).flatten
   }
   /** Unconfigure component actions. */
   @log
@@ -79,6 +84,10 @@ class Commands extends Loggable {
     Command.unregister(CommandInfo.descriptor)
     Command.unregister(CommandHelp.descriptor)
     Command.unregister(CommandExit.descriptor)
+    /*
+     * context
+     */
+    Command.unregister(context.CommandContextList.descriptor)
   }
 }
 

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,7 +48,31 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import scala.language.implicitConversions
 
-class App extends Loggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection with app.Watch
+class App extends Loggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection with app.Watch {
+  /*
+   * Symbol ::= plainid
+   *
+   * op ::= opchar {opchar}
+   * varid ::= lower idrest
+   * plainid ::= upper idrest
+   *           | varid
+   *           | op
+   * id ::= plainidO
+   *        | ‘\‘’ stringLit ‘\‘’
+   * idrest ::= {letter | digit} [‘_’ op]
+   *
+   * Ll Letter, Lowercase
+   * Lu Letter, Uppercase
+   * Lt Letter, Titlecase
+   * Lo Letter, Other
+   * Lm Letter, Modifier
+   * Nd Number, Decimal Digit
+   * Nl (letter numbers like roman numerals)
+   *
+   * drop So, Sm and \u0020-\u007F
+   */
+  val symbolPattern = """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}]+[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}_]*""".r.pattern
+}
 
 /** Application singleton. */
 object App {

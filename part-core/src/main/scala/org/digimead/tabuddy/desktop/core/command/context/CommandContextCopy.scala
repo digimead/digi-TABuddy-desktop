@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,16 +41,8 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.console
+package org.digimead.tabuddy.desktop.core.command.context
 
-import java.io.PrintWriter
+class CommandContextCopy {
 
-/**
- * Console writer.
- */
-trait Writer extends PrintWriter {
-  def echoAndRefresh(msg: String)
-  def echo(msg: String)
-  def echoNoNL(msg: String)
-  def printColumns(items: Seq[String])
 }

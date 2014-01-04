@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -96,6 +96,6 @@ object CommandView extends Loggable {
   /** Create parser for the compound view factories. */
   protected def viewNameParser(viewFactories: Seq[ViewLayer.Factory]): Command.parser.Parser[Any] =
     commandRegex(viewFactories.map(_.name).mkString("|").r,
-      viewFactories.map(vf ⇒ Command.Hint(vf.name, vf.description, Some(vf.name))).
-        sortBy(_.completionLabel)) ^^ { result ⇒ viewFactories.find(_.name == result) }
+      Command.Hint.Container(viewFactories.map(vf ⇒ Command.Hint(vf.name, vf.description, Seq(vf.name))) /*.
+        sortBy(_.completionLabel)*/ )) ^^ { result ⇒ viewFactories.find(_.name == result) }
 }

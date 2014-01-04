@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -72,12 +72,12 @@ class CommandParsers extends JavaTokenParsers with Loggable {
           val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
           if (start == source.length()) {
             val completion = MissingCompletionOrFailure(true,
-              Seq((" ", Seq.empty)), "expected whitespace", in.drop(start - offset))
+              Seq(Command.Hint(" ")), "expected whitespace", in.drop(start - offset))
             Command.completionProposal.value = Command.completionProposal.value :+ completion
             completion
           } else {
             Command.completionProposal.value = Command.completionProposal.value :+
-              MissingCompletionOrFailure(false, Seq((" ", Seq.empty)), "string matching whitespace expected but " + found + " found", in.drop(start - offset))
+              MissingCompletionOrFailure(false, Seq(Command.Hint(" ")), "string matching whitespace expected but " + found + " found", in.drop(start - offset))
             Failure("string matching whitespace expected but " + found + " found", in.drop(start - offset))
           }
       }
@@ -135,43 +135,55 @@ class CommandParsers extends JavaTokenParsers with Loggable {
       else if (j == source.length()) {
         // if j == all text that we have then give our proposal
         val missing = s.substring(i)
-        val completion = MissingCompletionOrFailure(true, List((missing, List(hint))), "expected one of " + missing, in.drop(start - offset))
+        val completionHint = if (hint.completions.isEmpty) hint.copyWithCompletion(missing) else hint
+        val completion = MissingCompletionOrFailure(true, Seq(completionHint), "expected one of " + missing, in.drop(start - offset))
         Command.completionProposal.value = Command.completionProposal.value :+ completion
         completion
       } else {
         val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
-        if (j > 0) // only if there is a common part between s and in.source
+        if (j > 0) { // only if there is a common part between s and in.source
+          val completionHint = if (hint.completions.isEmpty) hint.copyWithCompletion(s) else hint
           Command.completionProposal.value = Command.completionProposal.value :+
-            MissingCompletionOrFailure(false, Seq((s, Seq.empty)), "`" + s + "' expected but " + found + " found", in.drop(start - offset))
+            MissingCompletionOrFailure(false, Seq(completionHint), "`" + s + "' expected but " + found + " found", in.drop(start - offset))
+        }
         Failure("`" + s + "' expected but " + found + " found", in.drop(start - offset))
       }
     }
   }
   /** A parser that matches a regex string. */
   implicit def commandRegex(r: Regex)(implicit descriptor: Command.Descriptor): Parser[String] =
-    commandRegex(r, Seq(Command.Hint(descriptor.name, Some(descriptor.shortDescription))))
+    commandRegex(r, Command.Hint.Container(Command.Hint(descriptor.name, Some(descriptor.shortDescription))))
   /** A parser that matches a regex string. */
-  implicit def commandRegex(t: (Regex, Seq[Command.Hint])): Parser[String] =
+  implicit def commandRegex(t: (Regex, Command.Hint.Container)): Parser[String] =
     commandRegex(t._1, t._2)
   /** A parser that matches a regex string. */
-  implicit def commandRegex(r: Regex, hints: Seq[Command.Hint]): Parser[String] = new Parser[String] {
+  implicit def commandRegex(r: Regex, hints: Command.Hint.Container): Parser[String] = new Parser[String] {
     def apply(in: Input) = {
       val source = in.source
       val offset = in.offset
       val start = handleWhiteSpace(source, offset)
-      (r findPrefixMatchOf (source.subSequence(start, source.length))) match {
+      val subject = source.subSequence(start, source.length).toString()
+      val hintList = hints(subject)
+      (r findPrefixMatchOf subject) match {
+        case Some(matched) if Command.completionProposalMode.value && hintList.nonEmpty && matched.end == subject.length() ⇒
+          // if we are at completionProposalMode
+          // and there are some proposals
+          // and this is last parser that covers whole subject
+          val completion = MissingCompletionOrFailure(true, hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
+          Command.completionProposal.value = Command.completionProposal.value :+ completion
+          completion
         case Some(matched) ⇒
           Success(source.subSequence(start, start + matched.end).toString,
             in.drop(start + matched.end - offset))
         case None ⇒
           val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
           if (start == source.length()) {
-            val completion = MissingCompletionOrFailure(true, Seq(("", hints)), "string matching regex `" + r + "' expected", in.drop(start - offset))
+            val completion = MissingCompletionOrFailure(true, hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
             Command.completionProposal.value = Command.completionProposal.value :+ completion
             completion
           } else {
             Command.completionProposal.value = Command.completionProposal.value :+
-              MissingCompletionOrFailure(false, Seq(("", hints)), "string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
+              MissingCompletionOrFailure(false, hintList, "string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
             Failure("string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
           }
       }
@@ -187,7 +199,7 @@ class CommandParsers extends JavaTokenParsers with Loggable {
    * @param next the input about to be read
    */
   case class MissingCompletionOrFailure(val appender: Boolean,
-    val completions: Seq[(String, Seq[Command.Hint])],
+    val completions: Seq[Command.Hint],
     override val msg: String,
     override val next: Input) extends Failure(msg, next) {
     /** The toString method of a Failure yields an error message. */

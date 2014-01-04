@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -104,6 +104,8 @@ object Context {
     result.set(EclipseContext.DEBUG_STRING, name)
     result
   }
+  /** Get context name. */
+  def getName(context: EclipseContext) = Option(context.getLocal(EclipseContext.DEBUG_STRING)).map(_.toString())
 
   /**
    * Most important is readability. Speed and memory is not significant.

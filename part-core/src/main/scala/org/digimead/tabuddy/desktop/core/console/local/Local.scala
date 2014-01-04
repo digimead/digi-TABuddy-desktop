@@ -43,19 +43,17 @@
 
 package org.digimead.tabuddy.desktop.core.console.local
 
-import java.io.PrintWriter
+import java.io.{ IOException, PrintWriter }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.{ Console, Projection, Reader ⇒ CReader, Writer ⇒ CWriter }
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.Command.cmdLine2implementation
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import scala.tools.nsc.interpreter.{ Completion, JLineReader, NoCompletion }
+import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.tools.jline.console.ConsoleReader
+import scala.tools.jline.console.completer.CandidateListCompletionHandler
+import scala.tools.nsc.interpreter.{ Completion, ConsoleReaderHelper, JLineReader, NoCompletion }
 import scala.tools.nsc.interpreter.session.JLineHistory.JLineFileHistory
 import scala.tools.nsc.interpreter.session.SimpleHistory
-import scala.tools.jline.console.completer.CandidateListCompletionHandler
-import scala.tools.jline.console.ConsoleReader
-import java.util.Collection
 
 class Local extends Projection with Loggable {
   /** Thread with local console loop. */
@@ -68,21 +66,35 @@ class Local extends Projection with Loggable {
   }
 
   def echo(msg: String) = out.foreach { out ⇒ out.echoAndRefresh(msg) }
-  def echoHint(msg: String) = out.foreach { out ⇒ out.echo("\n" + msg) }
+  def echoNoNL(msg: String) = out.foreach { out ⇒ out.echoNoNL(msg) }
+  def echoColumns(items: Seq[String]) = out.foreach { out ⇒ out.printColumns(items) }
   def start() {
     log.debug(s"Start local console.")
     in = Option(new Local.Reader)
-    out = Option(new Local.Writer(this))
-    val thread = new Thread(new Runnable { def run = loop })
+    out = Option(new Local.Writer(in.get.asInstanceOf[Local.Reader].consoleReader))
+    val thread = new Thread(new Runnable {
+      def run = try loop catch {
+        case e: IOException ⇒
+        case e: InterruptedException ⇒
+      }
+    })
     thread.setDaemon(true)
     thread.start()
     this.thread = Option(thread)
   }
   def stop() {
     log.debug(s"Stop local console.")
-    out.foreach(_.echo(""))
+    val prevIn = in
+    val prevOut = out
     in = None
     out = None
+    thread.foreach(_.interrupt())
+    prevIn.foreach { in ⇒
+      val reader = in.asInstanceOf[Local.Reader].consoleReader
+      reader.getOutput().flush()
+    }
+    prevOut.foreach(_.echo(""))
+    thread = None
   }
 }
 
@@ -115,11 +127,11 @@ object Local extends Loggable {
    * getUnambiguousCompletions marked as private :-(
    * I hate those pals.
    * Such type of 'private' is useful only at commercial projects
-   *   when someone want to restrict consumer API and reduce support cost
+   *   when someone wants to restrict consumer API and reduce support cost
    *   because consumer is potential enemy.
    * I am is NOT a consumer that affects ROI(Return on investment)...
    *
-   * Original class is distributed under the BSD license.
+   * Original class is distributed under the BSD license :-/
    */
   class LocalCandidateListCompletionHandler extends CandidateListCompletionHandler {
     override def complete(reader: ConsoleReader, candidates: java.util.List[CharSequence], pos: Int): Boolean = {
@@ -176,8 +188,24 @@ object Local extends Loggable {
       return true
     }
   }
-  class Writer(local: Local) extends PrintWriter(scala.Console.out, true) with CWriter {
-    def in = local.in
+  class Writer(local: ConsoleReader with ConsoleReaderHelper) extends PrintWriter(local.getOutput(), true) with CWriter {
+    def echoAndRefresh(msg: String) {
+      local.println("\n" + msg)
+      local.redrawLine()
+      local.flush()
+    }
+    def echo(msg: String) {
+      local.println(msg)
+      local.flush()
+    }
+    def echoNoNL(msg: String) {
+      local.print(msg)
+      local.flush()
+    }
+    def printColumns(items: Seq[String]) {
+      local.printColumns(items.asJava)
+      local.flush()
+    }
   }
   class JLineHistory extends JLineFileHistory {
     override protected lazy val historyFile: scala.reflect.io.File = {
@@ -187,18 +215,39 @@ object Local extends Loggable {
     }
   }
   class JLineCompleter extends Completion.ScalaCompleter {
-    def complete(buffer: String, cursor: Int): Completion.Candidates = {
-      Command.parse(buffer.take(cursor)) match {
+    def complete(buffer: String, cursor: Int): Completion.Candidates = instance.map { console ⇒
+      Command.completionProposalMode.withValue(true) { Command.parse(buffer.take(cursor)) } match {
         case Command.MissingCompletionOrFailure(true, completionList, message) ⇒
-          // sort by hint.completionLabel
-          val completions = completionList.map {
-            case (string, proposals) ⇒ proposals.map(hint ⇒ (hint.completionLabel, string,
-              Console.hintToText(hint.completionLabel, hint.completionDescription, string)))
-          }.flatten.sortBy(_._1)
-          if (completions.size > 1)
-            instance.foreach(_.echoHint(completions.map(_._3).mkString("\n")))
-          Completion.Candidates(cursor, completions.map(_._2).toList.distinct)
-        case Command.Success(id, _) ⇒
+          completionList.map(_.completions).flatten match {
+            case Nil ⇒
+              val proposals = completionList.map {
+                case Command.Hint(label, description, _) ⇒
+                  (label, () ⇒ console.echoNoNL("\r\n" + Console.hintToText(label.getOrElse("UNKNOWN"), description, "")))
+              }
+              if (proposals.nonEmpty) {
+                proposals.sortBy(_._1).foreach(_._2())
+                console.echoNoNL("\r\n")
+                // little feature - notice jline that there is more than one completion
+                Completion.Candidates(cursor, List("", ""))
+              } else
+                Completion.NoCandidates
+            case Seq(single) ⇒
+              Completion.Candidates(cursor, List(single))
+            case multiple ⇒
+              val proposals = completionList.filter(_.completions.nonEmpty).map {
+                case Command.Hint(label, description, Seq(single)) ⇒
+                  (label, () ⇒ console.echoNoNL("\r\n" + Console.hintToText(label.getOrElse("UNKNOWN"), description, single)))
+                case Command.Hint(label, description, multiple) ⇒
+                  (label, () ⇒ {
+                    console.echoNoNL("\r\n" + Console.hintToText(label.getOrElse("UNKNOWN"), description, "") + "\r\n")
+                    console.echoColumns(multiple)
+                  })
+              }
+              proposals.sortBy(_._1).foreach(_._2())
+              console.echoNoNL("\r\n")
+              Completion.Candidates(cursor, multiple.toList)
+          }
+        case Command.Success(id, e) ⇒
           // Ok, but there may be more...
           // Add space character and search for append proposals...
           Command.parse(buffer.take(cursor) + " ") match {
@@ -210,7 +259,7 @@ object Local extends Loggable {
         case _ ⇒
           Completion.NoCandidates
       }
-    }
+    }.getOrElse(Completion.NoCandidates)
   }
   class JLineCompletion extends Completion {
     type ExecResult = Nothing

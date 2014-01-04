@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,28 +43,36 @@
 
 package org.digimead.tabuddy.desktop.logic.command
 
+import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.command.Command
 import scala.language.implicitConversions
 
 /**
  * The configurator is responsible for configure/unconfigure logic commands.
  */
 class Commands extends Loggable {
+  @volatile protected var contextParsers = Seq.empty[UUID]
+  private val lock = new Object
+
   /** Configure component actions. */
   @log
-  def configure() {
-    //Command.register(CommandExit.descriptor)
-    //Command.register(CommandTest.descriptor)
-    //Command.addToContext(Core.context, CommandExit.parser)
-    //Command.addToContext(Core.context, CommandTest.parser)
+  def configure() = lock.synchronized {
+    /*
+     * graph
+     */
+    Command.register(graph.CommandGraphNew.descriptor)
+    val coreGraphNew = Command.addToContext(Core.context, graph.CommandGraphNew.parser)
+    contextParsers = Seq(coreGraphNew).flatten
   }
   /** Unconfigure component actions. */
   @log
-  def unconfigure() {
-    //Command.unregister(CommandTest.descriptor)
-    //Command.unregister(CommandExit.descriptor)
+  def unconfigure() = lock.synchronized {
+    contextParsers.foreach(Command.removeFromContext(Core.context, _))
+    Command.unregister(graph.CommandGraphNew.descriptor)
   }
 }
 

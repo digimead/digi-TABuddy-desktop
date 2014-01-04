@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -81,29 +81,6 @@ class Payload(val marker: GraphMarker) extends Loggable {
   lazy val enumerations = WritableMap[Symbol, api.Enumeration[_ <: AnyRef with java.io.Serializable]]
   /** Predefined type schemas that are available for this application. */
   lazy val predefinedTypeSchemas: Seq[api.TypeSchema] = TypeSchema.predefined
-  /*
-   * Symbol ::= plainid
-   *
-   * op ::= opchar {opchar}
-   * varid ::= lower idrest
-   * plainid ::= upper idrest
-   *           | varid
-   *           | op
-   * id ::= plainidO
-   *        | ‘\‘’ stringLit ‘\‘’
-   * idrest ::= {letter | digit} [‘_’ op]
-   *
-   * Ll Letter, Lowercase
-   * Lu Letter, Uppercase
-   * Lt Letter, Titlecase
-   * Lo Letter, Other
-   * Lm Letter, Modifier
-   * Nd Number, Decimal Digit
-   * Nl (letter numbers like roman numerals)
-   *
-   * drop So, Sm and \u0020-\u007F
-   */
-  val symbolPattern = """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}]+[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}_]*""".r.pattern
   /** The property representing all available type schemas */
   lazy val typeSchemas = WritableMap[UUID, api.TypeSchema]
   /** The property representing the active type schema */

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -67,6 +67,9 @@ object Messages extends NLS with Loggable {
   val collapseAll_text = ""
   val collapseRecursively_text = ""
   val console_text = ""
+  val context_list_text = ""
+  val context_listDescriptionShort_text = ""
+  val context_listDescriptionLong_text = ""
   val copy_item_text = ""
   val copy_text = ""
   val coreDiscover_text = ""
@@ -155,8 +158,6 @@ object Messages extends NLS with Loggable {
   val loadFile_text = ""
   val localModel_text = ""
   val localModel_tooltip_text = ""
-  val localizedTypeSchemaDescription_text = ""
-  val localizedTypeSchemaName_text = ""
   val lock_text = ""
   val lookupAliasInTranslations_text = ""
   val lookupFilter_text = ""
@@ -234,5 +235,5 @@ object Messages extends NLS with Loggable {
   val yes_text = ""
   val overViewPanelTitle_text = ""
 
-  T.ranslate("org.digimead.tabuddy.desktop.messages")
+  T.ranslate("org.digimead.tabuddy.desktop.core.messages")
 }

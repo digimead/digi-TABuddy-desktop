@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -76,7 +76,7 @@ trait Projection extends api.Console.Projection {
     }
     waitForPromptPermission.exchange(null)
     var next = true
-    while (next) {
+    while (next && in.nonEmpty && out.nonEmpty) {
       readOneLine() match {
         case Some(lastLine) ⇒
           this.lastLine = lastLine

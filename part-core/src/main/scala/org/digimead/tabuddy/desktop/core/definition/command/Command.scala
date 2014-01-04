@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -228,6 +228,8 @@ object Command extends Loggable {
   implicit def cmdLine2implementation(c: Command.type): Command = c.inner
   /** Last parsing process completion. */
   val completionProposal = new DynamicVariable(Seq.empty[CommandParsers#MissingCompletionOrFailure])
+  /** Force completion proposal mode. */
+  val completionProposalMode = new DynamicVariable(false)
   /** Context commands map key. */
   val contextKey = "Commands"
   /** Context commands composite parser key. */
@@ -244,7 +246,7 @@ object Command extends Loggable {
 
   sealed trait Result
   case class Success(val uniqueId: UUID, val result: Any) extends Result
-  case class MissingCompletionOrFailure(val appender: Boolean, val completion: Seq[(String, Seq[Hint])], val message: String) extends Result
+  case class MissingCompletionOrFailure(val appender: Boolean, val completion: Seq[Hint], val message: String) extends Result
   case class Failure(val message: String) extends Result
   case class Error(val message: String) extends Result
   /** Information about command parser that is added to specific context. */
@@ -307,21 +309,17 @@ object Command extends Loggable {
       Command.parse(actualParserCombinators.get, input) match {
         case Command.Success(uniqueId, result) ⇒
           Array()
-        case Command.MissingCompletionOrFailure(appender, completionList, message) ⇒
+        case Command.MissingCompletionOrFailure(appender, hints, message) ⇒
           {
-            completionList.map {
-              case (completion, hints) ⇒
-                if (hints.isEmpty)
-                  Seq(new ContentProposal(completion, null, null))
+            hints.map {
+              case Hint(Some(label), description, list) ⇒
+                val completionList = list.filter(_.nonEmpty)
+                if (completionList.size == 1)
+                  completionList.map(completion ⇒ new ContentProposal(completion, label, description getOrElse null))
                 else
-                  hints.map {
-                    case Hint(label, Some(description), explicit) ⇒
-                      val actualCompletion = explicit getOrElse completion
-                      new ContentProposal(actualCompletion, label, description)
-                    case Hint(label, None, explicit) ⇒
-                      val actualCompletion = explicit getOrElse completion
-                      new ContentProposal(actualCompletion, label, null)
-                  }
+                  completionList.map(completion ⇒ new ContentProposal(completion, s"${label}(${completion})", description getOrElse null))
+              case Hint(None, description, list) ⇒
+                list.filter(_.nonEmpty).map(completion ⇒ new ContentProposal(completion, completion, description getOrElse null))
             }
           }.flatten.toArray
         case Command.Failure(message) ⇒
@@ -333,13 +331,56 @@ object Command extends Loggable {
       }
     }
   }
-  case class Hint(
+  /** Completion hint. */
+  abstract class Hint {
     /** Completion label. */
-    val completionLabel: String,
+    def label: Option[String]
     /** Completion description. */
-    val completionDescription: Option[String] = None,
-    /** Explicit completion overrides default completion from parser. */
-    val explicitCompletion: Option[String] = None)
+    def description: Option[String]
+    /** Get copy of this hint with updated completions field. */
+    def copyWithCompletion(completions: String*): this.type
+    /** Completion list. */
+    def completions: Seq[String]
+  }
+  object Hint {
+    /** Get static Hint instance. */
+    def apply(completionLabel: String, completionDescription: Option[String] = None, explicitCompletion: Seq[String] = Seq.empty): Hint =
+      new Static(Some(completionLabel), completionDescription, explicitCompletion)
+    /** Get static Hint instance. */
+    def apply(explicitCompletion: String*): Hint =
+      new Static(None, None, explicitCompletion)
+    /** Hint extractor implementation. */
+    def unapply(hint: Hint): Option[(Option[String], Option[String], Seq[String])] =
+      Some(hint.label, hint.description, hint.completions)
+
+    /** Simple Hint implementation with static fields. */
+    class Static(
+      /** Completion label. */
+      val label: Option[String],
+      /** Completion description. */
+      val description: Option[String],
+      /** Completion list. */
+      val completions: Seq[String]) extends Hint {
+      /** Get copy of this hint with updated completions field. */
+      def copyWithCompletion(completions: String*): this.type =
+        new Static(label, description, completions).asInstanceOf[this.type]
+    }
+    /** Hint container returns list of hints to parser with regards of argument. */
+    trait Container {
+      def apply(arg: String): Seq[Hint]
+    }
+    object Container {
+      /** Get simple Hints container. */
+      def apply(hints: Hint*): Container = new Simple(hints)
+      /** Get simple Hints container. */
+      def apply(hints: Traversable[Hint]): Container = new Simple(hints.toSeq)
+
+      /** Simple Hints container that returns predefined sequence, regardless of argument. */
+      class Simple(val hints: Seq[Hint]) extends Container {
+        def apply(arg: String) = hints
+      }
+    }
+  }
   /** Computation that calculates composite parser for current context. */
   class CompositeParserComputation extends ContextFunction {
     override def compute(context: IEclipseContext, fnKey: String): Option[parser.Parser[Any]] =

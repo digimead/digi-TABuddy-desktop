@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,49 +41,39 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.command
+package org.digimead.tabuddy.desktop.logic.command.graph
 
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Messages
-import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
-import org.digimead.tabuddy.desktop.core.operation.OperationCommands
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.operation.OperationGraphNew
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
 /**
- * Help command that starts 'Get available commands' operation.
+ * List command that show all application contexts.
+ * Example: graph new graphName /a/b/c/.../graphPath
  */
-object CommandHelp extends Loggable {
+object CommandGraphNew extends Loggable {
   import Command.parser._
-  private val allArg = "all"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
-  /** Console converter. */
-  lazy val converter: PartialFunction[(Descriptor, Any), String] = {
-    case (this.descriptor, Seq()) ⇒
-      "There are no commands"
-    case (this.descriptor, descriptors @ Seq(_*)) ⇒
-      descriptors.asInstanceOf[Seq[Command.Descriptor]].sortBy(_.name).map { d ⇒
-        s"${Console.BWHITE}${d.name}${Console.RESET} ${d.shortDescription}"
-      }.mkString("\n")
-  }
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.help_text,
-    Messages.helpDescriptionShort_text, Messages.helpDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_new_text,
+    Messages.graph_newDescriptionShort_text, Messages.graph_newDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case Some(descriptor @ Command.Descriptor(id)) ⇒
-          s"${Console.BWHITE}${descriptor.name}${Console.RESET} - ${descriptor.shortDescription}\n\n${descriptor.longDescription}"
-        case _ ⇒
-          val exchanger = new Exchanger[Operation.Result[Seq[Command.Descriptor]]]()
-          OperationCommands(parserResult != Some(allArg)).foreach { operation ⇒
+        case ~(~(graphName: String, _), graphContainer: String) ⇒
+          val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
+          OperationGraphNew(Some(graphName), Some(new File(graphContainer)), false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -95,7 +85,7 @@ object CommandHelp extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              result getOrElse Seq.empty
+              result
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case other ⇒
@@ -104,16 +94,40 @@ object CommandHelp extends Loggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> ((allArg, Command.Hint(allArg, Some("list all commands"))) | commandsParser)))
+  lazy val parser = Command.CmdParser(descriptor.name ~ opt(sp ~> "-a") ~> sp ~> nameParser ~ sp ~ pathParser)
 
   /** Create parser for the list of commands. */
-  protected def commandsParser: Command.parser.Parser[Any] = {
-    val registered = Command.registered
-    if (registered.nonEmpty)
-      registered.map(descriptor ⇒
-        commandLiteral(descriptor.name, Command.Hint(descriptor.name, Some(s"show '${descriptor.name}' description"))) ^^ { _ ⇒ descriptor }).
-        reduceLeft(_ | _)
-    else
-      success(None)
+  protected def nameParser: Command.parser.Parser[Any] =
+    commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal")))) ^^ { result ⇒ result }
+
+  protected def pathParser: Command.parser.Parser[Any] =
+    commandRegex(".*".r, HintContainer) ^^ { result ⇒ result }
+
+  object HintContainer extends Command.Hint.Container {
+    lazy val root = getRoot(new File(Logic.container.getLocationURI()))
+    def apply(arg: String): Seq[Command.Hint] = {
+      if (arg.trim.isEmpty)
+        return Seq(Command.Hint("graph location", Some(s"path to graph directory"), Seq(root.getName() + File.separator)))
+      val hint = new File(arg.trim()) match {
+        case path if path.isDirectory() && arg.endsWith(File.separator) ⇒
+          val dirs = path.listFiles().sortBy(_.getName).filter(_.isDirectory())
+          Command.Hint("graph location", Some(s"path to graph directory"), dirs.map(_.getName()))
+        case path ⇒
+          val prefix = path.getName()
+          val beginIndex = prefix.length()
+          val parent = path.getParentFile()
+          val dirs = if (parent.isDirectory())
+            path.getParentFile().listFiles().filter(f ⇒ f.getName().startsWith(prefix) && f.isDirectory())
+          else
+            Array[File]()
+          Command.Hint("graph location", Some(s"path to graph directory"), dirs.map(_.getName().substring(beginIndex) + File.separator))
+      }
+      Seq(hint)
+    }
+    def getRoot(file: File): File = Option(file.getParentFile()) match {
+      case Some(parent) ⇒ getRoot(parent)
+      case None ⇒ file
+    }
   }
 }
+
