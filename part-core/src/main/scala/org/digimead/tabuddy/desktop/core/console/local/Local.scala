@@ -48,7 +48,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.{ Console, Projection, Reader ⇒ CReader, Writer ⇒ CWriter }
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import scala.collection.JavaConverters.seqAsJavaListConverter
+import scala.collection.JavaConverters._
 import scala.tools.jline.console.ConsoleReader
 import scala.tools.jline.console.completer.CandidateListCompletionHandler
 import scala.tools.nsc.interpreter.{ Completion, ConsoleReaderHelper, JLineReader, NoCompletion }
@@ -93,7 +93,6 @@ class Local extends Projection with Loggable {
       val reader = in.asInstanceOf[Local.Reader].consoleReader
       reader.getOutput().flush()
     }
-    prevOut.foreach(_.echo(""))
     thread = None
   }
 }
@@ -101,10 +100,10 @@ class Local extends Projection with Loggable {
 object Local extends Loggable {
   @volatile private var instance: Option[Local] = None
 
-  class Reader extends JLineReader(new Local.JLineCompletion) with CReader {
+  class Reader() extends JLineReader(new Local.JLineCompletion) with CReader {
     override val consoleReader = new LocalConsoleReader()
     override lazy val history: scala.tools.nsc.interpreter.session.JLineHistory =
-      try new JLineHistory catch { case x: Exception ⇒ new SimpleHistory() }
+      try new JLineHistory catch { case _: Exception ⇒ new SimpleHistory() }
     consoleReader.postInit
     class LocalConsoleReader extends JLineConsoleReader {
       // A hook for running code after the repl is done initializing.
@@ -117,80 +116,24 @@ object Local extends Loggable {
           setCompletionHandler(new LocalCandidateListCompletionHandler)
         }
       }
+      override def back(num: Int) = super.back(num)
+      override def flush() {
+        instance.foreach(console ⇒ if (console.in.isEmpty) throw new IOException("Reader is closed."))
+        super.flush()
+      }
     }
   }
   /**
    * CandidateListCompletionHandler
    */
-  /*
-   * copy'n'paste hell
-   * getUnambiguousCompletions marked as private :-(
-   * I hate those pals.
-   * Such type of 'private' is useful only at commercial projects
-   *   when someone wants to restrict consumer API and reduce support cost
-   *   because consumer is potential enemy.
-   * I am is NOT a consumer that affects ROI(Return on investment)...
-   *
-   * Original class is distributed under the BSD license :-/
-   */
   class LocalCandidateListCompletionHandler extends CandidateListCompletionHandler {
-    override def complete(reader: ConsoleReader, candidates: java.util.List[CharSequence], pos: Int): Boolean = {
-      val buf = reader.getCursorBuffer();
-
-      // if there is only one completion, then fill in the buffer
-      if (candidates.size() == 1) {
-        val value = candidates.get(0)
-
-        // fail if the only candidate is the same as the current buffer
-        if (value.equals(buf.toString()))
-          return false
-        CandidateListCompletionHandler.setBuffer(reader, value, pos);
-        return true
-      } else if (candidates.size() > 1) {
-        var value = hackForUnambiguousCompletions(candidates)
-        CandidateListCompletionHandler.setBuffer(reader, value, pos)
-      }
-      // redraw the current console buffer
-      reader.drawLine()
-      true
-    }
-    /**
-     * Returns a root that matches all the {@link String} elements of the specified {@link List},
-     * or null if there are no commonalities. For example, if the list contains
-     * <i>foobar</i>, <i>foobaz</i>, <i>foobuz</i>, the method will return <i>foob</i>.
-     */
-    def hackForUnambiguousCompletions(candidates: java.util.List[CharSequence]): String = {
-      if (candidates == null || candidates.isEmpty())
-        return null
-
-      // convert to an array for speed
-      val strings = candidates.toArray(new Array[String](candidates.size()))
-      val first = strings(0)
-      val candidate = new StringBuilder()
-      for (i ← 0 until first.length()) {
-        if (startsWith(first.substring(0, i + 1), strings)) {
-          candidate.append(first.charAt(i))
-        } else {
-          return candidate.toString()
-        }
-      }
-      candidate.toString()
-    }
-    /**
-     * @return true is all the elements of <i>candidates</i> start with <i>starts</i>
-     */
-    def startsWith(starts: String, candidates: Array[String]): Boolean = {
-      for (candidate ← candidates) {
-        if (!candidate.startsWith(starts)) {
-          return false
-        }
-      }
-      return true
-    }
+    // fail if the only candidate is the same as the current buffer
+    override def complete(reader: ConsoleReader, candidates: java.util.List[CharSequence], pos: Int): Boolean =
+      if (candidates.size() == 1) candidates.get(0).equals(reader.getCursorBuffer().toString()) else true
   }
   class Writer(local: ConsoleReader with ConsoleReaderHelper) extends PrintWriter(local.getOutput(), true) with CWriter {
     def echoAndRefresh(msg: String) {
-      local.println("\n" + msg)
+      local.println("\r\n" + msg)
       local.redrawLine()
       local.flush()
     }
@@ -215,51 +158,111 @@ object Local extends Loggable {
     }
   }
   class JLineCompleter extends Completion.ScalaCompleter {
-    def complete(buffer: String, cursor: Int): Completion.Candidates = instance.map { console ⇒
+    def complete(buffer: String, cursor: Int): Completion.Candidates = try {
+      val candidates = for {
+        console ← instance
+        reader ← console.in
+      } yield reader match {
+        case reader: Reader ⇒
+          val (candidates, proposals) = getCandidatesAndProposals(buffer, cursor, console)
+          // process completions
+          val buf = reader.consoleReader.getCursorBuffer()
+          val pos = reader.consoleReader.currentPos
+          val completions = candidates.candidates.filter(_.nonEmpty)
+          // if there is only one completion, then fill in the buffer
+          val completionShift = if (completions.length == 1) {
+            val value = completions(0)
+            // fail if the only candidate is the same as the current buffer
+            if (!value.equals(buf.toString()))
+              CandidateListCompletionHandler.setBuffer(reader.consoleReader, value, pos)
+            0
+          } else if (completions.length > 1 && !completions.forall(_.length == 0)) {
+            val common = Console.searchForCommonPart(completions)
+            if (common.nonEmpty) {
+              CandidateListCompletionHandler.setBuffer(reader.consoleReader, common, pos)
+              common.length()
+            } else 0
+          } else 0
+          // process proposals
+          if (proposals.nonEmpty) {
+            drawProposals(proposals, completionShift, console)
+            reader.consoleReader.drawLine()
+          }
+          candidates
+      }
+      candidates getOrElse Completion.NoCandidates
+    } catch {
+      case e: Throwable ⇒
+        log.error("Unable to get proposal: " + e.getMessage, e)
+        Completion.NoCandidates
+    }
+
+    /** Draw proposal list on the console. */
+    protected def drawProposals(proposals: Seq[(Option[String], Boolean, (Int) ⇒ Unit)], completionShift: Int, console: Local) {
+      console.echoNoNL("\r\n")
+      proposals.sortBy(_._1).foreach {
+        case (label, flagNL, proposalOutputFn) ⇒
+          proposalOutputFn(completionShift)
+          if (flagNL)
+            console.echoNoNL("\r\n")
+      }
+    }
+    /** Get candidates and proposals. */
+    protected def getCandidatesAndProposals(buffer: String, cursor: Int,
+      console: Local): (Completion.Candidates, Seq[(Option[String], Boolean, (Int) ⇒ Unit)]) = {
+      // little feature - notice jline that there is more than one completion
+      // @see LocalCandidateListCompletionHandler.complete
+      // ... else if (candidates.size() > 1 && !candidates.asScala.forall(_.length() == 0)) ...
+      val ReDraw = Completion.Candidates(cursor, List("", ""))
       Command.completionProposalMode.withValue(true) { Command.parse(buffer.take(cursor)) } match {
-        case Command.MissingCompletionOrFailure(true, completionList, message) ⇒
-          completionList.map(_.completions).flatten match {
+        case Command.MissingCompletionOrFailure(true, completionRaw, message) ⇒
+          val completionList = completionRaw.distinct
+          val completionStrings = completionList.map(_.completions).flatten.filter(_.nonEmpty).distinct
+          completionStrings match {
             case Nil ⇒
               val proposals = completionList.map {
-                case Command.Hint(label, description, _) ⇒
-                  (label, () ⇒ console.echoNoNL("\r\n" + Console.hintToText(label.getOrElse("UNKNOWN"), description, "")))
-              }
-              if (proposals.nonEmpty) {
-                proposals.sortBy(_._1).foreach(_._2())
-                console.echoNoNL("\r\n")
-                // little feature - notice jline that there is more than one completion
-                Completion.Candidates(cursor, List("", ""))
-              } else
-                Completion.NoCandidates
-            case Seq(single) ⇒
-              Completion.Candidates(cursor, List(single))
-            case multiple ⇒
-              val proposals = completionList.filter(_.completions.nonEmpty).map {
                 case Command.Hint(label, description, Seq(single)) ⇒
-                  (label, () ⇒ console.echoNoNL("\r\n" + Console.hintToText(label.getOrElse("UNKNOWN"), description, single)))
+                  (label, true, (shift: Int) ⇒ console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, single.drop(shift))))
                 case Command.Hint(label, description, multiple) ⇒
-                  (label, () ⇒ {
-                    console.echoNoNL("\r\n" + Console.hintToText(label.getOrElse("UNKNOWN"), description, "") + "\r\n")
+                  (label, false, (shift: Int) ⇒ {
+                    console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, "") + "\r\n")
                     console.echoColumns(multiple)
                   })
               }
-              proposals.sortBy(_._1).foreach(_._2())
-              console.echoNoNL("\r\n")
-              Completion.Candidates(cursor, multiple.toList)
+              if (proposals.nonEmpty)
+                (ReDraw, proposals)
+              else
+                (Completion.NoCandidates, Seq.empty)
+            case Seq(single) ⇒
+              (Completion.Candidates(cursor, List(single)), Seq.empty)
+            case multiple ⇒
+              val proposals = completionList.filter(_.completions.nonEmpty).map {
+                case Command.Hint(label, description, Seq(single)) ⇒
+                  (label, true, (shift: Int) ⇒ console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, single.drop(shift))))
+                case Command.Hint(label, description, multiple) ⇒
+                  (label, false, (shift: Int) ⇒ {
+                    console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, "") + "\r\n")
+                    console.echoColumns(multiple.map(_.drop(shift)))
+                  })
+              }
+              (Completion.Candidates(cursor, multiple.toList), proposals)
           }
         case Command.Success(id, e) ⇒
           // Ok, but there may be more...
           // Add space character and search for append proposals...
           Command.parse(buffer.take(cursor) + " ") match {
             case Command.MissingCompletionOrFailure(true, completionList, message) if completionList.nonEmpty ⇒
-              Completion.Candidates(cursor, List(" "))
+              (Completion.Candidates(cursor, List(" ")), Seq.empty)
             case _ ⇒
-              Completion.NoCandidates
+              (Completion.NoCandidates, Seq.empty)
           }
-        case _ ⇒
-          Completion.NoCandidates
+        case Command.Error(message) ⇒
+          (ReDraw, Seq((None, true, (shift: Int) ⇒ console.echoNoNL(Console.msgWarning.format(message) + Console.RESET))))
+        case err ⇒
+          log.trace(s"Unable to complete '$buffer': " + err)
+          (Completion.NoCandidates, Seq.empty)
       }
-    }.getOrElse(Completion.NoCandidates)
+    }
   }
   class JLineCompletion extends Completion {
     type ExecResult = Nothing

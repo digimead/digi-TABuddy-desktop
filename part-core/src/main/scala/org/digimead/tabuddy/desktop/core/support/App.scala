@@ -71,7 +71,12 @@ class App extends Loggable with app.Akka with app.Context with app.Thread with a
    *
    * drop So, Sm and \u0020-\u007F
    */
-  val symbolPattern = """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}]+[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}_]*""".r.pattern
+  def symbolPatternDefinition(additional: String = "") =
+    """[\p{Ll}\p{Lu}\p{Lt}\p{Lo}\p{Nd}\p{Nl}%s]""".format(additional, additional)
+  /** Compiled symbol pattern. */
+  val symbolPattern = s"${symbolPatternDefinition()}+${symbolPatternDefinition("_")}*".r.pattern
+  /** UUID pattern. */
+  val uuidPattern = """[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}""".r.pattern
 }
 
 /** Application singleton. */

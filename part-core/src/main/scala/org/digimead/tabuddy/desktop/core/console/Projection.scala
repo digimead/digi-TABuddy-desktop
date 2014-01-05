@@ -70,7 +70,9 @@ trait Projection extends api.Console.Projection {
    *  command() returns false.
    */
   protected def loop() {
-    def readOneLine() = {
+    def readOneLine() = if (in.isEmpty || out.isEmpty) {
+      None
+    } else {
       withOut(_.flush())
       withIn { in ⇒ in readLine prompt }
     }

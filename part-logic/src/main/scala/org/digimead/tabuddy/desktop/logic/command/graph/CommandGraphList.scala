@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,21 +41,51 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.logic.command.graph
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.Config
+import java.util.UUID
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import scala.concurrent.Future
 
-package object logic {
-  lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[api.Config] toModuleSingle { implicit module ⇒ new Config }
-  }) ~
-    command.default ~
-    payload.default ~
-    payload.view.default ~
-    comparator.default ~
-    filter.default ~
-    operation.default
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.Default$DI$")
+/**
+ * List all known graphs.
+ */
+object CommandGraphList extends Loggable {
+  import Command.parser._
+  private val loadedArg = "-loaded"
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Console converter. */
+  lazy val converter: PartialFunction[(Descriptor, Any), String] = {
+    case (this.descriptor, (true, Seq())) ⇒
+      "There are no loaded graphs"
+    case (this.descriptor, (false, Seq())) ⇒
+      "There are no graphs"
+    case (this.descriptor, (_, graphMarkers @ Seq(_*))) ⇒
+      graphMarkers.asInstanceOf[Seq[GraphMarker]].sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name).map { marker ⇒
+        val state = "UNKNOWN"
+        s"${Console.BWHITE}${marker.graphOrigin}${Console.RESET} " +
+          s"${Console.BWHITE}${marker.graphModelId}${Console.RESET} " +
+          s"${Console.BWHITE}${marker.uuid}${Console.RESET} ${state} at ${marker.graphPath}"
+      }.mkString("\n")
+  }
+  /** Command description. */
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_list_text,
+    Messages.graph_listDescriptionShort_text, Messages.graph_listDescriptionLong_text,
+    (activeContext, parserContext, parserResult) ⇒ Future[(Boolean, Seq[GraphMarker])] {
+      parserResult match {
+        case Some(loadedArg) ⇒
+          (true, Seq())
+        case None ⇒
+          (false, GraphMarker.list().map(GraphMarker(_)))
+      }
+    })
+  /** Command parser. */
+  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> loadedArg))
 }

@@ -51,10 +51,12 @@ import java.util.{ Properties, UUID }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.digi.lib.util.FileUtil
+import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.Report
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.operation.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
@@ -86,6 +88,9 @@ class GraphMarker(
   val autoload: Boolean = true) extends api.GraphMarker with MarkerSpecific with GraphSpecific with Loggable {
   /** Type schemas folder name. */
   val folderTypeSchemas = "typeSchemas"
+  /** Map of marker contexts. */
+  protected val contextRefs = new mutable.WeakHashMap[Context, Unit] with mutable.SynchronizedMap[Context, Unit]
+
   /** Get container resource */
   lazy val resource: IFile = {
     val resourceName = uuid.toString + "." + Payload.extensionGraph
@@ -341,6 +346,16 @@ object GraphMarker extends Loggable {
   def apply(uuid: UUID): GraphMarker = new GraphMarker(uuid)
   /** Get marker for graph. */
   def apply(graph: Graph[_ <: Model.Like]): GraphMarker = graph.withData(_(GraphMarker).asInstanceOf[GraphMarker])
+  /** Bind marker to context. */
+  def bind(marker: GraphMarker, context: Context = Core.context) = lock.synchronized {
+    log.debug(s"Bind ${marker} to ${context}")
+    contextToMarker(context).foreach(_ ⇒ unbind(context))
+    marker.contextRefs(context) = ()
+    context.set(classOf[GraphMarker], marker)
+  }
+  /** Get marker binded to context. */
+  def contextToMarker(context: Context): Option[GraphMarker] =
+    lock.synchronized { Option(context.getLocal(classOf[GraphMarker])) }
   /**
    * Create new model marker in the workspace.
    *
@@ -424,6 +439,17 @@ object GraphMarker extends Loggable {
       else
         None
     }
+  }
+  /** Get list of contexts binded to marker. */
+  def markerToContext(marker: GraphMarker): Seq[Context] = lock.synchronized { marker.contextRefs.keys.toSeq }
+  /** Unbind marker from context. */
+  def unbind(context: Context) = lock.synchronized {
+    val marker = contextToMarker(context).get // throw if empty
+    log.debug(s"Unbind ${marker} from ${context}")
+    context.remove(classOf[GraphMarker])
+    marker.contextRefs.remove(context)
+    if (marker.contextRefs.isEmpty && marker.graphIsOpen())
+      marker.lockUpdate(e ⇒ OperationGraphClose(e.graph, false))
   }
 
   /**

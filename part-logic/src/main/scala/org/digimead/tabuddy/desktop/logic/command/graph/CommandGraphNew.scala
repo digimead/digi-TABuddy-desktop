@@ -46,12 +46,12 @@ package org.digimead.tabuddy.desktop.logic.command.graph
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.operation.OperationGraphNew
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -59,11 +59,12 @@ import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
 /**
- * List command that show all application contexts.
- * Example: graph new graphName /a/b/c/.../graphPath
+ * Create new graph.
+ * Example: graph new -all graphName /a/b/c/.../graphPath
  */
 object CommandGraphNew extends Loggable {
   import Command.parser._
+  private val allArg = "-all"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
@@ -85,6 +86,7 @@ object CommandGraphNew extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
+              result.map(graph ⇒ GraphMarker.bind(GraphMarker(graph)))
               result
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
@@ -94,17 +96,21 @@ object CommandGraphNew extends Loggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~ opt(sp ~> "-a") ~> sp ~> nameParser ~ sp ~ pathParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~ opt(sp ~> allArg) ~> sp ~> nameParser ~ sp ~ locationParser)
 
-  /** Create parser for the list of commands. */
+  /** Create parser for the graph name. */
   protected def nameParser: Command.parser.Parser[Any] =
-    commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal")))) ^^ { result ⇒ result }
+    commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"))))
 
-  protected def pathParser: Command.parser.Parser[Any] =
-    commandRegex(".*".r, HintContainer) ^^ { result ⇒ result }
+  /** Create parser for the graph location. */
+  protected def locationParser: Command.parser.Parser[Any] =
+    commandRegex(".*".r, HintContainer)
 
   object HintContainer extends Command.Hint.Container {
+    /** Current FS root, based on application location. */
     lazy val root = getRoot(new File(Logic.container.getLocationURI()))
+
+    /** Get parser hints for user provided path. */
     def apply(arg: String): Seq[Command.Hint] = {
       if (arg.trim.isEmpty)
         return Seq(Command.Hint("graph location", Some(s"path to graph directory"), Seq(root.getName() + File.separator)))

@@ -48,9 +48,15 @@ import org.digimead.digi.lib.log.api.Loggable
 
 object Messages extends NLS with Loggable {
   val overViewPanelTitle_text = ""
+  val graph_list_text = ""
+  val graph_listDescriptionShort_text = ""
+  val graph_listDescriptionLong_text = ""
   val graph_new_text = ""
   val graph_newDescriptionShort_text = ""
   val graph_newDescriptionLong_text = ""
+  val graph_open_text = ""
+  val graph_openDescriptionShort_text = ""
+  val graph_openDescriptionLong_text = ""
   val localizedTypeSchemaDescription_text = ""
   val localizedTypeSchemaName_text = ""
 

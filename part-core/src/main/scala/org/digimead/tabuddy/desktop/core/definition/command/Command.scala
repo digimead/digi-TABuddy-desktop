@@ -56,6 +56,7 @@ import scala.collection.{ immutable, mutable }
 import scala.concurrent.Future
 import scala.language.implicitConversions
 import scala.util.DynamicVariable
+import scala.util.parsing.input.CharSequenceReader
 
 /**
  * Command supervisor.
@@ -136,9 +137,14 @@ class Command extends Loggable {
   def parse(parser: Command.parser.Parser[Any], input: String): Command.Result = {
     val (parserId, proposalWithAppend, proposalWithReplace, result) = Command.triggeredCmdParserId.withValue(None) {
       Command.completionProposal.withValue(Seq.empty) {
-        val result = Command.parser.parse(parser, input)
-        val (proposalWithAppend, proposalWithReplace) = Command.completionProposal.value.partition(_.appender)
-        (Command.triggeredCmdParserId.value, proposalWithAppend, proposalWithReplace, result)
+        try {
+          val result = Command.parser.parse(parser, input)
+          val (proposalWithAppend, proposalWithReplace) = Command.completionProposal.value.partition(_.appender)
+          (Command.triggeredCmdParserId.value, proposalWithAppend, proposalWithReplace, result)
+        } catch {
+          case e: Command.ParseException ⇒
+            (Command.triggeredCmdParserId.value, Seq(), Seq(), Command.parser.Error(e.getMessage(), new CharSequenceReader(input)))
+        }
       }
     }
     result match {
@@ -297,6 +303,8 @@ object Command extends Loggable {
       true
     }
   }
+  /** Parser exception that correctly terminate parse sequence. */
+  case class ParseException(message: String) extends java.text.ParseException(message, -1)
   /** ProposalProvider for a text field. */
   class ProposalProvider(val actualParserCombinators: AtomicReference[parser.Parser[Any]])
     extends IContentProposalProvider {
@@ -341,6 +349,18 @@ object Command extends Loggable {
     def copyWithCompletion(completions: String*): this.type
     /** Completion list. */
     def completions: Seq[String]
+
+    def canEqual(other: Any) = other.isInstanceOf[Hint]
+    override def equals(other: Any) = other match {
+      case that: Hint ⇒ (this eq that) || {
+        that.canEqual(this) && label == that.label && description == that.description && completions == that.completions
+      }
+      case _ ⇒ false
+    }
+    override def hashCode() = lazyHashCode
+    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](label, description, completions))
+
+    override def toString() = "Command.Hint(" + s"$label, $description, $completions)"
   }
   object Hint {
     /** Get static Hint instance. */

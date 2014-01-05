@@ -104,57 +104,75 @@ class Console extends Actor with Loggable {
   }
 
   /** Run one command submitted by the user. */
-  protected def command(line: String, from: Option[api.Console.Projection], sender: ActorRef) = Command.parse(line) match {
-    case Command.Success(contextParserId, result) ⇒
-      Command.getContextParserInfo(contextParserId) match {
-        case Some(info) ⇒
-          Command.getDescriptor(info.parserId) match {
-            case Some(commandDescriptor) ⇒
-              val activeContext = Core.context.getActiveLeaf()
-              Console.log.info(s"Execute command '${commandDescriptor.name}' within context '${info.context}' with argument: " + result)
-              implicit val ec = App.system.dispatcher
-              commandDescriptor.callback(activeContext, info.context, result) onComplete {
-                case result @ Success(r) ⇒
-                  if (sender != App.system.deadLetters)
-                    sender ! result
-                  commandOnSuccess(commandDescriptor, r, from)
-                case result @ Failure(e) ⇒
-                  if (sender != App.system.deadLetters)
-                    sender ! result
-                  commandOnFailure(commandDescriptor, e, line, from)
-              }
-            case None ⇒
-              if (sender != App.system.deadLetters)
-                sender ! Failure(new RuntimeException("Unable to find command description for " + info))
-              Console.log.fatal("Unable to find command description for " + info)
-          }
-        case None ⇒
-          if (sender != App.system.deadLetters)
-            sender ! Failure(new RuntimeException("Unable to find command information for unique Id " + contextParserId))
-          Console.log.fatal("Unable to find command information for unique Id " + contextParserId)
-      }
-    case Command.MissingCompletionOrFailure(appender, completionList, message) ⇒
+  protected def command(line: String, from: Option[api.Console.Projection], sender: ActorRef) = try {
+    Command.parse(line) match {
+      case Command.Success(contextParserId, result) ⇒
+        Command.getContextParserInfo(contextParserId) match {
+          case Some(info) ⇒
+            Command.getDescriptor(info.parserId) match {
+              case Some(commandDescriptor) ⇒
+                val activeContext = Core.context.getActiveLeaf()
+                Console.log.info(s"Execute command '${commandDescriptor.name}' within context '${info.context}' with argument: " + result)
+                implicit val ec = App.system.dispatcher
+                commandDescriptor.callback(activeContext, info.context, result) onComplete {
+                  case result @ Success(r) ⇒
+                    if (sender != App.system.deadLetters)
+                      sender ! result
+                    commandOnSuccess(commandDescriptor, r, from)
+                  case result @ Failure(e) ⇒
+                    if (sender != App.system.deadLetters)
+                      sender ! result
+                    commandOnFailure(commandDescriptor, e, line, from)
+                }
+              case None ⇒
+                if (sender != App.system.deadLetters)
+                  sender ! Failure(new RuntimeException("Unable to find command description for " + info))
+                Console.log.fatal("Unable to find command description for " + info)
+            }
+          case None ⇒
+            if (sender != App.system.deadLetters)
+              sender ! Failure(new RuntimeException("Unable to find command information for unique Id " + contextParserId))
+            Console.log.fatal("Unable to find command information for unique Id " + contextParserId)
+        }
+      case Command.MissingCompletionOrFailure(appender, completionList, message) ⇒
+        if (sender != App.system.deadLetters)
+          sender ! Failure(new RuntimeException("Autocomplete: " + message))
+        commandOnIncorrect(line, from)
+        Console.log.debug("Autocomplete: " + message)
+      case Command.Failure(message) ⇒
+        if (sender != App.system.deadLetters)
+          sender ! Failure(new RuntimeException(message))
+        commandOnIncorrect(line, from)
+        Console.log.debug(message)
+      case Command.Error(message) ⇒
+        if (sender != App.system.deadLetters)
+          sender ! Failure(new RuntimeException(message))
+        commandOnError(line, message, from)
+        Console.log.debug(message)
+    }
+  } catch {
+    case e: Throwable ⇒
       if (sender != App.system.deadLetters)
-        sender ! Failure(new RuntimeException("Autocomplete: " + message))
-      Console.log.debug("Autocomplete: " + message)
-    case Command.Failure(message) ⇒
-      if (sender != App.system.deadLetters)
-        sender ! Failure(new RuntimeException(message))
-      Console.log.debug(message)
-    case Command.Error(message) ⇒
-      if (sender != App.system.deadLetters)
-        sender ! Failure(new RuntimeException(message))
-      Console.log.fatal(message)
+        sender ! Failure(e)
+      log.error(e.getMessage(), e)
+  }
+  /** Command error. */
+  protected def commandOnError(line: String, message: String, from: Option[api.Console.Projection]) {
+    from.foreach(_.echo(Console.msgWarning.format(message) + Console.RESET))
+  }
+  /** Command is incorrect. */
+  protected def commandOnIncorrect(line: String, from: Option[api.Console.Projection]) {
+    from.foreach(_.echo(Console.msgWarning.format(s"Command '${line}' isn't correct.") + Console.RESET))
   }
   /** Command future is failed. */
   protected def commandOnFailure(commandDescriptor: Command.Descriptor, error: Throwable, line: String, from: Option[api.Console.Projection]) {
-    from.foreach(_.echo(Console.DI.msgAlert.format(s"\n${commandDescriptor.name} is failed: " + error) + Console.RESET))
+    from.foreach(_.echo(Console.msgAlert.format(s"${commandDescriptor.name} is failed: " + error) + Console.RESET))
   }
   /** Command future is successful completed. */
   protected def commandOnSuccess(commandDescriptor: Command.Descriptor, result: Any, from: Option[api.Console.Projection]) {
     val message = Console.convert(commandDescriptor, result) match {
       case "" ⇒ s"""Command "${commandDescriptor.name}" is completed."""
-      case result ⇒ s"""Command "${commandDescriptor.name}" is completed:\n""" + Console.RESET + result
+      case result ⇒ s"""Command "${commandDescriptor.name}" is completed:\r\n""" + Console.RESET + result
     }
     Console ! Console.Message.Notice(message)
   }
@@ -172,10 +190,10 @@ object Console extends api.Console with Loggable {
   /** Default hint to text converter. */
   lazy val defaultHintToText = (hintLabel: String, hintDescription: Option[String], proposal: String) ⇒ (proposal, hintDescription) match {
     case (_, Some(description)) if hintLabel == proposal ⇒ s"${CYAN}${hintLabel}${RESET} - ${description}"
-    case (_, Some(description)) if proposal.nonEmpty ⇒ s"${CYAN}${hintLabel}${RESET}(${proposal}) - ${description}"
+    case (_, Some(description)) if proposal.nonEmpty ⇒ s"${CYAN}${hintLabel}${RESET} (${proposal}) - ${description}"
     case (_, Some(description)) ⇒ s"${CYAN}${hintLabel}${RESET} - ${description}"
     case (_, None) if hintLabel == proposal ⇒ s"${CYAN}${hintLabel}${RESET} - description is absent"
-    case (_, None) if proposal.nonEmpty ⇒ s"${CYAN}${hintLabel}${RESET}(${proposal}) - description is absent"
+    case (_, None) if proposal.nonEmpty ⇒ s"${CYAN}${hintLabel}${RESET} (${proposal}) - description is absent"
     case (_, None) ⇒ s"${CYAN}${hintLabel}${RESET} - description is absent"
     case ("", _) ⇒ s"""proposal is empty for "${hintLabel}""""
   }
@@ -198,10 +216,40 @@ object Console extends api.Console with Loggable {
   def historyFileName = DI.historyFileName
   /** List with console projections. */
   def list = DI.consoleList
+  /** Console command message. */
+  def msgCommand = DI.msgCommand
+  /** Console notice message. */
+  def msgNotice = DI.msgNotice
+  /** Console info message. */
+  def msgInfo = DI.msgInfo
+  /** Console important message. */
+  def msgImportant = DI.msgImportant
+  /** Console warning message. */
+  def msgWarning = DI.msgWarning
+  /** Console alert message. */
+  def msgAlert = DI.msgAlert
   /** Prompt to print when awaiting input. */
   def prompt = DI.prompt
   /** Console actor reference configuration object. */
   def props = DI.props
+  /**
+   * Returns a root that matches all the {@link String} elements of the specified {@link List},
+   * or empty string if there are no commonalities. For example, if the list contains
+   * <i>foobar</i>, <i>foobaz</i>, <i>foobuz</i>, the method will return <i>foob</i>.
+   */
+  def searchForCommonPart(candidates: Seq[String]): String = {
+    if (candidates.isEmpty) return ""
+    val first = candidates(0)
+    val candidate = new StringBuilder()
+    for (i ← 0 until first.length()) {
+      val starts = first.substring(0, i + 1)
+      if (candidates.forall(_.startsWith(starts)))
+        candidate.append(first.charAt(i))
+      else
+        return candidate.toString()
+    }
+    candidate.toString()
+  }
   /** Print a welcome message */
   def welcomeMessage(): String = {
     import Properties._
