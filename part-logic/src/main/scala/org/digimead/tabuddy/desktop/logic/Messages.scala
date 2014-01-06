@@ -57,6 +57,9 @@ object Messages extends NLS with Loggable {
   val graph_open_text = ""
   val graph_openDescriptionShort_text = ""
   val graph_openDescriptionLong_text = ""
+  val graph_save_text = ""
+  val graph_saveDescriptionShort_text = ""
+  val graph_saveDescriptionLong_text = ""
   val localizedTypeSchemaDescription_text = ""
   val localizedTypeSchemaName_text = ""
 

@@ -45,31 +45,31 @@ package org.digimead.tabuddy.desktop.logic.command.graph
 
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.logic.operation.OperationGraphOpen
+import org.digimead.tabuddy.desktop.logic.operation.OperationGraphSave
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
-object CommandGraphOpen extends Loggable {
+object CommandGraphSave extends Loggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_open_text,
-    Messages.graph_openDescriptionShort_text, Messages.graph_openDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_save_text,
+    Messages.graph_saveDescriptionShort_text, Messages.graph_saveDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case (Some(marker: GraphMarker), _, _, _) ⇒
-          val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-          OperationGraphOpen(marker.uuid).foreach { operation ⇒
+          val exchanger = new Exchanger[Operation.Result[Unit]]()
+          val graph = marker.lockRead(_.graph)
+          OperationGraphSave(graph).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -81,8 +81,7 @@ object CommandGraphOpen extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              result.map(graph ⇒ GraphMarker.bind(GraphMarker(graph)))
-              result
+              ""
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case other ⇒
@@ -90,11 +89,26 @@ object CommandGraphOpen extends Loggable {
           }
         case (None, name, uuid, origin) ⇒
           Console.msgWarning.format(s"Graph '${name}#${uuid}@${origin}' not found.") + Console.RESET
+        case None ⇒
+          val unsaved = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.graphIsOpen() && m.graphIsDirty())
+          unsaved.foreach { marker ⇒
+            val graph = marker.lockRead(_.graph)
+            OperationGraphSave(graph).foreach { operation ⇒
+              operation.getExecuteJob() match {
+                case Some(job) ⇒
+                  job.setPriority(Job.LONG)
+                  job.schedule()
+                case None ⇒
+                  log.fatal(s"Unable to create job for ${operation}.")
+              }
+            }
+          }
+          "Asynchronously save all graphs."
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> graphArg)
+  lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphArg))
 
   def graphArg = Common.graphArgumentParser(() ⇒ GraphMarker.list().
-    map(GraphMarker(_)).filterNot(_.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+    map(GraphMarker(_)).filter(m ⇒ m.graphIsOpen() && m.graphIsDirty()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
 }

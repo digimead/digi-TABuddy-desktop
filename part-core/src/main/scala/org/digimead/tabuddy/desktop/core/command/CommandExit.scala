@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -75,7 +75,7 @@ object CommandExit extends Loggable {
             job.setPriority(Job.LONG)
             job.onComplete(exchanger.exchange).schedule()
           case None ⇒
-            log.fatal(s"Unable to create job for ${operation}.")
+            throw new RuntimeException(s"Unable to create job for ${operation}.")
         }
       }
       exchanger.exchange(null) match {

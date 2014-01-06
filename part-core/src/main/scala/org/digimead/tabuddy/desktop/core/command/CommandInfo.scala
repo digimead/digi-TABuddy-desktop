@@ -107,7 +107,7 @@ object CommandInfo extends Loggable {
             job.setPriority(Job.LONG)
             job.onComplete(exchanger.exchange).schedule()
           case None ⇒
-            log.fatal(s"Unable to create job for ${operation}.")
+            throw new RuntimeException(s"Unable to create job for ${operation}.")
         }
       }
       exchanger.exchange(null) match {

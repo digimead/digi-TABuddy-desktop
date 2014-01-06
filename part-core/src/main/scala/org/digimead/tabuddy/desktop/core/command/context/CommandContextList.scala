@@ -58,7 +58,7 @@ import scala.concurrent.Future
  */
 object CommandContextList extends Loggable {
   import Command.parser._
-  private val fullArg = "full"
+  private val fullArg = "-full"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Console converter. */

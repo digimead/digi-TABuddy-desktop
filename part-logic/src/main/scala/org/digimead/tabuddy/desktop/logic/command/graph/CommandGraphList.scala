@@ -58,20 +58,31 @@ import scala.concurrent.Future
  */
 object CommandGraphList extends Loggable {
   import Command.parser._
-  private val loadedArg = "-loaded"
+  private val bindedArg = "-binded"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Console converter. */
   lazy val converter: PartialFunction[(Descriptor, Any), String] = {
     case (this.descriptor, (true, Seq())) ⇒
-      "There are no loaded graphs"
+      "There are no binded graphs"
     case (this.descriptor, (false, Seq())) ⇒
       "There are no graphs"
-    case (this.descriptor, (_, graphMarkers @ Seq(_*))) ⇒
+    case (this.descriptor, (true, graphMarkers @ Seq(_*))) ⇒
       graphMarkers.asInstanceOf[Seq[GraphMarker]].sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name).map { marker ⇒
-        val state = "UNKNOWN"
-        s"${Console.BWHITE}${marker.graphOrigin}${Console.RESET} " +
-          s"${Console.BWHITE}${marker.graphModelId}${Console.RESET} " +
+        s"${Console.BWHITE}${marker.graphOrigin.name}${Console.RESET} " +
+          s"${Console.BWHITE}${marker.graphModelId.name}${Console.RESET} " +
+          s"${Console.BWHITE}${marker.uuid}${Console.RESET} binded to ${GraphMarker.markerToContext(marker).mkString(", ")}"
+      }.mkString("\n")
+    case (this.descriptor, (false, graphMarkers @ Seq(_*))) ⇒
+      graphMarkers.asInstanceOf[Seq[GraphMarker]].sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name).map { marker ⇒
+        val state = marker match {
+          case broken if !marker.markerIsValid ⇒ s"[${Console.BRED}broken${Console.RESET}]"
+          case dirty if marker.graphIsOpen() && marker.graphIsDirty() ⇒ s"[${Console.BYELLOW}unsaved${Console.RESET}]"
+          case opened if marker.graphIsOpen() ⇒ s"[${Console.BGREEN}opened${Console.RESET}]"
+          case closed ⇒ s"[${Console.BBLACK}closed${Console.RESET}]"
+        }
+        s"${Console.BWHITE}${marker.graphOrigin.name}${Console.RESET} " +
+          s"${Console.BWHITE}${marker.graphModelId.name}${Console.RESET} " +
           s"${Console.BWHITE}${marker.uuid}${Console.RESET} ${state} at ${marker.graphPath}"
       }.mkString("\n")
   }
@@ -81,11 +92,11 @@ object CommandGraphList extends Loggable {
     (activeContext, parserContext, parserResult) ⇒ Future[(Boolean, Seq[GraphMarker])] {
       parserResult match {
         case Some(loadedArg) ⇒
-          (true, Seq())
+          (true, GraphMarker.list().map(GraphMarker(_)).filter(_.graphIsOpen()))
         case None ⇒
           (false, GraphMarker.list().map(GraphMarker(_)))
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> loadedArg))
+  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> bindedArg))
 }
