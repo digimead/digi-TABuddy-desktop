@@ -60,12 +60,14 @@ trait GraphSpecific {
   this: GraphMarker ⇒
 
   /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(): Graph[_ <: Model.Like] = state.lockWrite { state ⇒
+  def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = state.lockWrite { state ⇒
     assertState()
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    loadGraph(takeItEasy = true) getOrElse {
+    if (!reload)
+      state.graphObject.foreach(graph ⇒ return graph)
+    val graph = loadGraph(takeItEasy = true) getOrElse {
       log.info("Create new empty graph " + graphModelId)
       /**
        * TABuddy - global TA Buddy space
@@ -75,18 +77,21 @@ trait GraphSpecific {
        *     +-Templates - predefined TA Buddy element templates
        */
       // try to create model because we are unable to load it
-      state.graphObject = Option(Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒
-        g.withData(_(GraphMarker) = GraphSpecific.this)
+      Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒
         g.storages = g.storages :+ this.graphPath.toURI()
-      })
-      state.payloadObject = Option(initializePayload())
-      state.graphObject.get
+      }
     }
+    graph.withData(_(GraphMarker) = GraphSpecific.this)
+    state.graphObject = Option(graph)
+    state.payloadObject = Option(initializePayload())
+    graph
   }
   /** Close the loaded graph. */
   def graphClose() = state.lockWrite { state ⇒
     assertState()
     log.info(s"Close '${state.graph}' with '${this}'.")
+    state.contextRefs.keys.map(GraphMarker.unbind)
+    state.contextRefs.clear()
     try markerSave() finally {
       state.graphObject = None
       state.payloadObject = None
@@ -107,7 +112,7 @@ trait GraphSpecific {
     log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    GraphSpecific.appWideRWLock.synchronized { Serialization.freeze(state.graph) }
+    Serialization.freeze(state.graph)
   }
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean = graphIsOpen && !lockRead { state ⇒
@@ -138,9 +143,7 @@ trait GraphSpecific {
   protected def loadGraph(takeItEasy: Boolean = false): Option[Graph[_ <: Model.Like]] = try {
     if (!markerIsValid)
       return None
-    val graph = GraphSpecific.appWideRWLock.synchronized { Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphPath.toURI)) }
-    graph.map(_.withData(_(GraphMarker) = GraphSpecific.this))
-    graph
+    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphPath.toURI))
   } catch {
     case e: Throwable ⇒
       if (takeItEasy)
@@ -149,8 +152,4 @@ trait GraphSpecific {
         log.error(s"Unable to load graph ${graphOrigin} from $graphPath: " + e.getMessage(), e)
       None
   }
-}
-
-object GraphSpecific {
-  val appWideRWLock = new Object() // (De)serialization is thread unsafe. SnakeYAML for example.
 }

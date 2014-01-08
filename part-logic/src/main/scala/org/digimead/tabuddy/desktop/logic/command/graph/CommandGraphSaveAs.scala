@@ -43,36 +43,41 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphOpen
+import org.digimead.tabuddy.desktop.logic.operation.graph.{ OperationGraphClose, OperationGraphSaveAs }
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
+import scala.util.DynamicVariable
 
 /**
- * Open closed graph and bind it to Core context.
+ * Save graph that is already open with different name to different location.
  */
-object CommandGraphOpen extends Loggable {
+object CommandGraphSaveAs extends Loggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_open_text,
-    Messages.graph_openDescriptionShort_text, Messages.graph_openDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_saveAs_text,
+    Messages.graph_saveAsDescriptionShort_text, Messages.graph_saveAsDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case (Some(marker: GraphMarker), _, _, _) ⇒
+        case ~(~(~(Some(marker: GraphMarker), space), name: String), path: File) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-          OperationGraphOpen(marker.uuid).foreach { operation ⇒
+          val shouldCloseAfterComplete = !marker.graphIsOpen()
+          val graph = marker.graphAcquire()
+          OperationGraphSaveAs(graph, name, path, None).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -84,21 +89,52 @@ object CommandGraphOpen extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              result.map(graph ⇒ GraphMarker.bind(GraphMarker(graph)))
+              if (shouldCloseAfterComplete) {
+                OperationGraphClose.operation(graph, false)
+                result.foreach(OperationGraphClose.operation(_, false))
+              }
               result
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case other ⇒
               throw new RuntimeException(s"Unable to complete operation: ${other}.")
           }
-        case (None, name, uuid, origin) ⇒
-          Console.msgWarning.format(s"Graph '${name}#${uuid}@${origin}' not found.") + Console.RESET
+        case err ⇒
+          log.fatal("Unable to save: " + err)
+          "Unable to save graph. Marker lost."
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> graphParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~> (graphParser ^^ { result ⇒
+    localGraphMarker.value = result._1
+    result._1
+  }) ~ sp ~ (nameParser ^^ { result ⇒
+    localGraphMarker.value = None
+    result
+  }) ~ pathParser)
+  /** Thread local cache with current graph marker. */
+  protected lazy val localGraphMarker = new DynamicVariable[Option[GraphMarker]](None)
 
   /** Graph argument parser. */
-  def graphParser = GraphParser(() ⇒ GraphMarker.list().
-    map(GraphMarker(_)).filterNot(_.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  protected def graphParser = GraphParser(() ⇒ GraphMarker.list().
+    map(GraphMarker(_)).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  /** Create parser for the graph name. */
+  protected def nameParser: Command.parser.Parser[Any] = commandRegex(App.symbolPattern.pattern().r, HintContainer)
+  /** Path argument parser. */
+  protected def pathParser = PathParser(Logic.graphContainer, "graph location", Some(s"path to graph directory")) { _.isDirectory }
+
+  /** Hint container for graph name. */
+  object HintContainer extends Command.Hint.Container {
+    /** Get parser hints for user provided argument. */
+    def apply(arg: String): Seq[Command.Hint] = localGraphMarker.value match {
+      case Some(marker) if arg.isEmpty ⇒
+        Seq(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"), Seq(marker.graphModelId.name)))
+      case Some(marker) if marker.graphModelId.name.startsWith(arg) ⇒
+        Seq(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"), Seq(marker.graphModelId.name.drop(arg.length()))))
+      case Some(marker) ⇒
+        Seq(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"), Seq()))
+      case None ⇒
+        Seq()
+    }
+  }
 }

@@ -52,6 +52,9 @@ import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.element.{ Element, Value }
 import scala.collection.immutable
+import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.serialization.StubSerialization
 
 class ElementTemplate(
   /** The template element */
@@ -242,7 +245,11 @@ object ElementTemplate extends Loggable {
   def load(marker: GraphMarker): (Set[api.ElementTemplate], Set[api.ElementTemplate]) = marker.lockRead { state ⇒
     log.debug("Load element template list for graph " + state.graph)
     // Renew/update original templates
-    val temp = PredefinedElements.eTemporaryElementTemplate(state.graph)
+    val tempGraph = {
+      implicit val tempGraphModelStashClass: Class[_ <: Model.Stash] = classOf[Model.Stash]
+      Graph[Model]('temp, Model.scope, StubSerialization.Identifier, UUID.randomUUID()) { g ⇒ }
+    }
+    val temp = tempGraph.model.eRelative
     val originalTemplatesContainer = PredefinedElements.eElementTemplateOriginal(state.graph)
     val userTemplatesContainer = PredefinedElements.eElementTemplateUser(state.graph)
     temp.eNode.freezeWrite { tempNode ⇒

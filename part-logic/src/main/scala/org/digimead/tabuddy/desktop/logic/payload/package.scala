@@ -129,20 +129,6 @@ package object payload {
         eSettingsFn(graph) | RecordLocation('Enumerations)
       }
     }
-    /** A graph temporary elements container. */
-    module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eTemporary" toProvider { module ⇒
-      graph: Graph[_ <: Model.Like] ⇒ {
-        val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eTABuddy"))
-        eSettingsFn(graph) | RecordLocation('Temporary)
-      }
-    }
-    /** A graph temporary element templates container. */
-    module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eTemporaryTemplate" toProvider { module ⇒
-      graph: Graph[_ <: Model.Like] ⇒ {
-        val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eTemporary"))
-        eSettingsFn(graph) | RecordLocation('Templates)
-      }
-    }
     /** A graph view modificator elements container. */
     module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eView" toProvider { module ⇒
       graph: Graph[_ <: Model.Like] ⇒ {

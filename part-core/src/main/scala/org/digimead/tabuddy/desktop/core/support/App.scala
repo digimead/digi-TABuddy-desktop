@@ -44,8 +44,12 @@
 package org.digimead.tabuddy.desktop.core.support
 
 import akka.actor.{ Actor, ActorRef, Props }
+import java.io.File
+import java.net.URL
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.eclipse.core.runtime.adaptor.LocationManager
+import org.eclipse.osgi.framework.internal.core.FrameworkProperties
 import scala.language.implicitConversions
 
 class App extends Loggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection with app.Watch {
@@ -77,6 +81,9 @@ class App extends Loggable with app.Akka with app.Context with app.Thread with a
   val symbolPattern = s"${symbolPatternDefinition()}+${symbolPatternDefinition("_")}*".r.pattern
   /** UUID pattern. */
   val uuidPattern = """[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}""".r.pattern
+  /** Application data. Launcher.Data DI value. */
+  val data = Option(FrameworkProperties.getProperty(LocationManager.PROP_INSTALL_AREA)).map(url ⇒ new File(new URL(url).toURI())).
+    getOrElse { throw new IllegalStateException(LocationManager.PROP_INSTALL_AREA + " not found") }
 }
 
 /** Application singleton. */

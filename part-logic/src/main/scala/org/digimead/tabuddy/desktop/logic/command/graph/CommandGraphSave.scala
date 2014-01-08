@@ -52,11 +52,14 @@ import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.logic.operation.OperationGraphSave
+import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSave
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
+/**
+ * Save graph that is already open && modified.
+ */
 object CommandGraphSave extends Loggable {
   import Command.parser._
   /** Akka execution context. */
@@ -66,10 +69,10 @@ object CommandGraphSave extends Loggable {
     Messages.graph_saveDescriptionShort_text, Messages.graph_saveDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case (Some(marker: GraphMarker), _, _, _) ⇒
+        case Some((Some(marker: GraphMarker), _, _, _)) ⇒
           val exchanger = new Exchanger[Operation.Result[Unit]]()
           val graph = marker.lockRead(_.graph)
-          OperationGraphSave(graph).foreach { operation ⇒
+          OperationGraphSave(graph, false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -87,13 +90,13 @@ object CommandGraphSave extends Loggable {
             case other ⇒
               throw new RuntimeException(s"Unable to complete operation: ${other}.")
           }
-        case (None, name, uuid, origin) ⇒
+        case Some((None, name, uuid, origin)) ⇒
           Console.msgWarning.format(s"Graph '${name}#${uuid}@${origin}' not found.") + Console.RESET
         case None ⇒
           val unsaved = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.graphIsOpen() && m.graphIsDirty())
           unsaved.foreach { marker ⇒
             val graph = marker.lockRead(_.graph)
-            OperationGraphSave(graph).foreach { operation ⇒
+            OperationGraphSave(graph, false).foreach { operation ⇒
               operation.getExecuteJob() match {
                 case Some(job) ⇒
                   job.setPriority(Job.LONG)
@@ -107,8 +110,9 @@ object CommandGraphSave extends Loggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphArg))
+  lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphParser))
 
-  def graphArg = Common.graphArgumentParser(() ⇒ GraphMarker.list().
+  /** Graph argument parser. */
+  def graphParser = GraphParser(() ⇒ GraphMarker.list().
     map(GraphMarker(_)).filter(m ⇒ m.graphIsOpen() && m.graphIsDirty()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
 }

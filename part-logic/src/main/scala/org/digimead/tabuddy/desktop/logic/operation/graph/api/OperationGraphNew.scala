@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation.api
+package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
 import java.io.File
 import org.digimead.tabuddy.desktop.core.definition.api
@@ -60,7 +60,7 @@ trait OperationGraphNew {
    * @param name initial model name if any
    * @param location initial graph location if any
    * @param interactive show graph creation wizard
-   * @return graph marker
+   * @return new graph
    */
   def apply(name: Option[String], location: Option[File], interactive: Boolean): Graph[_ <: Model.Like]
   /**
@@ -88,5 +88,5 @@ trait OperationGraphNew {
    * </p>
    */
   protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.OperationGraphNew instead.")
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew instead.")
 }

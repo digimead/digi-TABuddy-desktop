@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,36 +41,34 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation.api
+package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
-import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api
 import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
- * OperationGraphDelete base trait.
+ * OperationGraphClose base trait.
  */
-trait OperationGraphDelete {
+trait OperationGraphClose {
   checkSubclass()
 
   /**
-   * Delete graph.
+   * Close graph.
    *
-   * @param graph graph to delete
-   * @param askBefore askUser before delete
-   * @return deleted graph marker UUID
+   * @param graph graph to close
+   * @param force close graph without saving
    */
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): graphapi.GraphMarker
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker
   /**
-   * Create 'Delete graph' operation.
+   * Create 'Close graph' operation.
    *
-   * @param graph graph to delete
-   * @param askBefore askUser before delete
-   * @return 'Delete graph' operation
+   * @param graph graph to close
+   * @param force close graph without saving
+   * @return 'Close graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], askBefore: Boolean): api.Operation[graphapi.GraphMarker]
+  def operation(graph: Graph[_ <: Model.Like], force: Boolean): api.Operation[graphapi.GraphMarker]
 
   /**
    * Checks that this class can be subclassed.
@@ -87,5 +85,5 @@ trait OperationGraphDelete {
    * </p>
    */
   protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.OperationGraphDelete instead.")
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose instead.")
 }

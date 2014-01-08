@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,60 +41,17 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.maker.api
+package org.digimead.tabuddy.desktop.logic.operation
 
-import java.io.File
-import java.util.UUID
-import org.digimead.tabuddy.desktop.logic.payload.api
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.graph.Graph
-import scala.collection.immutable
+import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
 
-/**
- * Graph marker is an object that holds an association between real graph at client
- *   and Eclipse IResource within container(project).
- */
-trait GraphMarker {
-  /** Autoload property file if suitable information needed. */
-  val autoload: Boolean
-  /** Container IResource unique id. */
-  val uuid: UUID
-
-  /** Assert marker state. */
-  def assertState()
-  /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like]
-  /** Close the loaded graph. */
-  def graphClose()
-  /** Graph creation timestamp. */
-  def graphCreated: Element.Timestamp
-  /** Path to the graph descriptor. */
-  def graphDescriptor: File
-  /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze()
-  /** Check whether the graph is modified. */
-  def graphIsDirty(): Boolean
-  /** Check whether the graph is loaded. */
-  def graphIsOpen(): Boolean
-  /** Model ID. */
-  def graphModelId: Symbol
-  /** Origin of the graph. */
-  def graphOrigin: Symbol
-  /** Path to the graph: base directory and graph directory name. */
-  def graphPath: File
-  /** Graph last save timestamp. */
-  def graphStored: Element.Timestamp
-  /** Load type schemas from local storage. */
-  def loadTypeSchemas(): immutable.HashSet[api.TypeSchema]
-  /** The validation flag indicating whether the marker is consistent. */
-  def markerIsValid: Boolean
-  /** Marker last access timestamp. */
-  def markerLastAccessed: Long
-  /** Load marker properties. */
-  def markerLoad()
-  /** Save marker properties. */
-  def markerSave()
-  /** Save type schemas to the local storage. */
-  def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema])
+package object view {
+  lazy val default = new NewBindingModule(module ⇒ {})
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilter$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilterList$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySorting$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySortingList$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyView$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyViewList$DI$")
 }

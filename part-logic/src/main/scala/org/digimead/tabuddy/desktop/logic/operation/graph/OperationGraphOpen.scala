@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,47 +41,48 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation
+package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
-/** 'Delete graph' operation. */
-class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
-  protected val operationLock = new Object()
+/** 'Open graph' operation. */
+class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
   /**
-   * Delete graph.
+   * Open graph for graph marker.
    *
-   * @param graph graph to delete
-   * @param askBefore askUser before delete
-   * @return deleted graph read only marker
+   * @param markerId marker Id with graph to open
    */
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): graphapi.GraphMarker = GraphMarker(graph).lockUpdate { state ⇒
-    log.info(s"Delete $graph.")
-    val marker = GraphMarker(graph)
-    if (marker.graphIsOpen())
-      GraphMarker(graph).graphClose()
-    val roMarker = GraphMarker.deleteFromWorkspace(GraphMarker(graph))
-    log.info(s"$graph is deleted.")
-    roMarker
+  def apply(markerId: UUID): Graph[_ <: Model.Like] = {
+    val marker = GraphMarker(markerId)
+    if (!marker.markerIsValid)
+      throw new IllegalStateException(marker + " is not valid.")
+    log.info(s"Open graph for marker $marker.")
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
+    val graph = marker.lockUpdate { state ⇒
+      if (marker.graphIsOpen())
+        throw new IllegalStateException("Graph is already opened.")
+      marker.graphAcquire()
+    }
+    graph
   }
   /**
-   * Create 'Delete graph' operation.
+   * Create 'Open graph' operation.
    *
-   * @param graph graph to delete
-   * @param askBefore askUser before delete
-   * @return 'Delete graph' operation
+   * @param markerId marker Id with graph to open
+   * @return 'Open graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], askBefore: Boolean) =
-    new Implementation(graph, askBefore)
+  def operation(markerId: UUID) =
+    new Implemetation(markerId)
 
   /**
    * Checks that this class can be subclassed.
@@ -99,56 +100,59 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implementation(graph: Graph[_ <: Model.Like], askBefore: Boolean)
-    extends OperationGraphDelete.Abstract(graph, askBefore) with Loggable {
+  class Implemetation(markerId: UUID)
+    extends OperationGraphOpen.Abstract(markerId) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] = {
+    protected def execute(monitor: IProgressMonitor,
+      info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] = {
       require(canExecute, "Execution is disabled.")
+      val marker = GraphMarker(markerId)
       try {
-        val result = Option(OperationGraphDelete.this(graph, askBefore))
+        val result = Option[Graph[_ <: Model.Like]](OperationGraphOpen.this(markerId))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to delete $graph.", e)
+          Operation.Result.Error(s"Unable to open graph for $marker.", e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
+    protected def redo(monitor: IProgressMonitor,
+      info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
+    protected def undo(monitor: IProgressMonitor,
+      info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =
       throw new UnsupportedOperationException
   }
 }
 
-object OperationGraphDelete extends Loggable {
-  /** Stable identifier with OperationGraphDelete DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationGraphDelete]
+object OperationGraphOpen extends Loggable {
+  /** Stable identifier with OperationGraphOpen DI */
+  lazy val operation = DI.operation.asInstanceOf[OperationGraphOpen]
 
   /**
-   * Build a new 'Delete graph' operation.
+   * Build a new 'Open graph' operation.
    *
-   * @param graph graph to delete
-   * @param askBefore askUser before delete
-   * @return 'Delete graph' operation
+   * @param markerId marker Id with graph to open
+   * @return 'Open graph' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): Option[Abstract] =
-    Some(operation.operation(graph, askBefore).asInstanceOf[Abstract])
+  def apply(markerId: UUID): Option[Abstract] =
+    Some(operation.operation(markerId))
 
-  /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val askBefore: Boolean)
-    extends Operation[graphapi.GraphMarker](s"Delete $graph.") {
+  /** Bridge between abstract api.Operation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
+  abstract class Abstract(val markerId: UUID)
+    extends Operation[Graph[_ <: Model.Like]](s"Open graph for marker with Id $markerId.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphDelete] getOrElse new OperationGraphDelete
+    lazy val operation = injectOptional[api.OperationGraphOpen] getOrElse new OperationGraphOpen
   }
 }

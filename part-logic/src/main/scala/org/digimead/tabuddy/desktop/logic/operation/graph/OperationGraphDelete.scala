@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,42 +41,47 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation
+package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.maker.{ GraphMarker, api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
-import org.digimead.tabuddy.desktop.logic.Logic
 
-/** 'Save graph' operation. */
-class OperationGraphSave extends api.OperationGraphSave with Loggable {
+/** 'Delete graph' operation. */
+class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
+  protected val operationLock = new Object()
   /**
-   * Save graph.
+   * Delete graph.
    *
-   * @param graph graph to save
+   * @param graph graph to delete
+   * @param askBefore askUser before delete
+   * @return deleted graph read only marker
    */
-  def apply(graph: Graph[_ <: Model.Like]) = GraphMarker(graph).lockUpdate { _ ⇒
-    log.info(s"Save $graph.")
-    if (!Logic.container.isOpen())
-      throw new IllegalStateException("Workspace is not available.")
+  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): graphapi.GraphMarker = GraphMarker(graph).lockUpdate { state ⇒
+    log.info(s"Delete $graph.")
     val marker = GraphMarker(graph)
-    if (!marker.graphIsOpen())
-      throw new IllegalStateException(s"$graph is closed.")
-    if (marker.graphIsDirty())
-      GraphMarker(graph).graphFreeze()
+    if (!marker.markerIsValid)
+      throw new IllegalStateException(marker + " is not valid.")
+    if (marker.graphIsOpen())
+      GraphMarker(graph).graphClose()
+    val roMarker = GraphMarker.deleteFromWorkspace(GraphMarker(graph))
+    log.info(s"$graph is deleted.")
+    roMarker
   }
   /**
-   * Create 'Save graph' operation.
+   * Create 'Delete graph' operation.
    *
-   * @param graph graph to save
-   * @return 'Save graph' operation
+   * @param graph graph to delete
+   * @param askBefore askUser before delete
+   * @return 'Delete graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like]) = new Implemetation(graph)
+  def operation(graph: Graph[_ <: Model.Like], askBefore: Boolean) =
+    new Implementation(graph, askBefore)
 
   /**
    * Checks that this class can be subclassed.
@@ -94,52 +99,56 @@ class OperationGraphSave extends api.OperationGraphSave with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(graph: Graph[_ <: Model.Like]) extends OperationGraphSave.Abstract(graph) with Loggable {
+  class Implementation(graph: Graph[_ <: Model.Like], askBefore: Boolean)
+    extends OperationGraphDelete.Abstract(graph, askBefore) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option(OperationGraphSave.this(graph))
+        val result = Option(OperationGraphDelete.this(graph, askBefore))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to save $graph.", e)
+          Operation.Result.Error(s"Unable to delete $graph.", e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
       throw new UnsupportedOperationException
   }
 }
 
-object OperationGraphSave extends Loggable {
-  /** Stable identifier with OperationGraphSave DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationGraphSave]
+object OperationGraphDelete extends Loggable {
+  /** Stable identifier with OperationGraphDelete DI */
+  lazy val operation = DI.operation.asInstanceOf[OperationGraphDelete]
 
   /**
-   * Build a new 'Save graph' operation.
+   * Build a new 'Delete graph' operation.
    *
-   * @param graph graph to save
-   * @return 'Save graph' operation
+   * @param graph graph to delete
+   * @param askBefore askUser before delete
+   * @return 'Delete graph' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like]): Option[Abstract] = Some(operation.operation(graph))
+  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): Option[Abstract] =
+    Some(operation.operation(graph, askBefore).asInstanceOf[Abstract])
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like]) extends Operation[Unit](s"Save $graph.") {
+  /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val askBefore: Boolean)
+    extends Operation[graphapi.GraphMarker](s"Delete $graph.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphSave] getOrElse new OperationGraphSave
+    lazy val operation = injectOptional[api.OperationGraphDelete] getOrElse new OperationGraphDelete
   }
 }

@@ -43,15 +43,24 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import scala.language.implicitConversions
 import scala.util.DynamicVariable
 
-object Common {
+/**
+ * Graph argument parser builder.
+ */
+class GraphParser {
   import Command.parser._
+  /** Thread local cache with current graph marker. */
+  protected val localGraphMarker = new DynamicVariable[Option[GraphMarker]](None)
   /** Thread local cache with current graph name. */
   protected val localGraphName = new DynamicVariable[Option[String]](None)
+  /** Thread local cache with current graph origin. */
+  protected val localGraphOrigin = new DynamicVariable[Option[String]](None)
   /** Thread local cache with current graph UUID. */
   protected val localGraphUUID = new DynamicVariable[Option[String]](None)
   /** Thread local cache with marker list. */
@@ -63,10 +72,10 @@ object Common {
   /** UUID mark. */
   lazy val uuidLiteralMark = commandLiteral("*#", Command.Hint("any name", Some("graph UUID. Actually, graph marker UUID, but in most cases they are the same.")))
 
-  def graphArgumentParser(markerArgs: () ⇒ Seq[GraphMarker]) = ((sp ^^ { _ ⇒
+  /** Graph argument parser. */
+  def apply(markerArgs: () ⇒ Seq[GraphMarker], keep: Boolean = false) = ((sp ^^ { _ ⇒
     // clear thread local values at the beginning
-    localGraphUUID.value = None
-    localGraphName.value = None
+    threadLocalClear()
     localMarkers.value = markerArgs()
 
   }) ~> (graphNameParser ~ opt(uuidLiteral ~> graphUUIDParser) | (uuidLiteralMark ~> graphUUIDParser)) ~ originLiteral ~ graphOriginParser) ^^ { parserResult ⇒
@@ -79,19 +88,37 @@ object Common {
       case ~(~(uuid: String, _), origin: String) ⇒
         (localMarkers.value.find(m ⇒ m.uuid.toString().toLowerCase() == uuid && m.graphOrigin.name == origin), "*", uuid, origin)
     }
-    localGraphUUID.value = None
-    localGraphName.value = None
-    localMarkers.value = Seq()
+    if (keep) {
+      localGraphMarker.value = marker
+      localGraphName.value = Some(name)
+      localGraphOrigin.value = Some(origin)
+      localGraphUUID.value = Some(uuid)
+    } else
+      threadLocalClear()
     (marker, name, uuid, origin)
+  }
+  /** Get thread local value of the graph marker. */
+  def threadLocalGraphMarker = localGraphMarker.value
+  /** Get thread local value of the graph name. */
+  def threadLocalGraphName = localGraphName.value
+  /** Get thread local value of the graph origin. */
+  def threadLocalGraphOrigin = localGraphOrigin.value
+  /** Get thread local value of the graph UUID. */
+  def threadLocalGraphUUID = localGraphUUID.value
+  /** Clear thread local values. */
+  def threadLocalClear() = {
+    localGraphMarker.value = None
+    localGraphName.value = None
+    localGraphOrigin.value = None
+    localGraphUUID.value = None
+    localMarkers.value = Seq()
   }
 
   /** Create parser for the graph name. */
-  def graphNameParser: Command.parser.Parser[Any] =
+  protected def graphNameParser: Command.parser.Parser[Any] =
     commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r, NameHintContainer) ^^ { name ⇒
       localMarkers.value.find(_.graphModelId.name == name) getOrElse {
-        localGraphUUID.value = None
-        localGraphName.value = None
-        localMarkers.value = Seq()
+        threadLocalClear()
         throw Command.ParseException(s"Graph marker with name '$name' not found.")
       }
       // save result for further parsers
@@ -99,16 +126,14 @@ object Common {
       name
     }
   /** Create parser for the graph origin. */
-  def graphOriginParser: Command.parser.Parser[Any] =
+  protected def graphOriginParser: Command.parser.Parser[Any] =
     commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r, OriginHintContainer)
   /** Create parser for the graph marker UUID. */
-  def graphUUIDParser: Command.parser.Parser[Any] =
+  protected def graphUUIDParser: Command.parser.Parser[Any] =
     commandRegex("[0-9A-Fa-f-]+".r, UUIDHintContainer) ^^ { uuid ⇒
       val uuidLower = uuid.toLowerCase()
       localMarkers.value.find(_.uuid.toString().toLowerCase() == uuid) getOrElse {
-        localGraphUUID.value = None
-        localGraphName.value = None
-        localMarkers.value = Seq()
+        threadLocalClear()
         throw Command.ParseException(s"Graph marker with UUID '$uuidLower' not found.")
       }
       // save result for further parsers
@@ -159,5 +184,19 @@ object Common {
         Command.Hint("origin", Some(s"scala symbol literal"), Seq(proposal.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
+  }
+}
+
+object GraphParser {
+  implicit def parser2implementation(c: GraphParser.type): GraphParser = c.inner
+
+  def inner() = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** GraphParser implementation. */
+    lazy val implementation = injectOptional[GraphParser] getOrElse new GraphParser
   }
 }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,71 +41,46 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation
+package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
-import org.eclipse.jface.window.Window
-import org.eclipse.swt.SWT
-import org.eclipse.swt.widgets.MessageBox
 
-/** 'Close model' operation. */
-class OperationGraphClose extends api.OperationGraphClose with Loggable {
+/** 'Save graph' operation. */
+class OperationGraphSave extends api.OperationGraphSave with Loggable {
   /**
-   * Close graph.
+   * Save graph.
    *
-   * @param graph graph to close
-   * @param force close graph without saving
-   * @return the same marker or read only marker if current one is deleted
+   * @param graph graph to save
+   * @param force overwrite graph even if there are no modifications
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker = GraphMarker(graph).lockUpdate { state ⇒
-    log.info(s"Close $graph, force is $force.")
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean) = GraphMarker(graph).lockUpdate { _ ⇒
+    log.info(s"Save $graph.")
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
     val marker = GraphMarker(graph)
+    if (!marker.markerIsValid)
+      throw new IllegalStateException(marker + " is not valid.")
     if (!marker.graphIsOpen())
-      throw new IllegalStateException(s"$graph is already closed.")
-    if (marker.graphIsDirty()) {
-      if (!force && App.isUIAvailable) {
-        val dialog = new MessageBox(null, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL)
-        dialog.setText("Model is modified")
-        dialog.setMessage("Do you want to save modifications?")
-        if (dialog.open() == Window.OK)
-          // save modified model if user permits
-          OperationGraphSave.operation(graph)
-      } else {
-        log.info(s"Close modified $graph without saving.")
-      }
-    }
-    // close model
-    val result = if (graph.stored.isEmpty) {
-      marker.graphClose()
-      // newly created graph is unsaved, clean and
-      // returns read only marker
-      GraphMarker.deleteFromWorkspace(marker)
-    } else {
-      // returns the same marker
-      marker.graphClose()
-      marker
-    }
-    log.info(s"$graph is closed.")
-    result
+      throw new IllegalStateException(s"$graph is closed.")
+    if (marker.graphIsDirty() || force)
+      GraphMarker(graph).graphFreeze()
   }
   /**
-   * Create 'Close graph' operation.
+   * Create 'Save graph' operation.
    *
-   * @param graph graph to close
-   * @param force close graph without saving
-   * @return 'Close graph' operation
+   * @param graph graph to save
+   * @param force overwrite graph even if there are no modifications
+   * @return 'Save graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], force: Boolean) =
-    new Implemetation(graph, force: Boolean)
+  def operation(graph: Graph[_ <: Model.Like], force: Boolean) = new Implemetation(graph, force)
 
   /**
    * Checks that this class can be subclassed.
@@ -123,56 +98,52 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(graph: Graph[_ <: Model.Like], force: Boolean)
-    extends OperationGraphClose.Abstract(graph, force) with Loggable {
+  class Implemetation(graph: Graph[_ <: Model.Like], force: Boolean) extends OperationGraphSave.Abstract(graph, force) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option(OperationGraphClose.this(graph, force))
+        val result = Option(OperationGraphSave.this(graph, force))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to close $graph.", e)
+          Operation.Result.Error(s"Unable to save $graph.", e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
   }
 }
 
-object OperationGraphClose extends Loggable {
-  /** Stable identifier with OperationGraphClose DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationGraphClose]
+object OperationGraphSave extends Loggable {
+  /** Stable identifier with OperationGraphSave DI */
+  lazy val operation = DI.operation.asInstanceOf[OperationGraphSave]
 
   /**
-   * Build a new 'Close graph' operation.
+   * Build a new 'Save graph' operation.
    *
-   * @param graph graph to close
-   * @param force close graph without saving
-   * @return 'Close graph' operation
+   * @param graph graph to save
+   * @return 'Save graph' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): Option[Abstract] =
-    Some(operation.operation(graph, force))
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): Option[Abstract] = Some(operation.operation(graph, force))
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean)
-    extends Operation[graphapi.GraphMarker](s"Close $graph.") {
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean) extends Operation[Unit](s"Save $graph with ${graph.model.eBox.serialization}.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphClose] getOrElse new OperationGraphClose
+    lazy val operation = injectOptional[api.OperationGraphSave] getOrElse new OperationGraphSave
   }
 }

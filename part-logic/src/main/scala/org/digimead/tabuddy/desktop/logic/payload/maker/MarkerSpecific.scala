@@ -55,7 +55,7 @@ import org.eclipse.core.resources.IResource
 trait MarkerSpecific {
   this: GraphMarker ⇒
   /** The validation flag indicating whether the marker is consistent. */
-  def markerIsValid: Boolean = state.lockRead { state ⇒
+  def markerIsValid: Boolean = state.lockUpdate { state ⇒
     try {
       assertState()
       val base = graphPath.getParentFile()

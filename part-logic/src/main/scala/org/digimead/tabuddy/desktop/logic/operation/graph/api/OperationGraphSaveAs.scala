@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,60 +41,55 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.maker.api
+package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
 import java.io.File
-import java.util.UUID
-import org.digimead.tabuddy.desktop.logic.payload.api
+import org.digimead.tabuddy.desktop.core.definition.api
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
-import scala.collection.immutable
+import org.digimead.tabuddy.model.serialization.Serialization
 
 /**
- * Graph marker is an object that holds an association between real graph at client
- *   and Eclipse IResource within container(project).
+ * OperationGraphSaveAs base trait.
  */
-trait GraphMarker {
-  /** Autoload property file if suitable information needed. */
-  val autoload: Boolean
-  /** Container IResource unique id. */
-  val uuid: UUID
+trait OperationGraphSaveAs {
+  checkSubclass()
 
-  /** Assert marker state. */
-  def assertState()
-  /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like]
-  /** Close the loaded graph. */
-  def graphClose()
-  /** Graph creation timestamp. */
-  def graphCreated: Element.Timestamp
-  /** Path to the graph descriptor. */
-  def graphDescriptor: File
-  /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze()
-  /** Check whether the graph is modified. */
-  def graphIsDirty(): Boolean
-  /** Check whether the graph is loaded. */
-  def graphIsOpen(): Boolean
-  /** Model ID. */
-  def graphModelId: Symbol
-  /** Origin of the graph. */
-  def graphOrigin: Symbol
-  /** Path to the graph: base directory and graph directory name. */
-  def graphPath: File
-  /** Graph last save timestamp. */
-  def graphStored: Element.Timestamp
-  /** Load type schemas from local storage. */
-  def loadTypeSchemas(): immutable.HashSet[api.TypeSchema]
-  /** The validation flag indicating whether the marker is consistent. */
-  def markerIsValid: Boolean
-  /** Marker last access timestamp. */
-  def markerLastAccessed: Long
-  /** Load marker properties. */
-  def markerLoad()
-  /** Save marker properties. */
-  def markerSave()
-  /** Save type schemas to the local storage. */
-  def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema])
+  /**
+   * Save graph as ...
+   *
+   * @param graph graph to save
+   * @param path directory of the graph container
+   * @param name name of the graph
+   * @param serialization type of the serialization
+   * @return copy of the graph
+   */
+  def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Graph[_ <: Model.Like]
+  /**
+   * Create 'Save graph as ...' operation.
+   *
+   * @param graph graph to save
+   * @param path directory of the graph container
+   * @param name name of the graph
+   * @param serialization type of the serialization
+   * @return 'Save graph as ...' operation
+   */
+  def operation(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): api.Operation[Graph[_ <: Model.Like]]
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSaveAs instead.")
 }

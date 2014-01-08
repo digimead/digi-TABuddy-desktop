@@ -45,34 +45,35 @@ package org.digimead.tabuddy.desktop.logic.command.graph
 
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphOpen
+import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
 /**
- * Open closed graph and bind it to Core context.
+ * Close graph that is already open.
  */
-object CommandGraphOpen extends Loggable {
+object CommandGraphClose extends Loggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_open_text,
-    Messages.graph_openDescriptionShort_text, Messages.graph_openDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_close_text,
+    Messages.graph_closeDescriptionShort_text, Messages.graph_closeDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case (Some(marker: GraphMarker), _, _, _) ⇒
-          val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-          OperationGraphOpen(marker.uuid).foreach { operation ⇒
+        case Some((Some(marker: GraphMarker), _, _, _)) ⇒
+          val exchanger = new Exchanger[Operation.Result[graphapi.GraphMarker]]()
+          val graph = marker.lockRead(_.graph)
+          OperationGraphClose(graph, true).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -84,21 +85,35 @@ object CommandGraphOpen extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              result.map(graph ⇒ GraphMarker.bind(GraphMarker(graph)))
               result
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case other ⇒
               throw new RuntimeException(s"Unable to complete operation: ${other}.")
           }
-        case (None, name, uuid, origin) ⇒
+        case Some((None, name, uuid, origin)) ⇒
           Console.msgWarning.format(s"Graph '${name}#${uuid}@${origin}' not found.") + Console.RESET
+        case None ⇒
+          val unsaved = GraphMarker.list().map(GraphMarker(_)).filter(_.graphIsOpen())
+          unsaved.foreach { marker ⇒
+            val graph = marker.lockRead(_.graph)
+            OperationGraphClose(graph, true).foreach { operation ⇒
+              operation.getExecuteJob() match {
+                case Some(job) ⇒
+                  job.setPriority(Job.LONG)
+                  job.schedule()
+                case None ⇒
+                  log.fatal(s"Unable to create job for ${operation}.")
+              }
+            }
+          }
+          "Asynchronously close all graphs."
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> graphParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphParser))
 
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().
-    map(GraphMarker(_)).filterNot(_.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+    map(GraphMarker(_)).filter(_.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
 }

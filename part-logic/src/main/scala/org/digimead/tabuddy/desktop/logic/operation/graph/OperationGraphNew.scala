@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation
+package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import java.io.File
 import java.util.UUID
@@ -80,13 +80,15 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
       throw new IllegalArgumentException("Unable to create non interactive new graph without location.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    if (interactive)
+    val marker = if (interactive)
       UI.getActiveShell match {
         case Some(shell) ⇒
           App.execNGet {
             Wizards.open("org.digimead.tabuddy.desktop.graph.editor.wizard.ModelCreationWizard", shell, Some(name, location)) match {
               case marker: GraphMarker ⇒
-                marker.lockRead(_.graph)
+                if (!marker.markerIsValid)
+                  throw new IllegalStateException(marker + " is not valid.")
+                marker
               case other if other == org.eclipse.jface.window.Window.CANCEL ⇒
                 throw new CancellationException("Unable to create new graph. Operation canceled.")
               case other ⇒
@@ -99,8 +101,11 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
     else {
       val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(location.get, name.get),
         Element.timestamp(), Payload.origin)
-      marker.graphAcquire()
+      if (!marker.markerIsValid)
+        throw new IllegalStateException(marker + " is not valid.")
+      marker
     }
+    marker.graphAcquire()
   }
   /**
    * Create 'New graph' operation.

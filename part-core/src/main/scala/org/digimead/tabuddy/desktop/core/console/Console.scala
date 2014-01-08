@@ -122,6 +122,7 @@ class Console extends Actor with Loggable {
                   case result @ Failure(e) ⇒
                     if (sender != App.system.deadLetters)
                       sender ! result
+                    Console.log.debug("Unable to execute command: " + line, e)
                     commandOnFailure(commandDescriptor, e, line, from)
                 }
               case None ⇒
@@ -154,7 +155,7 @@ class Console extends Actor with Loggable {
     case e: Throwable ⇒
       if (sender != App.system.deadLetters)
         sender ! Failure(e)
-      log.error(e.getMessage(), e)
+      Console.log.error(e.getMessage(), e)
   }
   /** Command error. */
   protected def commandOnError(line: String, message: String, from: Option[api.Console.Projection]) {

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,12 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation.api
+package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api
-import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.Model
 
 /**
  * OperationGraphOpen base trait.
@@ -83,5 +83,5 @@ trait OperationGraphOpen {
    * </p>
    */
   protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.OperationGraphOpen instead.")
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphOpen instead.")
 }

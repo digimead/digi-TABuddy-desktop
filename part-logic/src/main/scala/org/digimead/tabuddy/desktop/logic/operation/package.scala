@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,15 +47,10 @@ import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
 
 package object operation {
-  lazy val default = new NewBindingModule(module ⇒ {})
+  lazy val default = new NewBindingModule(module ⇒ {}) ~ graph.default ~ view.default
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationCreateElement$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationCreateElementFromTemplate$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationDeleteElement$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationGraphClose$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationGraphDelete$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationGraphNew$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationGraphOpen$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationGraphSave$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyElement$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplate$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplateList$DI$")
@@ -63,10 +58,4 @@ package object operation {
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumerationList$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchema$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchemaList$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilter$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilterList$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySorting$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySortingList$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyView$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyViewList$DI$")
 }

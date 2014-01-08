@@ -47,10 +47,11 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.operation.OperationGraphNew
+import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.model.Model
@@ -72,9 +73,9 @@ object CommandGraphNew extends Loggable {
     Messages.graph_newDescriptionShort_text, Messages.graph_newDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case ~(~(graphName: String, _), graphContainer: String) ⇒
+        case ~(graphName: String, graphContainer: File) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-          OperationGraphNew(Some(graphName), Some(new File(graphContainer)), false).foreach { operation ⇒
+          OperationGraphNew(Some(graphName), Some(graphContainer), false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -96,44 +97,11 @@ object CommandGraphNew extends Loggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~ opt(sp ~> allArg) ~> sp ~> nameParser ~ sp ~ locationParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~ opt(sp ~> allArg) ~> sp ~> nameParser ~ pathParser)
 
   /** Create parser for the graph name. */
   protected def nameParser: Command.parser.Parser[Any] =
     commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"))))
-
-  /** Create parser for the graph location. */
-  protected def locationParser: Command.parser.Parser[Any] =
-    commandRegex(".*".r, HintContainer)
-
-  object HintContainer extends Command.Hint.Container {
-    /** Current FS root, based on application location. */
-    lazy val root = getRoot(new File(Logic.container.getLocationURI()))
-
-    /** Get parser hints for user provided path. */
-    def apply(arg: String): Seq[Command.Hint] = {
-      if (arg.trim.isEmpty)
-        return Seq(Command.Hint("graph location", Some(s"path to graph directory"), Seq(root.getName() + File.separator)))
-      val hint = new File(arg.trim()) match {
-        case path if path.isDirectory() && arg.endsWith(File.separator) ⇒
-          val dirs = path.listFiles().sortBy(_.getName).filter(_.isDirectory())
-          Command.Hint("graph location", Some(s"path to graph directory"), dirs.map(_.getName()))
-        case path ⇒
-          val prefix = path.getName()
-          val beginIndex = prefix.length()
-          val parent = path.getParentFile()
-          val dirs = if (parent.isDirectory())
-            path.getParentFile().listFiles().filter(f ⇒ f.getName().startsWith(prefix) && f.isDirectory())
-          else
-            Array[File]()
-          Command.Hint("graph location", Some(s"path to graph directory"), dirs.map(_.getName().substring(beginIndex) + File.separator))
-      }
-      Seq(hint)
-    }
-    def getRoot(file: File): File = Option(file.getParentFile()) match {
-      case Some(parent) ⇒ getRoot(parent)
-      case None ⇒ file
-    }
-  }
+  /** Path argument parser. */
+  protected def pathParser = PathParser(Logic.graphContainer, "graph location", Some(s"path to graph directory")) { _.isDirectory }
 }
-

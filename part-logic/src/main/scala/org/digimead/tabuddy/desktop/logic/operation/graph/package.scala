@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,49 +41,17 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.operation.api
+package org.digimead.tabuddy.desktop.logic.operation
 
-import org.digimead.tabuddy.desktop.core.definition.api
-import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.graph.Graph
+import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
 
-/**
- * OperationGraphClose base trait.
- */
-trait OperationGraphClose {
-  checkSubclass()
-
-  /**
-   * Close graph.
-   *
-   * @param graph graph to close
-   * @param force close graph without saving
-   */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker
-  /**
-   * Create 'Close graph' operation.
-   *
-   * @param graph graph to close
-   * @param force close graph without saving
-   * @return 'Close graph' operation
-   */
-  def operation(graph: Graph[_ <: Model.Like], force: Boolean): api.Operation[graphapi.GraphMarker]
-
-  /**
-   * Checks that this class can be subclassed.
-   * <p>
-   * The API class is intended to be subclassed only at specific,
-   * controlled point. This method enforces this rule
-   * unless it is overridden.
-   * </p><p>
-   * <em>IMPORTANT:</em> By providing an implementation of this
-   * method that allows a subclass of a class which does not
-   * normally allow subclassing to be created, the implementer
-   * agrees to be fully responsible for the fact that any such
-   * subclass will likely fail.
-   * </p>
-   */
-  protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.OperationGraphClose instead.")
+package object graph {
+  lazy val default = new NewBindingModule(module ⇒ {})
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphDelete$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphOpen$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSave$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSaveAs$DI$")
 }

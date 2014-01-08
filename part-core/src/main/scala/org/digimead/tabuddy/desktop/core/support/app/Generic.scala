@@ -43,16 +43,19 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
+import com.google.common.io.Files
+import java.io.File
 import java.io.{ PrintWriter, StringWriter }
 import java.util.concurrent.TimeoutException
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.EventLoop
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.eclipse.core.runtime.{ IStatus, MultiStatus, Status }
 import org.eclipse.core.runtime.preferences.InstanceScope
+import org.eclipse.core.runtime.{ IStatus, MultiStatus, Status }
 import org.eclipse.jface.preference.IPreferenceStore
 import org.eclipse.ui.preferences.ScopedPreferenceStore
 import org.osgi.framework.{ Bundle, FrameworkUtil }
+import scala.annotation.tailrec
 
 trait Generic extends EventLoop.Consumer {
   this: Loggable with Context with Thread with Watch ⇒
@@ -88,6 +91,8 @@ trait Generic extends EventLoop.Consumer {
   }
   /** Get bundle for class. */
   def bundle(clazz: Class[_]) = FrameworkUtil.getBundle(clazz)
+  /** Copy files recursively. */
+  def copyRecursive(from: File, to: File) = copyRecursiveImpl(Array((from, to)))
   /** Check the current thread against the event one. */
   def isEventLoop() = thread.eq(Thread.currentThread())
   /** Get application preference store. */
@@ -114,6 +119,26 @@ trait Generic extends EventLoop.Consumer {
     assert(bindingContext != null, "Binding context is not available.")
   }
 
+  /** Copy files recursively. */
+  @tailrec
+  private def copyRecursiveImpl(toCopy: Iterable[(File, File)]) {
+    if (toCopy.isEmpty)
+      return
+    val toNextCopy = toCopy.par.map {
+      case (from: File, to: File) ⇒
+        val toCopy: Seq[(File, File)] = from match {
+          case directory if directory.isDirectory() ⇒
+            Files.createParentDirs(to)
+            to.mkdir()
+            from.listFiles().map(from ⇒ (from, new File(to, from.getName())))
+          case file ⇒
+            Files.copy(from, to)
+            Seq.empty
+        }
+        toCopy
+    }.seq
+    copyRecursiveImpl(toNextCopy.flatten)
+  }
   /** Persistent object for isUIAvailable. */
   object UIFlag
 }

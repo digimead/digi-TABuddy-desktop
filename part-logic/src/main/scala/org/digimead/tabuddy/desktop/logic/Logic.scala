@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.logic
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
+import java.io.File
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -222,7 +223,9 @@ object Logic {
   if (App.isUIAvailable)
     ui.UI
 
-  def containerName() = DI.infrastructureWideProjectName
+  def containerName = DI.infrastructureWideProjectName
+  def graphContainer = DI.graphContainer
+
   override def toString = "Logic[Singleton]"
 
   /*
@@ -241,5 +244,7 @@ object Logic {
      * It is IProject singleton label.
      */
     lazy val infrastructureWideProjectName = "tabuddy"
+    /** Default location of user data. */
+    lazy val graphContainer = injectOptional[File]("Graph.Location") getOrElse new File(App.data, "graph")
   }
 }

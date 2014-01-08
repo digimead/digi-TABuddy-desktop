@@ -77,12 +77,6 @@ object PredefinedElements {
   /** Get a graph element templates container with modified templates. */
   def eElementTemplateUser(graph: Graph[_ <: Model.Like]): Record.Relative[_ <: Record.Like] =
     PredefinedElements.DI.inject[Graph[_ <: Model.Like] ⇒ Record.Like]("eElementTemplateUser").apply(graph).eRelative
-  /** Get a graph temporary elements container. */
-  def eTemporary(graph: Graph[_ <: Model.Like]): Record.Relative[_ <: Record.Like] =
-    PredefinedElements.DI.inject[Graph[_ <: Model.Like] ⇒ Record.Like]("eTemporary").apply(graph).eRelative
-  /** Get a graph temporary element templates container. */
-  def eTemporaryElementTemplate(graph: Graph[_ <: Model.Like]): Record.Relative[_ <: Record.Like] =
-    PredefinedElements.DI.inject[Graph[_ <: Model.Like] ⇒ Record.Like]("eTemporaryTemplate").apply(graph).eRelative
   /** Get a graph view modificator elements container. */
   def eView(graph: Graph[_ <: Model.Like]): Record.Relative[_ <: Record.Like] =
     PredefinedElements.DI.inject[Graph[_ <: Model.Like] ⇒ Record.Like]("eView").apply(graph).eRelative

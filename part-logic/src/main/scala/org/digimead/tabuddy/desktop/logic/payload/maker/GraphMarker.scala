@@ -56,7 +56,7 @@ import org.digimead.tabuddy.desktop.core.Report
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.operation.OperationGraphClose
+import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
@@ -88,8 +88,6 @@ class GraphMarker(
   val autoload: Boolean = true) extends api.GraphMarker with MarkerSpecific with GraphSpecific with Loggable {
   /** Type schemas folder name. */
   val folderTypeSchemas = "typeSchemas"
-  /** Map of marker contexts. */
-  protected val contextRefs = new mutable.WeakHashMap[Context, Unit] with mutable.SynchronizedMap[Context, Unit]
 
   /** Get container resource */
   lazy val resource: IFile = {
@@ -308,14 +306,6 @@ class GraphMarker(
     val eViewFilter = PredefinedElements.eViewFilter(state.graph)
     if (eViewFilter.name.trim.isEmpty())
       eViewFilter.name = "View filter"
-    // temporary
-    val eTemporary = PredefinedElements.eTemporary(state.graph)
-    if (eTemporary.name.trim.isEmpty())
-      eTemporary.name = "TABuddy Desktop temporary data"
-    // temporary element templates
-    val eTemporaryElementTemplate = PredefinedElements.eTemporaryElementTemplate(state.graph)
-    if (eTemporaryElementTemplate.name.trim.isEmpty())
-      eTemporaryElementTemplate.name = "TABuddy Desktop temporary element templates"
   }
 
   def canEqual(other: Any) = other.isInstanceOf[GraphMarker]
@@ -350,7 +340,7 @@ object GraphMarker extends Loggable {
   def bind(marker: GraphMarker, context: Context = Core.context) = lock.synchronized {
     log.debug(s"Bind ${marker} to ${context}")
     contextToMarker(context).foreach(_ ⇒ unbind(context))
-    marker.contextRefs(context) = ()
+    marker.state.asInstanceOf[ThreadUnsafeState].contextRefs(context) = ()
     context.set(classOf[GraphMarker], marker)
   }
   /** Get marker binded to context. */
@@ -441,14 +431,15 @@ object GraphMarker extends Loggable {
     }
   }
   /** Get list of contexts binded to marker. */
-  def markerToContext(marker: GraphMarker): Seq[Context] = lock.synchronized { marker.contextRefs.keys.toSeq }
+  def markerToContext(marker: GraphMarker): Seq[Context] =
+    lock.synchronized { marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.keys.toSeq }
   /** Unbind marker from context. */
   def unbind(context: Context) = lock.synchronized {
     val marker = contextToMarker(context).get // throw if empty
     log.debug(s"Unbind ${marker} from ${context}")
     context.remove(classOf[GraphMarker])
-    marker.contextRefs.remove(context)
-    if (marker.contextRefs.isEmpty && marker.graphIsOpen())
+    marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.remove(context)
+    if (marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.isEmpty && marker.graphIsOpen())
       marker.lockUpdate(e ⇒ OperationGraphClose(e.graph, false))
   }
 
@@ -457,8 +448,6 @@ object GraphMarker extends Loggable {
    */
   trait ThreadSafeState {
     this: ThreadUnsafeState ⇒
-    /** Context specified for this graph. */
-    val context = Context("GraphContext")
     /** State read/write lock. */
     protected val rwl = new ReentrantReadWriteLock()
 
@@ -493,6 +482,8 @@ object GraphMarker extends Loggable {
    * Graph marker thread unsafe object.
    */
   class ThreadUnsafeState extends ThreadUnsafeStateReadOnly {
+    /** Map of marker contexts binded with this graph. */
+    val contextRefs = new mutable.WeakHashMap[Context, Unit] with mutable.SynchronizedMap[Context, Unit]
     /** Graph. */
     var graphObject = Option.empty[Graph[_ <: Model.Like]]
     /** Graph descriptor properties. */
@@ -506,6 +497,7 @@ object GraphMarker extends Loggable {
     def graph: Graph[_ <: Model.Like] = graphObject getOrElse { throw new IllegalStateException("Graph not loaded.") }
     /** Get payload. */
     def payload: Payload = payloadObject getOrElse { throw new IllegalStateException("Payload not initialized.") }
+    override def toString() = s"GraphMarker.State($graphObject, $graphDescriptorProperties, $resourceProperties, $payloadObject)"
   }
   /** Read only marker. */
   class ReadOnlyGraphMarker(val uuid: UUID, val graphCreated: Element.Timestamp, val graphModelId: Symbol,
@@ -519,9 +511,11 @@ object GraphMarker extends Loggable {
     /** Assert marker state. */
     def assertState() {}
     /** Load the specific graph from the predefined directory ${location}/id/ */
-    def graphAcquire(): Graph[_ <: Model.Like] = throw new UnsupportedOperationException()
+    def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = throw new UnsupportedOperationException()
     /** Close the loaded graph. */
     def graphClose() = throw new UnsupportedOperationException()
+    /** Path to the graph descriptor. */
+    def graphDescriptor: File = new File(graphPath.getParentFile(), graphModelId.name + "." + Payload.extensionGraph)
     /** Store the graph to the predefined directory ${location}/id/ */
     def graphFreeze(): Unit = throw new UnsupportedOperationException()
     /** Check whether the graph is modified. */

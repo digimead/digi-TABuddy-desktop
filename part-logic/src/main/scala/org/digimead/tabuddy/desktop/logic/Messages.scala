@@ -48,6 +48,12 @@ import org.digimead.digi.lib.log.api.Loggable
 
 object Messages extends NLS with Loggable {
   val overViewPanelTitle_text = ""
+  val graph_close_text = ""
+  val graph_closeDescriptionShort_text = ""
+  val graph_closeDescriptionLong_text = ""
+  val graph_delete_text = ""
+  val graph_deleteDescriptionShort_text = ""
+  val graph_deleteDescriptionLong_text = ""
   val graph_list_text = ""
   val graph_listDescriptionShort_text = ""
   val graph_listDescriptionLong_text = ""
@@ -60,6 +66,9 @@ object Messages extends NLS with Loggable {
   val graph_save_text = ""
   val graph_saveDescriptionShort_text = ""
   val graph_saveDescriptionLong_text = ""
+  val graph_saveAs_text = ""
+  val graph_saveAsDescriptionShort_text = ""
+  val graph_saveAsDescriptionLong_text = ""
   val localizedTypeSchemaDescription_text = ""
   val localizedTypeSchemaName_text = ""
 
