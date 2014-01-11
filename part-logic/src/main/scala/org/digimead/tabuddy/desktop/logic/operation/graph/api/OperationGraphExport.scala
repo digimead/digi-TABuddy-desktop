@@ -41,42 +41,52 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
-import org.digimead.tabuddy.desktop.core.definition.NLS
-import org.digimead.digi.lib.log.api.Loggable
+import java.io.File
+import org.digimead.tabuddy.desktop.core.definition.api
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.graph.Graph
 
-object Messages extends NLS with Loggable {
-  val overViewPanelTitle_text = ""
-  val graph_close_text = ""
-  val graph_closeDescriptionShort_text = ""
-  val graph_closeDescriptionLong_text = ""
-  val graph_delete_text = ""
-  val graph_deleteDescriptionShort_text = ""
-  val graph_deleteDescriptionLong_text = ""
-  val graph_export_text = ""
-  val graph_exportDescriptionShort_text = ""
-  val graph_exportDescriptionLong_text = ""
-  val graph_import_text = ""
-  val graph_importDescriptionShort_text = ""
-  val graph_importDescriptionLong_text = ""
-  val graph_list_text = ""
-  val graph_listDescriptionShort_text = ""
-  val graph_listDescriptionLong_text = ""
-  val graph_new_text = ""
-  val graph_newDescriptionShort_text = ""
-  val graph_newDescriptionLong_text = ""
-  val graph_open_text = ""
-  val graph_openDescriptionShort_text = ""
-  val graph_openDescriptionLong_text = ""
-  val graph_save_text = ""
-  val graph_saveDescriptionShort_text = ""
-  val graph_saveDescriptionLong_text = ""
-  val graph_saveAs_text = ""
-  val graph_saveAsDescriptionShort_text = ""
-  val graph_saveAsDescriptionLong_text = ""
-  val localizedTypeSchemaDescription_text = ""
-  val localizedTypeSchemaName_text = ""
+/**
+ * OperationGraphExport base trait.
+ */
+trait OperationGraphExport {
+  checkSubclass()
 
-  T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
+  /**
+   * Export graph.
+   *
+   * @param graph graph to export
+   * @param location graph location if any
+   * @param interactive show graph export wizard
+   * @return imported graph
+   */
+  def apply(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean)
+  /**
+   * Create 'Export graph' operation.
+   *
+   * @param graph graph to export
+   * @param location target directory
+   * @param interactive show graph export wizard
+   * @return 'Export graph' operation
+   */
+  def operation(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean): api.Operation[Unit]
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphExport instead.")
 }

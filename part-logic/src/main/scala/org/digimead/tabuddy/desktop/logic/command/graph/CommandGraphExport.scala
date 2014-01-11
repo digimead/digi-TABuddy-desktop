@@ -43,37 +43,40 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
+import org.digimead.tabuddy.desktop.logic.operation.graph.{ OperationGraphClose, OperationGraphExport }
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
+import scala.util.DynamicVariable
 
 /**
- * Close graph that is already open.
+ * Export graph.
  */
-object CommandGraphClose extends Loggable {
+object CommandGraphExport extends Loggable {
   import Command.parser._
+  private val forceArg = "-force"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_close_text,
-    Messages.graph_closeDescriptionShort_text, Messages.graph_closeDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_export_text,
+    Messages.graph_exportDescriptionShort_text, Messages.graph_exportDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case Some((Some(marker: GraphMarker), _, _, _)) ⇒
-          val exchanger = new Exchanger[Operation.Result[graphapi.GraphMarker]]()
-          val graph = marker.lockRead(_.graph)
-          OperationGraphClose(graph, true).foreach { operation ⇒
+        case ~(arg, ~(marker: GraphMarker, destination: File)) ⇒
+          val exchanger = new Exchanger[Operation.Result[Unit]]()
+          val shouldCloseAfterComplete = !marker.graphIsOpen()
+          val graph = marker.graphAcquire()
+          OperationGraphExport(graph, Some(destination), arg == Some(forceArg), false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -85,35 +88,39 @@ object CommandGraphClose extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              result
+              if (shouldCloseAfterComplete)
+                OperationGraphClose.operation(graph, false)
+              result match {
+                case Some(_) ⇒ s"$graph exported successfully to $destination"
+                case None ⇒ s"$graph export failed due to an unexpected error"
+              }
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
+            case err: Operation.Result.Error[_] ⇒
+              throw err
             case other ⇒
               throw new RuntimeException(s"Unable to complete operation: ${other}.")
           }
-        case Some((None, name, uuid, origin)) ⇒
-          Console.msgWarning.format(s"Graph '${name}#${uuid}@${origin}' not found.") + Console.RESET
-        case None ⇒
-          val unsaved = GraphMarker.list().map(GraphMarker(_)).filter(_.graphIsOpen())
-          unsaved.foreach { marker ⇒
-            val graph = marker.lockRead(_.graph)
-            OperationGraphClose(graph, true).foreach { operation ⇒
-              operation.getExecuteJob() match {
-                case Some(job) ⇒
-                  job.setPriority(Job.LONG)
-                  job.schedule()
-                case None ⇒
-                  log.fatal(s"Unable to create job for ${operation}.")
-              }
-            }
-          }
-          "Asynchronously close all graphs."
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphParser))
+  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> forceArg) ~ ((graphParser ^^ {
+    case (marker, name, _, _) ⇒
+      marker match {
+        case value @ Some(marker) ⇒
+          localGraphMarker.value = value
+          marker
+        case None ⇒
+          throw Command.ParseException(s"Graph marker with name '$name' not found.")
+      }
+  }) ~ pathParser))
+  /** Thread local cache with current graph marker. */
+  protected lazy val localGraphMarker = new DynamicVariable[Option[GraphMarker]](None)
 
   /** Graph argument parser. */
-  def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
-    filter(m => m.markerIsValid && m.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  protected def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
+    filter(m ⇒ m.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  /** Path argument parser. */
+  protected def pathParser = PathParser(() ⇒ localGraphMarker.value.get.graphPath.getParentFile(),
+    () ⇒ "desitnation location", () ⇒ Some(s"path to desitnation directory")) { _.isDirectory }
 }

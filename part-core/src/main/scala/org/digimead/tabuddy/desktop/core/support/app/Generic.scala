@@ -97,6 +97,13 @@ trait Generic extends EventLoop.Consumer {
   def isEventLoop() = thread.eq(Thread.currentThread())
   /** Get application preference store. */
   def getPreferenceStore(): IPreferenceStore = preferenceStore
+  /** Get root from the path. */
+  def getRoot(file: File): File = Option(file.getParentFile()) match {
+    case Some(parent) ⇒ getRoot(parent)
+    case None ⇒ file
+  }
+  /** Process files recursively in parallel from the tail. */
+  def processRecursive[T](from: File, maxDepth: Int = Int.MaxValue)(f: File ⇒ T): Iterable[T] = processRecursiveImpl(Array(from), Nil, 0, maxDepth)(f).flatten
   /** Convert throwable to MultiStatus. */
   def throwableToMultiStatus(t: Throwable, bundle: Bundle): MultiStatus = {
     val sw = new StringWriter()
@@ -121,7 +128,7 @@ trait Generic extends EventLoop.Consumer {
 
   /** Copy files recursively. */
   @tailrec
-  private def copyRecursiveImpl(toCopy: Iterable[(File, File)]) {
+  final protected def copyRecursiveImpl(toCopy: Iterable[(File, File)]) {
     if (toCopy.isEmpty)
       return
     val toNextCopy = toCopy.par.map {
@@ -138,6 +145,17 @@ trait Generic extends EventLoop.Consumer {
         toCopy
     }.seq
     copyRecursiveImpl(toNextCopy.flatten)
+  }
+  /** Process files recursively in parallel from the tail. */
+  @tailrec
+  final protected def processRecursiveImpl[T](toList: Iterable[File], toProcess: Seq[Iterable[File]], depth: Int, maxDepth: Int)(f: File ⇒ T): Seq[Iterable[T]] = {
+    if (toList.isEmpty || depth >= maxDepth)
+      return toProcess.map(chunk ⇒ chunk.par.map(f).seq)
+    val toNextList = toList.map(file ⇒ (file match {
+      case directory if directory.isDirectory() ⇒ (directory.listFiles(), directory)
+      case file ⇒ (Seq.empty, file)
+    }): (Seq[File], File))
+    processRecursiveImpl(toNextList.map(_._1).flatten, (Seq.empty[Iterable[File]] :+ toNextList.map(_._2)) ++ toProcess, depth + 1, maxDepth)(f)
   }
   /** Persistent object for isUIAvailable. */
   object UIFlag

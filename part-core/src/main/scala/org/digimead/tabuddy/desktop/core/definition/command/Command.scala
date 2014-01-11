@@ -135,15 +135,14 @@ class Command extends Loggable {
     parse(actualParserCombinators.get, input)
   /** Parse input. */
   def parse(parser: Command.parser.Parser[Any], input: String): Command.Result = {
-    val (parserId, proposalWithAppend, proposalWithReplace, result) = Command.triggeredCmdParserId.withValue(None) {
+    val (parserId, proposals, result) = Command.triggeredCmdParserId.withValue(None) {
       Command.completionProposal.withValue(Seq.empty) {
         try {
           val result = Command.parser.parse(parser, input)
-          val (proposalWithAppend, proposalWithReplace) = Command.completionProposal.value.partition(_.appender)
-          (Command.triggeredCmdParserId.value, proposalWithAppend, proposalWithReplace, result)
+          (Command.triggeredCmdParserId.value, Command.completionProposal.value, result)
         } catch {
           case e: Command.ParseException ⇒
-            (Command.triggeredCmdParserId.value, Seq(), Seq(), Command.parser.Error(e.getMessage(), new CharSequenceReader(input)))
+            (Command.triggeredCmdParserId.value, Seq(), Command.parser.Error(e.getMessage(), new CharSequenceReader(input)))
         }
       }
     }
@@ -153,23 +152,19 @@ class Command extends Loggable {
           case Some(parserId) ⇒ Command.Success(parserId, result)
           case None ⇒ Command.Error("Unable to find parser id for: " + r)
         }
-      case Command.parser.MissingCompletionOrFailure(appender, list, message, next) ⇒
-        if (proposalWithAppend.nonEmpty)
+      case Command.parser.MissingCompletionOrFailure(list, message, next) ⇒
+        if (proposals.nonEmpty)
           // returns append proposals if any
-          proposalWithAppend.foldLeft(Command.MissingCompletionOrFailure(appender, Seq(), "empty append proposal"))((a, b) ⇒
-            Command.MissingCompletionOrFailure(appender, a.completion ++ b.completions, "append proposals"))
+          proposals.foldLeft(Command.MissingCompletionOrFailure(Seq(), "empty append proposal"))((a, b) ⇒
+            Command.MissingCompletionOrFailure(a.completion ++ b.completions, "append proposals"))
         else
-          Command.MissingCompletionOrFailure(appender, list, message)
+          Command.MissingCompletionOrFailure(list, message)
       case Command.parser.Failure(message, next) ⇒
-        if (proposalWithAppend.nonEmpty)
+        if (proposals.nonEmpty)
           // returns append proposals if any
-          proposalWithAppend.foldLeft(Command.MissingCompletionOrFailure(true, Seq(), "empty append proposal"))((a, b) ⇒
-            Command.MissingCompletionOrFailure(true, a.completion ++ b.completions, "append proposals"))
-        else if (proposalWithReplace.nonEmpty) {
-          // returns replace proposals if any
-          proposalWithReplace.foldLeft(Command.MissingCompletionOrFailure(false, Seq(), "empty replace proposal"))((a, b) ⇒
-            Command.MissingCompletionOrFailure(false, a.completion ++ b.completions, "replace proposals"))
-        } else
+          proposals.foldLeft(Command.MissingCompletionOrFailure(Seq(), "empty append proposal"))((a, b) ⇒
+            Command.MissingCompletionOrFailure(a.completion ++ b.completions, "append proposals"))
+        else
           Command.Failure(message)
       case Command.parser.Error(message, next) ⇒
         Command.Error(message)
@@ -252,7 +247,7 @@ object Command extends Loggable {
 
   sealed trait Result
   case class Success(val uniqueId: UUID, val result: Any) extends Result
-  case class MissingCompletionOrFailure(val appender: Boolean, val completion: Seq[Hint], val message: String) extends Result
+  case class MissingCompletionOrFailure(val completion: Seq[Hint], val message: String) extends Result
   case class Failure(val message: String) extends Result
   case class Error(val message: String) extends Result
   /** Information about command parser that is added to specific context. */
@@ -317,7 +312,7 @@ object Command extends Loggable {
       Command.parse(actualParserCombinators.get, input) match {
         case Command.Success(uniqueId, result) ⇒
           Array()
-        case Command.MissingCompletionOrFailure(appender, hints, message) ⇒
+        case Command.MissingCompletionOrFailure(hints, message) ⇒
           {
             hints.map {
               case Hint(Some(label), description, list) ⇒

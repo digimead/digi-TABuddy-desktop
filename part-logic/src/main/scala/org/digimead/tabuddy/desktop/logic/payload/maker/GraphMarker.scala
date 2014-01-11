@@ -64,6 +64,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.serialization.Serialization
 import org.eclipse.core.internal.utils.Policy
 import org.eclipse.core.resources.IFile
 import org.eclipse.core.resources.IResource
@@ -79,7 +80,7 @@ import scala.collection.{ immutable, mutable }
  *   application type schemas
  *   application view definitions
  *   application view filters
- *     ... and so on
+ *     ... and so on + user data
  */
 class GraphMarker(
   /** Container IResource unique id. */
@@ -517,7 +518,7 @@ object GraphMarker extends Loggable {
     /** Path to the graph descriptor. */
     def graphDescriptor: File = new File(graphPath.getParentFile(), graphModelId.name + "." + Payload.extensionGraph)
     /** Store the graph to the predefined directory ${location}/id/ */
-    def graphFreeze(): Unit = throw new UnsupportedOperationException()
+    def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = throw new UnsupportedOperationException()
     /** Check whether the graph is modified. */
     def graphIsDirty(): Boolean = false
     /** Check whether the graph is loaded. */

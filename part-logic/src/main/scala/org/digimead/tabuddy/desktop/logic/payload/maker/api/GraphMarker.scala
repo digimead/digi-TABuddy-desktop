@@ -49,6 +49,7 @@ import org.digimead.tabuddy.desktop.logic.payload.api
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.serialization.Serialization
 import scala.collection.immutable
 
 /**
@@ -72,7 +73,7 @@ trait GraphMarker {
   /** Path to the graph descriptor. */
   def graphDescriptor: File
   /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze()
+  def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None)
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean
   /** Check whether the graph is loaded. */

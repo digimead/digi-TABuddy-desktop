@@ -107,12 +107,12 @@ trait GraphSpecific {
     new File(graphPath.getParentFile(), graphPath.getName() + "." + Payload.extensionGraph)
   }
   /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze(): Unit = state.lockWrite { state ⇒
+  def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = state.lockWrite { state ⇒
     assertState()
     log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    Serialization.freeze(state.graph)
+    Serialization.freeze(state.graph, storages = storages)
   }
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean = graphIsOpen && !lockRead { state ⇒

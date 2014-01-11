@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -56,7 +56,7 @@ import org.eclipse.core.runtime.jobs.JobChangeAdapter
  * Operation base class.
  */
 abstract class Operation[A](label: String) extends AbstractOperation(label) with api.Operation[A] {
-  this: Loggable =>
+  this: Loggable ⇒
 
   override protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[A]
   override protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[A]
@@ -128,20 +128,20 @@ object Operation extends Loggable {
 
   /** Operation job wrapper. */
   abstract class Job[A](label: String) extends org.eclipse.core.runtime.jobs.Job(label) {
-    def onComplete[B](f: Result[A] => B): this.type = {
+    def onComplete[B](f: Result[A] ⇒ B): this.type = {
       addJobChangeListener(new JobChangeAdapter() {
         override def done(event: IJobChangeEvent) = event.getResult() match {
-          case result: Result[A] =>
+          case result: Result[A] ⇒
             f(result)
-          case other =>
+          case other ⇒
             val error = s"Unexpected job result: ${other}."
             Option(other.getException()) match {
-              case Some(exception) =>
+              case Some(exception) ⇒
                 if (exception.getMessage() == null && exception.getCause() != null)
                   f(Result.Error[A](error, exception.getCause()))
                 else
                   f(Result.Error[A](error, exception))
-              case None =>
+              case None ⇒
                 f(Result.Error[A](error))
             }
         }
@@ -152,7 +152,7 @@ object Operation extends Loggable {
   /**
    * Job result
    */
-  sealed trait Result[A] extends IStatus {
+  sealed trait Result[A] extends IStatus with java.io.Serializable {
     val exception: Throwable
     val message: String
     val result: Option[A]
@@ -197,8 +197,8 @@ object Operation extends Loggable {
      * (neither info, warning, nor error).
      */
     def isOK() = getSeverity match {
-      case IStatus.OK => true
-      case _ => false
+      case IStatus.OK ⇒ true
+      case _ ⇒ false
     }
     /**
      * Returns whether the severity of this status matches the given
@@ -226,7 +226,8 @@ object Operation extends Loggable {
       val result = None
       val severity = IStatus.CANCEL
     }
-    case class Error[A](val message: String, override val exception: Throwable = null, logAsFatal: Boolean = true) extends Result[A] {
+    case class Error[A](val message: String, override val exception: Throwable = null, logAsFatal: Boolean = true)
+      extends Throwable(message, exception) with Result[A] {
       val result = None
       val severity = IStatus.ERROR
 
@@ -237,6 +238,12 @@ object Operation extends Loggable {
           log.fatal(message)
       } else
         log.warn(message)
+
+      override def getMessage() = message
+      override def toString() = exception match {
+        case null ⇒ s"Error(${message})"
+        case ex ⇒ s"Error(${message}, ${exception.getMessage()})"
+      }
     }
     object Error {
       def apply[A](exception: Throwable): Error[A] = Error[A]("Error: " + exception.getMessage(), exception)

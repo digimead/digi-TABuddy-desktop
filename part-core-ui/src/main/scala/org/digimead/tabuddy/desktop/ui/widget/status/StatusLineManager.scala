@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -132,7 +132,7 @@ class StatusLineManager extends JStatusLineManager with Loggable {
                 case None ⇒
                   log.fatal("Unable to find command information for unique Id " + uniqueId)
               }
-            case Command.MissingCompletionOrFailure(_, completionList, message) ⇒
+            case Command.MissingCompletionOrFailure(completionList, message) ⇒
               log.debug("Autocomplete: " + message)
             case Command.Failure(message) ⇒
               log.debug(message)

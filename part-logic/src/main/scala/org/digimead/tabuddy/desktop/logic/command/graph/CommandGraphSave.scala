@@ -113,6 +113,6 @@ object CommandGraphSave extends Loggable {
   lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphParser))
 
   /** Graph argument parser. */
-  def graphParser = GraphParser(() ⇒ GraphMarker.list().
-    map(GraphMarker(_)).filter(m ⇒ m.graphIsOpen() && m.graphIsDirty()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
+    filter(m ⇒ m.markerIsValid && m.graphIsOpen() && m.graphIsDirty()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
 }

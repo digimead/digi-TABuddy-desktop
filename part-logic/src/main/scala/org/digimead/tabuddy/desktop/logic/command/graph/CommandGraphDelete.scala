@@ -98,6 +98,6 @@ object CommandGraphDelete extends Loggable {
   lazy val parser = Command.CmdParser(descriptor.name ~> graphParser)
 
   /** Graph argument parser. */
-  def graphParser = GraphParser(() ⇒ GraphMarker.list().
-    map(GraphMarker(_)).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
+    filter(_.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
 }

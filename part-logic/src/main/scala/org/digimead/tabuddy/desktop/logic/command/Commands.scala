@@ -78,13 +78,19 @@ class Commands extends Loggable {
     val coreGraphClose = Command.addToContext(Core.context, graph.CommandGraphClose.parser)
     Command.register(graph.CommandGraphDelete.descriptor)
     val coreGraphDelete = Command.addToContext(Core.context, graph.CommandGraphDelete.parser)
-    contextParsers = Seq(coreGraphNew, coreGraphList, coreGraphOpen,
-      coreGraphSave, coreGraphSaveAs, coreGraphClose, coreGraphDelete).flatten
+    Command.register(graph.CommandGraphImport.descriptor)
+    val coreGraphImport = Command.addToContext(Core.context, graph.CommandGraphImport.parser)
+    Command.register(graph.CommandGraphExport.descriptor)
+    val coreGraphExport = Command.addToContext(Core.context, graph.CommandGraphExport.parser)
+    contextParsers = Seq(coreGraphNew, coreGraphList, coreGraphOpen, coreGraphSave, coreGraphSaveAs,
+      coreGraphClose, coreGraphDelete, coreGraphImport, coreGraphExport).flatten
   }
   /** Unconfigure component actions. */
   @log
   def unconfigure() = lock.synchronized {
     contextParsers.foreach(Command.removeFromContext(Core.context, _))
+    Command.unregister(graph.CommandGraphExport.descriptor)
+    Command.unregister(graph.CommandGraphImport.descriptor)
     Command.unregister(graph.CommandGraphDelete.descriptor)
     Command.unregister(graph.CommandGraphClose.descriptor)
     Command.unregister(graph.CommandGraphSaveAs.descriptor)

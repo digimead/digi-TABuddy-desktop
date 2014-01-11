@@ -48,6 +48,7 @@ import java.util.Properties
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.definition.command.{ api ⇒ cmdapi }
 import org.digimead.tabuddy.desktop.core.support.App
@@ -135,7 +136,7 @@ class Console extends Actor with Loggable {
               sender ! Failure(new RuntimeException("Unable to find command information for unique Id " + contextParserId))
             Console.log.fatal("Unable to find command information for unique Id " + contextParserId)
         }
-      case Command.MissingCompletionOrFailure(appender, completionList, message) ⇒
+      case Command.MissingCompletionOrFailure(completionList, message) ⇒
         if (sender != App.system.deadLetters)
           sender ! Failure(new RuntimeException("Autocomplete: " + message))
         commandOnIncorrect(line, from)
@@ -166,9 +167,13 @@ class Console extends Actor with Loggable {
     from.foreach(_.echo(Console.msgWarning.format(s"Command '${line}' isn't correct.") + Console.RESET))
   }
   /** Command future is failed. */
-  protected def commandOnFailure(commandDescriptor: Command.Descriptor, error: Throwable, line: String, from: Option[api.Console.Projection]) {
-    from.foreach(_.echo(Console.msgAlert.format(s"${commandDescriptor.name} is failed: " + error) + Console.RESET))
-  }
+  protected def commandOnFailure(commandDescriptor: Command.Descriptor, error: Throwable, line: String, from: Option[api.Console.Projection]) =
+    error match {
+      case Operation.Result.Error(message, _, _) ⇒
+        from.foreach(_.echo(Console.msgAlert.format(s"${commandDescriptor.name} is failed. " + message) + Console.RESET))
+      case error ⇒
+        from.foreach(_.echo(Console.msgAlert.format(s"${commandDescriptor.name} is failed. " + error) + Console.RESET))
+    }
   /** Command future is successful completed. */
   protected def commandOnSuccess(commandDescriptor: Command.Descriptor, result: Any, from: Option[api.Console.Projection]) {
     val message = Console.convert(commandDescriptor, result) match {
@@ -328,7 +333,7 @@ object Console extends api.Console with Loggable {
     lazy val msgWarning = injectOptional[String]("Console.Message.Warning") getOrElse Console.BYELLOW + "%s"
     /** Console alert message. */
     lazy val msgAlert = injectOptional[String]("Console.Message.Alert") getOrElse {
-      Console.RED + "*ALERT*" + Console.WHITE + "%s" + Console.RED + "*ALERT*" + Console.WHITE
+      Console.RED + "*ALERT*" + Console.WHITE + " %s " + Console.RED + "*ALERT*" + Console.WHITE
     }
     /** Console prompt. */
     lazy val prompt = injectOptional[String]("Console.Prompt") getOrElse "ta-desktop>"

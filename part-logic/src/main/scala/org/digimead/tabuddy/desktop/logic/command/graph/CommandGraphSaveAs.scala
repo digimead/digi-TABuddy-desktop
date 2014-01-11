@@ -116,12 +116,13 @@ object CommandGraphSaveAs extends Loggable {
   protected lazy val localGraphMarker = new DynamicVariable[Option[GraphMarker]](None)
 
   /** Graph argument parser. */
-  protected def graphParser = GraphParser(() ⇒ GraphMarker.list().
-    map(GraphMarker(_)).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  protected def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
+    filter(_.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
   /** Create parser for the graph name. */
   protected def nameParser: Command.parser.Parser[Any] = commandRegex(App.symbolPattern.pattern().r, HintContainer)
   /** Path argument parser. */
-  protected def pathParser = PathParser(Logic.graphContainer, "graph location", Some(s"path to graph directory")) { _.isDirectory }
+  protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "graph location",
+    () ⇒ Some(s"path to graph directory")) { _.isDirectory }
 
   /** Hint container for graph name. */
   object HintContainer extends Command.Hint.Container {

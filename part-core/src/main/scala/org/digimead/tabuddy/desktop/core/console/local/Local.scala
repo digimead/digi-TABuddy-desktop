@@ -215,7 +215,7 @@ object Local extends Loggable {
       // ... else if (candidates.size() > 1 && !candidates.asScala.forall(_.length() == 0)) ...
       val ReDraw = Completion.Candidates(cursor, List("", ""))
       Command.completionProposalMode.withValue(true) { Command.parse(buffer.take(cursor)) } match {
-        case Command.MissingCompletionOrFailure(true, completionRaw, message) ⇒
+        case Command.MissingCompletionOrFailure(completionRaw, message) ⇒
           val completionList = completionRaw.distinct
           val completionStrings = completionList.map(_.completions).flatten.filter(_.nonEmpty).distinct
           completionStrings match {
@@ -251,7 +251,7 @@ object Local extends Loggable {
           // Ok, but there may be more...
           // Add space character and search for append proposals...
           Command.parse(buffer.take(cursor) + " ") match {
-            case Command.MissingCompletionOrFailure(true, completionList, message) if completionList.nonEmpty ⇒
+            case Command.MissingCompletionOrFailure(completionList, message) if completionList.nonEmpty ⇒
               (Completion.Candidates(cursor, List(" ")), Seq.empty)
             case _ ⇒
               (Completion.NoCandidates, Seq.empty)

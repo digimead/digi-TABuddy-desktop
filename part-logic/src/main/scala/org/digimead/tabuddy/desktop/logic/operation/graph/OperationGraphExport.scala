@@ -44,71 +44,67 @@
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import java.io.{ File, IOException }
-import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.Serialization
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
-/** 'Save graph as ...' operation. */
-class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
+/** 'Export graph' operation. */
+class OperationGraphExport extends api.OperationGraphExport with Loggable {
   /**
-   * Save graph.
+   * Export graph.
    *
-   * @param graph graph to save
-   * @param path directory of the graph container
-   * @param name name of the graph
-   * @param serialization type of the serialization
-   * @return copy of the graph
+   * @param graph graph to export
+   * @param location target directory
+   * @param interactive show graph export wizard
    */
-  def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Graph[_ <: Model.Like] = GraphMarker(graph).lockUpdate { _ ⇒
-    log.info(s"Save $graph as $name.")
+  def apply(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean) = GraphMarker(graph).lockUpdate { _ ⇒
+    log.info(location match {
+      case Some(location) ⇒ s"Export ${graph} to ${location}."
+      case None ⇒ s"Export ${graph}."
+    })
+    if (interactive && !App.isUIAvailable)
+      throw new IllegalArgumentException("Unable to import interactively without UI.")
+    if (!interactive && location.isEmpty)
+      throw new IllegalArgumentException("Unable to non interactively import graph without location.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     val marker = GraphMarker(graph)
     if (!marker.markerIsValid)
       throw new IllegalStateException(marker + " is not valid.")
-    val localStorageURI = marker.graphPath.toURI()
-    val newGraphDescriptor = new File(path, name + "." + Payload.extensionGraph)
-    val newGraphPath = new File(path, name)
-    if (newGraphPath.exists())
-      throw new IOException(newGraphPath + " is already exists.")
-    if (newGraphDescriptor.exists())
-      throw new IOException(newGraphDescriptor + " descriptor is already exists.")
-    val newMarker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(path, name),
-      marker.graphCreated, marker.graphOrigin)
-    newMarker.lockUpdate(_.lockWrite(_.graphObject = Some(graph.copy() { g ⇒
-      g.withData { data ⇒
-        data.clear()
-        data(GraphMarker) = newMarker
-      }
-      g.storages = g.storages.filterNot(_ == localStorageURI)
-      g.storages = g.storages :+ newMarker.graphPath.toURI()
-    })))
-    if (!newMarker.markerIsValid)
-      throw new IllegalStateException(marker + " is not valid.")
-    val newGraph = newMarker.lockRead(_.graph)
-    OperationGraphSave.operation(newGraph, true) // overwrite even there are no modifications
-    newGraph
+    if (!marker.graphIsOpen())
+      throw new IllegalStateException(s"$graph is closed.")
+    val destination = new File(location.get, marker.graphModelId.name)
+    if (destination.exists())
+      if (overwrite) {
+        log.info("Clean " + destination)
+        App.processRecursive(destination)(_.delete())
+      } else
+        throw new IOException("Destination directory is already exists.")
+    val currentURI = Serialization.normalizeURI(marker.graphPath.toURI())
+    val copy = graph.copy() { g ⇒
+      g.storages = g.storages.filterNot(_ == currentURI)
+    }
+    Serialization.freeze(copy,
+      storages = Some(Serialization.ExplicitStorages(Seq(destination.toURI()), Serialization.ExplicitStorages.ModeAppend)))
   }
   /**
-   * Create 'Save graph as ...' operation.
+   * Create 'Export graph' operation.
    *
-   * @param graph graph to save
-   * @param path directory of the graph container
-   * @param name name of the graph
-   * @param serialization type of the serialization
-   * @return 'Save graph as ...' operation
+   * @param graph graph to export
+   * @param location target directory
+   * @param interactive show graph export wizard
+   * @return 'Export graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]) =
-    new Implemetation(graph, path, name, serialization)
+  def operation(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean) =
+    new Implemetation(graph, location, overwrite, interactive)
 
   /**
    * Checks that this class can be subclassed.
@@ -126,55 +122,62 @@ class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(graph: Graph[_ <: Model.Like], path: File, name: String, serialization: Option[Serialization.Identifier])
-    extends OperationGraphSaveAs.Abstract(graph, path, name, serialization) with Loggable {
+  class Implemetation(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean)
+    extends OperationGraphExport.Abstract(graph, location, overwrite, interactive) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option[Graph[_ <: Model.Like]](OperationGraphSaveAs.this(graph, name, path, serialization))
+        val result = Option(OperationGraphExport.this(graph, location, overwrite, interactive))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
+        case e: IOException if e.getMessage() == "Destination directory is already exists." ⇒
+          Operation.Result.Error(s"Unable to export $graph: " + e.getMessage(), null, false)
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to save $graph.", e)
+          Operation.Result.Error(s"Unable to export $graph.", e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
   }
 }
 
-object OperationGraphSaveAs extends Loggable {
-  /** Stable identifier with OperationGraphSaveAs DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationGraphSaveAs]
+object OperationGraphExport extends Loggable {
+  /** Stable identifier with OperationGraphExport DI */
+  lazy val operation = DI.operation.asInstanceOf[OperationGraphExport]
 
   /**
-   * Build a new 'Save graph as ...' operation.
+   * Build a new 'Export graph' operation.
    *
-   * @param graph graph to save
-   * @return 'Save graph as ...' operation
+   * @param graph graph to export
+   * @param location target directory
+   * @param interactive show graph export wizard
+   * @return 'Export graph' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Option[Abstract] =
-    Some(operation.operation(graph, name, path, serialization))
+  def apply(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean): Option[Abstract] =
+    Some(operation.operation(graph, location, overwrite, interactive))
 
-  /** Bridge between abstract api.Operation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val path: File, val name: String, val serialization: Option[Serialization.Identifier])
-    extends Operation[Graph[_ <: Model.Like]](s"Save $graph as $name to $path with ${serialization getOrElse graph.model.eBox.serialization}.") {
+  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val location: Option[File], val overwrite: Boolean,
+    val interactive: Boolean) extends Operation[Unit](location match {
+    case Some(location) ⇒ s"Export ${graph} to ${location}."
+    case None ⇒ s"Export ${graph}."
+  }) {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphSaveAs] getOrElse new OperationGraphSaveAs
+    lazy val operation = injectOptional[api.OperationGraphExport] getOrElse new OperationGraphExport
   }
 }

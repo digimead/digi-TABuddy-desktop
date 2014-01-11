@@ -68,23 +68,29 @@ object CommandGraphList extends Loggable {
     case (this.descriptor, (false, Seq())) ⇒
       "There are no graphs"
     case (this.descriptor, (true, graphMarkers @ Seq(_*))) ⇒
-      graphMarkers.asInstanceOf[Seq[GraphMarker]].sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name).map { marker ⇒
+      graphMarkers.asInstanceOf[Seq[GraphMarker]].filter(_.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name).map { marker ⇒
         s"${Console.BWHITE}${marker.graphOrigin.name}${Console.RESET} " +
           s"${Console.BWHITE}${marker.graphModelId.name}${Console.RESET} " +
           s"${Console.BWHITE}${marker.uuid}${Console.RESET} binded to ${GraphMarker.markerToContext(marker).mkString(", ")}"
       }.mkString("\n")
     case (this.descriptor, (false, graphMarkers @ Seq(_*))) ⇒
-      graphMarkers.asInstanceOf[Seq[GraphMarker]].sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name).map { marker ⇒
-        val state = marker match {
-          case broken if !marker.markerIsValid ⇒ s"[${Console.BRED}broken${Console.RESET}]"
-          case dirty if marker.graphIsOpen() && marker.graphIsDirty() ⇒ s"[${Console.BYELLOW}unsaved${Console.RESET}]"
-          case opened if marker.graphIsOpen() ⇒ s"[${Console.BGREEN}opened${Console.RESET}]"
-          case closed ⇒ s"[${Console.BBLACK}closed${Console.RESET}]"
-        }
-        s"${Console.BWHITE}${marker.graphOrigin.name}${Console.RESET} " +
-          s"${Console.BWHITE}${marker.graphModelId.name}${Console.RESET} " +
-          s"${Console.BWHITE}${marker.uuid}${Console.RESET} ${state} at ${marker.graphPath}"
-      }.mkString("\n")
+      graphMarkers.asInstanceOf[Seq[GraphMarker]].
+        sortBy(m ⇒ try m.graphModelId.name catch { case e: Throwable ⇒ "-" }).
+        sortBy(m ⇒ try m.graphOrigin.name catch { case e: Throwable ⇒ "-" }).map { marker ⇒
+          val state = marker match {
+            case broken if !marker.markerIsValid ⇒ s"[${Console.BRED}broken${Console.RESET}]"
+            case dirty if marker.graphIsOpen() && marker.graphIsDirty() ⇒ s"[${Console.BYELLOW}unsaved${Console.RESET}]"
+            case opened if marker.graphIsOpen() ⇒ s"[${Console.BGREEN}opened${Console.RESET}]"
+            case closed ⇒ s"[${Console.BBLACK}closed${Console.RESET}]"
+          }
+          s"${Console.BWHITE}${
+            try marker.graphOrigin.name catch { case e: Throwable ⇒ "-" }
+          }${Console.RESET} " +
+            s"${Console.BWHITE}${
+              try marker.graphModelId.name catch { case e: Throwable ⇒ "-" }
+            }${Console.RESET} " +
+            s"${Console.BWHITE}${marker.uuid}${Console.RESET} ${state} at ${marker.graphPath}"
+        }.mkString("\n")
   }
   /** Command description. */
   implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_list_text,

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,44 +44,43 @@
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import java.io.File
+import java.net.URI
 import java.util.UUID
-import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.ui.{ UI, Wizards }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.serialization.Serialization
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
-/** 'New graph' operation. */
-class OperationGraphNew extends api.OperationGraphNew with Loggable {
+/** 'Import graph' operation. */
+class OperationGraphImport extends api.OperationGraphImport with Loggable {
   /**
-   * Create new graph.
+   * Import graph.
    *
-   * @param name initial model name if any
-   * @param location initial graph location if any
-   * @param interactive show graph creation wizard
-   * @return graph marker
+   * @param origin graph origin
+   * @param location source with imported graph
+   * @param interactive show graph import wizard
+   * @return imported graph
    */
-  def apply(name: Option[String], location: Option[File], interactive: Boolean): Graph[_ <: Model.Like] = {
-    log.info(s"Create new graph with initial name ${name}.")
+  def apply(origin: Option[Symbol], location: Option[URI], interactive: Boolean): Graph[_ <: Model.Like] = {
+    log.info(location match {
+      case Some(location) ⇒ s"Import graph from ${location}."
+      case None ⇒ "Import graph."
+    })
     if (interactive && !App.isUIAvailable)
-      throw new IllegalArgumentException("Unable to create graph interactively without UI.")
-    if (!interactive && name.isEmpty)
-      throw new IllegalArgumentException("Unable to non interactively create new graph without name.")
-    if (!interactive && location.isEmpty)
-      throw new IllegalArgumentException("Unable to non interactively create new graph without location.")
+      throw new IllegalArgumentException("Unable to import interactively without UI.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    val marker = if (interactive)
-      UI.getActiveShell match {
+
+    val (graphOrigin, graphLocation) = if (interactive) {
+      /*      UI.getActiveShell match {
         case Some(shell) ⇒
           App.execNGet {
             Wizards.open("org.digimead.tabuddy.desktop.graph.editor.wizard.ModelCreationWizard", shell, Some(name, location)) match {
@@ -97,26 +96,49 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
           }
         case None ⇒
           throw new IllegalStateException("Unable to create new graph dialog without parent shell.")
-      }
-    else {
-      val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(location.get, name.get),
-        Element.timestamp(), Payload.origin)
-      if (!marker.markerIsValid)
-        throw new IllegalStateException(marker + " is not valid.")
-      marker
+      }*/
+      // TODO
+      throw new UnsupportedOperationException("TODO")
+    } else {
+      (origin getOrElse { throw new IllegalArgumentException("Unable to non interactively import graph without origin.") },
+        location getOrElse { throw new IllegalArgumentException("Unable to non interactively import graph without location.") })
     }
-    marker.graphAcquire()
+    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphLocation)) match {
+      case Some(graph) ⇒
+        val localGraphPath = if (graphLocation.getScheme() != new File(".").toURI().getScheme()) {
+          // this is remote graph
+          // create local copy
+          val destination = new File(Logic.graphContainer, graph.model.eId.name)
+          Serialization.freeze(graph,
+            storages = Some(Serialization.ExplicitStorages(Seq(destination.toURI()), Serialization.ExplicitStorages.ModeAppend)))
+          destination
+        } else
+          new File(graphLocation)
+        val uuid = if (GraphMarker.list().contains(graph.node.unique))
+          UUID.randomUUID()
+        else
+          graph.node.unique
+        val newMarker = GraphMarker.createInTheWorkspace(uuid, localGraphPath, Element.timestamp(), graphOrigin)
+        newMarker.lockUpdate(_.lockWrite(_.graphObject = Some(graph.copy() { g ⇒
+          g.withData { data ⇒
+            data(GraphMarker) = newMarker
+          }
+        })))
+        newMarker.graphAcquire()
+      case None ⇒
+        throw new IllegalStateException(s"Unable to import graph with origin $graphOrigin from " + graphLocation)
+    }
   }
   /**
-   * Create 'New graph' operation.
+   * Create 'Import graph' operation.
    *
-   * @param name initial model name if any
-   * @param location initial graph location if any
-   * @param interactive show graph creation wizard
-   * @return 'New graph' operation
+   * @param origin graph origin
+   * @param location source with imported graph
+   * @param interactive show graph import wizard
+   * @return 'Import graph' operation
    */
-  def operation(name: Option[String], location: Option[File], interactive: Boolean) =
-    new Implemetation(name, location, interactive)
+  def operation(origin: Option[Symbol], location: Option[URI], interactive: Boolean) =
+    new Implemetation(origin, location, interactive)
 
   /**
    * Checks that this class can be subclassed.
@@ -134,8 +156,8 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(name: Option[String], location: Option[File], interactive: Boolean)
-    extends OperationGraphNew.Abstract(name, location, interactive) with Loggable {
+  class Implemetation(origin: Option[Symbol], location: Option[URI], interactive: Boolean)
+    extends OperationGraphImport.Abstract(origin, location, interactive) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -145,12 +167,12 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option[Graph[_ <: Model.Like]](OperationGraphNew.this(name, location, interactive))
+        val result = Option[Graph[_ <: Model.Like]](OperationGraphImport.this(origin, location, interactive))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to create new graph.", e)
+          Operation.Result.Error(s"Unable to import graph.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =
@@ -160,31 +182,34 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
   }
 }
 
-object OperationGraphNew extends Loggable {
-  /** Stable identifier with OperationGraphNew DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationGraphNew]
+object OperationGraphImport extends Loggable {
+  /** Stable identifier with OperationGraphImport DI */
+  lazy val operation = DI.operation.asInstanceOf[OperationGraphImport]
 
   /**
-   * Build a new 'New graph' operation.
+   * Build a new 'Import graph' operation.
    *
-   * @param name initial model name if any
-   * @param location initial graph location if any
-   * @param interactive show graph creation wizard
-   * @return 'New graph' operation
+   * @param origin graph origin
+   * @param location source with imported graph
+   * @param interactive show graph import wizard
+   * @return 'Import graph' operation
    */
   @log
-  def apply(name: Option[String], location: Option[File], interactive: Boolean): Option[Abstract] =
-    Some(operation.operation(name, location, interactive))
+  def apply(origin: Option[Symbol], location: Option[URI], interactive: Boolean): Option[Abstract] =
+    Some(operation.operation(origin, location, interactive))
 
   /** Bridge between abstract api.Operation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
-  abstract class Abstract(val name: Option[String], val location: Option[File], val interactive: Boolean)
-    extends Operation[Graph[_ <: Model.Like]](s"Create new graph with initial name ${name}.") {
+  abstract class Abstract(val origin: Option[Symbol], val location: Option[URI], val interactive: Boolean)
+    extends Operation[Graph[_ <: Model.Like]](location match {
+      case Some(location) ⇒ s"Import graph with ${origin} from ${location}."
+      case None ⇒ "Import graph."
+    }) {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphNew] getOrElse new OperationGraphNew
+    lazy val operation = injectOptional[api.OperationGraphImport] getOrElse new OperationGraphImport
   }
 }

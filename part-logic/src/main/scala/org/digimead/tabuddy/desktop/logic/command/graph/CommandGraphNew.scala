@@ -103,5 +103,6 @@ object CommandGraphNew extends Loggable {
   protected def nameParser: Command.parser.Parser[Any] =
     commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"))))
   /** Path argument parser. */
-  protected def pathParser = PathParser(Logic.graphContainer, "graph location", Some(s"path to graph directory")) { _.isDirectory }
+  protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "graph location",
+    () ⇒ Some(s"path to graph directory")) { _.isDirectory }
 }
