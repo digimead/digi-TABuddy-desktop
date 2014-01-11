@@ -58,11 +58,8 @@ trait MarkerSpecific {
   def markerIsValid: Boolean = state.lockUpdate { state ⇒
     try {
       assertState()
-      val base = graphPath.getParentFile()
-      val id = graphPath.getName
-      val descriptor = new File(base, id + "." + Payload.extensionGraph)
-      graphPath.exists() && descriptor.exists && resource.exists() && {
-        if (autoload && state.graphDescriptorProperties.isEmpty)
+      graphPath.exists() && resource.exists() && {
+        if (autoload && state.graphProperties.isEmpty)
           markerLoad()
         true
       }
@@ -72,31 +69,18 @@ trait MarkerSpecific {
     }
   }
   /** Marker last access timestamp. */
-  def markerLastAccessed: Long = getValueFromIResourceProperties { p ⇒ p.getProperty(GraphMarker.fieldLastAccessed).toLong }
+  def markerLastAccessed: Long = getValueFromGraphProperties { p ⇒ p.getProperty(GraphMarker.fieldLastAccessed).toLong }
   /** Load marker properties. */
   def markerLoad() = state.lockWrite { state ⇒
     assertState()
     log.debug(s"Load marker with UUID ${uuid}.")
-
-    // load IResource part
-    log.debug(s"Load resource: ${resource.getName}.")
     if (!resource.exists())
-      throw new IllegalArgumentException(s"Graph marker with id ${uuid} not found.")
+      throw new IllegalArgumentException(s"Graph properities for id ${uuid} not found.")
     val stream = resource.getContents(true)
-    val resourceProperties = new Properties
-    resourceProperties.load(stream)
+    val graphProperties = new Properties
+    graphProperties.load(stream)
     try { stream.close() } catch { case e: Throwable ⇒ }
-    state.resourceProperties = Option(resourceProperties)
-
-    // load model descriptor part
-    val fullPath = new File(resourceProperties.getProperty(GraphMarker.fieldPath))
-    val path = fullPath.getParentFile()
-    val id = fullPath.getName()
-    val descriptor = new File(path, id + "." + Payload.extensionGraph)
-    log.debug(s"Load model descriptor: ${descriptor.getName}.")
-    val properties = new Properties
-    properties.load(new FileInputStream(descriptor))
-    state.graphDescriptorProperties = Option(properties)
+    state.graphProperties = Option(graphProperties)
   }
   /** Save marker properties. */
   def markerSave() = state.lockWrite { state ⇒
@@ -105,20 +89,16 @@ trait MarkerSpecific {
     require(state, true, false)
 
     // update fields
-    state.resourceProperties.get.setProperty(GraphMarker.fieldLastAccessed, System.currentTimeMillis().toString)
+    state.graphProperties.get.setProperty(GraphMarker.fieldLastAccessed, System.currentTimeMillis().toString)
 
     // save model descriptor part
     graphPath.mkdirs()
-    log.debug(s"Save graph descriptor: ${graphDescriptor.getName}.")
-    Report.info match {
-      case Some(info) ⇒ state.graphDescriptorProperties.get.store(new FileOutputStream(graphDescriptor), info.toString)
-      case None ⇒ state.graphDescriptorProperties.get.store(new FileOutputStream(graphDescriptor), null)
-    }
-
-    // save IResource part
-    log.debug(s"Save resource: ${resource.getName()}.")
+    log.debug(s"Save graph properties ${resource.getName()}.")
     val output = new ByteArrayOutputStream()
-    state.resourceProperties.get.store(output, null)
+    Report.info match {
+      case Some(info) ⇒ state.graphProperties.get.store(output, info.toString)
+      case None ⇒ state.graphProperties.get.store(output, null)
+    }
     val input = new ByteArrayInputStream(output.toByteArray())
     if (!resource.exists())
       resource.create(input, IResource.NONE, null)

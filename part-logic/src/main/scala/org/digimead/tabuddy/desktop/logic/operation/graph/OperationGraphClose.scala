@@ -65,36 +65,38 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
    * @param force close graph without saving
    * @return the same marker or read only marker if current one is deleted
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker = GraphMarker(graph).lockUpdate { state ⇒
-    log.info(s"Close $graph, force is $force.")
-    val marker = GraphMarker(graph)
-    if (!marker.graphIsOpen())
-      throw new IllegalStateException(s"$graph is already closed.")
-    if (marker.graphIsDirty()) {
-      if (!force && App.isUIAvailable) {
-        val dialog = new MessageBox(null, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL)
-        dialog.setText("Model is modified")
-        dialog.setMessage("Do you want to save modifications?")
-        if (dialog.open() == Window.OK)
-          // save modified model if user permits
-          OperationGraphSave.operation(graph, false)
-      } else {
-        log.info(s"Close modified $graph without saving.")
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker = GraphMarker.lock.synchronized {
+    GraphMarker(graph).lockUpdate { state ⇒
+      log.info(s"Close $graph, force is $force.")
+      val marker = GraphMarker(graph)
+      if (!marker.graphIsOpen())
+        throw new IllegalStateException(s"$graph is already closed.")
+      if (marker.graphIsDirty()) {
+        if (!force && App.isUIAvailable) {
+          val dialog = new MessageBox(null, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL)
+          dialog.setText("Model is modified")
+          dialog.setMessage("Do you want to save modifications?")
+          if (dialog.open() == Window.OK)
+            // save modified model if user permits
+            OperationGraphSave.operation(graph, false)
+        } else {
+          log.info(s"Close modified $graph without saving.")
+        }
       }
+      // close model
+      val result = if (graph.stored.isEmpty) {
+        marker.graphClose()
+        // newly created graph is unsaved, clean and
+        // returns read only marker
+        GraphMarker.deleteFromWorkspace(marker)
+      } else {
+        // returns the same marker
+        marker.graphClose()
+        marker
+      }
+      log.info(s"$graph is closed.")
+      result
     }
-    // close model
-    val result = if (graph.stored.isEmpty) {
-      marker.graphClose()
-      // newly created graph is unsaved, clean and
-      // returns read only marker
-      GraphMarker.deleteFromWorkspace(marker)
-    } else {
-      // returns the same marker
-      marker.graphClose()
-      marker
-    }
-    log.info(s"$graph is closed.")
-    result
   }
   /**
    * Create 'Close graph' operation.

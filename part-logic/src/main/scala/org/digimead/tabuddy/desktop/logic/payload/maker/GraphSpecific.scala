@@ -98,13 +98,8 @@ trait GraphSpecific {
     }
   }
   /** Graph creation timestamp. */
-  def graphCreated: Element.Timestamp = getValueFromGraphDescriptor { p ⇒
+  def graphCreated: Element.Timestamp = getValueFromGraphProperties { p ⇒
     Element.Timestamp(p.getProperty(GraphMarker.fieldCreatedMillis).toLong, p.getProperty(GraphMarker.fieldCreatedNanos).toLong)
-  }
-  /** Graph descriptor location. */
-  def graphDescriptor = {
-    assertState()
-    new File(graphPath.getParentFile(), graphPath.getName() + "." + Payload.extensionGraph)
   }
   /** Store the graph to the predefined directory ${location}/id/ */
   def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = state.lockWrite { state ⇒
@@ -130,11 +125,11 @@ trait GraphSpecific {
     Symbol(graphPath.getName)
   }
   /** Origin of the graph. */
-  def graphOrigin: Symbol = getValueFromGraphDescriptor { p ⇒ Symbol(p.getProperty(GraphMarker.fieldOrigin)) }
+  def graphOrigin: Symbol = getValueFromGraphProperties { p ⇒ Symbol(p.getProperty(GraphMarker.fieldOrigin)) }
   /** Path to the graph: base directory and graph directory name. */
-  def graphPath: File = getValueFromIResourceProperties { p ⇒ new File(p.getProperty(GraphMarker.fieldPath)) }
+  def graphPath: File = getValueFromGraphProperties { p ⇒ new File(p.getProperty(GraphMarker.fieldPath)) }
   /** Graph last save timestamp. */
-  def graphStored: Element.Timestamp = getValueFromGraphDescriptor { p ⇒
+  def graphStored: Element.Timestamp = getValueFromGraphProperties { p ⇒
     Element.Timestamp(p.getProperty(GraphMarker.fieldSavedMillis).toLong, p.getProperty(GraphMarker.fieldSavedNanos).toLong)
   }
 

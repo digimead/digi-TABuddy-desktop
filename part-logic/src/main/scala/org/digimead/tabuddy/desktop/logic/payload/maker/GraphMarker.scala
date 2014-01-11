@@ -160,29 +160,16 @@ class GraphMarker(
       Files.write(TypeSchema.YAML.to(schema), new File(typeSchemasStorage, schema.id.toString() + ".yaml"), Charsets.UTF_8))
   }
 
-  /** Get value from graph descriptor with double checking. */
-  protected def getValueFromGraphDescriptor[A](f: Properties ⇒ A): A =
+  /** Get value from graph properties with double checking. */
+  protected def getValueFromGraphProperties[A](f: Properties ⇒ A): A =
     lockRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒
       assertState()
-      state.graphDescriptorProperties.map(f)
+      state.graphProperties.map(f)
     } getOrElse {
       lockUpdate { state ⇒
-        state.graphDescriptorProperties.map(f) getOrElse {
+        state.graphProperties.map(f) getOrElse {
           require(state, true)
-          state.graphDescriptorProperties.map(f) getOrElse { throw new IOException("Unable to read graph descriptor properties.") }
-        }
-      }
-    }
-  /** Get value from IResource properties with double checking. */
-  protected def getValueFromIResourceProperties[A](f: Properties ⇒ A): A =
-    lockRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒
-      assertState()
-      state.resourceProperties.map(f)
-    } getOrElse {
-      lockUpdate { state ⇒
-        state.resourceProperties.map(f) getOrElse {
-          require(state, true)
-          state.resourceProperties.map(f) getOrElse { throw new IOException("Unable to read IResource properties.") }
+          state.graphProperties.map(f) getOrElse { throw new IOException("Unable to read graph properties.") }
         }
       }
     }
@@ -261,13 +248,13 @@ class GraphMarker(
   }
   /** Load model descriptor if needed. */
   protected def require(state: GraphMarker.ThreadUnsafeStateReadOnly, throwError: Boolean, updateViaSave: Boolean = true): Unit =
-    if (autoload && (state.graphDescriptorProperties.isEmpty || state.resourceProperties.isEmpty)) {
+    if (autoload && state.graphProperties.isEmpty) {
       markerLoad()
       // and update last access time via
       if (updateViaSave) markerSave()
     } else {
-      if (throwError && state.graphDescriptorProperties.isEmpty)
-        throw new IllegalStateException(s"Model descriptor ${graphDescriptor} not loaded.")
+      if (throwError && state.graphProperties.isEmpty)
+        throw new IllegalStateException(s"Graph properties ${resource} is not loaded.")
     }
   /** Update application elements. */
   protected def updateApplicationElements() = state.lockWrite { state ⇒
@@ -329,6 +316,10 @@ object GraphMarker extends Loggable {
   val fieldSavedMillis = "savedMillis"
   val fieldSavedNanos = "savedNanos"
   /** GraphMarker lock */
+  /*
+   * Every operation that may delete graph MUST use this lock.
+   * like OperationGraphClose, OperationGraphDelete
+   */
   val lock = new Object
   /** Application wide GraphMarker states. */
   protected val state = new mutable.HashMap[UUID, ThreadSafeState]() with mutable.SynchronizedMap[UUID, ThreadSafeState]
@@ -361,61 +352,48 @@ object GraphMarker extends Loggable {
       throw new IllegalStateException("Workspace is not available.")
     val resourceName = resourceUUID.toString + "." + Payload.extensionGraph
     val resourceFile = Logic.container.getFile(resourceName) // throws IllegalStateException: Workspace is closed.
-    val path = fullPath.getParentFile()
-    val id = fullPath.getName
-    val graphDescriptorFile = new File(path, id + "." + Payload.extensionGraph)
     if (resourceFile.exists())
-      throw new IllegalStateException("Model marker is already exists at " + resourceFile.getLocationURI())
-    if (graphDescriptorFile.exists())
-      throw new IllegalStateException("Graph marker descriptor is already exists at " + graphDescriptorFile.getAbsolutePath())
-    log.debug(s"Prepare model ${Symbol(id)}")
+      throw new IllegalStateException("Graph marker is already exists at " + resourceFile.getLocationURI())
+    if (list().map(apply).find(_.graphPath == fullPath).nonEmpty)
+      throw new IllegalStateException("Graph marker is already exists for " + fullPath)
+    log.debug(s"Prepare graph ${fullPath.getName}")
     if (!fullPath.exists())
       if (!fullPath.mkdirs())
-        throw new IOException("Unable to create model storage at " + fullPath.getAbsolutePath())
-    if (!graphDescriptorFile.createNewFile())
-      throw new IOException("Unable to create model descriptor at " + graphDescriptorFile.getAbsolutePath())
-    val graphDescriptor = new Properties()
-    graphDescriptor.setProperty(fieldCreatedMillis, created.milliseconds.toString)
-    graphDescriptor.setProperty(fieldCreatedNanos, created.nanoShift.toString)
-    graphDescriptor.setProperty(fieldResourceId, resourceUUID.toString)
-    graphDescriptor.setProperty(fieldOrigin, origin.name)
-    graphDescriptor.setProperty(fieldSavedMillis, created.milliseconds.toString)
-    graphDescriptor.setProperty(fieldSavedNanos, created.nanoShift.toString)
-    log.debug(s"Create model descriptor: ${graphDescriptorFile.getName}.")
-    Report.info match {
-      case Some(info) ⇒ graphDescriptor.store(new FileOutputStream(graphDescriptorFile), info.toString)
-      case None ⇒ graphDescriptor.store(new FileOutputStream(graphDescriptorFile), null)
-    }
+        throw new IOException("Unable to create graph storage at " + fullPath.getAbsolutePath())
     val resourceContent = new Properties
     resourceContent.setProperty(fieldPath, fullPath.getCanonicalPath())
     resourceContent.setProperty(GraphMarker.fieldLastAccessed, created.milliseconds.toString)
+    resourceContent.setProperty(fieldCreatedMillis, created.milliseconds.toString)
+    resourceContent.setProperty(fieldCreatedNanos, created.nanoShift.toString)
+    resourceContent.setProperty(fieldResourceId, resourceUUID.toString)
+    resourceContent.setProperty(fieldOrigin, origin.name)
+    resourceContent.setProperty(fieldSavedMillis, created.milliseconds.toString)
+    resourceContent.setProperty(fieldSavedNanos, created.nanoShift.toString)
     val output = new ByteArrayOutputStream()
-    resourceContent.store(output, null)
+    Report.info match {
+      case Some(info) ⇒ resourceContent.store(output, info.toString)
+      case None ⇒ resourceContent.store(output, null)
+    }
     val input = new ByteArrayInputStream(output.toByteArray())
     log.debug(s"Create model marker: ${resourceName}.")
     resourceFile.create(input, IResource.NONE, null)
     new GraphMarker(resourceUUID, true)
   }
   /** Permanently delete marker from the workspace. */
-  def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = marker.lockUpdate {
-    lock.synchronized {
+  def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = lock.synchronized {
+    val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphCreated, marker.graphModelId,
+      marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed)
+    marker.lockUpdate {
       case state: ThreadUnsafeState ⇒
-        val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphCreated, marker.graphModelId,
-          marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed)
-        val path = readOnlyMarker.graphPath.getParentFile()
-        val id = readOnlyMarker.graphPath.getName
-        val graphDescriptorFile = new File(path, id + "." + Payload.extensionGraph)
         if (!FileUtil.deleteFile(marker.graphPath))
           log.fatal("Unable to delete " + marker)
-        graphDescriptorFile.delete()
         marker.resource.delete(true, false, Policy.monitorFor(null))
+        GraphMarker.state.remove(marker.uuid)
         state.graphObject = null
-        state.graphDescriptorProperties = null
         state.graphObject = null
         state.payloadObject = null
-        GraphMarker.state.remove(marker.uuid)
-        readOnlyMarker
     }
+    readOnlyMarker
   }
   /** Get a graph list. */
   def list(): Seq[UUID] = lock.synchronized {
@@ -431,6 +409,7 @@ object GraphMarker extends Loggable {
         None
     }
   }
+  def lockAll[T](f: ⇒ T): T = list().map(apply).foldLeft(() ⇒ f)((fn, marker) ⇒ () ⇒ marker.lockUpdate(_ ⇒ fn()))()
   /** Get list of contexts binded to marker. */
   def markerToContext(marker: GraphMarker): Seq[Context] =
     lock.synchronized { marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.keys.toSeq }
@@ -472,12 +451,10 @@ object GraphMarker extends Loggable {
     this: ThreadUnsafeState ⇒
     /** Get graph. */
     def graph: Graph[_ <: Model.Like]
-    /** Get graph descriptor properties. */
-    def graphDescriptorProperties: Option[Properties]
     /** Get payload. */
     def payload: Payload
-    /** Get container IResource properties. */
-    def resourceProperties: Option[Properties]
+    /** Get graph properties. */
+    def graphProperties: Option[Properties]
   }
   /**
    * Graph marker thread unsafe object.
@@ -487,10 +464,8 @@ object GraphMarker extends Loggable {
     val contextRefs = new mutable.WeakHashMap[Context, Unit] with mutable.SynchronizedMap[Context, Unit]
     /** Graph. */
     var graphObject = Option.empty[Graph[_ <: Model.Like]]
-    /** Graph descriptor properties. */
-    var graphDescriptorProperties = Option.empty[Properties]
-    /** Container IResource properties. */
-    var resourceProperties = Option.empty[Properties]
+    /** Graph properties. */
+    var graphProperties = Option.empty[Properties]
     /** Payload. */
     var payloadObject = Option.empty[Payload]
 
@@ -498,7 +473,7 @@ object GraphMarker extends Loggable {
     def graph: Graph[_ <: Model.Like] = graphObject getOrElse { throw new IllegalStateException("Graph not loaded.") }
     /** Get payload. */
     def payload: Payload = payloadObject getOrElse { throw new IllegalStateException("Payload not initialized.") }
-    override def toString() = s"GraphMarker.State($graphObject, $graphDescriptorProperties, $resourceProperties, $payloadObject)"
+    override def toString() = s"GraphMarker.State($graphObject, $graphProperties, $payloadObject)"
   }
   /** Read only marker. */
   class ReadOnlyGraphMarker(val uuid: UUID, val graphCreated: Element.Timestamp, val graphModelId: Symbol,
@@ -515,8 +490,6 @@ object GraphMarker extends Loggable {
     def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = throw new UnsupportedOperationException()
     /** Close the loaded graph. */
     def graphClose() = throw new UnsupportedOperationException()
-    /** Path to the graph descriptor. */
-    def graphDescriptor: File = new File(graphPath.getParentFile(), graphModelId.name + "." + Payload.extensionGraph)
     /** Store the graph to the predefined directory ${location}/id/ */
     def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = throw new UnsupportedOperationException()
     /** Check whether the graph is modified. */

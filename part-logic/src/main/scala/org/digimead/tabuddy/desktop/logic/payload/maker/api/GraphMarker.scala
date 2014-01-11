@@ -70,8 +70,6 @@ trait GraphMarker {
   def graphClose()
   /** Graph creation timestamp. */
   def graphCreated: Element.Timestamp
-  /** Path to the graph descriptor. */
-  def graphDescriptor: File
   /** Store the graph to the predefined directory ${location}/id/ */
   def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None)
   /** Check whether the graph is modified. */
