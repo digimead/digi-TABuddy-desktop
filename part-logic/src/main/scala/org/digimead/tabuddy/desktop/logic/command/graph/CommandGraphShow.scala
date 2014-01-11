@@ -41,45 +41,46 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.logic.command.graph
 
-import org.digimead.tabuddy.desktop.core.definition.NLS
-import org.digimead.digi.lib.log.api.Loggable
+import java.util.UUID
+import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.model.graph.Graph
+import scala.concurrent.Future
 
-object Messages extends NLS with Loggable {
-  val overViewPanelTitle_text = ""
-  val graph_close_text = ""
-  val graph_closeDescriptionShort_text = ""
-  val graph_closeDescriptionLong_text = ""
-  val graph_delete_text = ""
-  val graph_deleteDescriptionShort_text = ""
-  val graph_deleteDescriptionLong_text = ""
-  val graph_export_text = ""
-  val graph_exportDescriptionShort_text = ""
-  val graph_exportDescriptionLong_text = ""
-  val graph_import_text = ""
-  val graph_importDescriptionShort_text = ""
-  val graph_importDescriptionLong_text = ""
-  val graph_list_text = ""
-  val graph_listDescriptionShort_text = ""
-  val graph_listDescriptionLong_text = ""
-  val graph_new_text = ""
-  val graph_newDescriptionShort_text = ""
-  val graph_newDescriptionLong_text = ""
-  val graph_open_text = ""
-  val graph_openDescriptionShort_text = ""
-  val graph_openDescriptionLong_text = ""
-  val graph_save_text = ""
-  val graph_saveDescriptionShort_text = ""
-  val graph_saveDescriptionLong_text = ""
-  val graph_saveAs_text = ""
-  val graph_saveAsDescriptionShort_text = ""
-  val graph_saveAsDescriptionLong_text = ""
-  val graph_show_text = ""
-  val graph_showDescriptionShort_text = ""
-  val graph_showDescriptionLong_text = ""
-  val localizedTypeSchemaDescription_text = ""
-  val localizedTypeSchemaName_text = ""
+/**
+ * Show graph content.
+ */
+object CommandGraphShow {
+  import Command.parser._
+  private val fullArg = "-full"
+  private val treeArg = "-tree"
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Command description. */
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_show_text,
+    Messages.graph_showDescriptionShort_text, Messages.graph_showDescriptionLong_text,
+    (activeContext, parserContext, parserResult) ⇒ Future {
+      parserResult match {
+        case ~(options: List[_], (Some(marker: GraphMarker), _, _, _)) ⇒
+          if (options.contains(treeArg))
+            Graph.dump(marker.lockRead(_.graph), !options.contains(fullArg))
+          else
+            marker.lockRead(_.graph).model.eDump(!options.contains(fullArg))
+        case ~(options: List[_], (None, name, uuid, origin)) ⇒
+          Console.msgWarning.format(s"Graph '${name}#${uuid}@${origin}' not found.") + Console.RESET
+      }
+    })
+  /** Command parser. */
+  lazy val parser = Command.CmdParser(descriptor.name ~> optionParser ~ graphParser)
 
-  T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
+  /** Graph argument parser. */
+  def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
+    filter(m ⇒ m.markerIsValid && m.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  /** Option parser. */
+  def optionParser = rep(sp ~> (fullArg | treeArg))
 }
