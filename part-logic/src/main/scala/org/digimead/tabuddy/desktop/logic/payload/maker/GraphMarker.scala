@@ -96,12 +96,15 @@ class GraphMarker(
     Logic.container.getFile(resourceName)
   }
   /** GraphMarker mutable state. */
-  val state: GraphMarker.ThreadSafeState = GraphMarker.lock.synchronized {
-    GraphMarker.state.get(uuid) getOrElse GraphMarker.state.synchronized {
-      val state = new GraphMarker.ThreadUnsafeState()
-      GraphMarker.state(uuid) = state
-      state
-    }
+  val state: GraphMarker.ThreadSafeState = {
+    GraphMarker.globalRWL.readLock().lock()
+    try {
+      GraphMarker.state.get(uuid) getOrElse GraphMarker.state.synchronized {
+        val state = new GraphMarker.ThreadUnsafeState()
+        GraphMarker.state(uuid) = state
+        state
+      }
+    } finally GraphMarker.globalRWL.readLock().unlock()
   }
 
   /** Assert marker state. */
@@ -317,10 +320,10 @@ object GraphMarker extends Loggable {
   val fieldSavedNanos = "savedNanos"
   /** GraphMarker lock */
   /*
-   * Every operation that may delete graph MUST use this lock.
+   * Every external operation that created/deleted marker AND locked any marker MUST use this lock at first.
    * like OperationGraphClose, OperationGraphDelete
    */
-  val lock = new Object
+  val globalRWL = new ReentrantReadWriteLock
   /** Application wide GraphMarker states. */
   protected val state = new mutable.HashMap[UUID, ThreadSafeState]() with mutable.SynchronizedMap[UUID, ThreadSafeState]
 
@@ -329,15 +332,21 @@ object GraphMarker extends Loggable {
   /** Get marker for graph. */
   def apply(graph: Graph[_ <: Model.Like]): GraphMarker = graph.withData(_(GraphMarker).asInstanceOf[GraphMarker])
   /** Bind marker to context. */
-  def bind(marker: GraphMarker, context: Context = Core.context) = lock.synchronized {
-    log.debug(s"Bind ${marker} to ${context}")
-    contextToMarker(context).foreach(_ ⇒ unbind(context))
-    marker.state.asInstanceOf[ThreadUnsafeState].contextRefs(context) = ()
-    context.set(classOf[GraphMarker], marker)
+  def bind(marker: GraphMarker, context: Context = Core.context) = {
+    globalRWL.readLock().lock()
+    try {
+      log.debug(s"Bind ${marker} to ${context}")
+      contextToMarker(context).foreach(_ ⇒ unbind(context))
+      marker.state.asInstanceOf[ThreadUnsafeState].contextRefs(context) = ()
+      context.set(classOf[GraphMarker], marker)
+    } finally globalRWL.readLock().unlock()
   }
   /** Get marker binded to context. */
-  def contextToMarker(context: Context): Option[GraphMarker] =
-    lock.synchronized { Option(context.getLocal(classOf[GraphMarker])) }
+  def contextToMarker(context: Context): Option[GraphMarker] = {
+    globalRWL.readLock().lock()
+    try Option(context.getLocal(classOf[GraphMarker]))
+    finally globalRWL.readLock().unlock()
+  }
   /**
    * Create new model marker in the workspace.
    *
@@ -347,57 +356,64 @@ object GraphMarker extends Loggable {
    * @param origin model owner that launch creation process.
    * @return model marker
    */
-  def createInTheWorkspace(resourceUUID: UUID, fullPath: File, created: Element.Timestamp, origin: Symbol): GraphMarker = lock.synchronized {
-    if (!Logic.container.isOpen())
-      throw new IllegalStateException("Workspace is not available.")
-    val resourceName = resourceUUID.toString + "." + Payload.extensionGraph
-    val resourceFile = Logic.container.getFile(resourceName) // throws IllegalStateException: Workspace is closed.
-    if (resourceFile.exists())
-      throw new IllegalStateException("Graph marker is already exists at " + resourceFile.getLocationURI())
-    if (list().map(apply).find(_.graphPath == fullPath).nonEmpty)
-      throw new IllegalStateException("Graph marker is already exists for " + fullPath)
-    log.debug(s"Prepare graph ${fullPath.getName}")
-    if (!fullPath.exists())
-      if (!fullPath.mkdirs())
-        throw new IOException("Unable to create graph storage at " + fullPath.getAbsolutePath())
-    val resourceContent = new Properties
-    resourceContent.setProperty(fieldPath, fullPath.getCanonicalPath())
-    resourceContent.setProperty(GraphMarker.fieldLastAccessed, created.milliseconds.toString)
-    resourceContent.setProperty(fieldCreatedMillis, created.milliseconds.toString)
-    resourceContent.setProperty(fieldCreatedNanos, created.nanoShift.toString)
-    resourceContent.setProperty(fieldResourceId, resourceUUID.toString)
-    resourceContent.setProperty(fieldOrigin, origin.name)
-    resourceContent.setProperty(fieldSavedMillis, created.milliseconds.toString)
-    resourceContent.setProperty(fieldSavedNanos, created.nanoShift.toString)
-    val output = new ByteArrayOutputStream()
-    Report.info match {
-      case Some(info) ⇒ resourceContent.store(output, info.toString)
-      case None ⇒ resourceContent.store(output, null)
-    }
-    val input = new ByteArrayInputStream(output.toByteArray())
-    log.debug(s"Create model marker: ${resourceName}.")
-    resourceFile.create(input, IResource.NONE, null)
-    new GraphMarker(resourceUUID, true)
+  def createInTheWorkspace(resourceUUID: UUID, fullPath: File, created: Element.Timestamp, origin: Symbol): GraphMarker = {
+    globalRWL.writeLock().lock()
+    try {
+      if (!Logic.container.isOpen())
+        throw new IllegalStateException("Workspace is not available.")
+      val resourceName = resourceUUID.toString + "." + Payload.extensionGraph
+      val resourceFile = Logic.container.getFile(resourceName) // throws IllegalStateException: Workspace is closed.
+      if (resourceFile.exists())
+        throw new IllegalStateException("Graph marker is already exists at " + resourceFile.getLocationURI())
+      if (list.map(apply).find(_.graphPath == fullPath).nonEmpty)
+        throw new IllegalStateException("Graph marker is already exists for " + fullPath)
+      log.debug(s"Prepare graph ${fullPath.getName}")
+      if (!fullPath.exists())
+        if (!fullPath.mkdirs())
+          throw new IOException("Unable to create graph storage at " + fullPath.getAbsolutePath())
+      val resourceContent = new Properties
+      resourceContent.setProperty(fieldPath, fullPath.getCanonicalPath())
+      resourceContent.setProperty(GraphMarker.fieldLastAccessed, created.milliseconds.toString)
+      resourceContent.setProperty(fieldCreatedMillis, created.milliseconds.toString)
+      resourceContent.setProperty(fieldCreatedNanos, created.nanoShift.toString)
+      resourceContent.setProperty(fieldResourceId, resourceUUID.toString)
+      resourceContent.setProperty(fieldOrigin, origin.name)
+      resourceContent.setProperty(fieldSavedMillis, created.milliseconds.toString)
+      resourceContent.setProperty(fieldSavedNanos, created.nanoShift.toString)
+      val output = new ByteArrayOutputStream()
+      Report.info match {
+        case Some(info) ⇒ resourceContent.store(output, info.toString)
+        case None ⇒ resourceContent.store(output, null)
+      }
+      val input = new ByteArrayInputStream(output.toByteArray())
+      log.debug(s"Create model marker: ${resourceName}.")
+      resourceFile.create(input, IResource.NONE, null)
+      new GraphMarker(resourceUUID, true)
+    } finally globalRWL.writeLock().unlock()
   }
   /** Permanently delete marker from the workspace. */
-  def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = lock.synchronized {
-    val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphCreated, marker.graphModelId,
-      marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed)
-    marker.lockUpdate {
-      case state: ThreadUnsafeState ⇒
-        if (!FileUtil.deleteFile(marker.graphPath))
-          log.fatal("Unable to delete " + marker)
-        marker.resource.delete(true, false, Policy.monitorFor(null))
-        GraphMarker.state.remove(marker.uuid)
-        state.graphObject = null
-        state.graphObject = null
-        state.payloadObject = null
-    }
-    readOnlyMarker
+  def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = {
+    globalRWL.writeLock().lock()
+    try {
+      marker.lockUpdate {
+        case state: ThreadUnsafeState ⇒
+          val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphCreated, marker.graphModelId,
+            marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed)
+          if (!FileUtil.deleteFile(marker.graphPath))
+            log.fatal("Unable to delete " + marker)
+          marker.resource.delete(true, false, Policy.monitorFor(null))
+          GraphMarker.state.remove(marker.uuid)
+          state.graphObject = null
+          state.graphObject = null
+          state.payloadObject = null
+          readOnlyMarker
+      }
+    } finally globalRWL.writeLock().unlock()
   }
   /** Get a graph list. */
-  def list(): Seq[UUID] = lock.synchronized {
-    Logic.container.members.flatMap { resource ⇒
+  def list(): Seq[UUID] = {
+    globalRWL.readLock().lock()
+    try Logic.container.members.flatMap { resource ⇒
       if (resource.getFileExtension() == Payload.extensionGraph)
         try Some(UUID.fromString(resource.getName().takeWhile(_ != '.')))
         catch {
@@ -408,19 +424,25 @@ object GraphMarker extends Loggable {
       else
         None
     }
+    finally globalRWL.readLock().unlock()
   }
-  def lockAll[T](f: ⇒ T): T = list().map(apply).foldLeft(() ⇒ f)((fn, marker) ⇒ () ⇒ marker.lockUpdate(_ ⇒ fn()))()
   /** Get list of contexts binded to marker. */
-  def markerToContext(marker: GraphMarker): Seq[Context] =
-    lock.synchronized { marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.keys.toSeq }
+  def markerToContext(marker: GraphMarker): Seq[Context] = {
+    globalRWL.readLock().lock()
+    try marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.keys.toSeq
+    finally globalRWL.readLock().unlock()
+  }
   /** Unbind marker from context. */
-  def unbind(context: Context) = lock.synchronized {
-    val marker = contextToMarker(context).get // throw if empty
-    log.debug(s"Unbind ${marker} from ${context}")
-    context.remove(classOf[GraphMarker])
-    marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.remove(context)
-    if (marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.isEmpty && marker.graphIsOpen())
-      marker.lockUpdate(e ⇒ OperationGraphClose(e.graph, false))
+  def unbind(context: Context) = {
+    globalRWL.readLock().lock()
+    try {
+      val marker = contextToMarker(context).get // throw if empty
+      log.debug(s"Unbind ${marker} from ${context}")
+      context.remove(classOf[GraphMarker])
+      marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.remove(context)
+      if (marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.isEmpty && marker.graphIsOpen())
+        marker.lockUpdate(e ⇒ OperationGraphClose(e.graph, false))
+    } finally globalRWL.readLock().unlock()
   }
 
   /**
@@ -429,7 +451,7 @@ object GraphMarker extends Loggable {
   trait ThreadSafeState {
     this: ThreadUnsafeState ⇒
     /** State read/write lock. */
-    protected val rwl = new ReentrantReadWriteLock()
+    protected val rwl = new ReentrantReadWriteLock
 
     /** Lock this state for reading. */
     def lockRead[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = {

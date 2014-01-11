@@ -62,18 +62,21 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
    * @param askBefore askUser before delete
    * @return deleted graph read only marker
    */
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): graphapi.GraphMarker = GraphMarker.lock.synchronized {
-    GraphMarker(graph).lockUpdate { state ⇒
-      log.info(s"Delete $graph.")
+  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): graphapi.GraphMarker = {
+    GraphMarker.globalRWL.writeLock().lock()
+    try {
       val marker = GraphMarker(graph)
-      if (!marker.markerIsValid)
-        throw new IllegalStateException(marker + " is not valid.")
-      if (marker.graphIsOpen())
-        GraphMarker(graph).graphClose()
-      val roMarker = GraphMarker.deleteFromWorkspace(GraphMarker(graph))
-      log.info(s"$graph is deleted.")
-      roMarker
-    }
+      marker.lockUpdate { state ⇒
+        log.info(s"Delete $graph.")
+        if (!marker.markerIsValid)
+          throw new IllegalStateException(marker + " is not valid.")
+        if (marker.graphIsOpen())
+          GraphMarker(graph).graphClose()
+        val roMarker = GraphMarker.deleteFromWorkspace(GraphMarker(graph))
+        log.info(s"$graph is deleted.")
+        roMarker
+      }
+    } finally GraphMarker.globalRWL.writeLock().unlock()
   }
   /**
    * Create 'Delete graph' operation.
