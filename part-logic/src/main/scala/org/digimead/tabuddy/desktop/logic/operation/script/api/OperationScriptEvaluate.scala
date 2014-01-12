@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,45 +41,46 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.logic.operation.script.api
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-//import org.digimead.tabuddy.desktop.core.command.Command
-//import org.digimead.tabuddy.desktop.core.command.Command.cmdLine2implementation
-
-import language.implicitConversions
+import java.io.File
+import org.digimead.tabuddy.desktop.core.definition.api
 
 /**
- * Configurator responsible for configure/unconfigure logic actions.
+ * OperationEvaluate base trait.
  */
-class Actions extends Loggable {
-  /** Configure component actions. */
-  @log
-  def configure() {
-//    Command.register(action.ActionCloseModel.descriptor)
-//    Command.addToContext(Core.context, action.ActionCloseModel.parser)
-  }
-  /** Unconfigure component actions. */
-  @log
-  def unconfigure() {
-//    Command.unregister(action.ActionCloseModel.descriptor)
-  }
-}
-
-object Actions {
-  implicit def configurator2implementation(c: Actions.type): Actions = c.inner
-
-  /** Actions implementation. */
-  def inner: Actions = DI.implementation
+trait OperationScriptEvaluate {
+  checkSubclass()
 
   /**
-   * Dependency injection routines
+   * Evaluate the script.
+   *
+   * @param script script for evaluation
+   * @return result of evaluation
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Actions] getOrElse new Actions
-  }
+  def apply[T](script: Either[File, String], verbose: Boolean): T
+  /**
+   * Create 'Evaluate the script' operation.
+   *
+   * @param script script for evaluation
+   * @return 'Evaluate the script' operation
+   */
+  def operation[T](script: Either[File, String], verbose: Boolean): api.Operation[T]
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.OperationEvaluate instead.")
 }

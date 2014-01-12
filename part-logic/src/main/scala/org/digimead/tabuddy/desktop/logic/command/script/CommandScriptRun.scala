@@ -41,38 +41,37 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.command.graph
+package org.digimead.tabuddy.desktop.logic.command.script
 
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSave
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.operation.script.OperationScriptEvaluate
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
 /**
- * Save graph that is already open && modified.
+ * Evaluate script.
  */
-object CommandGraphSave extends Loggable {
+object CommandScriptRun extends Loggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_save_text,
-    Messages.graph_saveDescriptionShort_text, Messages.graph_saveDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.script_run_text,
+    Messages.script_runDescriptionShort_text, Messages.script_runDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case Some((Some(marker: GraphMarker), _, _, _)) ⇒
-          val exchanger = new Exchanger[Operation.Result[Unit]]()
-          val graph = marker.lockRead(_.graph)
-          OperationGraphSave(graph, false).foreach { operation ⇒
+        case script: File ⇒
+          val exchanger = new Exchanger[Operation.Result[Any]]()
+          OperationScriptEvaluate[Any](Left(script), false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -84,7 +83,7 @@ object CommandGraphSave extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              ""
+              result
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case err: Operation.Result.Error[_] ⇒
@@ -92,29 +91,11 @@ object CommandGraphSave extends Loggable {
             case other ⇒
               throw new RuntimeException(s"Unable to complete operation: ${other}.")
           }
-        case Some((None, name, uuid, origin)) ⇒
-          Console.msgWarning.format(s"Graph '${name}#${uuid}@${origin}' not found.") + Console.RESET
-        case None ⇒
-          val unsaved = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.graphIsOpen() && m.graphIsDirty())
-          unsaved.foreach { marker ⇒
-            val graph = marker.lockRead(_.graph)
-            OperationGraphSave(graph, false).foreach { operation ⇒
-              operation.getExecuteJob() match {
-                case Some(job) ⇒
-                  job.setPriority(Job.LONG)
-                  job.schedule()
-                case None ⇒
-                  log.fatal(s"Unable to create job for ${operation}.")
-              }
-            }
-          }
-          "Asynchronously save all graphs."
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphParser))
-
-  /** Graph argument parser. */
-  def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
-    filter(m ⇒ m.markerIsValid && m.graphIsOpen() && m.graphIsDirty()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  lazy val parser = Command.CmdParser(descriptor.name ~> pathParser)
+  /** Path argument parser. */
+  protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "script location",
+    () ⇒ Some(s"path to script file")) { f ⇒ f.canRead() && !f.getName().startsWith(".") }
 }

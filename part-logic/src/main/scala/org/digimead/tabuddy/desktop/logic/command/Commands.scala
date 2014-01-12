@@ -84,13 +84,19 @@ class Commands extends Loggable {
     val coreGraphExport = Command.addToContext(Core.context, graph.CommandGraphExport.parser)
     Command.register(graph.CommandGraphShow.descriptor)
     val coreGraphShow = Command.addToContext(Core.context, graph.CommandGraphShow.parser)
+    /*
+     * script
+     */
+    Command.register(script.CommandScriptRun.descriptor)
+    val coreScriptRun = Command.addToContext(Core.context, script.CommandScriptRun.parser)
     contextParsers = Seq(coreGraphNew, coreGraphList, coreGraphOpen, coreGraphSave, coreGraphSaveAs,
-      coreGraphClose, coreGraphDelete, coreGraphImport, coreGraphExport, coreGraphShow).flatten
+      coreGraphClose, coreGraphDelete, coreGraphImport, coreGraphExport, coreGraphShow, coreScriptRun).flatten
   }
   /** Unconfigure component actions. */
   @log
   def unconfigure() = lock.synchronized {
     contextParsers.foreach(Command.removeFromContext(Core.context, _))
+    Command.unregister(script.CommandScriptRun.descriptor)
     Command.unregister(graph.CommandGraphShow.descriptor)
     Command.unregister(graph.CommandGraphExport.descriptor)
     Command.unregister(graph.CommandGraphImport.descriptor)
@@ -108,7 +114,7 @@ object Commands {
   implicit def configurator2implementation(c: Commands.type): Commands = c.inner
 
   /** Commands implementation. */
-  def inner(): Commands = DI.implementation
+  def inner: Commands = DI.implementation
 
   /**
    * Dependency injection routines

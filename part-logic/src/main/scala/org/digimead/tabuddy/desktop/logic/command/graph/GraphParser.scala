@@ -190,7 +190,7 @@ class GraphParser {
 object GraphParser {
   implicit def parser2implementation(c: GraphParser.type): GraphParser = c.inner
 
-  def inner() = DI.implementation
+  def inner = DI.implementation
 
   /**
    * Dependency injection routines

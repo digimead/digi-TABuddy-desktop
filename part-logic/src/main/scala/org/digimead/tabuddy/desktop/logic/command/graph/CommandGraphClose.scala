@@ -88,6 +88,8 @@ object CommandGraphClose extends Loggable {
               result
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
+            case err: Operation.Result.Error[_] ⇒
+              throw err
             case other ⇒
               throw new RuntimeException(s"Unable to complete operation: ${other}.")
           }
@@ -115,5 +117,5 @@ object CommandGraphClose extends Loggable {
 
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
-    filter(m => m.markerIsValid && m.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+    filter(m ⇒ m.markerIsValid && m.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
 }

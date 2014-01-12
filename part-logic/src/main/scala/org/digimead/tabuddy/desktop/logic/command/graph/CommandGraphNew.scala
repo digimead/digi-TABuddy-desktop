@@ -91,6 +91,8 @@ object CommandGraphNew extends Loggable {
               result
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
+            case err: Operation.Result.Error[_] ⇒
+              throw err
             case other ⇒
               throw new RuntimeException(s"Unable to complete operation: ${other}.")
           }

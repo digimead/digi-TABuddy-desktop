@@ -116,7 +116,7 @@ class Predefined extends Loggable {
 object Predefined {
   implicit def config2implementation(c: Predefined.type): Predefined = c.inner
 
-  def inner() = DI.implementation
+  def inner = DI.implementation
 
   /**
    * Dependency injection routines

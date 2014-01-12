@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,45 +41,33 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.logic.script
 
-import org.digimead.digi.lib.aop.log
+import com.google.common.base.Charsets
+import com.google.common.io.Files
+import java.io.File
 import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-//import org.digimead.tabuddy.desktop.core.command.Command
-//import org.digimead.tabuddy.desktop.core.command.Command.cmdLine2implementation
-
-import language.implicitConversions
+import scala.collection.JavaConverters.asScalaBufferConverter
+import scala.language.implicitConversions
 
 /**
- * Configurator responsible for configure/unconfigure logic actions.
+ * Class that loads scripts from somewhere and provides access to content.
  */
-class Actions extends Loggable {
-  /** Configure component actions. */
-  @log
-  def configure() {
-//    Command.register(action.ActionCloseModel.descriptor)
-//    Command.addToContext(Core.context, action.ActionCloseModel.parser)
-  }
-  /** Unconfigure component actions. */
-  @log
-  def unconfigure() {
-//    Command.unregister(action.ActionCloseModel.descriptor)
-  }
+class Loader {
+  def apply(file: File): String = Files.asCharSource(file, Charsets.UTF_8).readLines().asList().asScala.mkString("\n")
 }
 
-object Actions {
-  implicit def configurator2implementation(c: Actions.type): Actions = c.inner
+object Loader {
+  implicit def loader2implementation(l: Loader.type): Loader = l.inner
 
-  /** Actions implementation. */
-  def inner: Actions = DI.implementation
+  /** Get Loader implementation. */
+  def inner = DI.implementation
 
   /**
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Actions] getOrElse new Actions
+    /** Loader implementation. */
+    lazy val implementation = injectOptional[Loader] getOrElse new Loader
   }
 }
