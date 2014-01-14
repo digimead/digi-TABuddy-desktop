@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,10 +45,12 @@ package org.digimead.tabuddy.desktop.ui.builder
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.ui.widget.{ AppWindow, WComposite }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StackLayout
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.layout.GridLayout
 import org.eclipse.swt.widgets.Composite
 import scala.language.implicitConversions
@@ -70,6 +72,13 @@ class ContentBuilder extends Loggable {
     val content = new WComposite(window.id, window.ref, WeakReference(window), container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
     content.setLayout(new GridLayout)
     content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
+    content.addDisposeListener(new DisposeListener {
+      def widgetDisposed(event: DisposeEvent) = Option(content.getData(App.widgetContextKey)).foreach {
+        case context: Context ⇒
+          context.remove(classOf[WComposite])
+          content.setData(App.widgetContextKey, null)
+      }
+    })
     layout.topControl = filler
     (container, filler, content)
   }

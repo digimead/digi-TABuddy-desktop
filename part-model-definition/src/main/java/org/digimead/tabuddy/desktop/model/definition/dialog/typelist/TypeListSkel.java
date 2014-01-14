@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.typelist;
 
-import org.digimead.tabuddy.desktop.ResourceManager;
+import org.digimead.tabuddy.desktop.ui.ResourceManager;
 import org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist.ElementTemplateListSkel;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
@@ -96,8 +96,8 @@ public class TypeListSkel extends TitleAreaDialog {
 	@Override
 	protected Control createDialogArea(Composite parent) {
 		setTitleImage(ResourceManager.getImage(ElementTemplateListSkel.class, "/icons/full/message_info.gif"));
-		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeListTitle_text()); // $hide$
-		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeListDescription_text()); // $hide$
+		setTitle(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.typeListTitle_text()); // $hide$
+		setMessage(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.typeListDescription_text()); // $hide$
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new GridLayout(2, false));
@@ -105,7 +105,7 @@ public class TypeListSkel extends TitleAreaDialog {
 
 		Label lblEnumerations = new Label(container, SWT.NONE);
 		lblEnumerations.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 2, 1));
-		lblEnumerations.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeSchemas_text()); // $hide$
+		lblEnumerations.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.typeSchemas_text()); // $hide$
 
 		Composite compositeHeader = new Composite(container, SWT.NONE);
 		compositeHeader.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1));
@@ -113,7 +113,7 @@ public class TypeListSkel extends TitleAreaDialog {
 
 		Label lblActiveScheme = new Label(compositeHeader, SWT.NONE);
 		lblActiveScheme.setLayoutData(BorderLayout.WEST);
-		lblActiveScheme.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.activeSchema_text()); // $hide$
+		lblActiveScheme.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.activeSchema_text()); // $hide$
 
 		textActiveSchema = new Text(compositeHeader, SWT.BORDER | SWT.READ_ONLY);
 		textActiveSchema.setLayoutData(BorderLayout.CENTER);
@@ -121,7 +121,7 @@ public class TypeListSkel extends TitleAreaDialog {
 		btnResetSchema = new Button(compositeHeader, SWT.NONE);
 		btnResetSchema.setEnabled(false);
 		btnResetSchema.setLayoutData(BorderLayout.EAST);
-		btnResetSchema.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.reset_text()); // $hide$
+		btnResetSchema.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.reset_text()); // $hide$
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.FULL_SELECTION);
 		Table table_enumerations = tableViewer.getTable();
@@ -132,12 +132,12 @@ public class TypeListSkel extends TitleAreaDialog {
 		tblclmnViewerName = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnName = tblclmnViewerName.getColumn();
 		tblclmnName.setWidth(100);
-		tblclmnName.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text()); // $hide$
+		tblclmnName.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.name_text()); // $hide$
 
 		tblclmnViewerDescription = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnDescription = tblclmnViewerDescription.getColumn();
 		tblclmnDescription.setWidth(100);
-		tblclmnDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text()); // $hide$
+		tblclmnDescription.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.description_text()); // $hide$
 
 		compositeActivator = new Composite(container, SWT.NONE);
 		compositeActivator.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));

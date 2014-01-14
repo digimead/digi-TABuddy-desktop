@@ -63,8 +63,6 @@ import scala.language.implicitConversions
 class Logic extends akka.actor.Actor with Loggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef](Logic)
-  /** Flag indicating whether GUI is valid. */
-  @volatile protected var fGUIStarted = false
   /** Current bundle */
   protected lazy val thisBundle = App.bundle(getClass())
   /** Start/stop initialization lock. */

@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -44,58 +44,45 @@
 package org.digimead.tabuddy.desktop.model.definition.dialog.typeed
 
 import java.util.concurrent.locks.ReentrantLock
-
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.operation.OperationCustomTranslations
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, TypeSchema, api ⇒ papi }
+import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.dsl.DSLType
+import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.core.databinding.observable.IChangeListener
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
+import org.eclipse.jface.databinding.swt.WidgetProperties
+import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
+import org.eclipse.jface.dialogs.IDialogConstants
+import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, LabelProvider, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
+import org.eclipse.swt.SWT
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem, Text }
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.operation.OperationCustomTranslations
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.Validator
-import org.digimead.tabuddy.desktop.support.WritableList
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.Action
-import org.eclipse.jface.action.ActionContributionItem
-import org.eclipse.jface.action.IAction
-import org.eclipse.jface.action.IMenuListener
-import org.eclipse.jface.action.IMenuManager
-import org.eclipse.jface.action.MenuManager
-import org.eclipse.jface.databinding.swt.WidgetProperties
-import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
-import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.dialogs.IDialogConstants
-import org.eclipse.jface.viewers.ColumnViewerToolTipSupport
-import org.eclipse.jface.viewers.StructuredSelection
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.Viewer
-import org.eclipse.jface.viewers.ViewerComparator
-import org.eclipse.jface.window.Window
-import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
-import org.eclipse.swt.events.SelectionAdapter
-import org.eclipse.swt.events.SelectionEvent
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Event
-import org.eclipse.swt.widgets.Listener
-import org.eclipse.swt.widgets.Shell
-import org.eclipse.swt.widgets.TableItem
-
-class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, val typeSchemas: List[payload.api.TypeSchema], isSchemaActive: Boolean)
+class TypeEditor(val parentShell: Shell,
+  /** Graph container. */
+  val graph: Graph[_ <: Model.Like],
+  /** Graph marker. */
+  val marker: GraphMarker,
+  /** Graph payload. */
+  val payload: Payload,
+  val initial: papi.TypeSchema,
+  val typeSchemas: List[papi.TypeSchema],
+  isSchemaActive: Boolean)
   extends TypeEditorSkel(parentShell) with Dialog with Loggable {
   /** Actual schema entities */
   protected[typeed] lazy val actualEntities = WritableList(initialEntities)
@@ -106,7 +93,7 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
   /** The property representing the current schema description */
   protected val descriptionField = WritableValue("")
   /** The property representing a selected entity */
-  protected val entityField = WritableValue[payload.TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
+  protected val entityField = WritableValue[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
   /** Initial schema entities */
   protected lazy val initialEntities = initial.entity.values.toList.sortBy(_.ptypeId.name)
   /** The property representing the current schema name */
@@ -119,10 +106,10 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
   @volatile private var sortDirection = Default.sortingDirection
 
   /** Get the modified type schema */
-  def getModifiedSchema(): payload.api.TypeSchema = initial.copy(
+  def getModifiedSchema(): papi.TypeSchema = initial.copy(
     name = nameField.value.trim,
     description = descriptionField.value.trim,
-    entity = immutable.HashMap(actualEntities.map(entity => (entity.ptypeId,
+    entity = immutable.HashMap(actualEntities.map(entity ⇒ (entity.ptypeId,
       entity.copy(alias = entity.alias.trim,
         description = entity.description.trim))): _*))
   /** Get the modified type schema */
@@ -133,11 +120,11 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        App.adjustTableViewerColumnWidth(getTableViewerColumnAvailability(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnView(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnLabel(), Default.columnPadding)
+        //        App.adjustTableViewerColumnWidth(getTableViewerColumnAvailability(), Default.columnPadding)
+        //        App.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
+        //        App.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
+        //        App.adjustTableViewerColumnWidth(getTableViewerColumnView(), Default.columnPadding)
+        //        App.adjustTableViewerColumnWidth(getTableViewerColumnLabel(), Default.columnPadding)
         getTableViewer().refresh()
       }
     }
@@ -152,7 +139,7 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
     // Bind the schema info: a name
     nameField.value = initial.name
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextSchemaName()), nameField)
-    val validator = Validator(getTextSchemaName, true) { (validator, event) => }
+    val validator = Validator(getTextSchemaName, true) { (validator, event) ⇒ }
     WidgetProperties.text(SWT.Modify).observe(getTextSchemaName).addChangeListener(new IChangeListener() {
       override def handleChange(event: ChangeEvent) = {
         val newName = getTextSchemaName.getText().trim
@@ -176,18 +163,18 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
     // Initialize the table
     initTableTypeSchemas()
     // Handle modifications
-    val actualEntitiesListener = actualEntities.addChangeListener { event =>
+    val actualEntitiesListener = actualEntities.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
         future { autoresize() } onFailure {
-          case e: Exception => log.error(e.getMessage(), e)
-          case e => log.error(e.toString())
+          case e: Exception ⇒ log.error(e.getMessage(), e)
+          case e ⇒ log.error(e.toString())
         }
       updateOK()
     }
-    val entityListener = entityField.addChangeListener { (entity, _) => ActionAliasLookup.setEnabled(entity != null) }
-    val nameListener = nameField.addChangeListener { (_, _) => updateOK }
-    val descriptionListener = descriptionField.addChangeListener { (_, _) => updateOK }
-    val activeFlagListener = activeField.addChangeListener { (_, _) => updateOK() }
+    val entityListener = entityField.addChangeListener { (entity, _) ⇒ ActionAliasLookup.setEnabled(entity != null) }
+    val nameListener = nameField.addChangeListener { (_, _) ⇒ updateOK }
+    val descriptionListener = descriptionField.addChangeListener { (_, _) ⇒ updateOK }
+    val activeFlagListener = activeField.addChangeListener { (_, _) ⇒ updateOK() }
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
@@ -199,7 +186,7 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
       }
     })
     // Set the dialog message
-    setMessage(Messages.typeEditorDescription_text.format(Model.eId.name))
+    setMessage(Messages.typeEditorDescription_text.format(graph.model.eId.name))
     // Set the dialog window title
     getShell().setText(Messages.typeEditorDialog_text.format(initial.name))
     result
@@ -225,19 +212,19 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
     viewer.getTable.addListener(SWT.Selection, new Listener() {
       def handleEvent(event: Event) = if (event.detail == SWT.CHECK)
         event.item match {
-          case tableItem: TableItem =>
+          case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: payload.TypeSchema.Entity[_] if payload.PropertyType.container.contains(before.ptypeId) =>
+              case before: TypeSchema.Entity[_] if PropertyType.container.contains(before.ptypeId) ⇒
                 val availability = tableItem.getChecked()
                 if (before.availability != availability)
                   updateActualEntity(before, before.copy(availability = availability))
-              case before: payload.TypeSchema.Entity[_] => // type is unknown
+              case before: TypeSchema.Entity[_] ⇒ // type is unknown
                 tableItem.setChecked(false)
-              case item =>
+              case item ⇒
                 log.fatal(s"unknown item $item")
             }
-          case item =>
+          case item ⇒
             log.fatal(s"unknown item $item")
         }
     })
@@ -263,12 +250,12 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
   override protected def onActive() = {
     updateOK()
     future { autoresize() } onFailure {
-      case e: Exception => log.error(e.getMessage(), e)
-      case e => log.error(e.toString())
+      case e: Exception ⇒ log.error(e.getMessage(), e)
+      case e ⇒ log.error(e.toString())
     }
   }
   /** Updates an actual entity */
-  protected[typeed] def updateActualEntity(before: payload.TypeSchema.Entity[_ <: AnyRef with java.io.Serializable], after: payload.TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]) {
+  protected[typeed] def updateActualEntity(before: TypeSchema.Entity[_ <: AnyRef with java.io.Serializable], after: TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]) {
     val index = actualEntities.indexOf(before)
     actualEntities.update(index, after)
     if (index == actualEntities.size - 1)
@@ -282,33 +269,33 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
       initial.name == nameField.value.trim &&
       initial.description == descriptionField.value.trim &&
       initialEntities.size == actualEntities.size &&
-      (initialEntities, actualEntities).zipped.forall(payload.TypeSchema.compareDeep(_, _))
-  } && actualEntities.filter(e => payload.PropertyType.container.contains(e.ptypeId)).exists(_.availability)))
+      (initialEntities, actualEntities).zipped.forall(TypeSchema.compareDeep(_, _))
+  } && actualEntities.filter(e ⇒ PropertyType.container.contains(e.ptypeId)).exists(_.availability)))
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked())
       future { autoresize } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
   }
   object ActionAliasLookup extends Action(Messages.lookupAliasInTranslations_text) {
-    override def run = Option(entityField.value) foreach { before =>
-      OperationCustomTranslations().foreach { operation =>
+    override def run = Option(entityField.value) foreach { before ⇒
+      OperationCustomTranslations().foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
           Some(operation.executeJob())
         else
           None
-        job foreach { job =>
+        job foreach { job ⇒
           job.setPriority(Job.SHORT)
           job.onComplete(_ match {
-            case Operation.Result.OK(result, message) =>
+            case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully: ${result}")
               result.foreach {
-                case (key, value, singleton) => App.exec {
+                case (key, value, singleton) ⇒ App.exec {
                   val alias = "*" + key.trim
                   if (before.alias != alias) {
                     val after = before.copy(alias = alias)
@@ -319,9 +306,9 @@ class TypeEditor(val parentShell: Shell, val initial: payload.api.TypeSchema, va
                   }
                 }
               }
-            case Operation.Result.Cancel(message) =>
+            case Operation.Result.Cancel(message) ⇒
               log.warn(s"Operation canceled, reason: ${message}.")
-            case other =>
+            case other ⇒
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
@@ -356,15 +343,15 @@ object TypeEditor extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val entity1 = e1.asInstanceOf[payload.TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
-      val entity2 = e2.asInstanceOf[payload.TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
+      val entity1 = e1.asInstanceOf[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
+      val entity2 = e2.asInstanceOf[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
       val rc = column match {
-        case 0 => entity1.availability.compareTo(entity2.availability)
-        case 1 => entity1.ptypeId.name.compareTo(entity2.ptypeId.name)
-        case 2 => entity1.alias.compareTo(entity2.alias)
-        case 3 => entity1.view.compareTo(entity2.view)
-        case 4 => entity1.description.compareTo(entity2.description)
-        case index =>
+        case 0 ⇒ entity1.availability.compareTo(entity2.availability)
+        case 1 ⇒ entity1.ptypeId.name.compareTo(entity2.ptypeId.name)
+        case 2 ⇒ entity1.alias.compareTo(entity2.alias)
+        case 3 ⇒ entity1.view.compareTo(entity2.view)
+        case 4 ⇒ entity1.description.compareTo(entity2.description)
+        case index ⇒
           log.fatal(s"unknown column with index $index"); 0
       }
       if (_direction) -rc else rc
@@ -377,14 +364,14 @@ object TypeEditor extends Loggable {
   }
   class SchemaSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
     override def widgetSelected(e: SelectionEvent) = {
-      tableViewer.get.foreach(viewer => viewer.getComparator() match {
-        case comparator: SchemaComparator if comparator.column == column =>
+      tableViewer.get.foreach(viewer ⇒ viewer.getComparator() match {
+        case comparator: SchemaComparator if comparator.column == column ⇒
           comparator.switchDirection()
           viewer.refresh()
-        case comparator: SchemaComparator =>
+        case comparator: SchemaComparator ⇒
           comparator.column = column
           viewer.refresh()
-        case _ =>
+        case _ ⇒
       })
     }
   }

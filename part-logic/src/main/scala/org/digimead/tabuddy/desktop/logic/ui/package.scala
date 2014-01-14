@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,26 +41,19 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.ui.widget
+package org.digimead.tabuddy.desktop.logic
 
-import akka.actor.ActorRef
-import java.util.UUID
-import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.support.App
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.Composite
-import scala.ref.WeakReference
+import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.tabuddy.desktop.logic.ui.support.Dialog
+import org.digimead.tabuddy.desktop.ui.definition.{ api ⇒ uapi }
 
-/** Window actual content container. */
-class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppWindow], parent: Composite, style: Int)
-  extends ScrolledComposite(parent, style) with SComposite {
-  /** Get window context. */
-  def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
-  /** Get AppWindow. */
-  def getAppWindow() = window.get
-}
-
-object WComposite {
-  /** Window context name. */
-  final val contextName = "WCompositeContext"
+package object ui {
+  lazy val default = new NewBindingModule(module ⇒ {
+    // Dialog persist settings class factory
+    module.bind[uapi.Dialog.Factory] toSingle {
+      new uapi.Dialog.Factory {
+        def apply(sectionName: String, prefix: String) = new Dialog.Settings(sectionName, prefix)
+      }
+    }
+  })
 }

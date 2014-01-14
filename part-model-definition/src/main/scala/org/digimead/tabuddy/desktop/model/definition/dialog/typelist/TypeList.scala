@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -45,59 +45,36 @@ package org.digimead.tabuddy.desktop.model.definition.dialog.typelist
 
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
-
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, TypeSchema, api ⇒ papi }
+import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.definition.Dialog
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
+import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
+import org.eclipse.jface.dialogs.IDialogConstants
+import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
+import org.eclipse.swt.SWT
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell }
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchema
-import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.logic.payload.PropertyType
-import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.WritableList
-import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.Action
-import org.eclipse.jface.action.ActionContributionItem
-import org.eclipse.jface.action.IAction
-import org.eclipse.jface.action.IMenuListener
-import org.eclipse.jface.action.IMenuManager
-import org.eclipse.jface.action.MenuManager
-import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
-import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.dialogs.IDialogConstants
-import org.eclipse.jface.viewers.ColumnViewerToolTipSupport
-import org.eclipse.jface.viewers.ISelectionChangedListener
-import org.eclipse.jface.viewers.IStructuredSelection
-import org.eclipse.jface.viewers.SelectionChangedEvent
-import org.eclipse.jface.viewers.StructuredSelection
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.Viewer
-import org.eclipse.jface.viewers.ViewerComparator
-import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
-import org.eclipse.swt.events.SelectionAdapter
-import org.eclipse.swt.events.SelectionEvent
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Event
-import org.eclipse.swt.widgets.Listener
-import org.eclipse.swt.widgets.Shell
-
-class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema], val initialActiveSchema: payload.api.TypeSchema)
+class TypeList(val parentShell: Shell,
+  /** Graph container. */
+  val graph: Graph[_ <: Model.Like],
+  /** Graph marker. */
+  val marker: GraphMarker,
+  /** Graph payload. */
+  val payload: Payload,
+  val initial: List[papi.TypeSchema],
+  val initialActiveSchema: papi.TypeSchema)
   extends TypeListSkel(parentShell) with Dialog with Loggable {
   /** The actual schemas value */
   protected[typelist] val actual = WritableList(initial)
@@ -106,7 +83,7 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing selected schema */
-  protected val schemaField = WritableValue[payload.api.TypeSchema]
+  protected val schemaField = WritableValue[papi.TypeSchema]
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0
   /** Actual sort direction */
@@ -117,7 +94,7 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        App.adjustTableViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
+        //        App.adjustTableViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -125,9 +102,9 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
     autoResizeLock.unlock()
   }
   /** Get active type schema */
-  def getActiveSchema(): payload.api.TypeSchema = actual.find(_.id == actualActiveSchema.value).getOrElse(initialActiveSchema)
+  def getActiveSchema(): papi.TypeSchema = actual.find(_.id == actualActiveSchema.value).getOrElse(initialActiveSchema)
   /** Get modified type schemas */
-  def getSchemaSet(): Set[payload.api.TypeSchema] = actual.toSet
+  def getSchemaSet(): Set[papi.TypeSchema] = actual.toSet
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
@@ -144,22 +121,22 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
     ActionReset.setEnabled(false)
     getbtnResetSchema.addListener(SWT.Selection, new Listener() { def handleEvent(event: Event) = actualActiveSchema.value = initialActiveSchema.id })
     initTableTypeSchemas()
-    val actualListener = actual.addChangeListener { event =>
+    val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
         future { autoresize() } onFailure {
-          case e: Exception => log.error(e.getMessage(), e)
-          case e => log.error(e.toString())
+          case e: Exception ⇒ log.error(e.getMessage(), e)
+          case e ⇒ log.error(e.toString())
         }
       updateOK()
     }
-    val actualActiveSchemaListener = actualActiveSchema.addChangeListener { (activeSchema, event) =>
+    val actualActiveSchemaListener = actualActiveSchema.addChangeListener { (activeSchema, event) ⇒
       getTextActiveSchema.setText(actual.find(_.id == activeSchema).getOrElse(initialActiveSchema).name)
       getTextActiveSchema.setToolTipText("id: " + activeSchema.toString)
       getbtnResetSchema().setEnabled(actualActiveSchema.value != initialActiveSchema.id)
       getTableViewer.getSelection match {
-        case selection: IStructuredSelection if !selection.isEmpty() =>
+        case selection: IStructuredSelection if !selection.isEmpty() ⇒
           ActionActivate.setEnabled(!selection.getFirstElement().eq(activeSchema))
-        case selection =>
+        case selection ⇒
       }
       updateOK()
     }
@@ -172,9 +149,9 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
       }
     })
     // set dialog message
-    setMessage(Messages.typeListDescription_text.format(Model.eId.name))
+    setMessage(Messages.typeListDescription_text.format(graph.model.eId.name))
     // set dialog window title
-    getShell().setText(Messages.typeListDialog_text.format(Model.eId.name))
+    getShell().setText(Messages.typeListDialog_text.format(graph.model.eId.name))
     result
   }
   /** Generate the new name: old name + ' Copy' + N */
@@ -213,21 +190,21 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
     // Add selection listener
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
-        case selection: IStructuredSelection if !selection.isEmpty() =>
-          val selected = selection.getFirstElement().asInstanceOf[payload.api.TypeSchema]
+        case selection: IStructuredSelection if !selection.isEmpty() ⇒
+          val selected = selection.getFirstElement().asInstanceOf[papi.TypeSchema]
           ActionActivate.setEnabled(selected.id ne actualActiveSchema.value)
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
-          ActionRemove.setEnabled(!payload.TypeSchema.predefined.exists(_.id == selected.id)) // exclude predefined
-          ActionReset.setEnabled(payload.TypeSchema.predefined.find(_.id == selected.id) match {
-            case Some(predefined) =>
+          ActionRemove.setEnabled(!TypeSchema.predefined.exists(_.id == selected.id)) // exclude predefined
+          ActionReset.setEnabled(TypeSchema.predefined.find(_.id == selected.id) match {
+            case Some(predefined) ⇒
               ActionReset.setToolTipText(Messages.typeSchemaPredefinedResetToDefault_text)
               selected.id ne predefined.id
-            case None =>
+            case None ⇒
               ActionReset.setToolTipText(Messages.typeSchemaResetUnknownTypes_text)
-              selected.entity.keys.exists(ptypeId => !PropertyType.container.contains(ptypeId))
+              selected.entity.keys.exists(ptypeId ⇒ !PropertyType.container.contains(ptypeId))
           })
-        case selection =>
+        case selection ⇒
           ActionActivate.setEnabled(false)
           ActionCreateFrom.setEnabled(false)
           ActionEdit.setEnabled(false)
@@ -244,12 +221,12 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
   override protected def onActive = {
     updateOK()
     future { autoresize() } onFailure {
-      case e: Exception => log.error(e.getMessage(), e)
-      case e => log.error(e.toString())
+      case e: Exception ⇒ log.error(e.getMessage(), e)
+      case e ⇒ log.error(e.toString())
     }
   }
   /** Updates an actual schema */
-  protected[typelist] def updateActualSchema(before: payload.api.TypeSchema, after: payload.api.TypeSchema) {
+  protected[typelist] def updateActualSchema(before: papi.TypeSchema, after: papi.TypeSchema) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -259,113 +236,113 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(
     actualActiveSchema.value != initialActiveSchema || initial.size != actual.size ||
-      !(initial, actual).zipped.forall { (initial, actual) =>
+      !(initial, actual).zipped.forall { (initial, actual) ⇒
         (initial eq actual) || (
           initial.id == actual.id &&
           initial.name == actual.name &&
           initial.description == actual.description &&
           initial.entity.size == actual.entity.size &&
-          (initial.entity, actual.entity).zipped.forall((a, b) => payload.TypeSchema.compareDeep(a._2, b._2)))
+          (initial.entity, actual.entity).zipped.forall((a, b) ⇒ TypeSchema.compareDeep(a._2, b._2)))
       }))
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked())
       future { autoresize } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
   }
   object ActionActivate extends Action(Messages.activate_text) with Loggable {
-    override def run = Option(schemaField.value) foreach { (selected) =>
+    override def run = Option(schemaField.value) foreach { (selected) ⇒
       if (actualActiveSchema.value != selected.id)
         actualActiveSchema.value = selected.id
     }
   }
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = {
-      val newSchemaName = payload.Payload.generateNew(Messages.newTypeSchema_text, " ", newName => actual.exists(_.name == newName))
-      val newSchema = payload.TypeSchema(UUID.randomUUID(), newSchemaName, "", immutable.HashMap(payload.TypeSchema.entities.map(e => (e.ptypeId, e)).toSeq: _*))
-      OperationModifyTypeSchema(newSchema, actual.toSet, newSchema.id == actualActiveSchema.value).foreach { operation =>
+      /*val newSchemaName = payload.generateNew(Messages.newTypeSchema_text, " ", newName ⇒ actual.exists(_.name == newName))
+      val newSchema = TypeSchema(UUID.randomUUID(), newSchemaName, "", immutable.HashMap(TypeSchema.entities.map(e ⇒ (e.ptypeId, e)).toSeq: _*))
+      OperationModifyTypeSchema(newSchema, actual.toSet, newSchema.id == actualActiveSchema.value).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
           Some(operation.executeJob())
         else
           None
-        job foreach { job =>
+        job foreach { job ⇒
           job.setPriority(Job.SHORT)
           job.onComplete(_ match {
-            case Operation.Result.OK(result, message) =>
+            case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully: ${result}")
               result.foreach {
-                case (schema, active) => App.exec {
+                case (schema, active) ⇒ App.exec {
                   actual += schema
                   if (active)
                     actualActiveSchema.value = schema.id
                 }
               }
-            case Operation.Result.Cancel(message) =>
+            case Operation.Result.Cancel(message) ⇒
               log.warn(s"Operation canceled, reason: ${message}.")
-            case other =>
+            case other ⇒
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }
+      }*/
     }
   }
   object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
-    override def run = Option(schemaField.value) foreach { (selected) =>
-      val from = selected
+    override def run = Option(schemaField.value) foreach { (selected) ⇒
+      /* val from = selected
       // create a new ID
       val toName = getNewTypeSchemaCopyName(from.name)
       assert(!actual.exists(_.name == toName),
         s"Unable to create the type schema copy. The schema $toName is already exists")
-      val to = payload.TypeSchema(UUID.randomUUID(), toName, from.description, from.entity.map(e => (e._1, e._2.copy())))
-      OperationModifyTypeSchema(to, actual.toSet, to.id == actualActiveSchema.value).foreach { operation =>
+      val to = TypeSchema(UUID.randomUUID(), toName, from.description, from.entity.map(e ⇒ (e._1, e._2.copy())))
+      OperationModifyTypeSchema(to, actual.toSet, to.id == actualActiveSchema.value).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
           Some(operation.executeJob())
         else
           None
-        job foreach { job =>
+        job foreach { job ⇒
           job.setPriority(Job.SHORT)
           job.onComplete(_ match {
-            case Operation.Result.OK(result, message) =>
+            case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully: ${result}")
               result.foreach {
-                case (schema, active) => App.exec {
+                case (schema, active) ⇒ App.exec {
                   actual += schema
                   if (active)
                     actualActiveSchema.value = schema.id
                 }
               }
-            case Operation.Result.Cancel(message) =>
+            case Operation.Result.Cancel(message) ⇒
               log.warn(s"Operation canceled, reason: ${message}.")
-            case other =>
+            case other ⇒
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }
+      }*/
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
-    override def run = Option(schemaField.value) foreach { (before) =>
-      OperationModifyTypeSchema(before, actual.toSet, before.id == actualActiveSchema.value).foreach { operation =>
+    override def run = Option(schemaField.value) foreach { (before) ⇒
+      /*     OperationModifyTypeSchema(before, actual.toSet, before.id == actualActiveSchema.value).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
           Some(operation.executeJob())
         else
           None
-        job foreach { job =>
+        job foreach { job ⇒
           job.setPriority(Job.SHORT)
           job.onComplete(_ match {
-            case Operation.Result.OK(result, message) =>
+            case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully: ${result}")
               result.foreach {
-                case (after, active) => App.exec {
+                case (after, active) ⇒ App.exec {
                   if (!payload.TypeSchema.compareDeep(before, after))
                     updateActualSchema(before, after)
                   if (active)
@@ -374,28 +351,28 @@ class TypeList(val parentShell: Shell, val initial: List[payload.api.TypeSchema]
                     actualActiveSchema.value = initialActiveSchema.id
                 }
               }
-            case Operation.Result.Cancel(message) =>
+            case Operation.Result.Cancel(message) ⇒
               log.warn(s"Operation canceled, reason: ${message}.")
-            case other =>
+            case other ⇒
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }
+      }*/
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {
-    override def run = Option(schemaField.value) foreach { (selected) =>
-      if (!payload.TypeSchema.predefined.exists(_.id == selected.id))
+    override def run = Option(schemaField.value) foreach { (selected) ⇒
+      if (!TypeSchema.predefined.exists(_.id == selected.id))
         actual -= selected
     }
   }
   object ActionReset extends Action(Messages.reset_text) {
-    override def run = Option(schemaField.value) foreach { (selected) =>
-      payload.TypeSchema.predefined.find(_.id == selected.id) match {
-        case Some(predefined) =>
+    override def run = Option(schemaField.value) foreach { (selected) ⇒
+      TypeSchema.predefined.find(_.id == selected.id) match {
+        case Some(predefined) ⇒
           updateActualSchema(selected, predefined)
-        case None => // remove unknown or invalid entities
-          val fixed = selected.entity.filter(entity => PropertyType.container.contains(entity._2.ptypeId))
+        case None ⇒ // remove unknown or invalid entities
+          val fixed = selected.entity.filter(entity ⇒ PropertyType.container.contains(entity._2.ptypeId))
           if (fixed.size != selected.entity.size)
             updateActualSchema(selected, selected.copy(entity = fixed))
       }
@@ -427,12 +404,12 @@ object TypeList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val schema1 = e1.asInstanceOf[payload.api.TypeSchema]
-      val schema2 = e2.asInstanceOf[payload.api.TypeSchema]
+      val schema1 = e1.asInstanceOf[papi.TypeSchema]
+      val schema2 = e2.asInstanceOf[papi.TypeSchema]
       val rc = column match {
-        case 0 => schema1.name.compareTo(schema2.name)
-        case 1 => schema1.description.compareTo(schema2.description)
-        case index =>
+        case 0 ⇒ schema1.name.compareTo(schema2.name)
+        case 1 ⇒ schema1.description.compareTo(schema2.description)
+        case index ⇒
           log.fatal(s"unknown column with index $index"); 0
       }
       if (_direction) -rc else rc
@@ -445,14 +422,14 @@ object TypeList extends Loggable {
   }
   class SchemaSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
     override def widgetSelected(e: SelectionEvent) = {
-      tableViewer.get.foreach(viewer => viewer.getComparator() match {
-        case comparator: SchemaComparator if comparator.column == column =>
+      tableViewer.get.foreach(viewer ⇒ viewer.getComparator() match {
+        case comparator: SchemaComparator if comparator.column == column ⇒
           comparator.switchDirection()
           viewer.refresh()
-        case comparator: SchemaComparator =>
+        case comparator: SchemaComparator ⇒
           comparator.column = column
           viewer.refresh()
-        case _ =>
+        case _ ⇒
       })
     }
   }

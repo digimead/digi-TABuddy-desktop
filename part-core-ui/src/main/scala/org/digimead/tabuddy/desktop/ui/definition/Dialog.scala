@@ -172,6 +172,6 @@ object Dialog {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Dialog settings factory. */
-    lazy val dialogSettingsFactory = inject[(String, String) ⇒ api.Dialog.Settings]
+    lazy val dialogSettingsFactory = inject[api.Dialog.Factory]
   }
 }

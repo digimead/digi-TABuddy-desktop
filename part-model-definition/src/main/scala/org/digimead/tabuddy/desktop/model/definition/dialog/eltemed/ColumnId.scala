@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,43 +43,34 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.eltemed
 
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.support.SymbolValidator
-import org.digimead.tabuddy.desktop.support.Validator
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
+import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.jface.databinding.swt.WidgetProperties
-import org.eclipse.jface.viewers.CellEditor
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.EditingSupport
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.TextCellEditor
-import org.eclipse.jface.viewers.ViewerCell
+import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, EditingSupport, TableViewer, TextCellEditor, ViewerCell }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.VerifyEvent
 import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Text
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.model.definition.Default
+import org.eclipse.swt.widgets.{ Composite, Control, Text }
 
 object ColumnId extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: ElementTemplateEditor.Item =>
+      case item: ElementTemplateEditor.Item ⇒
         cell.setText(item.id)
-        item.idError.foreach(err => cell.setImage(err._2))
-      case unknown =>
+        item.idError.foreach(err ⇒ cell.setImage(err._2))
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
     override def getToolTipText(element: AnyRef): String = element match {
-      case item: ElementTemplateEditor.Item =>
+      case item: ElementTemplateEditor.Item ⇒
         item.idError match {
-          case Some(error) => error._1
-          case None => null
+          case Some(error) ⇒ error._1
+          case None ⇒ null
         }
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
@@ -92,20 +83,20 @@ object ColumnId extends Loggable {
       new IdTextCellEditor(viewer.getTable(), element.asInstanceOf[ElementTemplateEditor.Item], container)
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: ElementTemplateEditor.Item =>
+      case item: ElementTemplateEditor.Item ⇒
         item.id
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: ElementTemplateEditor.Item =>
+      case before: ElementTemplateEditor.Item ⇒
         val id = value.asInstanceOf[String].trim
         if (id.nonEmpty && before.id != id && !container.actualProperties.exists(_.id == id)) {
           val after = before.copy(id = id)
           container.updateActualProperty(before, container.validateItem(after))
         }
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
   }

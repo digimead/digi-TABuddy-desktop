@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -97,8 +97,8 @@ public class TypeEditorSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeEditorDescription_text()); // $hide$
-		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.typeEditorTitle_text()); // $hide$
+		setMessage(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.typeEditorDescription_text()); // $hide$
+		setTitle(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.typeEditorTitle_text()); // $hide$
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new BorderLayout(0, 0));
@@ -113,7 +113,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		lblTemplateName.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,
 				false, false, 1, 1));
 		lblTemplateName.setBounds(0, 0, 65, 15);
-		lblTemplateName.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text()); // $hide$
+		lblTemplateName.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.name_text()); // $hide$
 
 		textSchemaName = new Text(compositeHeader, SWT.BORDER);
 		textSchemaName.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
@@ -124,7 +124,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		lblDescription.setAlignment(SWT.RIGHT);
 		lblDescription.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false,
 				false, 1, 1));
-		lblDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text()); // $hide$
+		lblDescription.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.description_text()); // $hide$
 
 		textSchemaDescription = new Text(compositeHeader, SWT.BORDER);
 		textSchemaDescription.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
@@ -133,7 +133,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		new Label(compositeHeader, SWT.NONE);
 
 		btnCheckActive = new Button(compositeHeader, SWT.CHECK);
-		btnCheckActive.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.active_text()); // $hide$
+		btnCheckActive.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.active_text()); // $hide$
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK
 				| SWT.FULL_SELECTION);
@@ -146,29 +146,29 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		TableColumn tblclmnAvailability = tableViewerColumnAvailability
 				.getColumn();
 		tblclmnAvailability.setWidth(100);
-		tblclmnAvailability.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.availability_text()); // $hide$
+		tblclmnAvailability.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.availability_text()); // $hide$
 
 		tableViewerColumnType = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnType = tableViewerColumnType.getColumn();
 		tblclmnType.setWidth(100);
-		tblclmnType.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.type_text()); // $hide$
+		tblclmnType.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.type_text()); // $hide$
 
 		tableViewerColumnAlias = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnAlias = tableViewerColumnAlias.getColumn();
 		tblclmnAlias.setWidth(100);
-		tblclmnAlias.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.alias_text()); // $hide$
+		tblclmnAlias.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.alias_text()); // $hide$
 
 		tableViewerColumnView = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnView = tableViewerColumnView.getColumn();
 		tblclmnView.setWidth(100);
-		tblclmnView.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.view_text()); // $hide$
+		tblclmnView.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.view_text()); // $hide$
 
 		tableViewerColumnLabel = new TableViewerColumn(tableViewer,
 				SWT.NONE);
 		TableColumn tblclmnDescription = tableViewerColumnLabel
 				.getColumn();
 		tblclmnDescription.setWidth(100);
-		tblclmnDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text()); // $hide$
+		tblclmnDescription.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.description_text()); // $hide$
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(BorderLayout.SOUTH);

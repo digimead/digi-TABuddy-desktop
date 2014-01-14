@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,11 +41,9 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.support
-/*
-import java.io.Reader
-import java.io.Writer
+package org.digimead.tabuddy.desktop.logic.ui.support
 
+import java.io.{ Reader, Writer }
 import org.digimead.configgy.Configgy
 import org.digimead.configgy.Configgy.getImplementation
 import org.eclipse.jface.dialogs.IDialogSettings
@@ -54,7 +52,8 @@ object Dialog {
   /** Dialog persistence prefix */
   val configPrefix = "persistence.dialogs"
 
-  class Settings(sectionName: String, prefix: String) extends org.digimead.tabuddy.desktop.definition.api.Dialog.Settings(sectionName, prefix) with IDialogSettings {
+  class Settings(sectionName: String, prefix: String)
+    extends org.digimead.tabuddy.desktop.ui.definition.api.Dialog.Settings(sectionName, prefix) with IDialogSettings {
     /**
      * Create a new section in the receiver and return it.
      *
@@ -176,7 +175,7 @@ object Dialog {
         if (Configgy.getConfigMap(key).nonEmpty) this else null
       else {
         val sectionKey = key + "." + name
-        Configgy.getConfigMap(sectionKey).map(_ => new Settings(name, key)).getOrElse(null)
+        Configgy.getConfigMap(sectionKey).map(_ ⇒ new Settings(name, key)).getOrElse(null)
       }
     /**
      * Returns all the sections in this dialog settings.
@@ -185,9 +184,9 @@ object Dialog {
      */
     def getSections(): Array[IDialogSettings] =
       Configgy.getConfigMap(key) match {
-        case Some(map) =>
-          map.keys.filter(key => map.getConfigMap(key).nonEmpty).map(new Settings(_, key)).toArray
-        case None =>
+        case Some(map) ⇒
+          map.keys.filter(key ⇒ map.getConfigMap(key).nonEmpty).map(new Settings(_, key)).toArray
+        case None ⇒
           Array()
       }
     /**
@@ -301,4 +300,3 @@ object Dialog {
     protected def key(name: String): String = key + "." + name
   }
 }
-*/

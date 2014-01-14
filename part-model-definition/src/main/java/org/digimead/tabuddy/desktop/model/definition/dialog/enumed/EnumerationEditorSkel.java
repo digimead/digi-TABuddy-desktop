@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -98,8 +98,8 @@ public class EnumerationEditorSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.enumerationEditorDescription_text());
-		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.enumerationEditorTitle_text());
+		setMessage(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.enumerationEditorDescription_text());
+		setTitle(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.enumerationEditorTitle_text());
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new BorderLayout(0, 0));
@@ -114,7 +114,7 @@ public class EnumerationEditorSkel extends TitleAreaDialog {
 		lblEnumerationId.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,
 				false, false, 1, 1));
 		lblEnumerationId.setBounds(0, 0, 65, 15);
-		lblEnumerationId.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text());
+		lblEnumerationId.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.identificator_text());
 
 		textEnumerationId = new Text(compositeHeader, SWT.BORDER);
 		textEnumerationId.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
@@ -125,7 +125,7 @@ public class EnumerationEditorSkel extends TitleAreaDialog {
 		lblEnumerationName.setAlignment(SWT.RIGHT);
 		lblEnumerationName.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false,
 				false, 1, 1));
-		lblEnumerationName.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text());
+		lblEnumerationName.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.name_text());
 
 		textEnumerationName = new Text(compositeHeader, SWT.BORDER);
 		textEnumerationName.setLayoutData(new GridData(SWT.FILL,
@@ -134,11 +134,11 @@ public class EnumerationEditorSkel extends TitleAreaDialog {
 		new Label(compositeHeader, SWT.NONE);
 
 		btnCheckAvailability = new Button(compositeHeader, SWT.CHECK);
-		btnCheckAvailability.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.availability_text());
+		btnCheckAvailability.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.availability_text());
 
 		Label lblType = new Label(compositeHeader, SWT.NONE);
 		lblType.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
-		lblType.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.type_text());
+		lblType.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.type_text());
 
 		comboViewer = new ComboViewer(compositeHeader, SWT.READ_ONLY);
 		Combo combo = comboViewer.getCombo();
@@ -153,17 +153,17 @@ public class EnumerationEditorSkel extends TitleAreaDialog {
 		tableViewerColumnValue = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnValue = tableViewerColumnValue.getColumn();
 		tblclmnValue.setWidth(100);
-		tblclmnValue.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.value_text());
+		tblclmnValue.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.value_text());
 
 		tableViewerColumnAlias = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnAlias = tableViewerColumnAlias.getColumn();
 		tblclmnAlias.setWidth(100);
-		tblclmnAlias.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.alias_text());
+		tblclmnAlias.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.alias_text());
 
 		tableViewerColumnDescription = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnDescription = tableViewerColumnDescription.getColumn();
 		tblclmnDescription.setWidth(100);
-		tblclmnDescription.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.description_text());
+		tblclmnDescription.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.description_text());
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(BorderLayout.SOUTH);

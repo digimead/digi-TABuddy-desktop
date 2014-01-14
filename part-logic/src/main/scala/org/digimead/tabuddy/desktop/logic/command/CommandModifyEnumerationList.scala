@@ -41,67 +41,58 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.command.context
+package org.digimead.tabuddy.desktop.logic.command
 
+import java.io.File
 import java.util.UUID
+import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.{ Core, Messages }
-import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.command.PathParser
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
 import org.digimead.tabuddy.desktop.core.support.App
-import org.eclipse.e4.core.internal.contexts.EclipseContext
+import org.digimead.tabuddy.desktop.logic.operation.script.OperationScriptEvaluate
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
-/**
- * List command that show all application contexts.
- */
-object CommandContextList extends Loggable {
+object CommandModifyEnumerationList extends Loggable {
   import Command.parser._
-  private val fullArg = "-full"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
-  /** Console converter. */
-  lazy val converter: PartialFunction[(Descriptor, Any), String] = {
-    case (this.descriptor, Left(seq)) ⇒
-      // brief list
-      seq.asInstanceOf[Seq[EclipseContext]].sortBy(ctx ⇒ Context.getName(ctx).getOrElse("")).map { context ⇒
-        Option(context.getParent()) match {
-          case Some(parent) ⇒
-            s"""$context (with parent "$parent")"""
-          case None ⇒
-            s"""$context (root context)"""
-        }
-      }.mkString("\n")
-    case (this.descriptor, Right((seq, full: Boolean))) ⇒
-      seq.asInstanceOf[Seq[EclipseContext]].sortBy(ctx ⇒ Context.getName(ctx).getOrElse("")).map { context ⇒
-        App.inner().contextDumpHierarchy(context, _ ⇒ true, full)
-      }.mkString("\n")
-  }
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.context_list_text,
-    Messages.context_listDescriptionShort_text, Messages.context_listDescriptionLong_text,
-    (activeContext, parserContext, parserResult) ⇒ Future[Either[Seq[EclipseContext], (Seq[EclipseContext], Boolean)]] {
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.modifyEnumerationList_text,
+    Messages.modifyEnumerationListDescriptionShort_text, Messages.modifyEnumerationListDescriptionLong_text,
+    (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case Some(~(name, opt)) ⇒
-          val nameList = (Context.getName(Core.context.context).map(name ⇒ (name, Core.context.context)) +:
-            App.inner().contextChildren(Core.context).map(ctx ⇒ Context.getName(ctx).map(name ⇒ (name, ctx)))).flatten
-          Right(nameList.filter(_._1 == name).map(_._2), opt != Some(fullArg)) // full
-        case None ⇒
-          Left(Core.context.context +: App.inner().contextChildren(Core.context)) // brief
+        case script: File ⇒
+          val exchanger = new Exchanger[Operation.Result[Any]]()
+          OperationScriptEvaluate[Any](Left(script), false).foreach { operation ⇒
+            operation.getExecuteJob() match {
+              case Some(job) ⇒
+                job.setPriority(Job.LONG)
+                job.onComplete(exchanger.exchange).schedule()
+              case None ⇒
+                throw new RuntimeException(s"Unable to create job for ${operation}.")
+            }
+          }
+          exchanger.exchange(null) match {
+            case Operation.Result.OK(result, message) ⇒
+              log.info(s"Operation completed successfully.")
+              result
+            case Operation.Result.Cancel(message) ⇒
+              throw new CancellationException(s"Operation canceled, reason: ${message}.")
+            case err: Operation.Result.Error[_] ⇒
+              throw err
+            case other ⇒
+              throw new RuntimeException(s"Unable to complete operation: ${other}.")
+          }
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> contextParser ~ opt(sp ~> (fullArg, Command.Hint(fullArg, Some("list full information"))))))
-
-  /** Create parser for the list of commands. */
-  protected def contextParser: Command.parser.Parser[Any] = {
-    val nameList = (Context.getName(Core.context.context) +: App.contextChildren(Core.context).map(Context.getName)).flatten
-    if (nameList.nonEmpty)
-      nameList.map(name ⇒
-        commandLiteral(name, Command.Hint(name, Some(s"show '${name}' content"))) ^^ { _ ⇒ name }).
-        reduceLeft(_ | _)
-    else
-      success(None)
-  }
+  lazy val parser = Command.CmdParser(descriptor.name ~> pathParser)
+  /** Path argument parser. */
+  protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "script location",
+    () ⇒ Some(s"path to script file")) { f ⇒ f.canRead() && !f.getName().startsWith(".") }
 }

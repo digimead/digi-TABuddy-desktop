@@ -52,6 +52,9 @@ import org.eclipse.swt.dnd.{ DragSource, DropTarget }
 import org.eclipse.swt.widgets.{ Caret, Composite, Control, CoolItem, ExpandItem, Menu, MenuItem, ScrollBar, Shell, TabItem, TableColumn, TableItem, TaskBar, TaskItem, ToolItem, ToolTip, TreeColumn, TreeItem, Widget }
 import scala.annotation.tailrec
 
+/**
+ * Trait with support functions for org.digimead.tabuddy.desktop.ui.UI
+ */
 trait UI {
   this: org.digimead.tabuddy.desktop.ui.UI.type ⇒
   /** Adjust table viewer column width. */

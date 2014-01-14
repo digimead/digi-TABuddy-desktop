@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.ui.builder
 
 import akka.actor.{ ActorContext, ActorRef }
 import akka.pattern.ask
+import akka.util.Timeout.durationToTimeout
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
@@ -54,6 +55,7 @@ import org.digimead.tabuddy.desktop.ui.block.{ Configuration, ViewLayer }
 import org.digimead.tabuddy.desktop.ui.widget.{ SComposite, VComposite }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.layout.{ GridData, GridLayout }
 import org.eclipse.swt.widgets.Control
 import scala.collection.immutable
@@ -76,7 +78,7 @@ class StackViewBuilder extends Loggable {
     log.debug(s"Build view layer ${viewName}.")
     App.assertEventThread(false)
     val viewContext = pEContext.createChild(VComposite.contextName): Context.Rich
-    viewContext.set(VComposite.contextName, configuration.id)
+    //viewContext.set(VComposite.contextName, configuration.id)
     val view = pAContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
     // Block until view is created.
     implicit val sender = pAContext.self
@@ -115,6 +117,7 @@ class StackViewBuilder extends Loggable {
           layout.marginHeight = 0
           layout.marginWidth = 0
           val content = new VComposite(configuration.id, ref, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
+          context.set(classOf[VComposite], content)
           content.setData(App.widgetContextKey, context)
           content.setLayout(layout)
           content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
@@ -125,6 +128,13 @@ class StackViewBuilder extends Loggable {
           pWidget.setExpandHorizontal(true)
           pWidget.setExpandVertical(true)
           pWidget.layout(Array[Control](content), SWT.ALL)
+          content.addDisposeListener(new DisposeListener {
+            def widgetDisposed(event: DisposeEvent) = Option(content.getData(App.widgetContextKey)).foreach {
+              case context: Context ⇒
+                context.remove(classOf[VComposite])
+                content.setData(App.widgetContextKey, null)
+            }
+          })
           Some(content)
         case None ⇒
           // TODO destroy

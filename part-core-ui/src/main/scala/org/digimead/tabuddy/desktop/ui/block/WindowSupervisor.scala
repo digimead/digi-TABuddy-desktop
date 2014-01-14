@@ -179,7 +179,6 @@ class WindowSupervisor extends Actor with Loggable {
     App.assertEventThread(false)
     val windowName = Window.id + "_%08X".format(windowId.hashCode())
     val windowContext = Core.context.createChild(WComposite.contextName): Context.Rich
-    windowContext.set(WComposite.contextName, windowId)
     val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), windowName)
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
     // Block supervisor until window is created

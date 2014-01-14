@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist;
 
-import org.digimead.tabuddy.desktop.ResourceManager;
+import org.digimead.tabuddy.desktop.ui.ResourceManager;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
@@ -92,8 +92,8 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	protected Control createDialogArea(Composite parent) {
 		setTitleImage(ResourceManager.getImage(ElementTemplateList.class,
 				"/icons/full/message_info.gif"));
-		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplateListTitle_text()); // $hide$
-		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplateListDescription_text()); // $hide$
+		setTitle(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.elementTemplateListTitle_text()); // $hide$
+		setMessage(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.elementTemplateListDescription_text()); // $hide$
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new GridLayout(1, true));
@@ -102,7 +102,7 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 		Label lblElementTemplates = new Label(container, SWT.NONE);
 		lblElementTemplates.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER,
 				false, false, 1, 1));
-		lblElementTemplates.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementTemplates_text()); // $hide$
+		lblElementTemplates.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.elementTemplates_text()); // $hide$
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK | SWT.FULL_SELECTION);
 		Table table_templates = tableViewer.getTable();
@@ -117,13 +117,13 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 				.getColumn();
 		tblclmnAvailability.setWidth(100);
 		tblclmnAvailability
-				.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.availability_text()); // $hide$
+				.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.availability_text()); // $hide$
 
 		tableViewerColumnId = new TableViewerColumn(tableViewer,
 				SWT.NONE);
 		TableColumn tblclmnId = tableViewerColumnId.getColumn();
 		tblclmnId.setWidth(100);
-		tblclmnId.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text()); // $hide$
+		tblclmnId.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.identificator_text()); // $hide$
 
 		tableViewerColumnName = new TableViewerColumn(
 				tableViewer, SWT.NONE);
@@ -131,7 +131,7 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 				.getColumn();
 		tblclmnName.setWidth(100);
 		tblclmnName
-				.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.name_text()); // $hide$
+				.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.name_text()); // $hide$
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,

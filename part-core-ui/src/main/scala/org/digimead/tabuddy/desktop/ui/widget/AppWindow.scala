@@ -188,7 +188,10 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   /** Show content. */
   protected def showContent(content: WComposite) {
     log.debug(s"Show content of ${this}.")
-    content.setData(App.widgetContextKey, windowContext: Context) // Bind window context to composite.
+    // Bind window context to composite.
+    content.setData(App.widgetContextKey, windowContext: Context)
+    // Bind composite to window context.
+    windowContext.set(classOf[WComposite], content)
     implicit val ec = App.system.dispatcher
     val result = supervisorRef.ask(App.Message.Restore(Left(content)))(Timeout.short)
     result.onSuccess {

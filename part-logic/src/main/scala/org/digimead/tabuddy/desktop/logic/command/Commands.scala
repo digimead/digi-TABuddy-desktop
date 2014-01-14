@@ -49,6 +49,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.logic.operation.{ OperationModifyElementTemplateList, OperationModifyEnumerationList, OperationModifyTypeSchemaList }
 import scala.language.implicitConversions
 
 /**
@@ -65,37 +66,70 @@ class Commands extends Loggable {
      * graph
      */
     Command.register(graph.CommandGraphNew.descriptor)
-    val coreGraphNew = Command.addToContext(Core.context, graph.CommandGraphNew.parser)
+    Command.addToContext(Core.context, graph.CommandGraphNew.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphList.descriptor)
-    val coreGraphList = Command.addToContext(Core.context, graph.CommandGraphList.parser)
+    Command.addToContext(Core.context, graph.CommandGraphList.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphOpen.descriptor)
-    val coreGraphOpen = Command.addToContext(Core.context, graph.CommandGraphOpen.parser)
+    Command.addToContext(Core.context, graph.CommandGraphOpen.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphSave.descriptor)
-    val coreGraphSave = Command.addToContext(Core.context, graph.CommandGraphSave.parser)
+    Command.addToContext(Core.context, graph.CommandGraphSave.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphSaveAs.descriptor)
-    val coreGraphSaveAs = Command.addToContext(Core.context, graph.CommandGraphSaveAs.parser)
+    Command.addToContext(Core.context, graph.CommandGraphSaveAs.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphClose.descriptor)
-    val coreGraphClose = Command.addToContext(Core.context, graph.CommandGraphClose.parser)
+    Command.addToContext(Core.context, graph.CommandGraphClose.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphDelete.descriptor)
-    val coreGraphDelete = Command.addToContext(Core.context, graph.CommandGraphDelete.parser)
+    Command.addToContext(Core.context, graph.CommandGraphDelete.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphImport.descriptor)
-    val coreGraphImport = Command.addToContext(Core.context, graph.CommandGraphImport.parser)
+    Command.addToContext(Core.context, graph.CommandGraphImport.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphExport.descriptor)
-    val coreGraphExport = Command.addToContext(Core.context, graph.CommandGraphExport.parser)
+    Command.addToContext(Core.context, graph.CommandGraphExport.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphShow.descriptor)
-    val coreGraphShow = Command.addToContext(Core.context, graph.CommandGraphShow.parser)
+    Command.addToContext(Core.context, graph.CommandGraphShow.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     /*
      * script
      */
     Command.register(script.CommandScriptRun.descriptor)
-    val coreScriptRun = Command.addToContext(Core.context, script.CommandScriptRun.parser)
-    contextParsers = Seq(coreGraphNew, coreGraphList, coreGraphOpen, coreGraphSave, coreGraphSaveAs,
-      coreGraphClose, coreGraphDelete, coreGraphImport, coreGraphExport, coreGraphShow, coreScriptRun).flatten
+    Command.addToContext(Core.context, script.CommandScriptRun.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    /*
+     * payload
+     */
+    // Only if OperationModifyElementTemplateList is defined
+    if (OperationModifyElementTemplateList.operation.nonEmpty) {
+      Command.register(CommandModifyElementTemplateList.descriptor)
+      Command.addToContext(Core.context, CommandModifyElementTemplateList.parser).
+        foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    }
+    // Only if OperationModifyEnumerationList is defined
+    if (OperationModifyEnumerationList.operation.nonEmpty) {
+      Command.register(CommandModifyEnumerationList.descriptor)
+      Command.addToContext(Core.context, CommandModifyEnumerationList.parser).
+        foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    }
+    // Only if OperationModifyTypeSchemaList is defined
+    if (OperationModifyTypeSchemaList.operation.nonEmpty) {
+      Command.register(CommandModifyTypeSchemaList.descriptor)
+      Command.addToContext(Core.context, CommandModifyTypeSchemaList.parser).
+        foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    }
   }
   /** Unconfigure component actions. */
   @log
   def unconfigure() = lock.synchronized {
     contextParsers.foreach(Command.removeFromContext(Core.context, _))
+    Command.get(CommandModifyElementTemplateList.descriptor.parserId).foreach(Command.unregister)
+    Command.get(CommandModifyEnumerationList.descriptor.parserId).foreach(Command.unregister)
+    Command.get(CommandModifyTypeSchemaList.descriptor.parserId).foreach(Command.unregister)
     Command.unregister(script.CommandScriptRun.descriptor)
     Command.unregister(graph.CommandGraphShow.descriptor)
     Command.unregister(graph.CommandGraphExport.descriptor)

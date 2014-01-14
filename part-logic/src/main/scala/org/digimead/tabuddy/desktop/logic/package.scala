@@ -51,6 +51,7 @@ package object logic {
   lazy val default = new NewBindingModule(module ⇒ {
     module.bind[api.Config] toModuleSingle { implicit module ⇒ new Config }
   }) ~
+    ui.default ~
     command.default ~
     payload.default ~
     payload.view.default ~

@@ -58,6 +58,7 @@ import language.implicitConversions
  * EclipseContext wrapper.
  */
 class Context(parent: EclipseContext) extends EclipseContext(parent) {
+  def containsKey(clazz: Class[_], localOnly: Boolean): Boolean = containsKey(clazz.getName(), localOnly)
   override def createChild(): IEclipseContext = new Context(Context.this)
   override def createChild(name: String): IEclipseContext = {
     val result = createChild()
@@ -120,42 +121,42 @@ object Context {
     def getActive[T](name: String): T = context.getActive(name).asInstanceOf[T]
     def getChildren(): Set[Context] = (context.getChildren.asInstanceOf[java.util.Set[Context]]).toSet
     def getLocal[T](name: String): Option[T] = Option(context.getLocal(name).asInstanceOf[T])
-    def getParent(): Option[Context] = Option(context.getParent()).map(p => p.asInstanceOf[Context])
+    def getParent(): Option[Context] = Option(context.getParent()).map(p ⇒ p.asInstanceOf[Context])
     def get[T](name: String): Option[T] = Option(context.get(name).asInstanceOf[T])
   }
 
   /** Everything is based on string. Erasure is out of scope :-( Do we need rewrite EclipseContext completely? */
-  class Listener(val name: String, val f: (String, Context) => Any)
+  class Listener(val name: String, val f: (String, Context) ⇒ Any)
   class Event {
     /** Key listeners. */
     @volatile protected var listeners = immutable.HashMap[String, Seq[Listener]]()
 
     /** Publish context event. */
-    def publish(name: String, context: Context) { listeners.get(name).foreach { value => value.foreach(_.f(name, context)) } }
+    def publish(name: String, context: Context) { listeners.get(name).foreach { value ⇒ value.foreach(_.f(name, context)) } }
     /** Publish context event. */
     def publish[T](clazz: Class[T], context: Context) { publish(clazz.getName, context) }
     /** Subscribe to name events. */
-    def subscribe[T](name: String, f: (String, Context) => T): Listener = synchronized {
+    def subscribe[T](name: String, f: (String, Context) ⇒ T): Listener = synchronized {
       val listener = new Listener(name, f)
       listeners.get(name) match {
-        case Some(seq) =>
+        case Some(seq) ⇒
           listeners = listeners.updated(name, seq :+ listener)
           listener
-        case None =>
+        case None ⇒
           listeners = listeners.updated(name, Seq(listener))
           listener
       }
     }
     /** Subscribe to class events. */
-    def subscribe[T](clazz: Class[T], f: (String, Context) => T): Listener =
+    def subscribe[T](clazz: Class[T], f: (String, Context) ⇒ T): Listener =
       subscribe(clazz.getName(), f)
     /** Unsubscribe listener. */
     def unsubscribe[T](listener: Listener) = synchronized {
-      listeners.get(listener.name).foreach { seq =>
+      listeners.get(listener.name).foreach { seq ⇒
         seq.filterNot(_ == listener) match {
-          case Nil =>
+          case Nil ⇒
             listeners = listeners - listener.name
-          case seq =>
+          case seq ⇒
             listeners = listeners.updated(listener.name, seq)
         }
       }

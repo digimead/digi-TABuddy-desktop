@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -46,12 +46,12 @@ package org.digimead.tabuddy.desktop.model.definition.action
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.gui.WindowMenu
-import org.digimead.tabuddy.desktop.gui.WindowToolbar
-import org.digimead.tabuddy.desktop.gui.widget.AppWindow
+//import org.digimead.tabuddy.desktop.gui.WindowMenu
+//import org.digimead.tabuddy.desktop.gui.WindowToolbar
+//import org.digimead.tabuddy.desktop.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 
 import akka.actor.Actor
 import akka.actor.ActorRef
@@ -84,14 +84,14 @@ class Action extends Actor with Loggable {
   }
   def receive = {
     // Adjust menu and toolbar after Core component.
-    case message @ App.Message.Create(Right((action: logic.action.Action.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
-      onCreated(window, publisher)
-    }
+//    case message @ App.Message.Create(Right((action: logic.action.Action.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
+//      onCreated(window, publisher)
+//    }
 
     case message @ App.Message.Create(_, _) =>
   }
 
-  /** Register actions in new window. */
+/*  /** Register actions in new window. */
   protected def onCreated(window: AppWindow, sender: ActorRef) = {
     // block actor
     App.execNGet {
@@ -114,14 +114,14 @@ class Action extends Actor with Loggable {
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-  }
+  }*/
 }
 
 object Action {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model toolbar descriptor. */
-  lazy val modelToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#model") }
+  //lazy val modelToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#model") }
   // Initialize descendant actor singletons
   ActionModifyElementTemplateList
   ActionModifyEnumerationList

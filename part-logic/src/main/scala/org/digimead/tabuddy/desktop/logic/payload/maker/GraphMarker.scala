@@ -45,21 +45,21 @@ package org.digimead.tabuddy.desktop.logic.payload.maker
 
 import com.google.common.base.Charsets
 import com.google.common.io.Files
-import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, File, FileFilter, FileOutputStream, IOException }
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, File, FileFilter, IOException }
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.{ Properties, UUID }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.digi.lib.util.FileUtil
-import org.digimead.tabuddy.desktop.core.Core
-import org.digimead.tabuddy.desktop.core.Report
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.{ Core, Report }
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
-import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
+import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
+import org.digimead.tabuddy.desktop.ui.widget.{ VComposite, WComposite }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
@@ -68,6 +68,7 @@ import org.digimead.tabuddy.model.serialization.Serialization
 import org.eclipse.core.internal.utils.Policy
 import org.eclipse.core.resources.IFile
 import org.eclipse.core.resources.IResource
+import org.eclipse.swt.widgets.Shell
 import scala.collection.{ immutable, mutable }
 
 /**
@@ -331,6 +332,47 @@ object GraphMarker extends Loggable {
   def apply(uuid: UUID): GraphMarker = new GraphMarker(uuid)
   /** Get marker for graph. */
   def apply(graph: Graph[_ <: Model.Like]): GraphMarker = graph.withData(_(GraphMarker).asInstanceOf[GraphMarker])
+  /** Find the best shell which is suitable for the graph marker. */
+  def bestShell(graph: Graph[_ <: Model.Like]): Option[Shell] =
+    bestShell(GraphMarker(graph))
+  /** Find the best shell which is suitable for the graph marker. */
+  def bestShell(marker: GraphMarker): Option[Shell] = {
+    val markerContexts = markerToContext(marker)
+    val viewContexts = markerContexts.filter(_.containsKey(classOf[VComposite], true))
+    // search for active window context for current view with graph
+    val active = Core.context.getActiveLeaf()
+    viewContexts.find(_.eq(active)).foreach { context ⇒
+      context.getParents().find(_.containsKey(classOf[WComposite], true)).foreach { context ⇒
+        log.debug("Find reliable shell inside " + Context.getName(context))
+        return Some(context.get(classOf[WComposite]).getShell())
+      }
+    }
+    // search for any window context within active branch
+    val activeBranch = active.getParents()
+    val windowContexts = Core.context.getChildren().flatMap {
+      case context if context.containsKey(classOf[WComposite], true) ⇒
+        if (activeBranch.contains(context)) {
+          log.debug("Find most reliable shell inside " + Context.getName(context))
+          return Some(context.get(classOf[WComposite]).getShell())
+        } else
+          Some(context)
+      case context ⇒
+        None
+    }
+    // search for any window
+    windowContexts.foreach { context ⇒
+      if (context.getParent().getActiveChild() == context) {
+        log.debug("Find one activated shell inside " + Context.getName(context))
+        return Some(context.get(classOf[WComposite]).getShell())
+      }
+    }
+    if (windowContexts.nonEmpty) {
+      val context = windowContexts.head
+      log.debug("Find one random shell inside " + Context.getName(context))
+      return Some(context.get(classOf[WComposite]).getShell())
+    }
+    None
+  }
   /** Bind marker to context. */
   def bind(marker: GraphMarker, context: Context = Core.context) = {
     globalRWL.readLock().lock()

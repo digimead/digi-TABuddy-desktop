@@ -65,4 +65,9 @@ object Dialog {
     protected def checkSubclass(): Unit =
       throw new IllegalAccessException("Please, override this method in subclass with org.eclipse.jface.dialogs.IDialogSettings.")
   }
+
+  /**
+   * Dialog settings factory that creates new settings with (sectionName, prefix) arguments.
+   */
+  trait Factory extends Function2[String, String, Settings]
 }

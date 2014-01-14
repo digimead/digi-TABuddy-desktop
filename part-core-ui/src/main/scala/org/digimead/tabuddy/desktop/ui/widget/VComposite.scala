@@ -64,6 +64,6 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
 }
 
 object VComposite {
-  /** View context name/context key for view id. */
+  /** View context name. */
   final val contextName = "VCompositeContext"
 }

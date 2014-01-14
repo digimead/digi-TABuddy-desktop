@@ -215,12 +215,6 @@ class ElementTemplate(
 }
 
 object ElementTemplate extends Loggable {
-  /** Predefined element templates modified by user that are available for this application */
-  //@volatile private var userPredefinedTemplates: Seq[api.ElementTemplate] = Seq()
-  /** Predefined unmodified element templates that are available for this application */
-  // The original list is needed for recovering broken/modified predefined templates
-  //@volatile private var originalPredefinedTemplates: Seq[api.ElementTemplate] = Seq()
-
   /** Get list of element template builders. */
   def builders = DI.builders
   /**

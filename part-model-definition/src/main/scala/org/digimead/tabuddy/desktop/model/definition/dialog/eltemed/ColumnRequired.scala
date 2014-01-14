@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,34 +43,29 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.eltemed
 
-import org.digimead.tabuddy.desktop.Messages
-import org.eclipse.jface.viewers.CellEditor
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.CheckboxCellEditor
-import org.eclipse.jface.viewers.EditingSupport
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.ViewerCell
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.model.definition.Default
+import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, CheckboxCellEditor, EditingSupport, TableViewer, ViewerCell }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.model.definition.Default
 
 object ColumnRequired extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: ElementTemplateEditor.Item =>
+      case item: ElementTemplateEditor.Item ⇒
         if (item.required) cell.setText(Messages.yes_text) else cell.setText(Messages.no_text)
-        item.requiredError.foreach(err => cell.setImage(err._2))
-      case unknown =>
+        item.requiredError.foreach(err ⇒ cell.setImage(err._2))
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
     override def getToolTipText(element: AnyRef): String = element match {
-      case item: ElementTemplateEditor.Item =>
+      case item: ElementTemplateEditor.Item ⇒
         item.requiredError match {
-          case Some(error) => error._1
-          case None => null
+          case Some(error) ⇒ error._1
+          case None ⇒ null
         }
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
@@ -82,20 +77,20 @@ object ColumnRequired extends Loggable {
     override protected def getCellEditor(element: AnyRef): CellEditor = new CheckboxCellEditor(null, SWT.CHECK | SWT.READ_ONLY)
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: ElementTemplateEditor.Item =>
+      case item: ElementTemplateEditor.Item ⇒
         Boolean.box(item.required)
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: ElementTemplateEditor.Item =>
+      case before: ElementTemplateEditor.Item ⇒
         val required = value.asInstanceOf[Boolean]
         if (before.required != required) {
           val after = before.copy(required = required)
           container.updateActualProperty(before, container.validateItem(after))
         }
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
   }

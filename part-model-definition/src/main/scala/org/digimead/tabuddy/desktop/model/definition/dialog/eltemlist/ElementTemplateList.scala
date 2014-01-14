@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,86 +43,63 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist
 
-import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
-
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.WritableList
+import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Payload, api ⇒ papi }
+import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.definition.Dialog
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
+import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
+import org.eclipse.jface.dialogs.IDialogConstants
+import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
+import org.eclipse.swt.SWT
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
+import org.digimead.tabuddy.desktop.ui.UI
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
-import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.WritableList
-import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.Action
-import org.eclipse.jface.action.ActionContributionItem
-import org.eclipse.jface.action.IAction
-import org.eclipse.jface.action.IMenuListener
-import org.eclipse.jface.action.IMenuManager
-import org.eclipse.jface.action.MenuManager
-import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
-import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.dialogs.IDialogConstants
-import org.eclipse.jface.viewers.ColumnViewerToolTipSupport
-import org.eclipse.jface.viewers.ISelectionChangedListener
-import org.eclipse.jface.viewers.IStructuredSelection
-import org.eclipse.jface.viewers.SelectionChangedEvent
-import org.eclipse.jface.viewers.StructuredSelection
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.Viewer
-import org.eclipse.jface.viewers.ViewerComparator
-import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
-import org.eclipse.swt.events.SelectionAdapter
-import org.eclipse.swt.events.SelectionEvent
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Event
-import org.eclipse.swt.widgets.Listener
-import org.eclipse.swt.widgets.Shell
-import org.eclipse.swt.widgets.TableItem
-
-class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.ElementTemplate])
+class ElementTemplateList(val parentShell: Shell,
+  /** Graph container. */
+  val graph: Graph[_ <: Model.Like],
+  /** Graph marker. */
+  val marker: GraphMarker,
+  /** Graph payload. */
+  val payload: Payload,
+  /** exists templates */
+  val initial: Set[papi.ElementTemplate])
   extends ElementTemplateListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
   // replace initial elements with copies that will be modified in the progress
-  protected[eltemlist] val actual = WritableList(initial.map(template => template.copy(element = template.element.eCopy)).toList.sortBy(_.id.name))
+  protected[eltemlist] val actual = WritableList[papi.ElementTemplate](initial.toList.sortBy(_.id.name))
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing a selected element template */
-  protected[eltemlist] val selected = WritableValue[payload.api.ElementTemplate]
+  protected[eltemlist] val selected = WritableValue[papi.ElementTemplate]
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 1 // by an id
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
 
   /** Get modified type templates */
-  def getModifiedTemplates(): Set[payload.api.ElementTemplate] = actual.toSet
+  def getModifiedTemplates(): Set[papi.ElementTemplate] = actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        App.adjustTableViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -139,7 +116,7 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
     ActionEdit.setEnabled(false)
     ActionRemove.setEnabled(false)
     initTableElementTemplates()
-    val actualListener = actual.addChangeListener { event =>
+    val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
         future { autoresize() }
       updateOK()
@@ -151,9 +128,9 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
       }
     })
     // Set the dialog message
-    setMessage(Messages.elementTemplateListDescription_text.format(Model.eId.name))
+    setMessage(Messages.elementTemplateListDescription_text.format(graph.model.eId.name))
     // Set the dialog window title
-    getShell().setText(Messages.elementTemplateListDialog_text.format(Model.eId.name))
+    getShell().setText(Messages.elementTemplateListDialog_text.format(graph.model.eId.name))
     result
   }
   /** Generate new ID: old ID + 'Copy' + N */
@@ -175,7 +152,7 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
     getTableViewerColumnAvailability.setEditingSupport(new ColumnAvailability.TEditingSupport(viewer, this))
     getTableViewerColumnAvailability.getColumn.addSelectionListener(new ElementTemplateList.TemplateSelectionAdapter(WeakReference(viewer), 0))
     getTableViewerColumnId.setLabelProvider(new ColumnId.TLabelProvider)
-    getTableViewerColumnId.setEditingSupport(new ColumnId.TEditingSupport(viewer, this))
+    getTableViewerColumnId.setEditingSupport(new ColumnId.TEditingSupport(payload, viewer, this))
     getTableViewerColumnId.getColumn.addSelectionListener(new ElementTemplateList.TemplateSelectionAdapter(WeakReference(viewer), 1))
     getTableViewerColumnName.setLabelProvider(new ColumnName.TLabelProvider)
     getTableViewerColumnName.setEditingSupport(new ColumnName.TEditingSupport(viewer, this))
@@ -184,18 +161,18 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
     viewer.getTable.addListener(SWT.Selection, new Listener() {
       def handleEvent(event: Event) = if (event.detail == SWT.CHECK)
         event.item match {
-          case tableItem: TableItem =>
+          case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: ElementTemplate =>
+              case before: ElementTemplate ⇒
                 if (before.availability != tableItem.getChecked()) {
                   val after = before.updated(tableItem.getChecked())
                   updateActualTemplate(before, after)
                 }
-              case item =>
+              case item ⇒
                 log.fatal(s"unknown item $item")
             }
-          case item =>
+          case item ⇒
             log.fatal(s"unknown item $item")
         }
     })
@@ -214,12 +191,12 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
     // Add the selection listener
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
-        case selection: IStructuredSelection if !selection.isEmpty() =>
+        case selection: IStructuredSelection if !selection.isEmpty() ⇒
           val template = selection.getFirstElement().asInstanceOf[ElementTemplate]
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
-          ActionRemove.setEnabled(!ElementTemplate.predefined.exists(_.id == template.id)) // exclude predefined
-        case selection =>
+          ActionRemove.setEnabled(!payload.originalElementTemplates.exists(_.id == template.id)) // exclude predefined
+        case selection ⇒
           ActionCreateFrom.setEnabled(false)
           ActionEdit.setEnabled(false)
           ActionRemove.setEnabled(false)
@@ -234,12 +211,12 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
     updateOK()
     if (ActionAutoResize.isChecked())
       future { autoresize() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
   }
   /** Updates an actual element template */
-  protected[eltemlist] def updateActualTemplate(before: payload.api.ElementTemplate, after: payload.api.ElementTemplate) {
+  protected[eltemlist] def updateActualTemplate(before: papi.ElementTemplate, after: papi.ElementTemplate) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -254,9 +231,9 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
     override def run = if (isChecked()) autoresize
   }
   object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
-    override def run = Option(selected.value) foreach { (before) =>
+    override def run = Option(selected.value) foreach { (before) ⇒
       val from = before.element
-      // create new ID
+      /*      // create new ID
       val toID = getNewTemplateCopyID(from.eId)
       // create an element for a new template
       val to = from.asInstanceOf[Element[Stash]].eCopy(from.eStash.copy(id = toID, unique = UUID.randomUUID))
@@ -287,12 +264,12 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }
+      }*/
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
-    override def run = Option(selected.value) foreach { (before) =>
-      OperationModifyElementTemplate(before, actual.toSet).foreach { operation =>
+    override def run = Option(selected.value) foreach { (before) ⇒
+      /*      OperationModifyElementTemplate(before, actual.toSet).foreach { operation =>
         operation.getExecuteJob() match {
           case Some(job) =>
             job.setPriority(Job.SHORT)
@@ -308,13 +285,13 @@ class ElementTemplateList(val parentShell: Shell, val initial: Set[payload.api.E
           case None =>
             log.fatal(s"Unable to create job for ${operation}.")
         }
-      }
+      }*/
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {
-    override def run = Option(selected.value) foreach { (selected) =>
-      if (!ElementTemplate.predefined.exists(_.id == selected.id))
-        actual -= selected
+    override def run = Option(selected.value) foreach { (selected) ⇒
+      /*      if (!ElementTemplate.predefined.exists(_.id == selected.id))
+        actual -= selected*/
     }
   }
 }
@@ -346,10 +323,10 @@ object ElementTemplateList extends Loggable {
       val entity1 = e1.asInstanceOf[ElementTemplate]
       val entity2 = e2.asInstanceOf[ElementTemplate]
       val rc = column match {
-        case 0 => entity1.availability.compareTo(entity2.availability)
-        case 1 => entity1.id.name.compareTo(entity2.id.name)
-        case 2 => entity1.name.compareTo(entity2.name)
-        case index =>
+        case 0 ⇒ entity1.availability.compareTo(entity2.availability)
+        case 1 ⇒ entity1.id.name.compareTo(entity2.id.name)
+        case 2 ⇒ entity1.name.compareTo(entity2.name)
+        case index ⇒
           log.fatal(s"unknown column with index $index"); 0
       }
       if (_direction) -rc else rc
@@ -362,14 +339,14 @@ object ElementTemplateList extends Loggable {
   }
   class TemplateSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
     override def widgetSelected(e: SelectionEvent) = {
-      tableViewer.get.foreach(viewer => viewer.getComparator() match {
-        case comparator: TemplateComparator if comparator.column == column =>
+      tableViewer.get.foreach(viewer ⇒ viewer.getComparator() match {
+        case comparator: TemplateComparator if comparator.column == column ⇒
           comparator.switchDirection()
           viewer.refresh()
-        case comparator: TemplateComparator =>
+        case comparator: TemplateComparator ⇒
           comparator.column = column
           viewer.refresh()
-        case _ =>
+        case _ ⇒
       })
     }
   }

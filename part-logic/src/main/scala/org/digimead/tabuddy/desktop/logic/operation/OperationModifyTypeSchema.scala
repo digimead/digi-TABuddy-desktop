@@ -61,7 +61,7 @@ trait OperationModifyTypeSchema extends api.OperationModifyTypeSchema {
    * @param graph graph that contains a type schema
    * @param schema the initial type schema
    * @param schemaList exists type schemas
-   * @param isSchemaActive the flag whether the type schema is active
+   * @param isSchemaActive the flag indicating whether the type schema is active
    * @return 'Modify a type schema' operation
    */
   def operation(graph: Graph[_ <: Model.Like], schema: TypeSchema, schemaList: Set[TypeSchema], isSchemaActive: Boolean): OperationModifyTypeSchema.Abstract
