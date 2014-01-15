@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,72 +45,61 @@ package org.digimead.tabuddy.desktop.core.support.app
 
 import java.util.concurrent.{ Exchanger, TimeUnit, TimeoutException }
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
 
 trait Thread {
   this: Generic with Loggable ⇒
   /** Execute runnable in the event thread. */
-  def exec[T](f: ⇒ T): Unit = if (debug) {
-    val t = new Throwable("Entry point.")
-    if (isEventLoop) {
-      val ts = System.currentTimeMillis()
-      f
-      val duration = System.currentTimeMillis() - ts
-      if (duration > 500)
-        log.error(s"Too heavy operation: ${duration}ms.", t)
-    } else execAsync({ f })
-  } else {
-    if (isEventLoop) { f } else execAsync({ f })
-  }
-  /** Asynchronously execute runnable in the event thread. */
-  def execAsync[T](f: ⇒ T): Unit = if (debug) {
-    val t = new Throwable("Entry point.")
-    display.asyncExec(new Runnable {
-      def run = try {
+  def exec[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): Unit =
+    if (duration == App.ShortRunnable && debug) {
+      val t = new Throwable("Entry point.")
+      if (isEventLoop) {
         val ts = System.currentTimeMillis()
         f
         val duration = System.currentTimeMillis() - ts
         if (duration > 500)
           log.error(s"Too heavy operation: ${duration}ms.", t)
-      } catch { case e: Throwable ⇒ log.error("Event thread exception: " + e, e) }
-    })
-  } else {
-    display.asyncExec(new Runnable {
-      def run = try { f } catch { case e: Throwable ⇒ log.error("Event thread exception: " + e, e) }
-    })
-  }
-  /** Execute blocking runnable with it's own event queue. */
-  def execBlocking[T](f: ⇒ T): T = {
-    if (isEventLoop) {
-      f
+      } else execAsync({ f })
     } else {
-      val exchanger = new Exchanger[Either[Throwable, T]]()
-      display.asyncExec(new Runnable {
-        def run = try { exchanger.exchange(Right(f)) } catch { case e: Throwable ⇒ exchanger.exchange(Left(e)) }
-      })
-      exchanger.exchange(null) match {
-        case Left(e) ⇒ throw e
-        case Right(r) ⇒ r
-      }
+      if (isEventLoop) { f } else execAsync({ f })
     }
-  }
+  /** Asynchronously execute runnable in the event thread. */
+  def execAsync[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): Unit =
+    if (duration == App.ShortRunnable && debug) {
+      val t = new Throwable("Entry point.")
+      display.asyncExec(new Runnable {
+        def run = try {
+          val ts = System.currentTimeMillis()
+          f
+          val duration = System.currentTimeMillis() - ts
+          if (duration > 500)
+            log.error(s"Too heavy operation: ${duration}ms.", t)
+        } catch { case e: Throwable ⇒ log.error("Event thread exception: " + e, e) }
+      })
+    } else {
+      display.asyncExec(new Runnable {
+        def run = try { f } catch { case e: Throwable ⇒ log.error("Event thread exception: " + e, e) }
+      })
+    }
   /** Execute runnable in event thread and return result or exception. */
-  def execNGet[T](f: ⇒ T): T = if (debug) {
-    val t = new Throwable("Entry point.")
-    if (isEventLoop) {
-      val ts = System.currentTimeMillis()
-      val result = f
-      val duration = System.currentTimeMillis() - ts
-      if (duration > 500)
-        log.error(s"Too heavy operation: ${duration}ms.", t)
-      result
-    } else execNGetAsync({ f })
-  } else {
-    if (isEventLoop) { f } else execNGetAsync({ f })
-  }
+  def execNGet[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): T =
+    if (duration == App.ShortRunnable && debug) {
+      val t = new Throwable("Entry point.")
+      if (isEventLoop) {
+        val ts = System.currentTimeMillis()
+        val result = f
+        val duration = System.currentTimeMillis() - ts
+        if (duration > 500)
+          log.error(s"Too heavy operation: ${duration}ms.", t)
+        result
+      } else execNGetAsync({ f })
+    } else {
+      if (isEventLoop) { f } else execNGetAsync({ f })
+    }
   /** Asynchronously execute runnable in event thread and return result or exception. */
-  def execNGetAsync[T](f: ⇒ T): T = {
+  def execNGetAsync[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): T = {
     val exchanger = new Exchanger[Either[Throwable, T]]()
-    if (debug) {
+    if (duration == App.ShortRunnable && debug) {
       val t = new Throwable("Entry point.")
       display.asyncExec(new Runnable {
         def run = {

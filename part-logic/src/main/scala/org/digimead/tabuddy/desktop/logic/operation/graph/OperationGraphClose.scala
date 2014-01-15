@@ -69,7 +69,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
     GraphMarker.globalRWL.writeLock().lock()
     try {
       val marker = GraphMarker(graph)
-      marker.lockUpdate { state ⇒
+      marker.safeUpdate { state ⇒
         log.info(s"Close $graph, force is $force.")
         if (!marker.graphIsOpen())
           throw new IllegalStateException(s"$graph is already closed.")

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -67,11 +67,11 @@ class Predefined extends Loggable {
     container elementAt RecordLocation(id = id, scope = new Record.Scope(id)) match {
       case Some(element) ⇒
         log.debug("Get exists predefined Record template")
-        new ElementTemplate(element, factory)
+        new ElementTemplate(element.eRelative, factory)
       case None ⇒
         log.debug("Initialize new predefined Record template")
         val element = factory(container, id, id)
-        new ElementTemplate(element, factory, "Predefined custom element", true,
+        new ElementTemplate(element.eRelative, factory, "Predefined custom element", true,
           immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('name, false, None, PropertyType.get('String)))))
     }
   }
@@ -85,11 +85,11 @@ class Predefined extends Loggable {
     container elementAt NoteLocation(id = id, scope = new Note.Scope(id)) match {
       case Some(element) ⇒
         log.debug("Get exists predefined Record template")
-        new ElementTemplate(element, factory)
+        new ElementTemplate(element.eRelative, factory)
       case None ⇒
         log.debug("Initialize new predefined Record template")
         val element = factory(container, id, id)
-        new ElementTemplate(element, factory, "Predefined note element", true,
+        new ElementTemplate(element.eRelative, factory, "Predefined note element", true,
           immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('name, false, None, PropertyType.get('String)))))
     }
   }
@@ -103,11 +103,11 @@ class Predefined extends Loggable {
     container elementAt TaskLocation(id = id, scope = new Task.Scope(id)) match {
       case Some(element) ⇒
         log.debug("Get exists predefined Task template")
-        new ElementTemplate(element, factory)
+        new ElementTemplate(element.eRelative, factory)
       case None ⇒
         log.debug("Initialize new predefined Task template")
         val element = factory(container, id, id)
-        new ElementTemplate(element, factory, "Predefined task element", true,
+        new ElementTemplate(element.eRelative, factory, "Predefined task element", true,
           immutable.HashMap(TemplatePropertyGroup.default -> Seq(new TemplateProperty[String]('name, false, None, PropertyType.get('String)))))
     }
   }

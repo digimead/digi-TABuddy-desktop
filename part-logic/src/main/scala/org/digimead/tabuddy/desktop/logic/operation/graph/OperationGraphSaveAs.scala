@@ -68,7 +68,7 @@ class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
    * @param serialization type of the serialization
    * @return copy of the graph
    */
-  def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Graph[_ <: Model.Like] = GraphMarker(graph).lockUpdate { _ ⇒
+  def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Graph[_ <: Model.Like] = GraphMarker(graph).safeUpdate { _ ⇒
     log.info(s"Save $graph as $name.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
@@ -84,7 +84,7 @@ class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
       throw new IOException(newGraphDescriptor + " descriptor is already exists.")
     val newMarker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(path, name),
       marker.graphCreated, marker.graphOrigin)
-    newMarker.lockUpdate(_.lockWrite(_.graphObject = Some(graph.copy() { g ⇒
+    newMarker.safeUpdate(_.safeWrite(_.graphObject = Some(graph.copy() { g ⇒
       g.withData { data ⇒
         data.clear()
         data(GraphMarker) = newMarker
@@ -94,7 +94,7 @@ class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
     })))
     if (!newMarker.markerIsValid)
       throw new IllegalStateException(marker + " is not valid.")
-    val newGraph = newMarker.lockRead(_.graph)
+    val newGraph = newMarker.safeRead(_.graph)
     OperationGraphSave.operation(newGraph, true) // overwrite even there are no modifications
     newGraph
   }

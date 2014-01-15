@@ -102,6 +102,12 @@ object App {
         context.children.foreach(_.forward(message))
     }
   }
+  /** Attribute that affects debugging event loop runnables. */
+  trait EventLoopRunnableDuration
+  /** Short running runnable. */
+  case object ShortRunnable extends EventLoopRunnableDuration
+  /** Long running runnable (like dialog, that waiting user input). */
+  case object LongRunnable extends EventLoopRunnableDuration
   /**
    * Base messages
    */

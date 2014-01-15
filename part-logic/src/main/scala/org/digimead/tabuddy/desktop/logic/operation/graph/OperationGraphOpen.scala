@@ -68,7 +68,7 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
     log.info(s"Open graph for marker $marker.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    val graph = marker.lockUpdate { state ⇒
+    val graph = marker.safeUpdate { state ⇒
       if (marker.graphIsOpen())
         throw new IllegalStateException("Graph is already opened.")
       marker.graphAcquire()

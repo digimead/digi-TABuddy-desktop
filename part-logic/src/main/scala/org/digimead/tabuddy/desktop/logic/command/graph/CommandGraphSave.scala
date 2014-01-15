@@ -71,7 +71,7 @@ object CommandGraphSave extends Loggable {
       parserResult match {
         case Some((Some(marker: GraphMarker), _, _, _)) ⇒
           val exchanger = new Exchanger[Operation.Result[Unit]]()
-          val graph = marker.lockRead(_.graph)
+          val graph = marker.safeRead(_.graph)
           OperationGraphSave(graph, false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
@@ -97,7 +97,7 @@ object CommandGraphSave extends Loggable {
         case None ⇒
           val unsaved = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.graphIsOpen() && m.graphIsDirty())
           unsaved.foreach { marker ⇒
-            val graph = marker.lockRead(_.graph)
+            val graph = marker.safeRead(_.graph)
             OperationGraphSave(graph, false).foreach { operation ⇒
               operation.getExecuteJob() match {
                 case Some(job) ⇒

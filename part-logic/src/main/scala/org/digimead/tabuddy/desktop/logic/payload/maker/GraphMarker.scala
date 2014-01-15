@@ -99,23 +99,18 @@ class GraphMarker(
   /** GraphMarker mutable state. */
   val state: GraphMarker.ThreadSafeState = {
     GraphMarker.globalRWL.readLock().lock()
-    try {
-      GraphMarker.state.get(uuid) getOrElse GraphMarker.state.synchronized {
-        val state = new GraphMarker.ThreadUnsafeState()
-        GraphMarker.state(uuid) = state
-        state
-      }
-    } finally GraphMarker.globalRWL.readLock().unlock()
+    try initializeState()
+    finally GraphMarker.globalRWL.readLock().unlock()
   }
 
   /** Assert marker state. */
-  def assertState() = lockRead { state ⇒
+  def assertState() = safeRead { state ⇒
     if (state.asInstanceOf[GraphMarker.ThreadUnsafeState].payloadObject == null)
       throw new IllegalStateException(s"${this} points to disposed data.")
   }
   /** Load type schemas from local storage. */
   @log
-  def loadTypeSchemas(): immutable.HashSet[payloadapi.TypeSchema] = lockRead { state ⇒
+  def loadTypeSchemas(): immutable.HashSet[payloadapi.TypeSchema] = safeRead { state ⇒
     assertState()
     val typeSchemasStorage = new File(graphPath, folderTypeSchemas)
     log.debug(s"Load type schemas from $typeSchemasStorage")
@@ -144,15 +139,15 @@ class GraphMarker(
    * Lock marker state for reading.
    */
   @inline
-  def lockRead[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.lockRead(f)
+  def safeRead[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.safeRead(f)
   /**
    * Lock marker state for updating.
    */
   @inline
-  def lockUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.lockUpdate(f)
+  def safeUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.safeUpdate(f)
   /** Save type schemas to the local storage. */
   @log
-  def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema]) = state.lockWrite { state ⇒
+  def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema]) = state.safeWrite { state ⇒
     assertState()
     val typeSchemasStorage = new File(graphPath, folderTypeSchemas)
     log.debug(s"Save type schemas to $typeSchemasStorage")
@@ -166,18 +161,18 @@ class GraphMarker(
 
   /** Get value from graph properties with double checking. */
   protected def getValueFromGraphProperties[A](f: Properties ⇒ A): A =
-    lockRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒
+    safeRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒
       assertState()
       state.graphProperties.map(f)
     } getOrElse {
-      lockUpdate { state ⇒
+      safeUpdate { state ⇒
         state.graphProperties.map(f) getOrElse {
           require(state, true)
           state.graphProperties.map(f) getOrElse { throw new IOException("Unable to read graph properties.") }
         }
       }
     }
-  protected def initializePayload(): Payload = state.lockWrite { state ⇒
+  protected def initializePayload(): Payload = state.safeWrite { state ⇒
     log.info(s"Initialize payload for marker ${this}.")
     val payload = new Payload(this)
     // The load order is important
@@ -250,6 +245,13 @@ class GraphMarker(
     }
     payload
   }
+  /** Initialize marker state. */
+  protected def initializeState(): GraphMarker.ThreadSafeState =
+    GraphMarker.state.get(uuid) getOrElse GraphMarker.state.synchronized {
+      val state = new GraphMarker.ThreadUnsafeState(None)
+      GraphMarker.state(uuid) = state
+      state
+    }
   /** Load model descriptor if needed. */
   protected def require(state: GraphMarker.ThreadUnsafeStateReadOnly, throwError: Boolean, updateViaSave: Boolean = true): Unit =
     if (autoload && state.graphProperties.isEmpty) {
@@ -261,7 +263,7 @@ class GraphMarker(
         throw new IllegalStateException(s"Graph properties ${resource} is not loaded.")
     }
   /** Update application elements. */
-  protected def updateApplicationElements() = state.lockWrite { state ⇒
+  protected def updateApplicationElements() = state.safeWrite { state ⇒
     val eTABuddy = PredefinedElements.eTABuddy(state.graph)
     if (eTABuddy.name.trim.isEmpty())
       eTABuddy.name = "TABuddy Desktop internal treespace"
@@ -329,7 +331,7 @@ object GraphMarker extends Loggable {
   protected val state = new mutable.HashMap[UUID, ThreadSafeState]() with mutable.SynchronizedMap[UUID, ThreadSafeState]
 
   /** Get marker for UUID. */
-  def apply(uuid: UUID): GraphMarker = new GraphMarker(uuid)
+  def apply(uuid: UUID): GraphMarker = state(uuid).graphMarkerSingleton getOrElse new GraphMarker(uuid)
   /** Get marker for graph. */
   def apply(graph: Graph[_ <: Model.Like]): GraphMarker = graph.withData(_(GraphMarker).asInstanceOf[GraphMarker])
   /** Find the best shell which is suitable for the graph marker. */
@@ -343,7 +345,7 @@ object GraphMarker extends Loggable {
     val active = Core.context.getActiveLeaf()
     viewContexts.find(_.eq(active)).foreach { context ⇒
       context.getParents().find(_.containsKey(classOf[WComposite], true)).foreach { context ⇒
-        log.debug("Find reliable shell inside " + Context.getName(context))
+        log.debug(s"Find reliable shell for ${marker}.")
         return Some(context.get(classOf[WComposite]).getShell())
       }
     }
@@ -352,7 +354,7 @@ object GraphMarker extends Loggable {
     val windowContexts = Core.context.getChildren().flatMap {
       case context if context.containsKey(classOf[WComposite], true) ⇒
         if (activeBranch.contains(context)) {
-          log.debug("Find most reliable shell inside " + Context.getName(context))
+          log.debug("Find most reliable shell inside " + Context.getName(context).getOrElse("UNKNOWN CONTEXT"))
           return Some(context.get(classOf[WComposite]).getShell())
         } else
           Some(context)
@@ -362,13 +364,13 @@ object GraphMarker extends Loggable {
     // search for any window
     windowContexts.foreach { context ⇒
       if (context.getParent().getActiveChild() == context) {
-        log.debug("Find one activated shell inside " + Context.getName(context))
+        log.debug("Find one activated shell inside " + Context.getName(context).getOrElse("UNKNOWN CONTEXT"))
         return Some(context.get(classOf[WComposite]).getShell())
       }
     }
     if (windowContexts.nonEmpty) {
       val context = windowContexts.head
-      log.debug("Find one random shell inside " + Context.getName(context))
+      log.debug("Find one random shell inside " + Context.getName(context).getOrElse("UNKNOWN CONTEXT"))
       return Some(context.get(classOf[WComposite]).getShell())
     }
     None
@@ -437,7 +439,7 @@ object GraphMarker extends Loggable {
   def deleteFromWorkspace(marker: GraphMarker): ReadOnlyGraphMarker = {
     globalRWL.writeLock().lock()
     try {
-      marker.lockUpdate {
+      marker.safeUpdate {
         case state: ThreadUnsafeState ⇒
           val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphCreated, marker.graphModelId,
             marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed)
@@ -474,6 +476,8 @@ object GraphMarker extends Loggable {
     try marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.keys.toSeq
     finally globalRWL.readLock().unlock()
   }
+  /** Create temporary graph marker. */
+  def temporary(graph: Graph[_ <: Model]): TemporaryGraphMarker = new TemporaryGraphMarker(graph)
   /** Unbind marker from context. */
   def unbind(context: Context) = {
     globalRWL.readLock().lock()
@@ -483,7 +487,7 @@ object GraphMarker extends Loggable {
       context.remove(classOf[GraphMarker])
       marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.remove(context)
       if (marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.isEmpty && marker.graphIsOpen())
-        marker.lockUpdate(e ⇒ OperationGraphClose(e.graph, false))
+        marker.safeUpdate(e ⇒ OperationGraphClose(e.graph, false))
     } finally globalRWL.readLock().unlock()
   }
 
@@ -494,19 +498,21 @@ object GraphMarker extends Loggable {
     this: ThreadUnsafeState ⇒
     /** State read/write lock. */
     protected val rwl = new ReentrantReadWriteLock
+    /** Contains the specific singleton instance. */
+    val graphMarkerSingleton: Option[GraphMarker]
 
     /** Lock this state for reading. */
-    def lockRead[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = {
+    def safeRead[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = {
       rwl.readLock().lock()
       try f(this) finally rwl.readLock().unlock()
     }
     /** Lock this state for writing. */
-    def lockWrite[A](f: ThreadUnsafeState ⇒ A): A = {
+    def safeWrite[A](f: ThreadUnsafeState ⇒ A): A = {
       rwl.writeLock().lock()
       try f(this) finally rwl.writeLock().unlock()
     }
     /** Lock this state for updating field content. */
-    def lockUpdate[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = lockWrite(f)
+    def safeUpdate[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = safeWrite(f)
   }
   /**
    * Graph marker thread unsafe read only object.
@@ -522,8 +528,10 @@ object GraphMarker extends Loggable {
   }
   /**
    * Graph marker thread unsafe object.
+   *
+   * @param graphMarkerSingleton returns the specific singleton instance instead of generic GraphMarker
    */
-  class ThreadUnsafeState extends ThreadUnsafeStateReadOnly {
+  class ThreadUnsafeState(val graphMarkerSingleton: Option[GraphMarker]) extends ThreadUnsafeStateReadOnly {
     /** Map of marker contexts binded with this graph. */
     val contextRefs = new mutable.WeakHashMap[Context, Unit] with mutable.SynchronizedMap[Context, Unit]
     /** Graph. */
@@ -545,8 +553,6 @@ object GraphMarker extends Loggable {
     extends api.GraphMarker {
     /** Autoload property file if suitable information needed. */
     val autoload = false
-    /** The validation flag indicating whether the marker is consistent. */
-    val markerIsValid: Boolean = false
 
     /** Assert marker state. */
     def assertState() {}
@@ -565,11 +571,13 @@ object GraphMarker extends Loggable {
     /**
      * Lock this marker for reading.
      */
-    def lockRead[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = throw new UnsupportedOperationException()
+    def safeRead[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = throw new UnsupportedOperationException()
     /**
      * Lock marker state for updating.
      */
-    def lockUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = throw new UnsupportedOperationException()
+    def safeUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = throw new UnsupportedOperationException()
+    /** The validation flag indicating whether the marker is consistent. */
+    def markerIsValid: Boolean = false
     /** Load marker properties. */
     def markerLoad() = throw new UnsupportedOperationException()
     /** Save marker properties. */
@@ -591,5 +599,79 @@ object GraphMarker extends Loggable {
       graphModelId, graphOrigin, graphPath, graphStored, Long.box(markerLastAccessed)))
 
     override def toString() = s"ROGraphMarker[${uuid}]"
+  }
+  /** Temporary marker for in memory graph. */
+  class TemporaryGraphMarker(graph: Graph[_ <: Model]) extends GraphMarker(UUID.randomUUID(), false) {
+    /** Assert marker state. */
+    override def assertState() {}
+    /** Load the specific graph from the predefined directory ${location}/id/ */
+    override def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = graph
+    /** Graph creation timestamp. */
+    override def graphCreated: Element.Timestamp = graph.created
+    /** Close the loaded graph. */
+    override def graphClose() = throw new UnsupportedOperationException()
+    /** Store the graph to the predefined directory ${location}/id/ */
+    override def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = throw new UnsupportedOperationException()
+    /** Check whether the graph is modified. */
+    override def graphIsDirty(): Boolean = true
+    /** Check whether the graph is loaded. */
+    override def graphIsOpen(): Boolean = true
+    /** Model ID. */
+    override def graphModelId: Symbol = graph.model.eId
+    /** Origin of the graph. */
+    override def graphOrigin: Symbol = graph.origin
+    /** Path to the graph: base directory and graph directory name. */
+    override def graphPath: File = throw new UnsupportedOperationException()
+    /** Graph last save timestamp. */
+    override def graphStored: Element.Timestamp = graph.created
+    /** Load type schemas from local storage. */
+    override def loadTypeSchemas(): immutable.HashSet[payloadapi.TypeSchema] = throw new UnsupportedOperationException()
+    /** Register marker state. */
+    def register() = GraphMarker.state.get(uuid) match {
+      case Some(marker) ⇒
+        throw new IllegalStateException(s"${this} is already registered.")
+      case None ⇒
+        GraphMarker.state(uuid) = state
+    }
+    /** The validation flag indicating whether the marker is consistent. */
+    override def markerIsValid: Boolean = false
+    /** Marker last access timestamp. */
+    override def markerLastAccessed: Long = System.currentTimeMillis()
+    /** Load marker properties. */
+    override def markerLoad() = throw new UnsupportedOperationException()
+    /** Save marker properties. */
+    override def markerSave() = throw new UnsupportedOperationException()
+    /** Save type schemas to the local storage. */
+    override def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema]) = throw new UnsupportedOperationException()
+    /** Unregister marker state. */
+    def unregister() = GraphMarker.state.get(uuid) match {
+      case Some(marker) ⇒
+        GraphMarker.state.remove(uuid)
+      case None ⇒
+        throw new IllegalStateException(s"${this} is not registered.")
+    }
+
+    /** Initialize marker state. */
+    override protected def initializeState() = {
+      val state = new GraphMarker.ThreadUnsafeState(Some(this))
+      state.graphObject = Some(graph)
+      graph.withData { data ⇒
+        data.get(GraphMarker) match {
+          case Some(marker) ⇒
+            throw new IllegalArgumentException(s"$graph already have marker.")
+          case None ⇒
+            data(GraphMarker) = this
+        }
+      }
+      state
+    }
+
+    override def canEqual(other: Any) = other.isInstanceOf[TemporaryGraphMarker]
+    override def equals(other: Any) = other match {
+      case that: TemporaryGraphMarker ⇒ (this eq that) || { that.canEqual(this) && uuid == that.uuid }
+      case _ ⇒ false
+    }
+
+    override def toString() = s"TemporaryGraphMarker[${uuid}]"
   }
 }

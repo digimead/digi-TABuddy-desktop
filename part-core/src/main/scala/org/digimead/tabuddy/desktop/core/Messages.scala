@@ -43,8 +43,30 @@
 
 package org.digimead.tabuddy.desktop.core
 
-import org.digimead.tabuddy.desktop.core.definition.NLS
+import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.NLS
+
+/**
+ * Resource bundle implementation.
+ *
+ * This code is directly evaluated in IDE (WindowBuilderPro).
+ * Any runtime references that may prevent creation are prohibited.
+ */
+class Messages extends ResourceBundle {
+  def getKeys() = new java.util.Enumeration[String] {
+    private val iterator = Messages.T.messages.keys.iterator
+    def hasMoreElements(): Boolean = iterator.hasNext
+    def nextElement(): String = iterator.next()
+  }
+  protected def handleGetObject(key: String): Object = try {
+    Messages.T.messages.get(key).
+      getOrElse { Messages.log.error(s"'${key}' not found in ${this.getClass()}"); key }
+  } catch {
+    case e: Throwable ⇒
+      key
+  }
+}
 
 object Messages extends NLS with Loggable {
   val acquire_text = ""

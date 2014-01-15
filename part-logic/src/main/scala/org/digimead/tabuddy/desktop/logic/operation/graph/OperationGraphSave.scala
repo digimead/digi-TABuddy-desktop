@@ -61,7 +61,7 @@ class OperationGraphSave extends api.OperationGraphSave with Loggable {
    * @param graph graph to save
    * @param force overwrite graph even if there are no modifications
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean) = GraphMarker(graph).lockUpdate { _ ⇒
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean) = GraphMarker(graph).safeUpdate { _ ⇒
     log.info(s"Save $graph.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")

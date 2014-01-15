@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -130,14 +130,14 @@ object TypeSchema extends Loggable {
   else
     entityAlias
   /** Get type name. */
-  def getTypeName(marker: GraphMarker, ptypeId: Symbol) = marker.lockRead { state ⇒
+  def getTypeName(marker: GraphMarker, ptypeId: Symbol) = marker.safeRead { state ⇒
     App.execNGet { state.payload.typeSchema.value.entity.get(ptypeId) } match {
       case Some(entity) ⇒ entity.view
       case None ⇒ ptypeId.name
     }
   }
   /** Get all schemas for the current graph. */
-  def load(marker: GraphMarker): Set[api.TypeSchema] = marker.lockRead { state ⇒
+  def load(marker: GraphMarker): Set[api.TypeSchema] = marker.safeRead { state ⇒
     log.debug("Load schema list for graph " + state.graph)
     val schemas = try {
       marker.loadTypeSchemas
@@ -158,7 +158,7 @@ object TypeSchema extends Loggable {
   def predefined: Seq[api.TypeSchema] = DI.predefinedTypeSchemas
   /** Update only modified type schemas. */
   @log
-  def save(marker: GraphMarker, schemas: Set[api.TypeSchema]) = marker.lockUpdate { state ⇒
+  def save(marker: GraphMarker, schemas: Set[api.TypeSchema]) = marker.safeUpdate { state ⇒
     log.debug("Save type schema list for graph " + state.graph)
     val oldSchemas = App.execNGet { state.payload.typeSchemas.values }
     val deleted = oldSchemas.filterNot(oldSchema ⇒ schemas.exists(compareDeep(_, oldSchema)))

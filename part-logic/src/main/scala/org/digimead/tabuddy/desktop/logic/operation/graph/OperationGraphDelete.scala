@@ -66,7 +66,7 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
     GraphMarker.globalRWL.writeLock().lock()
     try {
       val marker = GraphMarker(graph)
-      marker.lockUpdate { state ⇒
+      marker.safeUpdate { state ⇒
         log.info(s"Delete $graph.")
         if (!marker.markerIsValid)
           throw new IllegalStateException(marker + " is not valid.")

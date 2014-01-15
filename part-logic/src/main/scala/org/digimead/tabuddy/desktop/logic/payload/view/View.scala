@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -106,7 +106,7 @@ object View extends Loggable {
   val collectionMaximum = 10000
 
   /** Add view element. */
-  def add(marker: GraphMarker, view: api.View) = marker.lockUpdate { state ⇒
+  def add(marker: GraphMarker, view: api.View) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewDefinition(state.graph)
     val element = (container | RecordLocation(view.elementId)).eRelative
     element.eRemoveAll()
@@ -222,14 +222,14 @@ object View extends Loggable {
   /** Returns an ID for the name field */
   def getFieldIDName() = 'name
   /** Get all view definitions. */
-  def load(marker: GraphMarker): Set[View] = marker.lockRead { state ⇒
+  def load(marker: GraphMarker): Set[View] = marker.safeRead { state ⇒
     log.debug("Load view definition list for graph " + state.graph)
     val container = PredefinedElements.eViewDefinition(state.graph)
     val result = container.eNode.freezeRead(_.children.map(_.rootBox.e)).toSet.map(View.get).flatten
     if (result.contains(View.displayName)) result else result + View.displayName
   }
   /** Update only modified view definitions. */
-  def save(marker: GraphMarker, views: Set[api.View]) = marker.lockUpdate { state ⇒
+  def save(marker: GraphMarker, views: Set[api.View]) = marker.safeUpdate { state ⇒
     log.debug("Save view definition list for graph " + state.graph)
     val oldViews = App.execNGet { state.payload.viewDefinitions.values }
     val newViews = views - displayName
@@ -247,7 +247,7 @@ object View extends Loggable {
     }
   }
   /** Remove view element. */
-  def remove(marker: GraphMarker, view: api.View) = marker.lockUpdate { state ⇒
+  def remove(marker: GraphMarker, view: api.View) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewDefinition(state.graph)
     container.eNode.safeWrite { node ⇒ node.children.find(_.rootBox.e.eId == view.elementId).foreach(node -= _) }
   }

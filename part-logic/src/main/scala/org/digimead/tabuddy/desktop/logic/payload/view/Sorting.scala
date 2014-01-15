@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -105,7 +105,7 @@ object Sorting extends Loggable {
   val collectionMaximum = 100
 
   /** Add sorting element. */
-  def add(marker: GraphMarker, sorting: api.Sorting) = marker.lockUpdate { state ⇒
+  def add(marker: GraphMarker, sorting: api.Sorting) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewSorting(state.graph)
     val element = (container | RecordLocation(sorting.elementId)).eRelative
     // remove all element properties
@@ -189,14 +189,14 @@ object Sorting extends Loggable {
   /** Returns an ID for the label field */
   def getFieldIDName() = 'name
   /** Get all view sortings for the current model. */
-  def load(marker: GraphMarker): Set[Sorting] = marker.lockRead { state ⇒
+  def load(marker: GraphMarker): Set[Sorting] = marker.safeRead { state ⇒
     log.debug("Load view sorting list for graph " + state.graph)
     val container = PredefinedElements.eViewSorting(state.graph)
     val result = container.eNode.freezeRead(_.children.map(_.rootBox.e)).toSet.map(Sorting.get).flatten
     if (result.contains(Sorting.simpleSorting)) result else result + Sorting.simpleSorting
   }
   /** Update only modified view sortings */
-  def save(marker: GraphMarker, sortings: Set[api.Sorting]) = marker.lockUpdate { state ⇒
+  def save(marker: GraphMarker, sortings: Set[api.Sorting]) = marker.safeUpdate { state ⇒
     log.debug("Save view sorting list for graph " + state.graph)
     val oldSortings = App.execNGet { state.payload.viewSortings.values }
     val newSortings = sortings - simpleSorting
@@ -214,7 +214,7 @@ object Sorting extends Loggable {
     }
   }
   /** Remove sorting element. */
-  def remove(marker: GraphMarker, sorting: api.Sorting) = marker.lockUpdate { state ⇒
+  def remove(marker: GraphMarker, sorting: api.Sorting) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewSorting(state.graph)
     container.eNode.safeWrite { node ⇒ node.children.find(_.rootBox.e.eId == sorting.elementId).foreach(node -= _) }
   }

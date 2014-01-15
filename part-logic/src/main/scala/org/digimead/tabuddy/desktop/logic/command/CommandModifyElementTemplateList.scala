@@ -74,7 +74,7 @@ object CommandModifyElementTemplateList extends Loggable {
       parserResult match {
         case marker: GraphMarker ⇒
           val exchanger = new Exchanger[Operation.Result[Set[ElementTemplate]]]()
-          marker.lockRead { state ⇒
+          marker.safeRead { state ⇒
             App.exec {
               OperationModifyElementTemplateList(state.graph, state.payload.elementTemplates.values.toSet).foreach { operation ⇒
                 operation.getExecuteJob() match {

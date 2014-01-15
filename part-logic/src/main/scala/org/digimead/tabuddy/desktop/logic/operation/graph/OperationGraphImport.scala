@@ -119,7 +119,7 @@ class OperationGraphImport extends api.OperationGraphImport with Loggable {
         else
           graph.node.unique
         val newMarker = GraphMarker.createInTheWorkspace(uuid, localGraphPath, Element.timestamp(), graphOrigin)
-        newMarker.lockUpdate(_.lockWrite(_.graphObject = Some(graph.copy() { g ⇒
+        newMarker.safeUpdate(_.safeWrite(_.graphObject = Some(graph.copy() { g ⇒
           g.withData { data ⇒
             data(GraphMarker) = newMarker
           }

@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist;
 
+import java.util.ResourceBundle;
+
 import org.digimead.tabuddy.desktop.ui.ResourceManager;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
@@ -67,11 +69,29 @@ import swing2swt.layout.FlowLayout;
  * @author ezh
  */
 public class ElementTemplateListSkel extends TitleAreaDialog {
+	private static final ResourceBundle BUNDLE = getResourceBundle();
 	private TableViewer tableViewer;
 	private Composite compositeFooter;
 	private TableViewerColumn tableViewerColumnId;
 	private TableViewerColumn tableViewerColumnAvailability;
 	private TableViewerColumn tableViewerColumnName;
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceBundle() {
+		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.core.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist.messages");
+		}
+	}
 
 	/**
 	 * Create the dialog.
@@ -90,52 +110,41 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setTitleImage(ResourceManager.getImage(ElementTemplateList.class,
-				"/icons/full/message_info.gif"));
-		setTitle(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.elementTemplateListTitle_text()); // $hide$
-		setMessage(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.elementTemplateListDescription_text()); // $hide$
+		setTitleImage(ResourceManager.getImage(ElementTemplateList.class, "/icons/full/message_info.gif_text"));
+		setTitle(BUNDLE.getString("elementTemplateListTitle_text"));
+		setMessage(BUNDLE.getString("elementTemplateListDescription_text"));
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new GridLayout(1, true));
 		container.setLayoutData(new GridData(GridData.FILL_BOTH));
 
 		Label lblElementTemplates = new Label(container, SWT.NONE);
-		lblElementTemplates.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER,
-				false, false, 1, 1));
-		lblElementTemplates.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.elementTemplates_text()); // $hide$
+		lblElementTemplates.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1));
+		lblElementTemplates.setText(BUNDLE.getString("elementTemplates_text"));
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK | SWT.FULL_SELECTION);
 		Table table_templates = tableViewer.getTable();
 		table_templates.setHeaderVisible(true);
 		table_templates.setLinesVisible(true);
-		table_templates.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true,
-				true, 1, 1));
+		table_templates.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
 
-		tableViewerColumnAvailability = new TableViewerColumn(
-				tableViewer, SWT.NONE);
-		TableColumn tblclmnAvailability = tableViewerColumnAvailability
-				.getColumn();
+		tableViewerColumnAvailability = new TableViewerColumn(tableViewer, SWT.NONE);
+		TableColumn tblclmnAvailability = tableViewerColumnAvailability.getColumn();
 		tblclmnAvailability.setWidth(100);
-		tblclmnAvailability
-				.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.availability_text()); // $hide$
+		tblclmnAvailability.setText(BUNDLE.getString("availability_text"));
 
-		tableViewerColumnId = new TableViewerColumn(tableViewer,
-				SWT.NONE);
+		tableViewerColumnId = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnId = tableViewerColumnId.getColumn();
 		tblclmnId.setWidth(100);
-		tblclmnId.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.identificator_text()); // $hide$
+		tblclmnId.setText(BUNDLE.getString("identificator_text"));
 
-		tableViewerColumnName = new TableViewerColumn(
-				tableViewer, SWT.NONE);
-		TableColumn tblclmnName = tableViewerColumnName
-				.getColumn();
+		tableViewerColumnName = new TableViewerColumn(tableViewer, SWT.NONE);
+		TableColumn tblclmnName = tableViewerColumnName.getColumn();
 		tblclmnName.setWidth(100);
-		tblclmnName
-				.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.name_text()); // $hide$
+		tblclmnName.setText(BUNDLE.getString("name_text"));
 
 		compositeFooter = new Composite(container, SWT.NONE);
-		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,
-				true, false, 1, 1));
+		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false, 1, 1));
 		compositeFooter.setLayout(new FlowLayout(FlowLayout.RIGHT, 5, 5));
 
 		return area;
@@ -148,11 +157,9 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected void createButtonsForButtonBar(Composite parent) {
-		Button button = createButton(parent, IDialogConstants.OK_ID,
-				IDialogConstants.OK_LABEL, true);
+		Button button = createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL, true);
 		button.setEnabled(false);
-		createButton(parent, IDialogConstants.CANCEL_ID,
-				IDialogConstants.CANCEL_LABEL, false);
+		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
 	protected TableViewer getTableViewer() {

@@ -55,7 +55,7 @@ import org.eclipse.core.resources.IResource
 trait MarkerSpecific {
   this: GraphMarker ⇒
   /** The validation flag indicating whether the marker is consistent. */
-  def markerIsValid: Boolean = state.lockUpdate { state ⇒
+  def markerIsValid: Boolean = state.safeUpdate { state ⇒
     try {
       assertState()
       graphPath.exists() && resource.exists() && {
@@ -71,7 +71,7 @@ trait MarkerSpecific {
   /** Marker last access timestamp. */
   def markerLastAccessed: Long = getValueFromGraphProperties { p ⇒ p.getProperty(GraphMarker.fieldLastAccessed).toLong }
   /** Load marker properties. */
-  def markerLoad() = state.lockWrite { state ⇒
+  def markerLoad() = state.safeWrite { state ⇒
     assertState()
     log.debug(s"Load marker with UUID ${uuid}.")
     if (!resource.exists())
@@ -83,7 +83,7 @@ trait MarkerSpecific {
     state.graphProperties = Option(graphProperties)
   }
   /** Save marker properties. */
-  def markerSave() = state.lockWrite { state ⇒
+  def markerSave() = state.safeWrite { state ⇒
     assertState()
     log.debug(s"Save marker ${this}.")
     require(state, true, false)

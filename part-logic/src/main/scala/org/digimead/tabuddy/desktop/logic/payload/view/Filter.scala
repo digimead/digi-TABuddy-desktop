@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -102,7 +102,7 @@ object Filter extends Loggable {
   val collectionMaximum = 100
 
   /** Add filter element. */
-  def add(marker: GraphMarker, filter: api.Filter) = marker.lockUpdate { state ⇒
+  def add(marker: GraphMarker, filter: api.Filter) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewFilter(state.graph)
     val element = (container | RecordLocation(filter.elementId)).eRelative
     // remove all element properties
@@ -183,14 +183,14 @@ object Filter extends Loggable {
   /** Returns an ID for the rule's type field */
   def getFieldIDRuleType(n: Int) = Symbol(n + "_type")
   /** Get all view filters. */
-  def load(marker: GraphMarker): Set[Filter] = marker.lockRead { state ⇒
+  def load(marker: GraphMarker): Set[Filter] = marker.safeRead { state ⇒
     log.debug("Load view filter list for graph " + state.graph)
     val container = PredefinedElements.eViewDefinition(state.graph)
     val result = container.eNode.freezeRead(_.children.map(_.rootBox.e)).toSet.map(Filter.get).flatten
     if (result.contains(Filter.allowAllFilter)) result else result + Filter.allowAllFilter
   }
   /** Update only modified view filters. */
-  def save(marker: GraphMarker, filters: Set[api.Filter]) = marker.lockUpdate { state ⇒
+  def save(marker: GraphMarker, filters: Set[api.Filter]) = marker.safeUpdate { state ⇒
     log.debug("Save view filter list for graph " + state.graph)
     val oldFilters = App.execNGet { state.payload.viewFilters.values }
     val newFilters = filters - allowAllFilter
@@ -208,7 +208,7 @@ object Filter extends Loggable {
     }
   }
   /** Remove filter element. */
-  def remove(marker: GraphMarker, filter: api.Filter) = marker.lockUpdate { state ⇒
+  def remove(marker: GraphMarker, filter: api.Filter) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewFilter(state.graph)
     container.eNode.safeWrite { node ⇒ node.children.find(_.rootBox.e.eId == filter.elementId).foreach(node -= _) }
   }

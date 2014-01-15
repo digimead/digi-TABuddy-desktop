@@ -56,7 +56,7 @@ trait ElementTemplate extends Equals {
   /** The template name. */
   val name: String
   /** The template element. */
-  val element: Element
+  val element: Element#RelativeType
   /** The factory for the element that contains template data (container, id, scopeModificator). */
   val factory: (Element, Symbol, Symbol) ⇒ Element
   /** The template id/name/element scope. */
@@ -71,7 +71,7 @@ trait ElementTemplate extends Equals {
   /** The copy constructor. */
   def copy(availability: Boolean = this.availability,
     name: String = this.name,
-    element: Element = this.element,
+    element: Element#RelativeType = this.element,
     factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
     id: Symbol = this.id,
     properties: ElementTemplate.propertyMap = this.properties): this.type

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -55,15 +55,16 @@ import scala.collection.immutable
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.serialization.StubSerialization
+import org.digimead.tabuddy.model.graph.Node
 
 class ElementTemplate(
   /** The template element */
-  val element: Element,
+  val element: Element#RelativeType,
   /** The factory for the element that contains template data (container, id, scopeModificator) */
   val factory: (Element, Symbol, Symbol) ⇒ Element,
   /** Fn thats do something before the instance initialization */
   preinitialization: ElementTemplate ⇒ Unit = _ ⇒ {}) extends ElementTemplate.Interface with Loggable {
-  def this(element: Element, factory: (Element, Symbol, Symbol) ⇒ Element,
+  def this(element: Element#RelativeType, factory: (Element, Symbol, Symbol) ⇒ Element,
     initialName: String, initialAvailability: Boolean, initialProperties: api.ElementTemplate.propertyMap) = {
     this(element, factory, (template) ⇒ {
       // This code is invoked before availability, name and properties fields initialization
@@ -97,7 +98,7 @@ class ElementTemplate(
   /** The copy constructor */
   def copy(availability: Boolean = this.availability,
     name: String = this.name,
-    element: Element = this.element,
+    element: Element#RelativeType = this.element,
     factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
     id: Symbol = this.id,
     properties: api.ElementTemplate.propertyMap = this.properties) =
@@ -107,8 +108,8 @@ class ElementTemplate(
       element.eNode.parent match {
         case Some(parent) ⇒
           parent.freezeWrite { node ⇒
-            val nodeCopy = element.eNode.copy(target = node, id = id, unique = UUID.randomUUID())
-            new ElementTemplate(nodeCopy.projection(element.eCoordinate).e, factory, name, availability, properties).asInstanceOf[this.type]
+            val nodeCopy = element.eNode.copy(target = node, id = id, unique = UUID.randomUUID()): Node[_ <: Element]
+            new ElementTemplate(nodeCopy.projection(element.eCoordinate).e.eRelative, factory, name, availability, properties).asInstanceOf[this.type]
           }
         case None ⇒
           throw new IllegalStateException(s"Unable to copy unbinded $this.")
@@ -134,7 +135,7 @@ class ElementTemplate(
         t._2.map(_._2).sortBy(_.id.name))).toSeq: _*)
   /** Get property map */
   protected def getProperty[T <: AnyRef with java.io.Serializable: Manifest](marker: GraphMarker, id: Symbol,
-    ptype: api.PropertyType[T]): (TemplatePropertyGroup, TemplateProperty[T]) = marker.lockRead { state ⇒
+    ptype: api.PropertyType[T]): (TemplatePropertyGroup, TemplateProperty[T]) = marker.safeRead { state ⇒
     // get the default field
     val defaultField = element.eGet[T](getFieldIDPropertyDefault(id))
     // get enumeration field
@@ -236,60 +237,64 @@ object ElementTemplate extends Loggable {
     }
   }
   /** Get all element templates. */
-  def load(marker: GraphMarker): (Set[api.ElementTemplate], Set[api.ElementTemplate]) = marker.lockRead { state ⇒
+  def load(marker: GraphMarker): (Set[api.ElementTemplate], Set[api.ElementTemplate]) = marker.safeRead { state ⇒
     log.debug("Load element template list for graph " + state.graph)
     // Renew/update original templates
     val tempGraph = {
       implicit val tempGraphModelStashClass: Class[_ <: Model.Stash] = classOf[Model.Stash]
       Graph[Model]('temp, Model.scope, StubSerialization.Identifier, UUID.randomUUID()) { g ⇒ }
     }
-    val temp = tempGraph.model.eRelative
-    val originalTemplatesContainer = PredefinedElements.eElementTemplateOriginal(state.graph)
-    val userTemplatesContainer = PredefinedElements.eElementTemplateUser(state.graph)
-    temp.eNode.freezeWrite { tempNode ⇒
-      // Create new list of templates per builder from application configuration
-      val temporaryTemplates = builders.map { builder ⇒ (builder(temp.absolute), builder) }
-      // Update original templates
-      // Only add new templates, but keep the old ones and skip unknown.
-      val originalTemplates: Set[api.ElementTemplate] = originalTemplatesContainer.eNode.freezeWrite { node ⇒
-        val original = node.children.map(_.rootBox.e)
-        temporaryTemplates.map {
-          case (example, builder) ⇒
-            original.find(element ⇒ element.canEqual(example.element.getClass(), example.element.eStash.getClass())) match {
-              case Some(original) ⇒
-                log.debug("Keep original template %s based on %s.".format(original, example))
-                new ElementTemplate(original, example.factory)
-              case None ⇒
-                val original = builder(originalTemplatesContainer.absolute)
-                log.debug("Create original template %s based on %s.".format(original, example))
-                original
-            }
-        }.toSet
+    val tempMarker = GraphMarker.temporary(tempGraph)
+    tempMarker.register()
+    try {
+      val temp = tempGraph.model.eRelative
+      val originalTemplatesContainer = PredefinedElements.eElementTemplateOriginal(state.graph)
+      val userTemplatesContainer = PredefinedElements.eElementTemplateUser(state.graph)
+      temp.eNode.freezeWrite { tempNode ⇒
+        // Create new list of templates per builder from application configuration
+        val temporaryTemplates = builders.map { builder ⇒ (builder(temp.absolute), builder) }
+        // Update original templates
+        // Only add new templates, but keep the old ones and skip unknown.
+        val originalTemplates: Set[api.ElementTemplate] = originalTemplatesContainer.eNode.freezeWrite { node ⇒
+          val original = node.children.map(_.rootBox.e.eRelative)
+          temporaryTemplates.map {
+            case (example, builder) ⇒
+              original.find(element ⇒ element.canEqual(example.element.getClass(), example.element.eStash.getClass())) match {
+                case Some(original) ⇒
+                  log.debug("Keep original template %s based on %s.".format(original, example))
+                  new ElementTemplate(original, example.factory)
+                case None ⇒
+                  val original = builder(originalTemplatesContainer.absolute)
+                  log.debug("Create original template %s based on %s.".format(original, example))
+                  original
+              }
+          }.toSet
+        }
+        // Update user templates
+        // Only add new templates, but keep the old ones and skip unknown.
+        val userTemplates: Set[api.ElementTemplate] = userTemplatesContainer.eNode.freezeWrite { node ⇒
+          val user = node.children.map(_.rootBox.e.eRelative)
+          temporaryTemplates.map {
+            case (example, builder) ⇒
+              user.find(element ⇒ element.canEqual(example.element.getClass(), example.element.eStash.getClass())) match {
+                case Some(user) ⇒
+                  log.debug("Keep user template %s based on %s.".format(user, example))
+                  new ElementTemplate(user, example.factory)
+                case None ⇒
+                  val user = builder(userTemplatesContainer.absolute)
+                  log.debug("Create user template %s based on %s.".format(user, example))
+                  user
+              }
+          }.toSet
+        }
+        assert(userTemplates.nonEmpty, "There are no element templates.")
+        tempNode.clear()
+        (originalTemplates, userTemplates)
       }
-      // Update user templates
-      // Only add new templates, but keep the old ones and skip unknown.
-      val userTemplates: Set[api.ElementTemplate] = userTemplatesContainer.eNode.freezeWrite { node ⇒
-        val user = node.children.map(_.rootBox.e)
-        temporaryTemplates.map {
-          case (example, builder) ⇒
-            user.find(element ⇒ element.canEqual(example.element.getClass(), example.element.eStash.getClass())) match {
-              case Some(user) ⇒
-                log.debug("Keep user template %s based on %s.".format(user, example))
-                new ElementTemplate(user, example.factory)
-              case None ⇒
-                val user = builder(userTemplatesContainer.absolute)
-                log.debug("Create user template %s based on %s.".format(user, example))
-                user
-            }
-        }.toSet
-      }
-      assert(userTemplates.nonEmpty, "There are no element templates.")
-      tempNode.clear()
-      (originalTemplates, userTemplates)
-    }
+    } finally tempMarker.unregister()
   }
   /** Update only modified element templates. */
-  def save(marker: GraphMarker, templates: Set[api.ElementTemplate]) = marker.lockUpdate { state ⇒
+  def save(marker: GraphMarker, templates: Set[api.ElementTemplate]) = marker.safeUpdate { state ⇒
     log.debug("Save element template list for graph " + state.graph)
     val oldTemplates = App.execNGet { state.payload.elementTemplates.values }
     val deleted = oldTemplates.filterNot(oldTemplate ⇒ templates.exists(compareDeep(_, oldTemplate)))
@@ -316,7 +321,7 @@ object ElementTemplate extends Loggable {
     /** The template name */
     val name: String
     /** The template element */
-    val element: Element
+    val element: Element#RelativeType
     /** The factory for the element that contains template data */
     val factory: (Element, Symbol, Symbol) ⇒ Element
     /** The template id/name/element scope */
@@ -331,7 +336,7 @@ object ElementTemplate extends Loggable {
     /** The copy constructor */
     def copy(availability: Boolean = this.availability,
       name: String = this.name,
-      element: Element = this.element,
+      element: Element#RelativeType = this.element,
       factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
       id: Symbol = this.id,
       properties: api.ElementTemplate.propertyMap = this.properties): this.type

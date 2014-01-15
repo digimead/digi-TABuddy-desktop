@@ -68,9 +68,9 @@ object CommandGraphShow {
       parserResult match {
         case ~(options: List[_], (Some(marker: GraphMarker), _, _, _)) ⇒
           if (options.contains(treeArg))
-            Graph.dump(marker.lockRead(_.graph), !options.contains(fullArg))
+            Graph.dump(marker.safeRead(_.graph), !options.contains(fullArg))
           else
-            marker.lockRead(_.graph).model.eDump(!options.contains(fullArg))
+            marker.safeRead(_.graph).model.eDump(!options.contains(fullArg))
         case ~(options: List[_], (None, name, uuid, origin)) ⇒
           Console.msgWarning.format(s"Graph '${name}#${uuid}@${origin}' not found.") + Console.RESET
       }

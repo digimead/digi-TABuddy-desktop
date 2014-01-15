@@ -68,13 +68,13 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
    * @return the modified element template list
    */
   def apply(graph: Graph[_ <: Model.Like], templateList: Set[payload.api.ElementTemplate]): Set[payload.api.ElementTemplate] = {
+    val marker = GraphMarker(graph)
     val exchanger = new Exchanger[Either[Throwable, Option[Set[payload.api.ElementTemplate]]]]()
     App.assertEventThread(false)
     App.exec {
-      GraphMarker.bestShell(graph) match {
+      GraphMarker.bestShell(marker) match {
         case Some(shell) ⇒
-          val marker = GraphMarker(graph)
-          marker.lockRead { state ⇒
+          marker.safeRead { state ⇒
             val dialog = new ElementTemplateList(shell, graph, marker, state.payload, templateList)
             dialog.openOrFocus {
               case result if result == org.eclipse.jface.window.Window.OK ⇒
@@ -86,7 +86,7 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
         case None ⇒
           exchanger.exchange(Left(new IllegalStateException("Unable to find active shell.")))
       }
-    }
+    }(App.LongRunnable)
     exchanger.exchange(null) match {
       case Left(error) ⇒ throw error
       case Right(result) ⇒ result getOrElse templateList

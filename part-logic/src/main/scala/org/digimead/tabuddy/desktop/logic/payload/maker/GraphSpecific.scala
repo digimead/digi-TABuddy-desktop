@@ -60,7 +60,7 @@ trait GraphSpecific {
   this: GraphMarker ⇒
 
   /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = state.lockWrite { state ⇒
+  def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = state.safeWrite { state ⇒
     assertState()
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
@@ -87,7 +87,7 @@ trait GraphSpecific {
     graph
   }
   /** Close the loaded graph. */
-  def graphClose() = state.lockWrite { state ⇒
+  def graphClose() = state.safeWrite { state ⇒
     assertState()
     log.info(s"Close '${state.graph}' with '${this}'.")
     state.contextRefs.keys.map(GraphMarker.unbind)
@@ -102,7 +102,7 @@ trait GraphSpecific {
     Element.Timestamp(p.getProperty(GraphMarker.fieldCreatedMillis).toLong, p.getProperty(GraphMarker.fieldCreatedNanos).toLong)
   }
   /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = state.lockWrite { state ⇒
+  def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = state.safeWrite { state ⇒
     assertState()
     log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
@@ -110,12 +110,12 @@ trait GraphSpecific {
     Serialization.freeze(state.graph, storages = storages)
   }
   /** Check whether the graph is modified. */
-  def graphIsDirty(): Boolean = graphIsOpen && !lockRead { state ⇒
+  def graphIsDirty(): Boolean = graphIsOpen && !safeRead { state ⇒
     val ts = state.graph.modified
     state.graph.stored.contains(ts)
   }
   /** Check whether the graph is loaded. */
-  def graphIsOpen(): Boolean = lockRead { state ⇒
+  def graphIsOpen(): Boolean = safeRead { state ⇒
     assertState()
     state.asInstanceOf[GraphMarker.ThreadUnsafeState].graphObject.nonEmpty
   }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -197,7 +197,7 @@ object Enumeration extends Loggable {
   /** Return enumeration element type wrapper id. */
   def getElementTypeWrapperId(e: Element): Option[Symbol] = e.eGet[String]('type).map(t ⇒ Symbol(t.get))
   /** Get type name*/
-  def getEnumerationName(marker: GraphMarker, enumerationId: Symbol) = marker.lockRead { state ⇒
+  def getEnumerationName(marker: GraphMarker, enumerationId: Symbol) = marker.safeRead { state ⇒
     App.execNGet { state.payload.enumerations.get(enumerationId) } match {
       case Some(enumeration) ⇒ enumeration.name
       case None ⇒ enumerationId.name
@@ -219,7 +219,7 @@ object Enumeration extends Loggable {
     else
       constant.alias
   /** Get all enumerations. */
-  def load(marker: GraphMarker): Set[api.Enumeration[_ <: AnyRef with java.io.Serializable]] = marker.lockRead { state ⇒
+  def load(marker: GraphMarker): Set[api.Enumeration[_ <: AnyRef with java.io.Serializable]] = marker.safeRead { state ⇒
     log.debug("Load enumerations list for graph " + state.graph)
     val container = PredefinedElements.eEnumeration(state.graph)
     container.eNode.freezeRead(_.children.map(_.rootBox.e).map { element ⇒
@@ -236,7 +236,7 @@ object Enumeration extends Loggable {
     }).flatten.toSet
   }
   /** Update only modified enumerations. */
-  def save(marker: GraphMarker, enumerations: Set[api.Enumeration[_ <: AnyRef with java.io.Serializable]]) = marker.lockUpdate { state ⇒
+  def save(marker: GraphMarker, enumerations: Set[api.Enumeration[_ <: AnyRef with java.io.Serializable]]) = marker.safeUpdate { state ⇒
     log.debug("Save enumeration list for graph " + state.graph)
     val oldEnums = App.execNGet { state.payload.enumerations.values }
     val deleted = oldEnums.filterNot(oldEnum ⇒ enumerations.exists(compareDeep(oldEnum, _)))

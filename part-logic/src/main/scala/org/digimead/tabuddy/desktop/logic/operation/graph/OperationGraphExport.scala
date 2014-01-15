@@ -65,7 +65,7 @@ class OperationGraphExport extends api.OperationGraphExport with Loggable {
    * @param location target directory
    * @param interactive show graph export wizard
    */
-  def apply(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean) = GraphMarker(graph).lockUpdate { _ ⇒
+  def apply(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean) = GraphMarker(graph).safeUpdate { _ ⇒
     log.info(location match {
       case Some(location) ⇒ s"Export ${graph} to ${location}."
       case None ⇒ s"Export ${graph}."
