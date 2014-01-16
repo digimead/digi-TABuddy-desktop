@@ -43,14 +43,17 @@
 
 package org.digimead.tabuddy.desktop.model.definition.operation
 
-import java.util.concurrent.CancellationException
+import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ api ⇒ papi }
+import org.digimead.tabuddy.desktop.model.definition.dialog.enumlist.EnumerationList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
-import org.eclipse.core.runtime.{IAdaptable, IProgressMonitor}
+import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /**
  * Modify an enumeration list.
@@ -63,27 +66,12 @@ class OperationModifyEnumerationList extends logic.operation.OperationModifyEnum
    * @param enumerationList exists enumerations
    * @return the modified enumeration list
    */
-  def apply(graph: Graph[_ <: Model.Like],
-    enumerationList: Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]): Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
-    /*    val exchanger = new Exchanger[Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]]()
-    App.assertUIThread(false)
-    App.exec {
-      App.getActiveShell match {
-        case Some(shell) =>
-          val dialog = new EnumerationList(shell, enumerationList.toList)
-          dialog.openOrFocus {
-            case result if result == org.eclipse.jface.window.Window.OK =>
-              exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedEnumerations())))
-            case result =>
-              exchanger.exchange(Operation.Result.Cancel[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]())
-          }
-        case None =>
-          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
-      }
+  def apply(graph: Graph[_ <: Model.Like], enumerationList: Set[papi.Enumeration[_ <: AnySRef]]): Set[papi.Enumeration[_ <: AnySRef]] =
+    dialog(graph, enumerationList) match {
+      case Operation.Result.OK(Some(enumerationList), _) ⇒ enumerationList
+      case _ ⇒ enumerationList
     }
-    exchanger.exchange(null)*/
-    null
-  }
+
   /**
    * Create 'Modify an enumeration list' operation.
    *
@@ -91,14 +79,36 @@ class OperationModifyEnumerationList extends logic.operation.OperationModifyEnum
    * @param enumerationList exists enumerations
    * @return 'Modify an enumeration list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], enumerationList: Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]) =
+  def operation(graph: Graph[_ <: Model.Like], enumerationList: Set[papi.Enumeration[_ <: AnySRef]]) =
     new Implemetation(graph, enumerationList)
 
+  protected def dialog(graph: Graph[_ <: Model.Like], enumerationList: Set[papi.Enumeration[_ <: AnySRef]]): Operation.Result[Set[papi.Enumeration[_ <: AnySRef]]] = {
+    val marker = GraphMarker(graph)
+    val exchanger = new Exchanger[Operation.Result[Set[papi.Enumeration[_ <: AnySRef]]]]()
+    App.assertEventThread(false)
+    App.exec {
+      GraphMarker.shell(marker) match {
+        case Some((context, shell)) ⇒
+          marker.safeRead { state ⇒
+            val dialog = new EnumerationList(context, shell, graph, marker, state.payload, enumerationList)
+            dialog.openOrFocus {
+              case result if result == org.eclipse.jface.window.Window.OK ⇒
+                exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedEnumerations())))
+              case result ⇒
+                exchanger.exchange(Operation.Result.Cancel())
+            }
+          }
+        case None ⇒
+          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+      }
+    }(App.LongRunnable)
+    exchanger.exchange(null)
+  }
   class Implemetation(
     /** Graph container. */
     graph: Graph[_ <: Model.Like],
     /** The list of enumerations. */
-    enumerationList: Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]])
+    enumerationList: Set[papi.Enumeration[_ <: AnySRef]])
     extends logic.operation.OperationModifyEnumerationList.Abstract(graph, enumerationList) with Loggable {
     @volatile protected var allowExecute = true
 
@@ -106,17 +116,19 @@ class OperationModifyEnumerationList extends logic.operation.OperationModifyEnum
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]] = {
-      try {
-        Operation.Result.OK(Option(OperationModifyEnumerationList.this(graph, enumerationList)))
-      } catch {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[papi.Enumeration[_ <: AnySRef]]] =
+      try dialog(graph, enumerationList)
+      catch {
+        case e: IllegalArgumentException ⇒
+          Operation.Result.Error(e.getMessage(), e)
+        case e: IllegalStateException ⇒
+          Operation.Result.Error(e.getMessage(), e)
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[papi.Enumeration[_ <: AnySRef]]] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[papi.Enumeration[_ <: AnySRef]]] =
       throw new UnsupportedOperationException
   }
 }

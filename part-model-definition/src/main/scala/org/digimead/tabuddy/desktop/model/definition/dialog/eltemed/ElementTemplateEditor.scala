@@ -208,7 +208,6 @@ class ElementTemplateEditor(
       def widgetDisposed(e: DisposeEvent) {
         getShell().removeFocusListener(focusListener)
         getShell().removeShellListener(shellListener)
-        context.deactivate()
         parentContext.removeChild(context)
         context.dispose()
         idField.removeChangeListener(idFieldListener)

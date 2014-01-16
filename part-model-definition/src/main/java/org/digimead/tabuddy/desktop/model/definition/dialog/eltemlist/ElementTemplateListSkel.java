@@ -45,7 +45,6 @@ package org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist;
 
 import java.util.ResourceBundle;
 
-import org.digimead.tabuddy.desktop.ui.ResourceManager;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
@@ -110,7 +109,6 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setTitleImage(ResourceManager.getImage(ElementTemplateList.class, "/icons/full/message_info.gif_text"));
 		setTitle(BUNDLE.getString("elementTemplateListTitle_text"));
 		setMessage(BUNDLE.getString("elementTemplateListDescription_text"));
 		Composite area = (Composite) super.createDialogArea(parent);

@@ -46,10 +46,12 @@ package org.digimead.tabuddy.desktop.model.definition.dialog.enumlist
 import java.util.concurrent.locks.ReentrantLock
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.UI
 import org.digimead.tabuddy.desktop.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
 import org.digimead.tabuddy.model.Model
@@ -61,14 +63,18 @@ import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, Vi
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, LabelProvider, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem, Text }
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class EnumerationList(val parentShell: Shell,
+class EnumerationList(
+  /** Parent context. */
+  val parentContext: Context,
+  /** Parent shell. */
+  val parentShell: Shell,
   /** Graph container. */
   val graph: Graph[_ <: Model.Like],
   /** Graph marker. */
@@ -76,16 +82,32 @@ class EnumerationList(val parentShell: Shell,
   /** Graph payload. */
   val payload: Payload,
   /** initial enumeration list */
-  val initial: List[papi.Enumeration[_ <: AnyRef with java.io.Serializable]])
+  val initial: Set[papi.Enumeration[_ <: AnyRef with java.io.Serializable]])
   extends EnumerationListSkel(parentShell) with Dialog with Loggable {
   /** The actual enumeration list */
-  protected[enumlist] val actual = WritableList[papi.Enumeration[_ <: AnyRef with java.io.Serializable]](null)
-  //initial.map(enumeration ⇒
-  //enumeration.generic.copy(element = enumeration.element.eCopy)))
+  protected[enumlist] val actual = WritableList[papi.Enumeration[_ <: AnySRef]](
+    // replace initial elements with copies that will be modified in the progress
+    initial.toList.map { initialEnumeration ⇒
+      initialEnumeration.element.eNode.parent.get.freezeWrite { target ⇒
+        val copyOfNode = initialEnumeration.element.eNode.**.copy(attach = false)
+        initialEnumeration.**.copy(element = copyOfNode.rootBox.e.eRelative)
+      }
+    }.sortBy(_.id.name))
   /** The auto resize lock */
   protected lazy val autoResizeLock = new ReentrantLock()
+  /** This dialog context. */
+  protected val context = parentContext.createChild("EnumerationListDialog")
   /** The property representing enumeration in current UI field(s) that available for user */
   protected lazy val enumerationField = WritableValue[papi.Enumeration[_ <: AnyRef with java.io.Serializable]]
+  /** Activate context on focus. */
+  protected val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
+  /** Activate context on shell events. */
+  protected val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
   /** Actual sortBy column index */
   @volatile private var sortColumn = 1
   /** Actual sort direction */
@@ -99,8 +121,8 @@ class EnumerationList(val parentShell: Shell,
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        //        App.adjustTableViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
-        //        App.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -110,6 +132,8 @@ class EnumerationList(val parentShell: Shell,
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
+    context.set(classOf[Composite], parent)
+    context.set(classOf[GraphMarker], marker)
     new ActionContributionItem(ActionCreate).fill(getCompositeFooter())
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
     new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
@@ -127,9 +151,15 @@ class EnumerationList(val parentShell: Shell,
         }
       updateOK()
     }
+    getShell().addShellListener(shellListener)
+    getShell().addFocusListener(focusListener)
     // add dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
+        parentContext.removeChild(context)
+        context.dispose()
         actual.removeChangeListener(actualListener)
       }
     })

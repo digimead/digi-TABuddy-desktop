@@ -296,8 +296,6 @@ object Enumeration extends Loggable {
      */
     val constants: Set[api.Enumeration.Constant[T]]
 
-    /** Convert enumeration to generic with AnyRef type. */
-    def generic = this.asInstanceOf[api.Enumeration[AnyRef with java.io.Serializable]]
     /** The copy constructor. */
     def copy(availability: Boolean = this.availability,
       name: String = this.name,

@@ -50,45 +50,45 @@ import org.digimead.tabuddy.model.element.Element
  * The equality is based on element reference
  */
 trait Enumeration[T <: AnyRef with java.io.Serializable] extends Equals {
-  /** Availability flag for user (some enumeration may exists, but not involved in new element creation) */
+  /** Availability flag for user (some enumeration may exists, but not involved in new element creation). */
   val availability: Boolean
-  /** The enumeration name */
+  /** The enumeration name. */
   val name: String
-  /** The enumeration element */
+  /** The enumeration element. */
   val element: Element
-  /** The enumeration id/name */
+  /** The enumeration id/name. */
   val id: Symbol
-  /** The type wrapper */
+  /** The type wrapper. */
   val ptype: PropertyType[T]
   /**
-   * Sequence of enumeration constants
+   * Sequence of enumeration constants.
    */
   val constants: Set[Enumeration.Constant[T]]
 
-  /** Convert enumeration to generic with AnyRef type */
-  def generic: Enumeration[AnyRef with java.io.Serializable]
-  /** The copy constructor */
+  /** Convert enumeration to common type. */
+  def **(): Enumeration[_ <: AnyRef with java.io.Serializable] = this.asInstanceOf[Enumeration[_ <: AnyRef with java.io.Serializable]]
+  /** The copy constructor. */
   def copy(availability: Boolean = this.availability,
     name: String = this.name,
     element: Element = this.element,
     ptype: PropertyType[T] = this.ptype,
     id: Symbol = this.id,
     constants: Set[Enumeration.Constant[T]] = this.constants): this.type
-  /** Get the specific constant for the property or the first entry */
+  /** Get the specific constant for the property or the first entry. */
   def getConstantSafe(property: TemplateProperty[T]): Enumeration.Constant[T]
-  /** Get the specific constant for the value or the first entry */
+  /** Get the specific constant for the value or the first entry. */
   def getConstantSafe(value: T): Enumeration.Constant[T]
-  /** Returns an identificator for the availability field */
+  /** Returns an identificator for the availability field. */
   def getFieldIDAvailability(): Symbol
-  /** Returns an identificator for the name field */
+  /** Returns an identificator for the name field. */
   def getFieldIDName(): Symbol
-  /** Returns an identificator for the type wrapper field */
+  /** Returns an identificator for the type wrapper field. */
   def getFieldIDType(): Symbol
-  /** Returns an identificator for the value field of the enumeration constant */
+  /** Returns an identificator for the value field of the enumeration constant. */
   def getFieldIDConstantValue(n: Int): Symbol
-  /** Returns an identificator for the alias field of the enumeration constant */
+  /** Returns an identificator for the alias field of the enumeration constant. */
   def getFieldIDConstantAlias(n: Int): Symbol
-  /** Returns an identificator for the description field of the enumeration constant */
+  /** Returns an identificator for the description field of the enumeration constant. */
   def getFieldIDConstantDescription(n: Int): Symbol
 }
 

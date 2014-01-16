@@ -47,10 +47,9 @@ import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist.ElementTemplateList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -67,7 +66,7 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
    * @param templateList exists templates
    * @return the modified element template list
    */
-  def apply(graph: Graph[_ <: Model.Like], templateList: Set[payload.api.ElementTemplate]): Set[payload.api.ElementTemplate] =
+  def apply(graph: Graph[_ <: Model.Like], templateList: Set[papi.ElementTemplate]): Set[papi.ElementTemplate] =
     dialog(graph, templateList) match {
       case Operation.Result.OK(Some(templateList), _) ⇒ templateList
       case _ ⇒ templateList
@@ -79,12 +78,12 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
    * @param templateList exists templates
    * @return 'Modify an element template list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], templateList: Set[payload.api.ElementTemplate]) =
+  def operation(graph: Graph[_ <: Model.Like], templateList: Set[papi.ElementTemplate]) =
     new Implemetation(graph, templateList)
 
-  protected def dialog(graph: Graph[_ <: Model.Like], templateList: Set[payload.api.ElementTemplate]): Operation.Result[Set[payload.api.ElementTemplate]] = {
+  protected def dialog(graph: Graph[_ <: Model.Like], templateList: Set[papi.ElementTemplate]): Operation.Result[Set[papi.ElementTemplate]] = {
     val marker = GraphMarker(graph)
-    val exchanger = new Exchanger[Operation.Result[Set[payload.api.ElementTemplate]]]()
+    val exchanger = new Exchanger[Operation.Result[Set[papi.ElementTemplate]]]()
     App.assertEventThread(false)
     App.exec {
       GraphMarker.shell(marker) match {
@@ -109,7 +108,7 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
     /** Graph container. */
     graph: Graph[_ <: Model.Like],
     /** The list of element template. */
-    templateList: Set[payload.api.ElementTemplate])
+    templateList: Set[papi.ElementTemplate])
     extends logic.operation.OperationModifyElementTemplateList.Abstract(graph, templateList) with Loggable {
     @volatile protected var allowExecute = true
 
@@ -117,7 +116,7 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.ElementTemplate]] =
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[papi.ElementTemplate]] =
       try dialog(graph, templateList)
       catch {
         case e: IllegalArgumentException ⇒
@@ -127,9 +126,9 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.ElementTemplate]] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[papi.ElementTemplate]] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[payload.api.ElementTemplate]] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Set[papi.ElementTemplate]] =
       throw new UnsupportedOperationException
   }
 }

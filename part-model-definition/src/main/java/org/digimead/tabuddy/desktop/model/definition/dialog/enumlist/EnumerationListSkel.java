@@ -43,8 +43,6 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.enumlist;
 
-import org.digimead.tabuddy.desktop.ui.ResourceManager;
-import org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist.ElementTemplateListSkel;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
@@ -91,8 +89,6 @@ public class EnumerationListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setTitleImage(ResourceManager.getImage(ElementTemplateListSkel.class,
-				"/icons/full/message_info.gif"));
 		setTitle(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.enumerationListTitle_text());
 		setMessage(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.enumerationListDescription_text());
 		Composite area = (Composite) super.createDialogArea(parent);

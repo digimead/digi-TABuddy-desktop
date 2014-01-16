@@ -110,11 +110,11 @@ class ElementTemplateList(
   protected val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
-
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 1 // by an id
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
+
   /** Get modified type templates */
   def getModifiedTemplates(): Set[papi.ElementTemplate] = actual.toSet
 
@@ -155,7 +155,6 @@ class ElementTemplateList(
       def widgetDisposed(e: DisposeEvent) {
         getShell().removeFocusListener(focusListener)
         getShell().removeShellListener(shellListener)
-        context.deactivate()
         parentContext.removeChild(context)
         context.dispose()
         actual.removeChangeListener(actualListener)
