@@ -90,7 +90,28 @@ object CommandModifyElementTemplateList extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              result
+              result.map { newSet ⇒
+                marker.safeRead { state ⇒
+                  App.execNGet {
+                    val toDelete = state.payload.elementTemplates.values.filterNot(template ⇒
+                      newSet.exists(_.element == template.element))
+                    state.payload.elementTemplates --= toDelete.map(_.id)
+                    toDelete.foreach { template ⇒
+                      template.element.eNode.parent.foreach(_.safeWrite { _ -= template.element.eNode })
+                    }
+                    // apply new
+                    val toAppend = newSet.filter { newTemplate ⇒
+                      state.payload.elementTemplates.get(newTemplate.id) match {
+                        case Some(existsTemplate) ⇒ existsTemplate.element.modified != newTemplate.element.modified
+                        case None ⇒ true
+                      }
+                    }
+                    toAppend.map(_.element.eNode.attach())
+                    state.payload.elementTemplates ++= toAppend.map(template ⇒ template.id -> template)
+                    state.payload.elementTemplates.values.toIndexedSeq
+                  }
+                }
+              }
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case err: Operation.Result.Error[_] ⇒

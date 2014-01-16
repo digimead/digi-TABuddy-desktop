@@ -258,7 +258,8 @@ class ElementTemplateList(
     getTableViewer.setSelection(new StructuredSelection(after), true)
   }
   /** Update OK button state */
-  protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(initial != actual))
+  protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
+    foreach(_.setEnabled(initial.map(_.element.modified) != actual.map(_.element.modified).toSet))
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
