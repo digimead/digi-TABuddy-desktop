@@ -65,26 +65,27 @@ trait GraphSpecific {
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    if (!reload)
-      state.graphObject.foreach(graph ⇒ return graph)
-    val graph = loadGraph(takeItEasy = true) getOrElse {
-      log.info("Create new empty graph " + graphModelId)
-      /**
-       * TABuddy - global TA Buddy space
-       *  +-Settings - global TA Buddy settings
-       *     +-Templates - global TA Buddy element templates
-       *  +-Temp - temporary TA Buddy elements
-       *     +-Templates - predefined TA Buddy element templates
-       */
-      // try to create model because we are unable to load it
-      Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒
-        g.storages = g.storages :+ this.graphPath.toURI()
+    val loaded = if (!reload) state.graphObject else None
+    loaded getOrElse {
+      val graph = loadGraph(takeItEasy = true) getOrElse {
+        log.info("Create new empty graph " + graphModelId)
+        /**
+         * TABuddy - global TA Buddy space
+         *  +-Settings - global TA Buddy settings
+         *     +-Templates - global TA Buddy element templates
+         *  +-Temp - temporary TA Buddy elements
+         *     +-Templates - predefined TA Buddy element templates
+         */
+        // try to create model because we are unable to load it
+        Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒
+          g.storages = g.storages :+ this.graphPath.toURI()
+        }
       }
+      graph.withData(_(GraphMarker) = GraphSpecific.this)
+      state.graphObject = Option(graph)
+      state.payloadObject = Option(initializePayload())
+      graph
     }
-    graph.withData(_(GraphMarker) = GraphSpecific.this)
-    state.graphObject = Option(graph)
-    state.payloadObject = Option(initializePayload())
-    graph
   }
   /** Close the loaded graph. */
   def graphClose() = state.safeWrite { state ⇒

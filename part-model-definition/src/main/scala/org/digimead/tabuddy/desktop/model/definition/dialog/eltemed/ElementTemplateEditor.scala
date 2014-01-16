@@ -46,11 +46,13 @@ package org.digimead.tabuddy.desktop.model.definition.dialog.eltemed
 import java.util.concurrent.locks.ReentrantLock
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Payload, PropertyType, TemplateProperty, TemplatePropertyGroup, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.ui.Resources
+import org.digimead.tabuddy.desktop.ui.UI
 import org.digimead.tabuddy.desktop.ui.definition.Dialog
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -60,7 +62,7 @@ import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, Vi
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.graphics.{ Image, Point }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
 import scala.collection.immutable
@@ -68,7 +70,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class ElementTemplateEditor(val parentShell: Shell,
+class ElementTemplateEditor(
+  /** Parent context. */
+  val parentContext: Context,
+  /** Parent shell. */
+  val parentShell: Shell,
   /** Graph container. */
   val graph: Graph[_ <: Model.Like],
   /** Graph marker. */
@@ -86,15 +92,22 @@ class ElementTemplateEditor(val parentShell: Shell,
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing current template availability */
   protected val availabilityField = WritableValue[java.lang.Boolean]
-  /** The property representing current template label */
-  protected val nameField = WritableValue[String]
+  /** This dialog context. */
+  protected val context = parentContext.createChild("ElementTemplateEditorDialog")
   /** List of available enumerations */
   protected[eltemed] val enumerations: Array[papi.Enumeration[_ <: AnyRef with java.io.Serializable]] =
     payload.getAvailableEnumerations.sortBy(_.id.name).toArray
+  /** Activate context on focus. */
+  protected val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
   /** The property representing current template id */
   protected val idField = WritableValue[String]
   /** The initial template properties */
   protected lazy val initialProperties = getTemplateProperties(initial).sortBy(_.id)
+  /** The property representing current template label */
+  protected val nameField = WritableValue[String]
   /** Used to create new propery */
   protected val newPropertySample = newProperty()
   /** The property that indicates whether the template is predefined */
@@ -103,6 +116,10 @@ class ElementTemplateEditor(val parentShell: Shell,
   protected val predefinedProperties = predefined.map(getTemplateProperties(_).sortBy(_.id))
   /** The property representing a selected template property */
   protected val selected = WritableValue[ElementTemplateEditor.Item]
+  /** Activate context on shell events. */
+  protected val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
   /** List of available types */
   protected[eltemed] val types: Array[papi.PropertyType[_ <: AnyRef with java.io.Serializable]] =
     payload.getAvailableTypes().sortBy(_.id.name).toArray
@@ -127,10 +144,10 @@ class ElementTemplateEditor(val parentShell: Shell,
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        //App.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
-        //App.adjustTableViewerColumnWidth(getTableViewerColumnRequired, Default.columnPadding)
-        //App.adjustTableViewerColumnWidth(getTableViewerColumnType, Default.columnPadding)
-        //App.adjustTableViewerColumnWidth(getTableViewerColumnDefault, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnRequired, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnType, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnDefault, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -141,6 +158,8 @@ class ElementTemplateEditor(val parentShell: Shell,
   override protected def createDialogArea(parent: Composite): Control = {
     // Create dialog elements
     val result = super.createDialogArea(parent)
+    context.set(classOf[Composite], parent)
+    context.set(classOf[GraphMarker], marker)
     initTableTemplateProperties
     new ActionContributionItem(ActionAdd).fill(getCompositeFooter())
     new ActionContributionItem(ActionDelete).fill(getCompositeFooter())
@@ -182,9 +201,16 @@ class ElementTemplateEditor(val parentShell: Shell,
         }
       updateButtons()
     }
+    getShell().addShellListener(shellListener)
+    getShell().addFocusListener(focusListener)
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
+        context.deactivate()
+        parentContext.removeChild(context)
+        context.dispose()
         idField.removeChangeListener(idFieldListener)
         nameField.removeChangeListener(nameFieldListener)
         availabilityField.removeChangeListener(availabilityFieldListener)
@@ -309,6 +335,7 @@ class ElementTemplateEditor(val parentShell: Shell,
     Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(
       // prevent the empty id
       newId.nonEmpty &&
+        actualProperties.nonEmpty &&
         // and there are no duplicate ids
         actualProperties.size == actualProperties.map(_.id).distinct.size &&
         // and there are no errors

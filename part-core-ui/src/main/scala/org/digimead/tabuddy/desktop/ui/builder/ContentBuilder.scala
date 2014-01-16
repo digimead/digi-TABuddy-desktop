@@ -75,7 +75,7 @@ class ContentBuilder extends Loggable {
     content.addDisposeListener(new DisposeListener {
       def widgetDisposed(event: DisposeEvent) = Option(content.getData(App.widgetContextKey)).foreach {
         case context: Context ⇒
-          context.remove(classOf[WComposite])
+          context.remove(classOf[Composite])
           content.setData(App.widgetContextKey, null)
       }
     })

@@ -50,6 +50,8 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.model.definition.dialog.eltemed.ElementTemplateEditor
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
@@ -66,13 +68,31 @@ class OperationModifyElementTemplate extends logic.operation.OperationModifyElem
    * @param templateList exists element templates
    * @return the modified element template
    */
-  def apply(graph: Graph[_ <: Model.Like], template: payload.api.ElementTemplate, templateList: Set[payload.api.ElementTemplate]): payload.api.ElementTemplate = {
-    val exchanger = new Exchanger[payload.api.ElementTemplate]()
+  def apply(graph: Graph[_ <: Model.Like], template: payload.api.ElementTemplate, templateList: Set[payload.api.ElementTemplate]): payload.api.ElementTemplate =
+    dialog(graph, template, templateList) match {
+      case Operation.Result.OK(Some(template), _) ⇒ template
+      case _ ⇒ template
+    }
+  /**
+   * Create 'Modify filter' operation.
+   *
+   * @param graph graph that contains a filter
+   * @param filter the initial filter
+   * @param filterList the list of exists filters
+   * @return 'Modify filter' operation
+   */
+  override def operation(graph: Graph[_ <: Model.Like], template: payload.api.ElementTemplate, templateList: Set[payload.api.ElementTemplate]) =
+    new Implemetation(graph, template, templateList)
+
+  protected def dialog(graph: Graph[_ <: Model.Like], template: payload.api.ElementTemplate, templateList: Set[payload.api.ElementTemplate]): Operation.Result[payload.api.ElementTemplate] = {
+    val marker = GraphMarker(graph)
+    val exchanger = new Exchanger[Operation.Result[payload.api.ElementTemplate]]()
     App.assertEventThread(false)
     App.exec {
-      /*App.getActiveShell match {
-          case Some(shell) ⇒
-            val dialog = new ElementTemplateEditor(shell, template, templateList)
+      GraphMarker.shell(marker) match {
+        case Some((context, shell)) ⇒
+          marker.safeRead { state ⇒
+            val dialog = new ElementTemplateEditor(context, shell, graph, marker, state.payload, template, templateList)
             dialog.openOrFocus {
               case result if result == org.eclipse.jface.window.Window.OK ⇒
                 exchanger.exchange(Operation.Result.OK({
@@ -84,25 +104,15 @@ class OperationModifyElementTemplate extends logic.operation.OperationModifyElem
                     Some(after)
                 }))
               case result ⇒
-                exchanger.exchange(Operation.Result.Cancel[payload.api.ElementTemplate]())
+                exchanger.exchange(Operation.Result.Cancel())
             }
-          case None ⇒
-            exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
-        }*/
-      exchanger.exchange(null)
-    }
+          }
+        case None ⇒
+          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+      }
+    }(App.LongRunnable)
     exchanger.exchange(null)
   }
-  /**
-   * Create 'Modify filter' operation.
-   *
-   * @param graph graph that contains a filter
-   * @param filter the initial filter
-   * @param filterList the list of exists filters
-   * @return 'Modify filter' operation
-   */
-  override def operation(graph: Graph[_ <: Model.Like], template: payload.api.ElementTemplate, templateList: Set[payload.api.ElementTemplate]) =
-    new Implemetation(graph, template, templateList)
 
   class Implemetation(
     /** Graph container. */
@@ -118,14 +128,16 @@ class OperationModifyElementTemplate extends logic.operation.OperationModifyElem
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] = {
-      try {
-        Operation.Result.OK(Option(OperationModifyElementTemplate.this(graph, template, templateList)))
-      } catch {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] =
+      try dialog(graph, template, templateList)
+      catch {
+        case e: IllegalArgumentException ⇒
+          Operation.Result.Error(e.getMessage(), e)
+        case e: IllegalStateException ⇒
+          Operation.Result.Error(e.getMessage(), e)
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] =
       throw new UnsupportedOperationException
     protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.ElementTemplate] =

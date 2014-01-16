@@ -63,7 +63,7 @@ object ColumnType extends Loggable {
           case Some(enumeration) ⇒
             cell.setText(enumeration.name)
           case None ⇒
-            cell.setText(item.ptype.name(null))
+            cell.setText(item.ptype.name(graph))
         }
         item.typeError.foreach(err ⇒ cell.setImage(err._2))
       case unknown ⇒

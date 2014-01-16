@@ -43,32 +43,40 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist
 
+import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableList
 import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Payload, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.UI
 import org.digimead.tabuddy.desktop.ui.definition.Dialog
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
-import org.digimead.tabuddy.desktop.ui.UI
 
-class ElementTemplateList(val parentShell: Shell,
+class ElementTemplateList(
+  /** Parent context. */
+  val parentContext: Context,
+  /** Parent shell. */
+  val parentShell: Shell,
   /** Graph container. */
   val graph: Graph[_ <: Model.Like],
   /** Graph marker. */
@@ -79,17 +87,34 @@ class ElementTemplateList(val parentShell: Shell,
   val initial: Set[papi.ElementTemplate])
   extends ElementTemplateListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
-  // replace initial elements with copies that will be modified in the progress
-  protected[eltemlist] val actual = WritableList[papi.ElementTemplate](initial.toList.sortBy(_.id.name))
-  /** The auto resize lock */
+  protected[eltemlist] val actual = WritableList[papi.ElementTemplate](
+    // replace initial elements with copies that will be modified in the progress
+    initial.toList.map { initialTemplate ⇒
+      initialTemplate.element.eNode.parent.get.freezeWrite { target ⇒
+        val copyOfNode = initialTemplate.element.eNode.**.copy(attach = false)
+        initialTemplate.copy(element = copyOfNode.rootBox.e.eRelative)
+      }
+    }.sortBy(_.id.name))
+  /** The auto resize lock. */
   protected val autoResizeLock = new ReentrantLock()
+  /** This dialog context. */
+  protected val context = parentContext.createChild("ElementTemplateListDialog")
+  /** Activate context on focus. */
+  protected val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
   /** The property representing a selected element template */
   protected[eltemlist] val selected = WritableValue[papi.ElementTemplate]
+  /** Activate context on shell events. */
+  protected val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
+
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 1 // by an id
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
-
   /** Get modified type templates */
   def getModifiedTemplates(): Set[papi.ElementTemplate] = actual.toSet
 
@@ -109,6 +134,8 @@ class ElementTemplateList(val parentShell: Shell,
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
+    context.set(classOf[Composite], parent)
+    context.set(classOf[GraphMarker], marker)
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
     new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
     new ActionContributionItem(ActionRemove).fill(getCompositeFooter())
@@ -121,9 +148,16 @@ class ElementTemplateList(val parentShell: Shell,
         future { autoresize() }
       updateOK()
     }
+    getShell().addShellListener(shellListener)
+    getShell().addFocusListener(focusListener)
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
+        context.deactivate()
+        parentContext.removeChild(context)
+        context.dispose()
         actual.removeChangeListener(actualListener)
       }
     })
@@ -233,65 +267,65 @@ class ElementTemplateList(val parentShell: Shell,
   object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
     override def run = Option(selected.value) foreach { (before) ⇒
       val from = before.element
-      /*      // create new ID
+      // create new ID
       val toID = getNewTemplateCopyID(from.eId)
       // create an element for a new template
-      val to = from.asInstanceOf[Element[Stash]].eCopy(from.eStash.copy(id = toID, unique = UUID.randomUUID))
+      val to = from.eNode.copy(id = toID, unique = UUID.randomUUID).**
       // create a template for a 'to' element
-      val newTemplate = new ElementTemplate(to, before.factory).copy(name = before.name + " " + Messages.copy_item_text)
+      val newTemplate = new ElementTemplate(to.rootBox.e.eRelative, before.factory).copy(name = before.name + " " + Messages.copy_item_text)
       // start job
-      OperationModifyElementTemplate(newTemplate, actual.toSet).foreach { operation =>
+      OperationModifyElementTemplate(graph, newTemplate, actual.toSet).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
           Some(operation.executeJob())
         else
           None
-        job foreach { job =>
+        job foreach { job ⇒
           job.setPriority(Job.SHORT)
           job.onComplete(_ match {
-            case Operation.Result.OK(result, message) =>
+            case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully: ${result}")
               result.foreach {
-                case (after) => App.exec {
+                case (after) ⇒ App.exec {
                   assert(!actual.exists(_.id == after.id), "Element template %s already exists".format(after))
                   actual += after
                 }
               }
-            case Operation.Result.Cancel(message) =>
+            case Operation.Result.Cancel(message) ⇒
               log.warn(s"Operation canceled, reason: ${message}.")
-            case other =>
+            case other ⇒
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }*/
+      }
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = Option(selected.value) foreach { (before) ⇒
-      /*      OperationModifyElementTemplate(before, actual.toSet).foreach { operation =>
+      OperationModifyElementTemplate(graph, before, actual.toSet).foreach { operation ⇒
         operation.getExecuteJob() match {
-          case Some(job) =>
+          case Some(job) ⇒
             job.setPriority(Job.SHORT)
             job.onComplete(_ match {
-              case Operation.Result.OK(result, message) =>
+              case Operation.Result.OK(result, message) ⇒
                 log.info(s"Operation completed successfully: ${result}")
-                result.foreach { case (after) => App.exec { updateActualTemplate(before, after) } }
-              case Operation.Result.Cancel(message) =>
+                result.foreach { case (after) ⇒ App.exec { updateActualTemplate(before, after) } }
+              case Operation.Result.Cancel(message) ⇒
                 log.warn(s"Operation canceled, reason: ${message}.")
-              case other =>
+              case other ⇒
                 log.error(s"Unable to complete operation: ${other}.")
             }).schedule()
-          case None =>
+          case None ⇒
             log.fatal(s"Unable to create job for ${operation}.")
         }
-      }*/
+      }
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {
     override def run = Option(selected.value) foreach { (selected) ⇒
-      /*      if (!ElementTemplate.predefined.exists(_.id == selected.id))
-        actual -= selected*/
+      if (!payload.originalElementTemplates.exists(_.id == selected.id))
+        actual -= selected
     }
   }
 }

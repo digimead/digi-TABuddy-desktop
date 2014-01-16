@@ -61,6 +61,7 @@ import org.eclipse.swt.widgets.Control
 import scala.collection.immutable
 import scala.concurrent.Await
 import scala.language.implicitConversions
+import org.eclipse.swt.widgets.Composite
 
 class StackViewBuilder extends Loggable {
   /**
@@ -78,7 +79,6 @@ class StackViewBuilder extends Loggable {
     log.debug(s"Build view layer ${viewName}.")
     App.assertEventThread(false)
     val viewContext = pEContext.createChild(VComposite.contextName): Context.Rich
-    //viewContext.set(VComposite.contextName, configuration.id)
     val view = pAContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
     // Block until view is created.
     implicit val sender = pAContext.self
@@ -117,7 +117,7 @@ class StackViewBuilder extends Loggable {
           layout.marginHeight = 0
           layout.marginWidth = 0
           val content = new VComposite(configuration.id, ref, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
-          context.set(classOf[VComposite], content)
+          context.set(classOf[Composite], content)
           content.setData(App.widgetContextKey, context)
           content.setLayout(layout)
           content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
@@ -131,7 +131,7 @@ class StackViewBuilder extends Loggable {
           content.addDisposeListener(new DisposeListener {
             def widgetDisposed(event: DisposeEvent) = Option(content.getData(App.widgetContextKey)).foreach {
               case context: Context ⇒
-                context.remove(classOf[VComposite])
+                context.remove(classOf[Composite])
                 content.setData(App.widgetContextKey, null)
             }
           })

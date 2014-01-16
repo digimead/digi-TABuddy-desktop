@@ -59,8 +59,8 @@ import language.implicitConversions
  */
 class Context(parent: EclipseContext) extends EclipseContext(parent) {
   def containsKey(clazz: Class[_], localOnly: Boolean): Boolean = containsKey(clazz.getName(), localOnly)
-  override def createChild(): IEclipseContext = new Context(Context.this)
-  override def createChild(name: String): IEclipseContext = {
+  override def createChild(): Context = new Context(Context.this)
+  override def createChild(name: String): Context = {
     val result = createChild()
     result.set(EclipseContext.DEBUG_STRING, name)
     result
@@ -93,6 +93,8 @@ class Context(parent: EclipseContext) extends EclipseContext(parent) {
     super.set(clazz, value)
     Context.Event.publish(clazz.getName, Context.this)
   }
+
+  override def toString() = s"Context(${Context.getName(this) getOrElse "UNNAMED"})"
 }
 
 object Context {

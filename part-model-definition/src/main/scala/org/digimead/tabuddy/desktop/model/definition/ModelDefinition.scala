@@ -158,6 +158,11 @@ object ModelDefinition {
 
   override def toString = "ModelDefinition[Singleton]"
 
+  /*
+   * Explicit import for runtime components/bundle manifest generation.
+   */
+  private def explicitToggleState: org.digimead.tabuddy.desktop.core.Messages = ???
+
   /**
    * Dependency injection routines
    */

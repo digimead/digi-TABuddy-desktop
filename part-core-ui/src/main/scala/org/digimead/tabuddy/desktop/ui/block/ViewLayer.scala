@@ -197,7 +197,7 @@ object ViewLayer {
       def getValueType(): AnyRef = classOf[String]
 
       def update() = viewActorLock.synchronized {
-        val n = activeActorRefs.get.filter(!_.isTerminated).indexOf(ref)
+        val n = activeActorRefs.get.indexOf(ref)
         value = s"${name} (${n})"
         fireValueChange(Diffs.createValueDiff(name, this.value))
       }

@@ -191,7 +191,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     // Bind window context to composite.
     content.setData(App.widgetContextKey, windowContext: Context)
     // Bind composite to window context.
-    windowContext.set(classOf[WComposite], content)
+    windowContext.set(classOf[Composite], content)
     implicit val ec = App.system.dispatcher
     val result = supervisorRef.ask(App.Message.Restore(Left(content)))(Timeout.short)
     result.onSuccess {

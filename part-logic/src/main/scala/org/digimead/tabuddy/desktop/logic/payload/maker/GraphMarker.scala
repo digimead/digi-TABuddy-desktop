@@ -59,7 +59,6 @@ import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
-import org.digimead.tabuddy.desktop.ui.widget.{ VComposite, WComposite }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
@@ -68,7 +67,7 @@ import org.digimead.tabuddy.model.serialization.Serialization
 import org.eclipse.core.internal.utils.Policy
 import org.eclipse.core.resources.IFile
 import org.eclipse.core.resources.IResource
-import org.eclipse.swt.widgets.Shell
+import org.eclipse.swt.widgets.{ Composite, Shell }
 import scala.collection.{ immutable, mutable }
 
 /**
@@ -90,18 +89,13 @@ class GraphMarker(
   val autoload: Boolean = true) extends api.GraphMarker with MarkerSpecific with GraphSpecific with Loggable {
   /** Type schemas folder name. */
   val folderTypeSchemas = "typeSchemas"
-
   /** Get container resource */
   lazy val resource: IFile = {
     val resourceName = uuid.toString + "." + Payload.extensionGraph
     Logic.container.getFile(resourceName)
   }
   /** GraphMarker mutable state. */
-  val state: GraphMarker.ThreadSafeState = {
-    GraphMarker.globalRWL.readLock().lock()
-    try initializeState()
-    finally GraphMarker.globalRWL.readLock().unlock()
-  }
+  val state: GraphMarker.ThreadSafeState = initializeState()
 
   /** Assert marker state. */
   def assertState() = safeRead { state ⇒
@@ -246,12 +240,16 @@ class GraphMarker(
     payload
   }
   /** Initialize marker state. */
-  protected def initializeState(): GraphMarker.ThreadSafeState =
-    GraphMarker.state.get(uuid) getOrElse GraphMarker.state.synchronized {
-      val state = new GraphMarker.ThreadUnsafeState(None)
-      GraphMarker.state(uuid) = state
-      state
-    }
+  protected def initializeState(): GraphMarker.ThreadSafeState = {
+    GraphMarker.globalRWL.readLock().lock()
+    try {
+      GraphMarker.state.get(uuid) getOrElse GraphMarker.state.synchronized {
+        val state = new GraphMarker.ThreadUnsafeState(None)
+        GraphMarker.state(uuid) = state
+        state
+      }
+    } finally GraphMarker.globalRWL.readLock().unlock()
+  }
   /** Load model descriptor if needed. */
   protected def require(state: GraphMarker.ThreadUnsafeStateReadOnly, throwError: Boolean, updateViaSave: Boolean = true): Unit =
     if (autoload && state.graphProperties.isEmpty) {
@@ -331,50 +329,9 @@ object GraphMarker extends Loggable {
   protected val state = new mutable.HashMap[UUID, ThreadSafeState]() with mutable.SynchronizedMap[UUID, ThreadSafeState]
 
   /** Get marker for UUID. */
-  def apply(uuid: UUID): GraphMarker = state(uuid).graphMarkerSingleton getOrElse new GraphMarker(uuid)
+  def apply(uuid: UUID): GraphMarker = state.get(uuid).flatMap(_.graphMarkerSingleton) getOrElse new GraphMarker(uuid)
   /** Get marker for graph. */
   def apply(graph: Graph[_ <: Model.Like]): GraphMarker = graph.withData(_(GraphMarker).asInstanceOf[GraphMarker])
-  /** Find the best shell which is suitable for the graph marker. */
-  def bestShell(graph: Graph[_ <: Model.Like]): Option[Shell] =
-    bestShell(GraphMarker(graph))
-  /** Find the best shell which is suitable for the graph marker. */
-  def bestShell(marker: GraphMarker): Option[Shell] = {
-    val markerContexts = markerToContext(marker)
-    val viewContexts = markerContexts.filter(_.containsKey(classOf[VComposite], true))
-    // search for active window context for current view with graph
-    val active = Core.context.getActiveLeaf()
-    viewContexts.find(_.eq(active)).foreach { context ⇒
-      context.getParents().find(_.containsKey(classOf[WComposite], true)).foreach { context ⇒
-        log.debug(s"Find reliable shell for ${marker}.")
-        return Some(context.get(classOf[WComposite]).getShell())
-      }
-    }
-    // search for any window context within active branch
-    val activeBranch = active.getParents()
-    val windowContexts = Core.context.getChildren().flatMap {
-      case context if context.containsKey(classOf[WComposite], true) ⇒
-        if (activeBranch.contains(context)) {
-          log.debug("Find most reliable shell inside " + Context.getName(context).getOrElse("UNKNOWN CONTEXT"))
-          return Some(context.get(classOf[WComposite]).getShell())
-        } else
-          Some(context)
-      case context ⇒
-        None
-    }
-    // search for any window
-    windowContexts.foreach { context ⇒
-      if (context.getParent().getActiveChild() == context) {
-        log.debug("Find one activated shell inside " + Context.getName(context).getOrElse("UNKNOWN CONTEXT"))
-        return Some(context.get(classOf[WComposite]).getShell())
-      }
-    }
-    if (windowContexts.nonEmpty) {
-      val context = windowContexts.head
-      log.debug("Find one random shell inside " + Context.getName(context).getOrElse("UNKNOWN CONTEXT"))
-      return Some(context.get(classOf[WComposite]).getShell())
-    }
-    None
-  }
   /** Bind marker to context. */
   def bind(marker: GraphMarker, context: Context = Core.context) = {
     globalRWL.readLock().lock()
@@ -476,6 +433,53 @@ object GraphMarker extends Loggable {
     try marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.keys.toSeq
     finally globalRWL.readLock().unlock()
   }
+  /** Get a shell which is suitable for the graph marker. */
+  def shell(graph: Graph[_ <: Model.Like]): Option[(Context, Shell)] =
+    shell(GraphMarker(graph))
+  /** Get a shell which is suitable for the graph marker. */
+  def shell(marker: GraphMarker): Option[(Context, Shell)] = {
+    log.debug(s"Search shell for $marker.")
+    lazy val contexts = Core.context.getChildren().filter(_.containsKey(classOf[Composite], true))
+    val markerContexts = GraphMarker.markerToContext(marker)
+    val activeLeaf = Core.context.getActiveLeaf()
+    // active branch from leaf to root
+    val activeBranch = (activeLeaf.getParents() :+ activeLeaf).reverse
+    // find shell within active branch for this marker
+    val activeShellForMarker = activeBranch.find(markerContexts.contains).flatMap { mostCommonContext ⇒
+      activeBranch.find(_.containsKey(classOf[Composite], true)).map { contextWithComposite ⇒
+        log.debug(s"Found shell for ${marker} in active branch ${contextWithComposite}.")
+        (contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell())
+      }
+    }
+    // find shell for this marker
+    val passiveShellForMarker = activeShellForMarker orElse {
+      contexts.find(markerContexts.contains).map { contextWithComposite ⇒
+        log.debug(s"Found shell for ${marker} in passive ${contextWithComposite}.")
+        (contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell())
+      }
+    }
+    // find shell within active branch
+    val activeShell = passiveShellForMarker orElse {
+      activeBranch.find(_.containsKey(classOf[Composite], true)).map { contextWithComposite ⇒
+        log.debug(s"Found shell in active branch ${contextWithComposite}.")
+        (contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell())
+      }
+    }
+    // find shell ...
+    activeShell orElse {
+      // search for any context with composites
+      contexts.find(ctx ⇒ ctx.getParent().getActiveChild() == ctx) match {
+        case Some(contextWithComposite) ⇒
+          log.debug(s"Found shell that is actived at least once in ${contextWithComposite}.")
+          Some((contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell()))
+        case None ⇒
+          contexts.headOption.map { contextWithComposite ⇒
+            log.debug(s"Found shell in some context ${contextWithComposite}.")
+            (contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell())
+          }
+      }
+    }
+  }
   /** Create temporary graph marker. */
   def temporary(graph: Graph[_ <: Model]): TemporaryGraphMarker = new TemporaryGraphMarker(graph)
   /** Unbind marker from context. */
@@ -506,13 +510,13 @@ object GraphMarker extends Loggable {
       rwl.readLock().lock()
       try f(this) finally rwl.readLock().unlock()
     }
+    /** Lock this state for updating field content. */
+    def safeUpdate[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = safeWrite(f)
     /** Lock this state for writing. */
     def safeWrite[A](f: ThreadUnsafeState ⇒ A): A = {
       rwl.writeLock().lock()
       try f(this) finally rwl.writeLock().unlock()
     }
-    /** Lock this state for updating field content. */
-    def safeUpdate[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = safeWrite(f)
   }
   /**
    * Graph marker thread unsafe read only object.
@@ -535,16 +539,28 @@ object GraphMarker extends Loggable {
     /** Map of marker contexts binded with this graph. */
     val contextRefs = new mutable.WeakHashMap[Context, Unit] with mutable.SynchronizedMap[Context, Unit]
     /** Graph. */
-    var graphObject = Option.empty[Graph[_ <: Model.Like]]
+    private var graphObjectContainer = Option.empty[Graph[_ <: Model.Like]]
     /** Graph properties. */
-    var graphProperties = Option.empty[Properties]
+    private var graphPropertiesContainer = Option.empty[Properties]
     /** Payload. */
-    var payloadObject = Option.empty[Payload]
+    private var payloadObjectContainer = Option.empty[Payload]
 
     /** Get graph. */
     def graph: Graph[_ <: Model.Like] = graphObject getOrElse { throw new IllegalStateException("Graph not loaded.") }
-    /** Get payload. */
+    /** Thread unsafe graph getter. */
+    def graphObject = graphObjectContainer
+    /** Thread unsafe Graph setter. */
+    def graphObject_=(arg: Option[Graph[_ <: Model.Like]]) = graphObjectContainer = arg
+    /** Thread unsafe Graph properties getter. */
+    def graphProperties: Option[Properties] = graphPropertiesContainer
+    /** Thread unsafe Graph properties setter. */
+    def graphProperties_=(arg: Option[Properties]) = graphPropertiesContainer = arg
+    /** Thread unsafe get payload. */
     def payload: Payload = payloadObject getOrElse { throw new IllegalStateException("Payload not initialized.") }
+    /** Thread unsafe Payload getter. */
+    def payloadObject: Option[Payload] = payloadObjectContainer
+    /** Thread unsafe Payload setter. */
+    def payloadObject_=(arg: Option[Payload]) = payloadObjectContainer = arg
     override def toString() = s"GraphMarker.State($graphObject, $graphProperties, $payloadObject)"
   }
   /** Read only marker. */
@@ -653,8 +669,7 @@ object GraphMarker extends Loggable {
 
     /** Initialize marker state. */
     override protected def initializeState() = {
-      val state = new GraphMarker.ThreadUnsafeState(Some(this))
-      state.graphObject = Some(graph)
+      val state = new TemporaryGraphMarker.ImmutableState(Some(this))
       graph.withData { data ⇒
         data.get(GraphMarker) match {
           case Some(marker) ⇒
@@ -673,5 +688,31 @@ object GraphMarker extends Loggable {
     }
 
     override def toString() = s"TemporaryGraphMarker[${uuid}]"
+  }
+  object TemporaryGraphMarker {
+    /**
+     * Immutable state container for TemporaryGraphMarker
+     */
+    class ImmutableState(singleton: Option[TemporaryGraphMarker])
+      extends GraphMarker.ThreadUnsafeState(singleton) {
+      /** Graph getter. */
+      override def graphObject = singleton.map(_.graphAcquire()): Option[Graph[_ <: Model.Like]]
+      /** Graph setter. */
+      override def graphObject_=(arg: Option[Graph[_ <: Model.Like]]) = ???
+      /** Graph properties getter. */
+      override def graphProperties: Option[Properties] = ???
+      /** Graph properties setter. */
+      override def graphProperties_=(arg: Option[Properties]) = ???
+      /** Payload getter. */
+      override def payloadObject: Option[Payload] = ???
+      /** Payload setter. */
+      override def payloadObject_=(arg: Option[Payload]) = ???
+      /** Lock this state for reading. */
+      override def safeRead[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = f(this)
+      /** Lock this state for updating field content. */
+      override def safeUpdate[A](f: ThreadUnsafeStateReadOnly ⇒ A): A = safeWrite(f)
+      /** Lock this state for writing. */
+      override def safeWrite[A](f: ThreadUnsafeState ⇒ A): A = f(this)
+    }
   }
 }
