@@ -44,16 +44,19 @@
 package org.digimead.tabuddy.desktop.model.definition.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ api ⇒ papi }
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist.ElementTemplateList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.swt.widgets.Shell
 
 /**
  * Modify an element template list.
@@ -85,22 +88,34 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
     val marker = GraphMarker(graph)
     val exchanger = new Exchanger[Operation.Result[Set[papi.ElementTemplate]]]()
     App.assertEventThread(false)
-    App.exec {
-      GraphMarker.shell(marker) match {
-        case Some((context, shell)) ⇒
-          marker.safeRead { state ⇒
-            val dialog = new ElementTemplateList(context, shell, graph, marker, state.payload, templateList)
-            dialog.openOrFocus {
-              case result if result == org.eclipse.jface.window.Window.OK ⇒
-                exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedTemplates())))
-              case result ⇒
-                exchanger.exchange(Operation.Result.Cancel())
+    // this lock is preparation that prevents freeze of the event loop thread
+    marker.safeRead { _ ⇒
+      App.exec {
+        GraphMarker.shell(marker) match {
+          case Some((context, shell)) ⇒
+            // actual lock inside event loop thread
+            marker.safeRead { state ⇒
+              val dialogContext = context.createChild("ElementTemplateListDialog")
+              dialogContext.set(classOf[Shell], shell)
+              dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
+              dialogContext.set(classOf[GraphMarker], marker)
+              dialogContext.set(classOf[Payload], state.payload)
+              dialogContext.set(classOf[Set[papi.ElementTemplate]], templateList)
+              val dialog = ContextInjectionFactory.make(classOf[ElementTemplateList], dialogContext)
+              dialog.openOrFocus { result ⇒
+                context.removeChild(dialogContext)
+                dialogContext.dispose()
+                if (result == org.eclipse.jface.window.Window.OK)
+                  exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedTemplates())))
+                else
+                  exchanger.exchange(Operation.Result.Cancel())
+              }
             }
-          }
-        case None ⇒
-          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
-      }
-    }(App.LongRunnable)
+          case None ⇒
+            exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+        }
+      }(App.LongRunnable)
+    }
     exchanger.exchange(null)
   }
 

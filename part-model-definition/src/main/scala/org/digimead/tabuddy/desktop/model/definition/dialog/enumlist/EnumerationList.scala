@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.model.definition.dialog.enumlist
 
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
@@ -57,6 +58,7 @@ import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
@@ -70,9 +72,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class EnumerationList(
-  /** Parent context. */
-  val parentContext: Context,
+class EnumerationList @Inject() (
+  /** This dialog context. */
+  val context: IEclipseContext,
   /** Parent shell. */
   val parentShell: Shell,
   /** Graph container. */
@@ -95,8 +97,6 @@ class EnumerationList(
     }.sortBy(_.id.name))
   /** The auto resize lock */
   protected lazy val autoResizeLock = new ReentrantLock()
-  /** This dialog context. */
-  protected val context = parentContext.createChild("EnumerationListDialog")
   /** The property representing enumeration in current UI field(s) that available for user */
   protected lazy val enumerationField = WritableValue[papi.Enumeration[_ <: AnyRef with java.io.Serializable]]
   /** Activate context on focus. */
@@ -133,7 +133,6 @@ class EnumerationList(
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
-    context.set(classOf[GraphMarker], marker)
     new ActionContributionItem(ActionCreate).fill(getCompositeFooter())
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
     new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
@@ -158,8 +157,6 @@ class EnumerationList(
       def widgetDisposed(e: DisposeEvent) {
         getShell().removeFocusListener(focusListener)
         getShell().removeShellListener(shellListener)
-        parentContext.removeChild(context)
-        context.dispose()
         actual.removeChangeListener(actualListener)
       }
     })

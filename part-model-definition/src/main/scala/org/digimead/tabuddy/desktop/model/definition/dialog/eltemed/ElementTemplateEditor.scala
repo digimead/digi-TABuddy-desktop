@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.model.definition.dialog.eltemed
 
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
@@ -56,6 +57,7 @@ import org.digimead.tabuddy.desktop.ui.UI
 import org.digimead.tabuddy.desktop.ui.definition.Dialog
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
@@ -70,9 +72,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class ElementTemplateEditor(
-  /** Parent context. */
-  val parentContext: Context,
+class ElementTemplateEditor @Inject() (
+  /** This dialog context. */
+  val context: IEclipseContext,
   /** Parent shell. */
   val parentShell: Shell,
   /** Graph container. */
@@ -92,8 +94,6 @@ class ElementTemplateEditor(
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing current template availability */
   protected val availabilityField = WritableValue[java.lang.Boolean]
-  /** This dialog context. */
-  protected val context = parentContext.createChild("ElementTemplateEditorDialog")
   /** List of available enumerations */
   protected[eltemed] val enumerations: Array[papi.Enumeration[_ <: AnyRef with java.io.Serializable]] =
     payload.getAvailableEnumerations.sortBy(_.id.name).toArray
@@ -159,7 +159,6 @@ class ElementTemplateEditor(
     // Create dialog elements
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
-    context.set(classOf[GraphMarker], marker)
     initTableTemplateProperties
     new ActionContributionItem(ActionAdd).fill(getCompositeFooter())
     new ActionContributionItem(ActionDelete).fill(getCompositeFooter())
@@ -208,8 +207,6 @@ class ElementTemplateEditor(
       def widgetDisposed(e: DisposeEvent) {
         getShell().removeFocusListener(focusListener)
         getShell().removeShellListener(shellListener)
-        parentContext.removeChild(context)
-        context.dispose()
         idField.removeChangeListener(idFieldListener)
         nameField.removeChangeListener(nameFieldListener)
         availabilityField.removeChangeListener(availabilityFieldListener)

@@ -206,6 +206,7 @@ class GraphMarker(
     // Templates
     // Reload element templates
     log.debug("Update element templates.")
+    // Indirectly initialize payload.elementTemplates
     payload.originalElementTemplates
     // Set active type schema
     PredefinedElements.eSettings(state.graph).eGet[String]('activeTypeSchema) match {

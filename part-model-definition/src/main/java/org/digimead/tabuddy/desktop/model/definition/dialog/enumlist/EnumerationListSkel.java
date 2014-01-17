@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.enumlist;
 
+import java.util.ResourceBundle;
+
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
@@ -66,11 +68,29 @@ import swing2swt.layout.FlowLayout;
  * @author ezh
  */
 public class EnumerationListSkel extends TitleAreaDialog {
+	private static final ResourceBundle BUNDLE = getResourceBundle();
 	private TableViewer tableViewer;
 	private TableViewerColumn tblclmnAvailability;
 	private TableViewerColumn tblclmnId;
 	private TableViewerColumn tblclmnName;
 	private Composite compositeFooter;
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceBundle() {
+		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.core.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.enumlist.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.enumlist.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.enumlist.messages");
+		}
+	}
 
 	/**
 	 * Create the dialog.
@@ -89,45 +109,40 @@ public class EnumerationListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setTitle(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.enumerationListTitle_text());
-		setMessage(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.enumerationListDescription_text());
+		setTitle(BUNDLE.getString("enumerationListTitle_text"));
+		setMessage(BUNDLE.getString("enumerationListDescription_text"));
 		Composite area = (Composite) super.createDialogArea(parent);
 		Composite container = new Composite(area, SWT.NONE);
 		container.setLayout(new GridLayout(1, false));
 		container.setLayoutData(new GridData(GridData.FILL_BOTH));
 
 		Label lblEnumerations = new Label(container, SWT.NONE);
-		lblEnumerations.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER,
-				false, false, 1, 1));
-		lblEnumerations.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.enumerations_text());
+		lblEnumerations.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1));
+		lblEnumerations.setText(BUNDLE.getString("enumerations_text"));
 
-		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK
-				| SWT.FULL_SELECTION);
+		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK | SWT.FULL_SELECTION);
 		Table table_enumerations = tableViewer.getTable();
 		table_enumerations.setLinesVisible(true);
 		table_enumerations.setHeaderVisible(true);
-		table_enumerations.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true,
-				true, 1, 1));
+		table_enumerations.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
 
 		tblclmnAvailability = new TableViewerColumn(tableViewer, SWT.NONE);
-		TableColumn tblclmnEnumerationAvailability = tblclmnAvailability
-				.getColumn();
+		TableColumn tblclmnEnumerationAvailability = tblclmnAvailability.getColumn();
 		tblclmnEnumerationAvailability.setWidth(100);
-		tblclmnEnumerationAvailability.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.availability_text());
+		tblclmnEnumerationAvailability.setText(BUNDLE.getString("availability_text"));
 
 		tblclmnId = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnEnumerationId = tblclmnId.getColumn();
 		tblclmnEnumerationId.setWidth(100);
-		tblclmnEnumerationId.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.identificator_text());
+		tblclmnEnumerationId.setText(BUNDLE.getString("identificator_text"));
 
 		tblclmnName = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnEnumerationName = tblclmnName.getColumn();
 		tblclmnEnumerationName.setWidth(100);
-		tblclmnEnumerationName.setText(org.digimead.tabuddy.desktop.core.Messages$.MODULE$.name_text());
+		tblclmnEnumerationName.setText(BUNDLE.getString("name_text"));
 
 		compositeFooter = new Composite(container, SWT.NONE);
-		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true,
-				false, 1, 1));
+		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false, 1, 1));
 		compositeFooter.setLayout(new FlowLayout(FlowLayout.RIGHT, 5, 5));
 
 		return area;
@@ -140,11 +155,9 @@ public class EnumerationListSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected void createButtonsForButtonBar(Composite parent) {
-		Button button = createButton(parent, IDialogConstants.OK_ID,
-				IDialogConstants.OK_LABEL, true);
+		Button button = createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL, true);
 		button.setEnabled(false);
-		createButton(parent, IDialogConstants.CANCEL_ID,
-				IDialogConstants.CANCEL_LABEL, false);
+		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
 	protected TableViewer getTableViewer() {

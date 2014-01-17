@@ -47,15 +47,17 @@ import java.util.UUID
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate.Builder
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.dsl.DSLType
-import org.digimead.tabuddy.model.element.{ Element, Value }
-import scala.collection.immutable
+import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.element.Value
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.serialization.StubSerialization
 import org.digimead.tabuddy.model.graph.Node
+import org.digimead.tabuddy.model.serialization.StubSerialization
+import scala.collection.immutable
 
 class ElementTemplate(
   /** The template element */
@@ -259,7 +261,11 @@ object ElementTemplate extends Loggable {
           val original = node.children.map(_.rootBox.e.eRelative)
           temporaryTemplates.map {
             case (example, builder) ⇒
-              original.find(element ⇒ element.canEqual(example.element.getClass(), example.element.eStash.getClass())) match {
+              original.find(element ⇒ element.canEqual(example.element) &&
+                example.element.canEqual(element) &&
+                element.eStash.canEqual(example.element.eStash) &&
+                example.element.eStash.canEqual(element.eStash) &&
+                element.eId == example.element.eId) match {
                 case Some(original) ⇒
                   log.debug("Keep original template %s based on %s.".format(original, example))
                   new ElementTemplate(original, example.factory)
@@ -274,9 +280,13 @@ object ElementTemplate extends Loggable {
         // Only add new templates, but keep the old ones and skip unknown.
         val userTemplates: Set[api.ElementTemplate] = userTemplatesContainer.eNode.freezeWrite { node ⇒
           val user = node.children.map(_.rootBox.e.eRelative)
-          temporaryTemplates.map {
+          val templatesBasedOnOriginalSet = temporaryTemplates.map {
             case (example, builder) ⇒
-              user.find(element ⇒ element.canEqual(example.element.getClass(), example.element.eStash.getClass())) match {
+              user.find(element ⇒ element.canEqual(example.element) &&
+                example.element.canEqual(element) &&
+                element.eStash.canEqual(example.element.eStash) &&
+                example.element.eStash.canEqual(element.eStash) &&
+                element.eId == example.element.eId) match {
                 case Some(user) ⇒
                   log.debug("Keep user template %s based on %s.".format(user, example))
                   new ElementTemplate(user, example.factory)
@@ -286,8 +296,21 @@ object ElementTemplate extends Loggable {
                   user
               }
           }.toSet
+          val templatesBasedOnUserSet = user.flatMap { element ⇒
+            temporaryTemplates.find {
+              case (example, builder) ⇒ element.canEqual(example.element) &&
+                example.element.canEqual(element) &&
+                element.eStash.canEqual(example.element.eStash) &&
+                example.element.eStash.canEqual(element.eStash)
+            }.map {
+              case (example, builder) ⇒
+                log.debug("Keep user template %s based on %s.".format(user, example))
+                new ElementTemplate(element, example.factory)
+            }
+          }.toSet
+          templatesBasedOnUserSet ++ templatesBasedOnOriginalSet
         }
-        assert(userTemplates.nonEmpty, "There are no element templates.")
+        assert(userTemplates.nonEmpty, "There are no element templates that ara available for user.")
         tempNode.clear()
         (originalTemplates, userTemplates)
       }

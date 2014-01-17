@@ -45,9 +45,10 @@ package org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist
 
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
-import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableList
 import org.digimead.tabuddy.desktop.core.support.WritableValue
@@ -60,6 +61,7 @@ import org.digimead.tabuddy.desktop.ui.definition.Dialog
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
 import org.eclipse.jface.dialogs.IDialogConstants
@@ -72,9 +74,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class ElementTemplateList(
-  /** Parent context. */
-  val parentContext: Context,
+class ElementTemplateList @Inject() (
+  /** This dialog context. */
+  val context: IEclipseContext,
   /** Parent shell. */
   val parentShell: Shell,
   /** Graph container. */
@@ -97,8 +99,6 @@ class ElementTemplateList(
     }.sortBy(_.id.name))
   /** The auto resize lock. */
   protected val autoResizeLock = new ReentrantLock()
-  /** This dialog context. */
-  protected val context = parentContext.createChild("ElementTemplateListDialog")
   /** Activate context on focus. */
   protected val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
@@ -135,7 +135,6 @@ class ElementTemplateList(
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
-    context.set(classOf[GraphMarker], marker)
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
     new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
     new ActionContributionItem(ActionRemove).fill(getCompositeFooter())
@@ -155,8 +154,6 @@ class ElementTemplateList(
       def widgetDisposed(e: DisposeEvent) {
         getShell().removeFocusListener(focusListener)
         getShell().removeShellListener(shellListener)
-        parentContext.removeChild(context)
-        context.dispose()
         actual.removeChangeListener(actualListener)
       }
     })
