@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.payload
 
-class TemplateProperty[T <: AnyRef with java.io.Serializable](
+class TemplateProperty[T <: AnySRef](
   /** Property name */
   val id: Symbol,
   /** Is property required */
@@ -68,13 +68,13 @@ class TemplateProperty[T <: AnyRef with java.io.Serializable](
  */
 object TemplateProperty {
   /** The deep comparison of two template properties */
-  def compareDeep(a: api.TemplateProperty[_ <: AnyRef with java.io.Serializable], b: api.TemplateProperty[_ <: AnyRef with java.io.Serializable]): Boolean =
+  def compareDeep(a: api.TemplateProperty[_ <: AnySRef], b: api.TemplateProperty[_ <: AnySRef]): Boolean =
     (a eq b) || (a == b && a.ptype == b.ptype && a.defaultValue == b.defaultValue && a.enumeration == b.enumeration && a.required == b.required)
 
   /**
    * the model.dsl.DSLType from the application point of view
    */
-  private[TemplateProperty] trait Interface[T <: AnyRef with java.io.Serializable] extends api.TemplateProperty[T] {
+  private[TemplateProperty] trait Interface[T <: AnySRef] extends api.TemplateProperty[T] {
     /** The default value */
     val defaultValue: Option[T]
     /** The property that representing an attached enumeration if any */

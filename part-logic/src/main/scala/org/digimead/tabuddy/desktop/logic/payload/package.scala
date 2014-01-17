@@ -57,6 +57,7 @@ import org.digimead.tabuddy.model.{ Model, Record }
 import scala.collection.immutable
 
 package object payload {
+  type AnySRef = AnyRef with java.io.Serializable
   lazy val default = new NewBindingModule(module ⇒ {
     module.bind[File] identifiedBy "Payload" toModuleSingle { module ⇒
       module.inject[File](Some("Config")).getParentFile()
@@ -159,7 +160,6 @@ package object payload {
     }
   })
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.ElementTemplate$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.Enumeration$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.Payload$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.PropertyType$DI$")
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.TypeSchema$DI$")

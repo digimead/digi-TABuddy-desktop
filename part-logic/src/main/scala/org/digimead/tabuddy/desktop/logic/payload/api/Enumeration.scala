@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -52,28 +52,26 @@ import org.digimead.tabuddy.model.element.Element
 trait Enumeration[T <: AnyRef with java.io.Serializable] extends Equals {
   /** Availability flag for user (some enumeration may exists, but not involved in new element creation). */
   val availability: Boolean
-  /** The enumeration name. */
-  val name: String
+  /** The sequence of enumeration constants. */
+  val constants: Set[Enumeration.Constant[T]]
   /** The enumeration element. */
-  val element: Element
+  val element: Element#RelativeType
   /** The enumeration id/name. */
   val id: Symbol
+  /** The enumeration name. */
+  val name: String
   /** The type wrapper. */
   val ptype: PropertyType[T]
-  /**
-   * Sequence of enumeration constants.
-   */
-  val constants: Set[Enumeration.Constant[T]]
 
-  /** Convert enumeration to common type. */
-  def **(): Enumeration[_ <: AnyRef with java.io.Serializable] = this.asInstanceOf[Enumeration[_ <: AnyRef with java.io.Serializable]]
+  /** Get explicit general enumeration. */
+  def **(): Enumeration[AnyRef with java.io.Serializable] = this.asInstanceOf[Enumeration[AnyRef with java.io.Serializable]]
   /** The copy constructor. */
   def copy(availability: Boolean = this.availability,
-    name: String = this.name,
-    element: Element = this.element,
-    ptype: PropertyType[T] = this.ptype,
+    constants: Set[Enumeration.Constant[T]] = this.constants,
+    element: Element#RelativeType = this.element,
     id: Symbol = this.id,
-    constants: Set[Enumeration.Constant[T]] = this.constants): this.type
+    name: String = this.name,
+    ptype: PropertyType[T] = this.ptype): this.type
   /** Get the specific constant for the property or the first entry. */
   def getConstantSafe(property: TemplateProperty[T]): Enumeration.Constant[T]
   /** Get the specific constant for the value or the first entry. */

@@ -44,19 +44,22 @@
 package org.digimead.tabuddy.desktop.logic.payload
 
 import java.util.UUID
-import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.model.element.{ Element, Value }
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.Record
+import org.digimead.tabuddy.model.element.Value
+import org.digimead.tabuddy.model.element.{ Coordinate, Element }
+import org.digimead.tabuddy.model.graph.ElementBox
+import org.digimead.tabuddy.model.graph.{ Graph, Node }
 import scala.collection.immutable
-import scala.reflect.runtime.universe
 
-class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
+class Enumeration[T <: AnySRef: Manifest](
   /** The enumeration element */
-  val element: Element,
+  val element: Element#RelativeType,
   /** The enumeration type wrapper */
   val ptype: api.PropertyType[T],
   /** Fn thats do something before the instance initialization */
@@ -67,7 +70,7 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
   preinitialization: Enumeration[_] ⇒ Unit = (enum: Enumeration[_]) ⇒
     // create the enumeration element if needed and set the type field
     enum.element.eSet[String](enum.getFieldIDType, enum.ptype.id.name)) extends Enumeration.Interface[T] with Loggable {
-  def this(element: Element, ptype: api.PropertyType[T], initialAvailability: Boolean,
+  def this(element: Element#RelativeType, ptype: api.PropertyType[T], initialAvailability: Boolean,
     initialName: String, initialConstants: Set[api.Enumeration.Constant[T]]) = {
     this(element, ptype, (enumerationWithoutErasure) ⇒ {
       val enumeration = enumerationWithoutErasure.asInstanceOf[Enumeration[T]]
@@ -102,19 +105,19 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
 
   /** The copy constructor */
   def copy(availability: Boolean = this.availability,
-    name: String = this.name,
-    element: Element = this.element,
-    ptype: api.PropertyType[T] = this.ptype,
+    constants: Set[api.Enumeration.Constant[T]] = this.constants,
+    element: Element#RelativeType = this.element,
     id: Symbol = this.id,
-    constants: Set[api.Enumeration.Constant[T]] = this.constants) =
+    name: String = this.name,
+    ptype: api.PropertyType[T] = this.ptype) =
     if (id == this.id)
       new Enumeration(element, ptype, availability, name, constants).asInstanceOf[this.type]
     else {
       element.eNode.parent match {
         case Some(parent) ⇒
           parent.freezeWrite { node ⇒
-            val nodeCopy = element.eNode.copy(target = node, id = id, unique = UUID.randomUUID())
-            new Enumeration(nodeCopy.projection(element.eCoordinate).e, ptype, availability, name, constants).asInstanceOf[this.type]
+            val nodeCopy = element.eNode.copy(target = node, id = id, unique = UUID.randomUUID()): Node[_ <: Element]
+            new Enumeration(nodeCopy.projection(element.eCoordinate).e.eRelative, ptype, availability, name, constants).asInstanceOf[this.type]
           }
         case None ⇒
           throw new IllegalStateException(s"Unable to copy unbinded $this.")
@@ -181,19 +184,24 @@ class Enumeration[T <: AnyRef with java.io.Serializable: Manifest](
 }
 
 object Enumeration extends Loggable {
-  type propertyMap = immutable.HashMap[TemplatePropertyGroup, Seq[TemplateProperty[_ <: AnyRef with java.io.Serializable]]]
+  type propertyMap = immutable.HashMap[TemplatePropertyGroup, Seq[TemplateProperty[_ <: AnySRef]]]
   /** Constants limit per enumeration */
   val collectionMaximum = 100
 
   /** The deep comparison of two enumerations. */
-  def compareDeep(a: api.Enumeration[_ <: AnyRef with java.io.Serializable], b: api.Enumeration[_ <: AnyRef with java.io.Serializable]): Boolean =
+  def compareDeep(a: api.Enumeration[_ <: AnySRef], b: api.Enumeration[_ <: AnySRef]): Boolean =
     (a eq b) || (a == b && a.ptype == b.ptype && a.availability == b.availability && a.name == b.name &&
       a.id == b.id && (a.constants, b.constants).zipped.forall(compareDeep(_, _)))
   /** The deep comparison of two constants. */
-  def compareDeep(a: api.Enumeration.Constant[_ <: AnyRef with java.io.Serializable], b: api.Enumeration.Constant[_ <: AnyRef with java.io.Serializable]): Boolean =
+  def compareDeep(a: api.Enumeration.Constant[_ <: AnySRef], b: api.Enumeration.Constant[_ <: AnySRef]): Boolean =
     (a eq b) || (a.value == b.value && a.alias == b.alias && a.description == b.description)
   /** The factory for the element that contains enumeration data. */
-  def factory(container: Element, elementId: Symbol): Element = container | RecordLocation(elementId)
+  def factory(graph: Graph[_ <: Model.Like], elementId: Symbol, attach: Boolean = true): Element =
+    PredefinedElements.eEnumeration(graph).eNode.safeWrite { containerNode ⇒
+      containerNode.createChild[Record](elementId, UUID.randomUUID(), attach).safeWrite { child ⇒
+        ElementBox.getOrCreate[Record](Coordinate.root, child, Record.scope, graph.node.rootBox.serialization)
+      }
+    }
   /** Return enumeration element type wrapper id. */
   def getElementTypeWrapperId(e: Element): Option[Symbol] = e.eGet[String]('type).map(t ⇒ Symbol(t.get))
   /** Get type name*/
@@ -204,7 +212,7 @@ object Enumeration extends Loggable {
     }
   }
   /** Get translation by alias. */
-  def getConstantTranslation(constant: Constant[_ <: AnyRef with java.io.Serializable]): String =
+  def getConstantTranslation(constant: Constant[_ <: AnySRef]): String =
     if (constant.alias.startsWith("*"))
       NLS.messages.get(constant.alias.substring(1)).getOrElse {
         val result = constant.alias.substring(1)
@@ -215,11 +223,11 @@ object Enumeration extends Loggable {
         trimmed(0).toString.toUpperCase + trimmed.substring(1)
       }
     else if (constant.alias.isEmpty())
-      constant.ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]].valueToString(constant.value)
+      constant.ptype.asInstanceOf[PropertyType[AnySRef]].valueToString(constant.value)
     else
       constant.alias
   /** Get all enumerations. */
-  def load(marker: GraphMarker): Set[api.Enumeration[_ <: AnyRef with java.io.Serializable]] = marker.safeRead { state ⇒
+  def load(marker: GraphMarker): Set[api.Enumeration[_ <: AnySRef]] = marker.safeRead { state ⇒
     log.debug("Load enumerations list for graph " + state.graph)
     val container = PredefinedElements.eEnumeration(state.graph)
     container.eNode.freezeRead(_.children.map(_.rootBox.e).map { element ⇒
@@ -227,8 +235,8 @@ object Enumeration extends Loggable {
         case Some(ptype) ⇒
           log.debug("load enumeration %s with type %s".format(element.eId.name, ptype.id))
           // provide type information at runtime
-          Some(new Enumeration(element, ptype)(Manifest.classType(ptype.typeClass))).
-            asInstanceOf[Option[api.Enumeration[_ <: AnyRef with java.io.Serializable]]]
+          Some(new Enumeration(element.eRelative, ptype)(Manifest.classType(ptype.typeClass))).
+            asInstanceOf[Option[api.Enumeration[_ <: AnySRef]]]
         case None ⇒
           log.warn("unable to find apropriate type wrapper for enumeration " + element)
           None
@@ -236,7 +244,7 @@ object Enumeration extends Loggable {
     }).flatten.toSet
   }
   /** Update only modified enumerations. */
-  def save(marker: GraphMarker, enumerations: Set[api.Enumeration[_ <: AnyRef with java.io.Serializable]]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, enumerations: Set[api.Enumeration[_ <: AnySRef]]) = marker.safeUpdate { state ⇒
     log.debug("Save enumeration list for graph " + state.graph)
     val oldEnums = App.execNGet { state.payload.enumerations.values }
     val deleted = oldEnums.filterNot(oldEnum ⇒ enumerations.exists(compareDeep(oldEnum, _)))
@@ -258,7 +266,7 @@ object Enumeration extends Loggable {
    * The enumeration constant class
    * The equality is based on constant value
    */
-  case class Constant[T <: AnyRef with java.io.Serializable](val value: T,
+  case class Constant[T <: AnySRef](val value: T,
     val alias: String, val description: String)(val ptype: api.PropertyType[T], implicit val m: Manifest[T])
     extends api.Enumeration.Constant[T] {
     /** The enumeration constant user's representation. */
@@ -280,29 +288,27 @@ object Enumeration extends Loggable {
    * The base enumeration interface
    * The equality is based on element reference
    */
-  private[Enumeration] trait Interface[T <: AnyRef with java.io.Serializable] extends api.Enumeration[T] {
+  private[Enumeration] trait Interface[T <: AnySRef] extends api.Enumeration[T] {
     /** Availability flag for user (some enumeration may exists, but not involved in new element creation). */
     val availability: Boolean
-    /** The enumeration name. */
-    val name: String
+    /** The sequence of enumeration constants. */
+    val constants: Set[api.Enumeration.Constant[T]]
     /** The enumeration element. */
-    val element: Element
+    val element: Element#RelativeType
     /** The enumeration id/name. */
     val id: Symbol
+    /** The enumeration name. */
+    val name: String
     /** The type wrapper. */
     val ptype: api.PropertyType[T]
-    /**
-     * Sequence of enumeration constants.
-     */
-    val constants: Set[api.Enumeration.Constant[T]]
 
     /** The copy constructor. */
     def copy(availability: Boolean = this.availability,
-      name: String = this.name,
-      element: Element = this.element,
-      ptype: api.PropertyType[T] = this.ptype,
+      constants: Set[api.Enumeration.Constant[T]] = this.constants,
+      element: Element#RelativeType = this.element,
       id: Symbol = this.id,
-      constants: Set[api.Enumeration.Constant[T]] = this.constants): this.type
+      name: String = this.name,
+      ptype: api.PropertyType[T] = this.ptype): this.type
     /** Get the specific constant for the property or the first entry. */
     def getConstantSafe(property: api.TemplateProperty[T]): api.Enumeration.Constant[T]
     /** Get the specific constant for the value or the first entry. */
@@ -332,11 +338,5 @@ object Enumeration extends Loggable {
     }
     override def hashCode() = element.eReference.hashCode
     override def toString() = "Enumeration[%s]%s".format(ptype.id, element.eId)
-  }
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    //org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Like]("eEnumeration")
   }
 }

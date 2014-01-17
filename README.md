@@ -26,4 +26,4 @@ If you want to keep your source closed, you'll need a commercial license.
 Copyright
 ---------
 
-Copyright © 2012-2013 Alexey B. Aksenov/Ezh. All rights reserved.
+Copyright © 2012-2014 Alexey B. Aksenov/Ezh. All rights reserved.

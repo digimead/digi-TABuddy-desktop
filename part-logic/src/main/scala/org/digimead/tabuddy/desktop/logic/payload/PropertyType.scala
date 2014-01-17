@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -65,7 +65,7 @@ import scala.collection.immutable
  * Base class of the handler for the property of the particular type
  * The equality is based on id: Symbol
  */
-trait PropertyType[T <: AnyRef with java.io.Serializable] extends api.PropertyType[T] {
+trait PropertyType[T <: AnySRef] extends api.PropertyType[T] {
   /** The property that determines that enumeration is supported */
   val enumerationSupported: Boolean
   /** The property type name */
@@ -115,21 +115,21 @@ trait PropertyType[T <: AnyRef with java.io.Serializable] extends api.PropertyTy
 }
 
 object PropertyType extends Loggable {
-  type genericAdapter = Adapter[AnyRef with java.io.Serializable]
-  type genericViewer = Viewer[AnyRef with java.io.Serializable]
-  type genericEditor = Editor[AnyRef with java.io.Serializable]
+  type genericAdapter = Adapter[AnySRef]
+  type genericViewer = Viewer[AnySRef]
+  type genericEditor = Editor[AnySRef]
 
   /** Get the default type class (for new element property, for example) */
-  def defaultType(): api.PropertyType[_ <: AnyRef with java.io.Serializable] = DI.types.get('String).getOrElse(DI.types.head._2)
+  def defaultType(): api.PropertyType[_ <: AnySRef] = DI.types.get('String).getOrElse(DI.types.head._2)
   /** Get type wrapper map */
   def container = DI.types
   /** Get type wrapper of the specific type */
-  def get[T <: AnyRef with java.io.Serializable](id: Symbol) = DI.types(id).asInstanceOf[PropertyType[T]]
+  def get[T <: AnySRef](id: Symbol) = DI.types(id).asInstanceOf[PropertyType[T]]
 
   /**
    * Element property adapter
    */
-  abstract class Adapter[A <: AnyRef with java.io.Serializable] extends api.PropertyType.Adapter[A] {
+  abstract class Adapter[A <: AnySRef] extends api.PropertyType.Adapter[A] {
     /** Cell label provider singleton with limited API for proxy use case */
     val cellLabelProvider: CellLabelProviderAdapter[A]
     /** Label provider singleton with limited API for proxy use case */
@@ -147,7 +147,7 @@ object PropertyType extends Loggable {
   /**
    * Element property trait that provides an editor widget
    */
-  trait Editor[T <: AnyRef with java.io.Serializable] extends Viewer[T] with api.PropertyType.Editor[T] {
+  trait Editor[T <: AnySRef] extends Viewer[T] with api.PropertyType.Editor[T] {
     /** An actual value */
     val data: WritableValue[T]
     /** An actual value container */
@@ -173,7 +173,7 @@ object PropertyType extends Loggable {
   /**
    * Element property trait that provides a viewer widget
    */
-  trait Viewer[T <: AnyRef with java.io.Serializable] extends api.PropertyType.Viewer[T] {
+  trait Viewer[T <: AnySRef] extends api.PropertyType.Viewer[T] {
     /** The property representing the UI control value */
     val data: WritableValue[T]
     /** An actual value container */
@@ -275,21 +275,21 @@ object PropertyType extends Loggable {
      *  1. an instance of api.PropertyType
      *  2. has name that starts with "PropertyType."
      */
-    private def injectTypes(): immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]] = {
+    private def injectTypes(): immutable.HashMap[Symbol, api.PropertyType[_ <: AnySRef]] = {
       val types = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[api.PropertyType[_ <: AnyRef with java.io.Serializable]].isAssignableFrom(key.m.runtimeClass)
+        case (key, value) ⇒ classOf[api.PropertyType[_ <: AnySRef]].isAssignableFrom(key.m.runtimeClass)
       }.map {
         case (key, value) ⇒
           key.name match {
             case Some(name) if name.startsWith("PropertyType.") ⇒
               log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[api.PropertyType[_ <: AnyRef with java.io.Serializable]]]
+              bindingModule.injectOptional(key).asInstanceOf[Option[api.PropertyType[_ <: AnySRef]]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' property type skipped.")
               None
           }
       }.flatten.toSeq
-      val result = immutable.HashMap[Symbol, api.PropertyType[_ <: AnyRef with java.io.Serializable]](types.map(n ⇒ (n.id, n)): _*)
+      val result = immutable.HashMap[Symbol, api.PropertyType[_ <: AnySRef]](types.map(n ⇒ (n.id, n)): _*)
       assert(result.nonEmpty, "Unable to start application with empty properyTypes map.")
 
       result.values.foreach(ptype ⇒ try {

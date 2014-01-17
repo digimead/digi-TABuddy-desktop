@@ -44,30 +44,37 @@
 package org.digimead.tabuddy.desktop.model.definition.dialog.enumed
 
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.UI
 import org.digimead.tabuddy.desktop.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, LabelProvider, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Shell, Text }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class EnumerationEditor(val parentShell: Shell,
+class EnumerationEditor @Inject() (
+  /** This dialog context. */
+  val context: IEclipseContext,
+  /** Parent shell. */
+  val parentShell: Shell,
   /** Graph container. */
   val graph: Graph[_ <: Model.Like],
   /** Graph marker. */
@@ -75,9 +82,9 @@ class EnumerationEditor(val parentShell: Shell,
   /** Graph payload. */
   val payload: Payload,
   /** The initial enumeration. */
-  val initial: papi.Enumeration[_ <: AnyRef with java.io.Serializable],
+  val initial: papi.Enumeration[_ <: AnySRef],
   /** Exists enumerations. */
-  val enumerations: List[papi.Enumeration[_ <: AnyRef with java.io.Serializable]])
+  val enumerations: Set[papi.Enumeration[_ <: AnySRef]])
   extends EnumerationEditorSkel(parentShell) with Dialog with Loggable {
   /** Actual enumeration constants */
   protected[enumed] lazy val actualConstants = WritableList(initialConstants)
@@ -85,12 +92,21 @@ class EnumerationEditor(val parentShell: Shell,
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing current enumeration availability */
   protected val availabilityField = WritableValue[java.lang.Boolean]
-  /** The property representing current enumeration name */
-  protected val nameField = WritableValue[String]
+  /** Activate context on focus. */
+  protected val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
   /** The property representing current enumeration id */
   protected val idField = WritableValue[String]
   /** Actual enumeration constants */
   protected val initialConstants = getInitialContent(initial)
+  /** The property representing current enumeration name */
+  protected val nameField = WritableValue[String]
+  /** Activate context on shell events. */
+  protected val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0
   /** Actual sort direction */
@@ -98,25 +114,24 @@ class EnumerationEditor(val parentShell: Shell,
   /** The property representing current enumeration type */
   protected val typeField = WritableValue[java.lang.Integer]
   /** List of available types */
-  protected val types: Array[papi.PropertyType[_ <: AnyRef with java.io.Serializable]] = {
+  protected val types: Array[papi.PropertyType[_ <: AnySRef]] = {
     val userTypes = payload.getAvailableTypes().filter(_.enumerationSupported)
     // add an initial enumeration if absent
     (if (userTypes.contains(initial.ptype)) userTypes else (userTypes :+ initial.ptype)).sortBy(_.id.name).toArray
   }
 
   /** Get an actual enumeration */
-  def getModifiedEnumeration(): papi.Enumeration[_ <: AnyRef with java.io.Serializable] = {
+  def getModifiedEnumeration(): papi.Enumeration[_ <: AnySRef] = {
     val newId = Symbol(idField.value.trim)
     val newElement = if (initial.id == newId)
       initial.element
     else
-      null
-    //initial.element.eCopy(initial.element.eStash.copy(id = newId))
-    val newType = types(typeField.value).asInstanceOf[papi.PropertyType[AnyRef with java.io.Serializable]]
+      initial.element.eNode.copy(id = newId).rootBox.e.eRelative
+    val newType = types(typeField.value).**
     val newConstants = actualConstants.map {
       case EnumerationEditor.Item(value, alias, description) ⇒
         Enumeration.Constant(newType.valueFromString(value), alias, description)(newType, Manifest.classType(newType.typeClass))
-    }.toSet: Set[papi.Enumeration.Constant[AnyRef with java.io.Serializable]]
+    }.toSet: Set[papi.Enumeration.Constant[AnySRef]]
     val name = nameField.value.trim
     new Enumeration(newElement, newType, availabilityField.value, if (name.isEmpty()) newId.name else name, newConstants)(Manifest.classType(newType.typeClass))
   }
@@ -126,8 +141,8 @@ class EnumerationEditor(val parentShell: Shell,
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        //App.adjustTableViewerColumnWidth(getTableViewerColumnValue(), Default.columnPadding)
-        //App.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnValue(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -186,9 +201,13 @@ class EnumerationEditor(val parentShell: Shell,
         }
       updateOK()
     }
+    getShell().addShellListener(shellListener)
+    getShell().addFocusListener(focusListener)
     // add dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
         actualConstants.removeChangeListener(actualConstantsListener)
         availabilityField.removeChangeListener(availabilityFieldListener)
         nameField.removeChangeListener(nameFieldListener)
@@ -202,7 +221,7 @@ class EnumerationEditor(val parentShell: Shell,
     result
   }
   /** Get table content */
-  protected def getInitialContent(enumeration: papi.Enumeration[_ <: AnyRef with java.io.Serializable]): List[EnumerationEditor.Item] =
+  protected def getInitialContent(enumeration: papi.Enumeration[_ <: AnySRef]): List[EnumerationEditor.Item] =
     enumeration.constants.map(constant ⇒ EnumerationEditor.Item(constant.ptype.valueToString(constant.value), constant.alias, constant.description)).toList
   /** Allow external access for scala classes */
   override protected def getTableViewer() = super.getTableViewer

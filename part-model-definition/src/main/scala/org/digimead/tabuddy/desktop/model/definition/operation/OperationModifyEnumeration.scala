@@ -43,34 +43,22 @@
 
 package org.digimead.tabuddy.desktop.model.definition.operation
 
-import java.util.concurrent.Exchanger
-
+import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.model.definition.dialog.enumed.EnumerationEditor
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.IAdaptable
-import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.core.runtime.IStatus
-import org.eclipse.core.runtime.Status
-import org.eclipse.jface.dialogs.ErrorDialog
-import org.eclipse.swt.widgets.Shell
-import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.logic.payload.Enumeration
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
+import org.digimead.tabuddy.desktop.model.definition.dialog.enumed.EnumerationEditor
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
-import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor, IStatus, Status }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.jface.dialogs.ErrorDialog
+import org.eclipse.swt.widgets.Shell
 
 /**
  * Modify an enumeration.
@@ -85,41 +73,13 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
    * @param enumerationList exists enumerations
    * @return the modified enumeration
    */
-  def apply(graph: Graph[_ <: Model.Like], enumeration: payload.api.Enumeration[_ <: AnyRef with java.io.Serializable],
-    enumerationList: Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]): payload.api.Enumeration[_ <: AnyRef with java.io.Serializable] = {
-    /*
-       val exchanger = new Exchanger[Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]]()
-    App.assertUIThread(false)
-    App.exec {
-      App.getActiveShell match {
-        case Some(shell) => if (Data.getAvailableTypes().isEmpty) {
-          App.execBlocking {
-            ErrorDialog.openError(shell, null, Messages.enumerationUnableToCreate_text,
-              new Status(IStatus.INFO, "unknown", IStatus.OK, Messages.enumerationUnableToCreateNoTypes_text, null))
-            exchanger.exchange(Operation.Result.Error(Messages.enumerationUnableToCreate_text, false))
-          }
-        } else {
-          val dialog = new EnumerationEditor(shell, enumeration, enumerationList.toList)
-          dialog.openOrFocus {
-            case result if result == org.eclipse.jface.window.Window.OK =>
-              exchanger.exchange(Operation.Result.OK({
-                val enumeration = dialog.getModifiedEnumeration
-                if (enumerationList.contains(enumeration) && payload.Enumeration.compareDeep(this.enumeration, enumeration))
-                  None // nothing changes, and enumeration is already exists
-                else
-                  Some(enumeration)
-              }))
-            case result =>
-              exchanger.exchange(Operation.Result.Cancel())
-          }
-        } case None =>
-          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
-      }
+  def apply(graph: Graph[_ <: Model.Like], enumeration: papi.Enumeration[_ <: AnySRef],
+    enumerationList: Set[papi.Enumeration[_ <: AnySRef]]): papi.Enumeration[_ <: AnySRef] =
+    dialog(graph, enumeration, enumerationList) match {
+      case Operation.Result.OK(Some(enumeration), _) ⇒ enumeration
+      case _ ⇒ enumeration
     }
-    exchanger.exchange(null)
-     */
-    null
-  }
+
   /**
    * Create 'Modify an enumeration' operation.
    *
@@ -128,17 +88,66 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
    * @param enumerationList exists enumerations
    * @return 'Modify an enumeration' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], enumeration: payload.api.Enumeration[_ <: AnyRef with java.io.Serializable],
-    enumerationList: Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]]) =
+  def operation(graph: Graph[_ <: Model.Like], enumeration: papi.Enumeration[_ <: AnySRef],
+    enumerationList: Set[papi.Enumeration[_ <: AnySRef]]) =
     new Implemetation(graph, enumeration, enumerationList)
+
+  protected def dialog(graph: Graph[_ <: Model.Like], enumeration: papi.Enumeration[_ <: AnySRef],
+    enumerationList: Set[papi.Enumeration[_ <: AnySRef]]): Operation.Result[papi.Enumeration[_ <: AnySRef]] = {
+    val marker = GraphMarker(graph)
+    val exchanger = new Exchanger[Operation.Result[papi.Enumeration[_ <: AnySRef]]]()
+    App.assertEventThread(false)
+    // this lock is preparation that prevents freeze of the event loop thread
+    marker.safeRead { _ ⇒
+      App.exec {
+        GraphMarker.shell(marker) match {
+          case Some((context, shell)) ⇒
+            // actual lock inside event loop thread
+            marker.safeRead { state ⇒
+              if (state.payload.getAvailableTypes().isEmpty) {
+                ErrorDialog.openError(shell, null, Messages.enumerationUnableToCreate_text,
+                  new Status(IStatus.INFO, "unknown", IStatus.OK, Messages.enumerationUnableToCreateNoTypes_text, null))
+                exchanger.exchange(Operation.Result.Error(Messages.enumerationUnableToCreate_text, false))
+              } else {
+                val dialogContext = context.createChild("EnumerationEditorDialog")
+                dialogContext.set(classOf[Shell], shell)
+                dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
+                dialogContext.set(classOf[GraphMarker], marker)
+                dialogContext.set(classOf[Payload], state.payload)
+                dialogContext.set(classOf[papi.Enumeration[_ <: AnySRef]], enumeration)
+                dialogContext.set(classOf[Set[papi.Enumeration[_ <: AnySRef]]], enumerationList)
+                val dialog = ContextInjectionFactory.make(classOf[EnumerationEditor], dialogContext)
+                dialog.openOrFocus { result ⇒
+                  context.removeChild(dialogContext)
+                  dialogContext.dispose()
+                  if (result == org.eclipse.jface.window.Window.OK)
+                    exchanger.exchange(Operation.Result.OK({
+                      val modifiedEnumeration = dialog.getModifiedEnumeration
+                      if (enumerationList.contains(enumeration) && Enumeration.compareDeep(enumeration, modifiedEnumeration))
+                        None // nothing changes, and enumeration is already exists
+                      else
+                        Some(enumeration)
+                    }))
+                  else
+                    exchanger.exchange(Operation.Result.Cancel())
+                }
+              }
+            }
+          case None ⇒
+            exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+        }
+      }(App.LongRunnable)
+    }
+    exchanger.exchange(null)
+  }
 
   class Implemetation(
     /** Graph container. */
     graph: Graph[_ <: Model.Like],
     /** The initial enumeration. */
-    enumeration: payload.api.Enumeration[_ <: AnyRef with java.io.Serializable],
+    enumeration: papi.Enumeration[_ <: AnySRef],
     /** The list of enumerations. */
-    enumerationList: Set[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]])
+    enumerationList: Set[papi.Enumeration[_ <: AnySRef]])
     extends logic.operation.OperationModifyEnumeration.Abstract(graph, enumeration, enumerationList) with Loggable {
     @volatile protected var allowExecute = true
 
@@ -146,17 +155,19 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] = {
-      try {
-        Operation.Result.OK(Option(OperationModifyEnumeration.this(graph, enumeration, enumerationList)))
-      } catch {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.Enumeration[_ <: AnySRef]] =
+      try dialog(graph, enumeration, enumerationList)
+      catch {
+        case e: IllegalArgumentException ⇒
+          Operation.Result.Error(e.getMessage(), e)
+        case e: IllegalStateException ⇒
+          Operation.Result.Error(e.getMessage(), e)
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.Enumeration[_ <: AnySRef]] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[payload.api.Enumeration[_ <: AnyRef with java.io.Serializable]] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.Enumeration[_ <: AnySRef]] =
       throw new UnsupportedOperationException
   }
 }

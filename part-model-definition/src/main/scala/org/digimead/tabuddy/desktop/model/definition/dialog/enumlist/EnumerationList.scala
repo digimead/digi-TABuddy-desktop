@@ -43,12 +43,15 @@
 
 package org.digimead.tabuddy.desktop.model.definition.dialog.enumlist
 
+import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumeration
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
@@ -58,6 +61,7 @@ import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
@@ -84,7 +88,7 @@ class EnumerationList @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** initial enumeration list */
-  val initial: Set[papi.Enumeration[_ <: AnyRef with java.io.Serializable]])
+  val initial: Set[papi.Enumeration[_ <: AnySRef]])
   extends EnumerationListSkel(parentShell) with Dialog with Loggable {
   /** The actual enumeration list */
   protected[enumlist] val actual = WritableList[papi.Enumeration[_ <: AnySRef]](
@@ -98,7 +102,7 @@ class EnumerationList @Inject() (
   /** The auto resize lock */
   protected lazy val autoResizeLock = new ReentrantLock()
   /** The property representing enumeration in current UI field(s) that available for user */
-  protected lazy val enumerationField = WritableValue[papi.Enumeration[_ <: AnyRef with java.io.Serializable]]
+  protected lazy val enumerationField = WritableValue[papi.Enumeration[_ <: AnySRef]]
   /** Activate context on focus. */
   protected val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
@@ -114,7 +118,7 @@ class EnumerationList @Inject() (
   @volatile private var sortDirection = Default.sortingDirection
 
   /** Get actual enumerations */
-  def getModifiedEnumerations(): Set[papi.Enumeration[_ <: AnyRef with java.io.Serializable]] = actual.toSet
+  def getModifiedEnumerations(): Set[papi.Enumeration[_ <: AnySRef]] = actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
@@ -167,7 +171,7 @@ class EnumerationList @Inject() (
     result
   }
   /** Generate new ID: old ID + 'Copy' + N */
-  protected def getNewEnumerationCopyID(id: Symbol, enumerations: List[papi.Enumeration[_ <: AnyRef with java.io.Serializable]]): Symbol = {
+  protected def getNewEnumerationCopyID(id: Symbol, enumerations: List[papi.Enumeration[_ <: AnySRef]]): Symbol = {
     val sameIds = immutable.HashSet(enumerations.filter(_.id.name.startsWith(id.name)).map(_.id.name).toSeq: _*)
     var n = 0
     var newId = id.name + Messages.copy_item_text
@@ -249,8 +253,8 @@ class EnumerationList @Inject() (
     autoresize()
   }
   /** Updates an actual enumeration */
-  protected[enumlist] def updateActualEnumeration(before: papi.Enumeration[_ <: AnyRef with java.io.Serializable],
-    after: papi.Enumeration[_ <: AnyRef with java.io.Serializable]) {
+  protected[enumlist] def updateActualEnumeration(before: papi.Enumeration[_ <: AnySRef],
+    after: papi.Enumeration[_ <: AnySRef]) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -277,10 +281,10 @@ class EnumerationList @Inject() (
   }
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = {
-      /*val newEnumerationID = payload.generateNew("NewEnumeration", "", newId ⇒ actual.exists(_.id.name == newId))
-      val newEnumerationElement = Enumeration.factory(Symbol(newEnumerationID))
-      val newEnumeration = new Enumeration(newEnumerationElement, PropertyType.defaultType)(Manifest.classType(PropertyType.defaultType.typeClass))
-      OperationModifyEnumeration(newEnumeration, actual.toSet).foreach { operation ⇒
+      val newEnumerationID = payload.generateNew("NewEnumeration", "", newId ⇒ actual.exists(_.id.name == newId))
+      val newEnumerationElement = Enumeration.factory(graph, Symbol(newEnumerationID), false)
+      val newEnumeration = new Enumeration(newEnumerationElement.eRelative, PropertyType.defaultType)(Manifest.classType(PropertyType.defaultType.typeClass))
+      OperationModifyEnumeration(graph, newEnumeration, actual.toSet).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
@@ -299,23 +303,23 @@ class EnumerationList @Inject() (
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }*/
+      }
     }
   }
   object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
     override def run = Option(enumerationField.value) foreach { (selected) ⇒
-      /*val from = selected.element
+      val from = selected.element
       // create new ID
       val toId = getNewEnumerationCopyID(from.eId, actual.toList)
       assert(!actual.exists(_.id == toId),
         s"Unable to create the enumeration copy. The element $toId is already exists")
       // create an element for the new template
-      val to = from.eCopy(from.eStash.copy(id = toId, unique = UUID.randomUUID))
+      val to = from.eNode.copy(id = toId, unique = UUID.randomUUID).**
       // create an enumeration for the 'to' element
-      val newEnumeration = new Enumeration(to, selected.ptype)(Manifest.classType(selected.ptype.typeClass)).
-        asInstanceOf[papi.Enumeration[_ <: AnyRef with java.io.Serializable]]
+      val newEnumeration = new Enumeration(to.rootBox.e.eRelative, selected.ptype)(Manifest.classType(selected.ptype.typeClass)).
+        asInstanceOf[papi.Enumeration[_ <: AnySRef]]
       // start job
-      OperationModifyEnumeration(newEnumeration, actual.toSet).foreach { operation ⇒
+      OperationModifyEnumeration(graph, newEnumeration, actual.toSet).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
@@ -334,12 +338,12 @@ class EnumerationList @Inject() (
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }*/
+      }
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = Option(enumerationField.value) foreach { (before) ⇒
-      /*      OperationModifyEnumeration(before, actual.toSet).foreach { operation ⇒
+      OperationModifyEnumeration(graph, before, actual.toSet).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
@@ -358,7 +362,7 @@ class EnumerationList @Inject() (
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }*/
+      }
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {

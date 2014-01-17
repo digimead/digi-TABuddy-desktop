@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -64,6 +64,8 @@ trait PropertyType[A <: AnyRef with java.io.Serializable] extends Equals {
   /** The property that contains an adapter for the given type. */
   def adapter(): PropertyType.Adapter[A]
 
+  /** Get explicit general property type. */
+  def **(): PropertyType[AnyRef with java.io.Serializable] = this.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]]
   /**
    * Result of comparing 'value1' with 'value2'.
    * returns `x' where

@@ -49,13 +49,13 @@ import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.dialog.enumlist.EnumerationList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
-import org.eclipse.swt.widgets.Shell
-import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.swt.widgets.Shell
 
 /**
  * Modify an enumeration list.

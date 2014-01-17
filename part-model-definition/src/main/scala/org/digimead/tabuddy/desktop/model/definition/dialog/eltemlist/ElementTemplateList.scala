@@ -265,9 +265,9 @@ class ElementTemplateList @Inject() (
     override def run = Option(selected.value) foreach { (before) ⇒
       val from = before.element
       // create new ID
-      val toID = getNewTemplateCopyID(from.eId)
+      val toId = getNewTemplateCopyID(from.eId)
       // create an element for a new template
-      val to = from.eNode.copy(id = toID, unique = UUID.randomUUID).**
+      val to = from.eNode.copy(id = toId, unique = UUID.randomUUID).**
       // create a template for a 'to' element
       val newTemplate = new ElementTemplate(to.rootBox.e.eRelative, before.factory).copy(name = before.name + " " + Messages.copy_item_text)
       // start job

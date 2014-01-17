@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,29 +41,8 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.api
+package org.digimead.tabuddy.desktop.model.definition.dialog
 
-/**
- * the model.dsl.DSLType from the application point of view
- */
-trait TemplateProperty[T <: AnyRef with java.io.Serializable] extends Equals {
-  /** The default value */
-  val defaultValue: Option[T]
-  /** The property that representing an attached enumeration if any */
-  val enumeration: Option[Symbol]
-  /** The property that representing a type from the UI point of view */
-  val ptype: PropertyType[T]
-  /** The property name */
-  val id: Symbol
-  /** Is the property required */
-  val required: Boolean
-
-  /** Get explicit general template property. */
-  def **(): PropertyType[AnyRef with java.io.Serializable] = this.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]]
-  /** The copy constructor */
-  def copy(defaultValue: Option[T] = this.defaultValue,
-    enumeration: Option[Symbol] = this.enumeration,
-    ptype: PropertyType[T] = this.ptype,
-    id: Symbol = this.id,
-    required: Boolean = this.required): this.type
+package object enumed {
+  type AnySRef = AnyRef with java.io.Serializable
 }
