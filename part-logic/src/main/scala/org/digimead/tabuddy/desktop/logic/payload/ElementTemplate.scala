@@ -287,13 +287,13 @@ object ElementTemplate extends Loggable {
                 element.eStash.canEqual(example.element.eStash) &&
                 example.element.eStash.canEqual(element.eStash) &&
                 element.eId == example.element.eId) match {
-                case Some(user) ⇒
-                  log.debug("Keep user template %s based on %s.".format(user, example))
-                  new ElementTemplate(user, example.factory)
+                case Some(element) ⇒
+                  log.debug("Keep user template %s based on %s.".format(element, example))
+                  new ElementTemplate(element, example.factory)
                 case None ⇒
-                  val user = builder(userTemplatesContainer.absolute)
-                  log.debug("Create user template %s based on %s.".format(user, example))
-                  user
+                  val template = builder(userTemplatesContainer.absolute)
+                  log.debug("Create user template %s based on %s.".format(template.element, example))
+                  template
               }
           }.toSet
           val templatesBasedOnUserSet = user.flatMap { element ⇒
@@ -304,7 +304,7 @@ object ElementTemplate extends Loggable {
                 example.element.eStash.canEqual(element.eStash)
             }.map {
               case (example, builder) ⇒
-                log.debug("Keep user template %s based on %s.".format(user, example))
+                log.debug("Keep user template %s based on %s.".format(element, example))
                 new ElementTemplate(element, example.factory)
             }
           }.toSet

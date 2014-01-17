@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.ui.block.ViewLayer
 import org.digimead.tabuddy.desktop.ui.definition.IWizard
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry
+import org.eclipse.jface.resource.{ ImageDescriptor, JFaceResources }
 import org.eclipse.swt.graphics.{ Font, Image }
 import org.osgi.framework.{ BundleActivator, BundleContext }
 import scala.collection.mutable
@@ -117,8 +118,45 @@ class Resources extends BundleActivator with Loggable {
   @log
   def start(context: BundleContext) {
     log.debug("Initialize application SWT resources.")
-    // NEVER Reinitialize decoration registry.
-    // FieldDecorationRegistry.setDefault(new FieldDecorationRegistry())
+    // Reinitialize decoration registry for compatibility with OSGi reloads.
+    FieldDecorationRegistry.setDefault(new FieldDecorationRegistry())
+    val imageRegistry = JFaceResources.getImageRegistry()
+    // Define the images used in the standard decorations.
+    imageRegistry.remove("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_CONTENT_PROPOSAL")
+    imageRegistry.put("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_CONTENT_PROPOSAL",
+      ImageDescriptor.createFromFile(classOf[FieldDecorationRegistry], "images/contassist_ovr.gif"))
+    imageRegistry.remove("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_ERROR")
+    imageRegistry.put("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_ERROR",
+      ImageDescriptor.createFromFile(classOf[FieldDecorationRegistry], "images/error_ovr.gif"))
+    imageRegistry.remove("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_WARNING")
+    imageRegistry.put("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_WARNING",
+      ImageDescriptor.createFromFile(classOf[FieldDecorationRegistry], "images/warn_ovr.gif"))
+    imageRegistry.remove("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_REQUIRED")
+    imageRegistry.put("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_REQUIRED",
+      ImageDescriptor.createFromFile(classOf[FieldDecorationRegistry], "images/required_field_cue.gif"))
+    imageRegistry.remove("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_ERROR_QUICKFIX")
+    imageRegistry.put("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_ERROR_QUICKFIX",
+      ImageDescriptor.createFromFile(classOf[FieldDecorationRegistry], "images/errorqf_ovr.gif"))
+    imageRegistry.remove("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_INFO")
+    imageRegistry.put("org.eclipse.jface.fieldassist.IMG_DEC_FIELD_INFO",
+      ImageDescriptor.createFromFile(classOf[FieldDecorationRegistry], "images/info_ovr.gif"))
+    FieldDecorationRegistry.getDefault().registerFieldDecoration("DEC_CONTENT_PROPOSAL",
+      JFaceResources.getString("FieldDecorationRegistry.contentAssistMessage"),
+      "org.eclipse.jface.fieldassist.IMG_DEC_FIELD_CONTENT_PROPOSAL", imageRegistry)
+    FieldDecorationRegistry.getDefault().registerFieldDecoration("DEC_ERROR",
+      JFaceResources.getString("FieldDecorationRegistry.errorMessage"),
+      "org.eclipse.jface.fieldassist.IMG_DEC_FIELD_ERROR", imageRegistry)
+    FieldDecorationRegistry.getDefault().registerFieldDecoration("DEC_ERRORQUICKFIX",
+      JFaceResources.getString("FieldDecorationRegistry.errorQuickFixMessage"),
+      "org.eclipse.jface.fieldassist.IMG_DEC_FIELD_ERROR_QUICKFIX", imageRegistry)
+    FieldDecorationRegistry.getDefault().registerFieldDecoration("DEC_WARNING",
+      null, "org.eclipse.jface.fieldassist.IMG_DEC_FIELD_WARNING", imageRegistry)
+    FieldDecorationRegistry.getDefault().registerFieldDecoration("DEC_INFORMATION",
+      null, "org.eclipse.jface.fieldassist.IMG_DEC_FIELD_INFO", imageRegistry)
+    FieldDecorationRegistry.getDefault().registerFieldDecoration("DEC_REQUIRED",
+      JFaceResources.getString("FieldDecorationRegistry.requiredFieldMessage"),
+      "org.eclipse.jface.fieldassist.IMG_DEC_FIELD_REQUIRED", imageRegistry)
+    assert(!Resources.Image.error.isDisposed(), "FieldDecoration resources is already disposed.")
     fontLarge
     fontSmall
     Locale.setDefault(Resources.initialLocale)
