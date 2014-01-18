@@ -87,7 +87,7 @@ class EnumerationList @Inject() (
   val marker: GraphMarker,
   /** Graph payload. */
   val payload: Payload,
-  /** initial enumeration list */
+  /** Initial enumeration list. */
   val initial: Set[papi.Enumeration[_ <: AnySRef]])
   extends EnumerationListSkel(parentShell) with Dialog with Loggable {
   /** The actual enumeration list */

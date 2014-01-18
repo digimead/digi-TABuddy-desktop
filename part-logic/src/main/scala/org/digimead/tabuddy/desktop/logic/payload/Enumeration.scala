@@ -244,20 +244,19 @@ object Enumeration extends Loggable {
     }).flatten.toSet
   }
   /** Update only modified enumerations. */
-  def save(marker: GraphMarker, enumerations: Set[api.Enumeration[_ <: AnySRef]]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, enumerations: Set[api.Enumeration[_ <: AnySRef]]) = marker.safeRead { state ⇒
     log.debug("Save enumeration list for graph " + state.graph)
-    val oldEnums = App.execNGet { state.payload.enumerations.values }
+    val oldEnums = App.execNGet { state.payload.enumerations.values.toSet }
     val deleted = oldEnums.filterNot(oldEnum ⇒ enumerations.exists(compareDeep(oldEnum, _)))
     val added = enumerations.filterNot(newEnum ⇒ oldEnums.exists(compareDeep(newEnum, _)))
-    val container = PredefinedElements.eEnumeration(state.graph)
     if (deleted.nonEmpty) {
       log.debug("delete Set(%s)".format(deleted.mkString(", ")))
       App.execNGet { deleted.foreach { enumeration ⇒ state.payload.enumerations.remove(enumeration.id) } }
-      container.eNode.safeWrite(_ --= deleted.map(_.element.eNode))
+      deleted.foreach(enumeration ⇒ enumeration.element.eNode.parent.foreach(_.safeWrite { _ -= enumeration.element.eNode }))
     }
     if (added.nonEmpty) {
       log.debug("add Set(%s)".format(added.mkString(", ")))
-      container.eNode.safeWrite(_ ++= added.map(_.element.eNode))
+      added.foreach(_.element.eNode.attach())
       App.execNGet { added.foreach { enumeration ⇒ state.payload.enumerations(enumeration.id) = enumeration } }
     }
   }

@@ -85,7 +85,7 @@ class ElementTemplateList @Inject() (
   val marker: GraphMarker,
   /** Graph payload. */
   val payload: Payload,
-  /** exists templates */
+  /** Initial element template list. */
   val initial: Set[papi.ElementTemplate])
   extends ElementTemplateListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */

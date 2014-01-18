@@ -60,7 +60,7 @@ import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
 /**
- * Modify element template list.
+ * Modify an element template list.
  */
 object CommandModifyElementTemplateList extends Loggable {
   import Command.parser._
@@ -91,24 +91,8 @@ object CommandModifyElementTemplateList extends Loggable {
               log.info(s"Operation completed successfully.")
               result.map { newSet ⇒
                 marker.safeRead { state ⇒
-                  App.execNGet {
-                    val toDelete = state.payload.elementTemplates.values.filterNot(template ⇒
-                      newSet.exists(_.element == template.element))
-                    state.payload.elementTemplates --= toDelete.map(_.id)
-                    toDelete.foreach { template ⇒
-                      template.element.eNode.parent.foreach(_.safeWrite { _ -= template.element.eNode })
-                    }
-                    // apply new
-                    val toAppend = newSet.filter { newTemplate ⇒
-                      state.payload.elementTemplates.get(newTemplate.id) match {
-                        case Some(existsTemplate) ⇒ existsTemplate.element.modified != newTemplate.element.modified
-                        case None ⇒ true
-                      }
-                    }
-                    toAppend.map(_.element.eNode.attach())
-                    state.payload.elementTemplates ++= toAppend.map(template ⇒ template.id -> template)
-                    state.payload.elementTemplates.values.toIndexedSeq
-                  }
+                  org.digimead.tabuddy.desktop.logic.payload.ElementTemplate.save(marker, newSet)
+                  newSet
                 }
               }
             case Operation.Result.Cancel(message) ⇒

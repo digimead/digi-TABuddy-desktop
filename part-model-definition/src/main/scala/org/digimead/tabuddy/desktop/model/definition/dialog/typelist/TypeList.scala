@@ -45,45 +45,68 @@ package org.digimead.tabuddy.desktop.model.definition.dialog.typelist
 
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
-import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.WritableList
+import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, TypeSchema, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.UI
 import org.digimead.tabuddy.desktop.ui.definition.Dialog
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell }
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class TypeList(val parentShell: Shell,
+class TypeList @Inject() (
+  /** This dialog context. */
+  val context: IEclipseContext,
+  /** Parent shell. */
+  val parentShell: Shell,
   /** Graph container. */
   val graph: Graph[_ <: Model.Like],
   /** Graph marker. */
   val marker: GraphMarker,
   /** Graph payload. */
   val payload: Payload,
-  val initial: List[papi.TypeSchema],
+  /** Initial type schema list. */
+  val initial: Set[papi.TypeSchema],
+  /** Initial active type schema. */
   val initialActiveSchema: papi.TypeSchema)
   extends TypeListSkel(parentShell) with Dialog with Loggable {
   /** The actual schemas value */
-  protected[typelist] val actual = WritableList(initial)
+  protected[typelist] val actual = WritableList(initial.toList)
   /** The property representing active schema */
   protected val actualActiveSchema = WritableValue[UUID]
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
+  /** Activate context on focus. */
+  protected val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
   /** The property representing selected schema */
   protected val schemaField = WritableValue[papi.TypeSchema]
+  /** Activate context on shell events. */
+  protected val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0
   /** Actual sort direction */
@@ -94,7 +117,7 @@ class TypeList(val parentShell: Shell,
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        //        App.adjustTableViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -141,9 +164,13 @@ class TypeList(val parentShell: Shell,
       updateOK()
     }
     actualActiveSchema.value = initialActiveSchema.id
+    getShell().addShellListener(shellListener)
+    getShell().addFocusListener(focusListener)
     // add dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
         actual.removeChangeListener(actualListener)
         actualActiveSchema.removeChangeListener(actualActiveSchemaListener)
       }
@@ -261,9 +288,9 @@ class TypeList(val parentShell: Shell,
   }
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = {
-      /*val newSchemaName = payload.generateNew(Messages.newTypeSchema_text, " ", newName ⇒ actual.exists(_.name == newName))
+      val newSchemaName = payload.generateNew(Messages.newTypeSchema_text, " ", newName ⇒ actual.exists(_.name == newName))
       val newSchema = TypeSchema(UUID.randomUUID(), newSchemaName, "", immutable.HashMap(TypeSchema.entities.map(e ⇒ (e.ptypeId, e)).toSeq: _*))
-      OperationModifyTypeSchema(newSchema, actual.toSet, newSchema.id == actualActiveSchema.value).foreach { operation ⇒
+      OperationModifyTypeSchema(graph, newSchema, actual.toSet, newSchema.id == actualActiveSchema.value).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
@@ -288,18 +315,18 @@ class TypeList(val parentShell: Shell,
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }*/
+      }
     }
   }
   object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
     override def run = Option(schemaField.value) foreach { (selected) ⇒
-      /* val from = selected
+      val from = selected
       // create a new ID
       val toName = getNewTypeSchemaCopyName(from.name)
       assert(!actual.exists(_.name == toName),
         s"Unable to create the type schema copy. The schema $toName is already exists")
       val to = TypeSchema(UUID.randomUUID(), toName, from.description, from.entity.map(e ⇒ (e._1, e._2.copy())))
-      OperationModifyTypeSchema(to, actual.toSet, to.id == actualActiveSchema.value).foreach { operation ⇒
+      OperationModifyTypeSchema(graph, to, actual.toSet, to.id == actualActiveSchema.value).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
@@ -324,12 +351,12 @@ class TypeList(val parentShell: Shell,
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }*/
+      }
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = Option(schemaField.value) foreach { (before) ⇒
-      /*     OperationModifyTypeSchema(before, actual.toSet, before.id == actualActiveSchema.value).foreach { operation ⇒
+      OperationModifyTypeSchema(graph, before, actual.toSet, before.id == actualActiveSchema.value).foreach { operation ⇒
         val job = if (operation.canRedo())
           Some(operation.redoJob())
         else if (operation.canExecute())
@@ -343,7 +370,7 @@ class TypeList(val parentShell: Shell,
               log.info(s"Operation completed successfully: ${result}")
               result.foreach {
                 case (after, active) ⇒ App.exec {
-                  if (!payload.TypeSchema.compareDeep(before, after))
+                  if (!TypeSchema.compareDeep(before, after))
                     updateActualSchema(before, after)
                   if (active)
                     actualActiveSchema.value = after.id
@@ -357,7 +384,7 @@ class TypeList(val parentShell: Shell,
               log.error(s"Unable to complete operation: ${other}.")
           }).schedule()
         }
-      }*/
+      }
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {

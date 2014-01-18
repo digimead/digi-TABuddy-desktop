@@ -158,9 +158,9 @@ object TypeSchema extends Loggable {
   def predefined: Seq[api.TypeSchema] = DI.predefinedTypeSchemas
   /** Update only modified type schemas. */
   @log
-  def save(marker: GraphMarker, schemas: Set[api.TypeSchema]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, schemas: Set[api.TypeSchema]) = marker.safeRead { state ⇒
     log.debug("Save type schema list for graph " + state.graph)
-    val oldSchemas = App.execNGet { state.payload.typeSchemas.values }
+    val oldSchemas = App.execNGet { state.payload.typeSchemas.values.toSet }
     val deleted = oldSchemas.filterNot(oldSchema ⇒ schemas.exists(compareDeep(_, oldSchema)))
     val added = schemas.filterNot(newSchema ⇒ oldSchemas.exists(compareDeep(_, newSchema)))
     if (deleted.nonEmpty) {

@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.model.definition.dialog.typeed
 
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
@@ -52,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableVa
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, TypeSchema, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.ui.UI
 import org.digimead.tabuddy.desktop.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
 import org.digimead.tabuddy.model.Model
@@ -60,28 +62,36 @@ import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.databinding.observable.ChangeEvent
 import org.eclipse.core.databinding.observable.IChangeListener
 import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, LabelProvider, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem, Text }
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class TypeEditor(val parentShell: Shell,
+class TypeEditor @Inject() (
+  /** This dialog context. */
+  val context: IEclipseContext,
+  /** Parent shell. */
+  val parentShell: Shell,
   /** Graph container. */
   val graph: Graph[_ <: Model.Like],
   /** Graph marker. */
   val marker: GraphMarker,
   /** Graph payload. */
   val payload: Payload,
+  /** The initial type schema. */
   val initial: papi.TypeSchema,
-  val typeSchemas: List[papi.TypeSchema],
+  /** The list of type schemas. */
+  val typeSchemas: Set[papi.TypeSchema],
+  /** Flag indicating whether the initial schema is active. */
   isSchemaActive: Boolean)
   extends TypeEditorSkel(parentShell) with Dialog with Loggable {
   /** Actual schema entities */
@@ -93,13 +103,22 @@ class TypeEditor(val parentShell: Shell,
   /** The property representing the current schema description */
   protected val descriptionField = WritableValue("")
   /** The property representing a selected entity */
-  protected val entityField = WritableValue[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
+  protected val entityField = WritableValue[TypeSchema.Entity[_ <: AnySRef]]
+  /** Activate context on focus. */
+  protected val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
   /** Initial schema entities */
   protected lazy val initialEntities = initial.entity.values.toList.sortBy(_.ptypeId.name)
   /** The property representing the current schema name */
   protected val nameField = WritableValue("")
   /** The property contain nameField validation, it is modified only from UI thread */
   protected var nameFieldValid = true
+  /** Activate context on shell events. */
+  protected val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
   /** Actual sortBy column index */
   @volatile private var sortColumn = 1
   /** Actual sort direction */
@@ -120,11 +139,11 @@ class TypeEditor(val parentShell: Shell,
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        //        App.adjustTableViewerColumnWidth(getTableViewerColumnAvailability(), Default.columnPadding)
-        //        App.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
-        //        App.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
-        //        App.adjustTableViewerColumnWidth(getTableViewerColumnView(), Default.columnPadding)
-        //        App.adjustTableViewerColumnWidth(getTableViewerColumnLabel(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnAvailability(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnView(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnLabel(), Default.columnPadding)
         getTableViewer().refresh()
       }
     }
@@ -175,9 +194,13 @@ class TypeEditor(val parentShell: Shell,
     val nameListener = nameField.addChangeListener { (_, _) ⇒ updateOK }
     val descriptionListener = descriptionField.addChangeListener { (_, _) ⇒ updateOK }
     val activeFlagListener = activeField.addChangeListener { (_, _) ⇒ updateOK() }
+    getShell().addShellListener(shellListener)
+    getShell().addFocusListener(focusListener)
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
         actualEntities.removeChangeListener(actualEntitiesListener)
         entityField.removeChangeListener(entityListener)
         nameField.removeChangeListener(nameListener)
@@ -255,7 +278,7 @@ class TypeEditor(val parentShell: Shell,
     }
   }
   /** Updates an actual entity */
-  protected[typeed] def updateActualEntity(before: TypeSchema.Entity[_ <: AnyRef with java.io.Serializable], after: TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]) {
+  protected[typeed] def updateActualEntity(before: TypeSchema.Entity[_ <: AnySRef], after: TypeSchema.Entity[_ <: AnySRef]) {
     val index = actualEntities.indexOf(before)
     actualEntities.update(index, after)
     if (index == actualEntities.size - 1)
@@ -343,8 +366,8 @@ object TypeEditor extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val entity1 = e1.asInstanceOf[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
-      val entity2 = e2.asInstanceOf[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
+      val entity1 = e1.asInstanceOf[TypeSchema.Entity[_ <: AnySRef]]
+      val entity2 = e2.asInstanceOf[TypeSchema.Entity[_ <: AnySRef]]
       val rc = column match {
         case 0 ⇒ entity1.availability.compareTo(entity2.availability)
         case 1 ⇒ entity1.ptypeId.name.compareTo(entity2.ptypeId.name)

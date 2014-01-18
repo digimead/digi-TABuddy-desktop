@@ -43,20 +43,25 @@
 
 package org.digimead.tabuddy.desktop.logic.command
 
-import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.command.PathParser
+import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.operation.script.OperationScriptEvaluate
-import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchemaList
+import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
+/**
+ * Modify a type schema list.
+ */
 object CommandModifyTypeSchemaList extends Loggable {
   import Command.parser._
   /** Akka execution context. */
@@ -66,21 +71,32 @@ object CommandModifyTypeSchemaList extends Loggable {
     Messages.modifyTypeSchemaListDescriptionShort_text, Messages.modifyTypeSchemaListDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case script: File ⇒
-          val exchanger = new Exchanger[Operation.Result[Any]]()
-          OperationScriptEvaluate[Any](Left(script), false).foreach { operation ⇒
-            operation.getExecuteJob() match {
-              case Some(job) ⇒
-                job.setPriority(Job.LONG)
-                job.onComplete(exchanger.exchange).schedule()
-              case None ⇒
-                throw new RuntimeException(s"Unable to create job for ${operation}.")
+        case marker: GraphMarker ⇒
+          val exchanger = new Exchanger[Operation.Result[(Set[TypeSchema], TypeSchema)]]()
+          marker.safeRead { state ⇒
+            App.exec {
+              OperationModifyTypeSchemaList(state.graph, state.payload.typeSchemas.values.toSet, state.payload.typeSchema.value).foreach { operation ⇒
+                operation.getExecuteJob() match {
+                  case Some(job) ⇒
+                    job.setPriority(Job.LONG)
+                    job.onComplete(exchanger.exchange).schedule()
+                  case None ⇒
+                    throw new RuntimeException(s"Unable to create job for ${operation}.")
+                }
+              }
             }
           }
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              result
+              result.map {
+                case (newSet, activeSchema) ⇒
+                  marker.safeRead { state ⇒
+                    org.digimead.tabuddy.desktop.logic.payload.TypeSchema.save(marker, newSet)
+                    App.execNGet { state.payload.typeSchema.value = state.payload.typeSchemas(activeSchema.id) }
+                    newSet
+                  }
+              }
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case err: Operation.Result.Error[_] ⇒
@@ -91,8 +107,38 @@ object CommandModifyTypeSchemaList extends Loggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> pathParser)
-  /** Path argument parser. */
-  protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "script location",
-    () ⇒ Some(s"path to script file")) { f ⇒ f.canRead() && !f.getName().startsWith(".") }
+  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> contextParser)
+  /** Create parser for the list of contexts with binded graph		. */
+  protected def contextParser: Command.parser.Parser[Any] = commandRegex("""\S+""".r, HintContainer) ^^ {
+    contextName ⇒
+      GraphMarker.contextToMarker((Core.context.context +: App.contextChildren(Core.context)).map {
+        case context: Context if GraphMarker.contextToMarker(context).nonEmpty ⇒
+          Some(context)
+        case _ ⇒ None
+      }.flatten.find(context ⇒ Context.getName(context) match {
+        case Some(name) ⇒ name == contextName
+        case None ⇒ false
+      }) getOrElse {
+        throw Command.ParseException(s"Context with name '${contextName}' not found.")
+      }) getOrElse {
+        throw Command.ParseException(s"Graph not found within context '${contextName}'.")
+      }
+  }
+
+  object HintContainer extends Command.Hint.Container {
+    /** Get parser hints for suitable contexts. */
+    def apply(arg: String): Seq[Command.Hint] =
+      (Core.context.context +: App.contextChildren(Core.context)).map {
+        case context: Context if GraphMarker.contextToMarker(context).nonEmpty ⇒
+          Some(context)
+        case _ ⇒ None
+      }.flatten.map(context ⇒ Context.getName(context) match {
+        case Some(name) ⇒
+          Some(Command.Hint(name, Some(s"Modify enumeration list for " +
+            s"graph '${GraphMarker.contextToMarker(context).get.graphModelId.name}' binded to '${name}' context."),
+            Seq(name.substring(arg.length()))))
+        case None ⇒
+          None
+      }).flatten
+  }
 }

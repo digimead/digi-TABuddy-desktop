@@ -59,6 +59,9 @@ import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
+/**
+ * Modify an enumeration list.
+ */
 object CommandModifyEnumerationList extends Loggable {
   import Command.parser._
   /** Akka execution context. */
@@ -88,24 +91,8 @@ object CommandModifyEnumerationList extends Loggable {
               log.info(s"Operation completed successfully.")
               result.map { newSet ⇒
                 marker.safeRead { state ⇒
-                  App.execNGet {
-                    val toDelete = state.payload.enumerations.values.filterNot(enumeration ⇒
-                      newSet.exists(_.element == enumeration.element))
-                    state.payload.enumerations --= toDelete.map(_.id)
-                    toDelete.foreach { enumeration ⇒
-                      enumeration.element.eNode.parent.foreach(_.safeWrite { _ -= enumeration.element.eNode })
-                    }
-                    // apply new
-                    val toAppend = newSet.filter { newEnumeration ⇒
-                      state.payload.enumerations.get(newEnumeration.id) match {
-                        case Some(existsEnumeration) ⇒ existsEnumeration.element.modified != newEnumeration.element.modified
-                        case None ⇒ true
-                      }
-                    }
-                    toAppend.map(_.element.eNode.attach())
-                    state.payload.enumerations ++= toAppend.map(enumeration ⇒ enumeration.id -> enumeration)
-                    state.payload.enumerations.values.toIndexedSeq
-                  }
+                  org.digimead.tabuddy.desktop.logic.payload.Enumeration.save(marker, newSet)
+                  newSet
                 }
               }
             case Operation.Result.Cancel(message) ⇒

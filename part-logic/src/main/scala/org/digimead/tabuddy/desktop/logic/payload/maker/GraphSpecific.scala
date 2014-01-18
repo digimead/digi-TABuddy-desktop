@@ -45,9 +45,10 @@ package org.digimead.tabuddy.desktop.logic.payload.maker
 
 import java.io.File
 import org.digimead.digi.lib.aop.log
+import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, TypeSchema }
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
-import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
@@ -108,6 +109,7 @@ trait GraphSpecific {
     log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
+    saveTypeSchemas(App.execNGet { state.payload.typeSchemas.values.toSet })
     Serialization.freeze(state.graph, storages = storages)
   }
   /** Check whether the graph is modified. */

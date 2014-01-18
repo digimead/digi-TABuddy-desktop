@@ -317,20 +317,19 @@ object ElementTemplate extends Loggable {
     } finally tempMarker.unregister()
   }
   /** Update only modified element templates. */
-  def save(marker: GraphMarker, templates: Set[api.ElementTemplate]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, templates: Set[api.ElementTemplate]) = marker.safeRead { state ⇒
     log.debug("Save element template list for graph " + state.graph)
-    val oldTemplates = App.execNGet { state.payload.elementTemplates.values }
+    val oldTemplates = App.execNGet { state.payload.elementTemplates.values.toSet }
     val deleted = oldTemplates.filterNot(oldTemplate ⇒ templates.exists(compareDeep(_, oldTemplate)))
     val added = templates.filterNot(newTemplate ⇒ oldTemplates.exists(compareDeep(_, newTemplate)))
-    val container = PredefinedElements.eElementTemplate(state.graph)
     if (deleted.nonEmpty) {
       log.debug("Delete Set(%s)".format(deleted.mkString(", ")))
       App.execNGet { deleted.foreach { template ⇒ state.payload.elementTemplates.remove(template.id) } }
-      container.eNode.safeWrite(_ --= deleted.map(_.element.eNode))
+      deleted.foreach(template ⇒ template.element.eNode.parent.foreach(_.safeWrite { _ -= template.element.eNode }))
     }
     if (added.nonEmpty) {
       log.debug("Add Set(%s)".format(added.mkString(", ")))
-      container.eNode.safeWrite(_ ++= added.map(_.element.eNode))
+      added.foreach(_.element.eNode.attach())
       App.execNGet { added.foreach { template ⇒ state.payload.elementTemplates(template.id) = template } }
     }
   }

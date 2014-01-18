@@ -43,23 +43,18 @@
 
 package org.digimead.tabuddy.desktop.model.definition.operation
 
-import java.util.concurrent.Exchanger
-
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.model.definition.dialog.typeed.TypeEditor
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.eclipse.core.runtime.IAdaptable
-import org.eclipse.core.runtime.IProgressMonitor
-import java.util.concurrent.CancellationException
+import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, TypeSchema, api ⇒ papi }
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.model.definition.dialog.typeed.TypeEditor
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.swt.widgets.Shell
 import org.digimead.tabuddy.model.Model
 
 /**
@@ -75,32 +70,12 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
    * @param isSchemaActive the flag indicating whether the type schema is active
    * @return the modified type schema, the flag whether the type schema is active
    */
-  def apply(graph: Graph[_ <: Model.Like], schema: payload.api.TypeSchema, schemaList: Set[payload.api.TypeSchema], isSchemaActive: Boolean): (payload.api.TypeSchema, Boolean) = {
-    /*val exchanger = new Exchanger[Operation.Result[(payload.api.TypeSchema, Boolean)]]()
-    App.assertUIThread(false)
-    App.exec {
-      App.getActiveShell match {
-        case Some(shell) ⇒
-          val dialog = new TypeEditor(shell, schema, schemaList.toList, isActive)
-          dialog.openOrFocus {
-            case result if result == org.eclipse.jface.window.Window.OK ⇒
-              exchanger.exchange(Operation.Result.OK({
-                val schema = dialog.getModifiedSchema
-                if (dialog.getModifiedSchemaActiveFlag == isActive && schemaList.contains(schema) && payload.TypeSchema.compareDeep(this.schema, schema))
-                  None // nothing changes, and schema is already exists
-                else
-                  Some(schema, dialog.getModifiedSchemaActiveFlag)
-              }))
-            case result ⇒
-              exchanger.exchange(Operation.Result.Cancel[(payload.api.TypeSchema, Boolean)]())
-          }
-        case None ⇒
-          exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
-      }
+  def apply(graph: Graph[_ <: Model.Like], schema: papi.TypeSchema, schemaList: Set[papi.TypeSchema], isSchemaActive: Boolean): (papi.TypeSchema, Boolean) =
+    dialog(graph, schema, schemaList, isSchemaActive) match {
+      case Operation.Result.OK(Some((schema, isSchemaActive)), _) ⇒ (schema, isSchemaActive)
+      case _ ⇒ (schema, isSchemaActive)
     }
-    exchanger.exchange(null)*/
-    null
-  }
+
   /**
    * Create 'Modify a type schema' operation.
    *
@@ -110,36 +85,83 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
    * @param isSchemaActive the flag indicating whether the type schema is active
    * @return 'Modify a type schema' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], schema: payload.api.TypeSchema, schemaList: Set[payload.api.TypeSchema], isSchemaActive: Boolean) =
+  def operation(graph: Graph[_ <: Model.Like], schema: papi.TypeSchema, schemaList: Set[papi.TypeSchema], isSchemaActive: Boolean) =
     new Implemetation(graph, schema, schemaList, isSchemaActive)
+
+  protected def dialog(graph: Graph[_ <: Model.Like], schema: papi.TypeSchema, schemaList: Set[papi.TypeSchema],
+    isSchemaActive: Boolean): Operation.Result[(papi.TypeSchema, Boolean)] = {
+    val marker = GraphMarker(graph)
+    val exchanger = new Exchanger[Operation.Result[(papi.TypeSchema, Boolean)]]()
+    App.assertEventThread(false)
+    // this lock is preparation that prevents freeze of the event loop thread
+    marker.safeRead { _ ⇒
+      App.exec {
+        GraphMarker.shell(marker) match {
+          case Some((context, shell)) ⇒
+            // actual lock inside event loop thread
+            marker.safeRead { state ⇒
+              val dialogContext = context.createChild("EnumerationListDialog")
+              dialogContext.set(classOf[Shell], shell)
+              dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
+              dialogContext.set(classOf[GraphMarker], marker)
+              dialogContext.set(classOf[Payload], state.payload)
+              dialogContext.set(classOf[papi.TypeSchema], schema)
+              dialogContext.set(classOf[Set[papi.TypeSchema]], schemaList)
+              dialogContext.set[java.lang.Boolean](java.lang.Boolean.TYPE, isSchemaActive)
+              val dialog = ContextInjectionFactory.make(classOf[TypeEditor], dialogContext)
+              dialog.openOrFocus { result ⇒
+                context.removeChild(dialogContext)
+                dialogContext.dispose()
+                if (result == org.eclipse.jface.window.Window.OK)
+                  exchanger.exchange(Operation.Result.OK({
+                    val modifiedSchema = dialog.getModifiedSchema
+                    if (dialog.getModifiedSchemaActiveFlag == isSchemaActive &&
+                      schemaList.contains(schema) && TypeSchema.compareDeep(modifiedSchema, schema))
+                      None // nothing changes, and schema is already exists
+                    else
+                      Some(modifiedSchema, dialog.getModifiedSchemaActiveFlag)
+                  }))
+                else
+                  exchanger.exchange(Operation.Result.Cancel())
+              }
+            }
+          case None ⇒
+            exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+        }
+      }(App.LongRunnable)
+    }
+    exchanger.exchange(null)
+  }
 
   class Implemetation(
     /** Graph container. */
     graph: Graph[_ <: Model.Like],
     /** The initial type schema. */
-    schema: payload.api.TypeSchema,
+    schema: papi.TypeSchema,
     /** The list of type schemas. */
-    schemaList: Set[payload.api.TypeSchema],
+    schemaList: Set[papi.TypeSchema],
     /** Flag indicating whether the initial schema is active. */
-    isActive: Boolean)
-    extends logic.operation.OperationModifyTypeSchema.Abstract(graph, schema, schemaList, isActive) with Loggable {
+    isSchemaActive: Boolean)
+    extends logic.operation.OperationModifyTypeSchema.Abstract(graph, schema, schemaList, isSchemaActive) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(payload.api.TypeSchema, Boolean)] = {
-      try {
-        Operation.Result.OK(Option(OperationModifyTypeSchema.this(graph, schema, schemaList, isActive)))
-      } catch {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(papi.TypeSchema, Boolean)] =
+      try dialog(graph, schema, schemaList, isSchemaActive)
+      catch {
+        case e: IllegalArgumentException ⇒
+          Operation.Result.Error(e.getMessage(), e)
+        case e: IllegalStateException ⇒
+          Operation.Result.Error(e.getMessage(), e)
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(payload.api.TypeSchema, Boolean)] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(papi.TypeSchema, Boolean)] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(payload.api.TypeSchema, Boolean)] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(papi.TypeSchema, Boolean)] =
       throw new UnsupportedOperationException
   }
 }
