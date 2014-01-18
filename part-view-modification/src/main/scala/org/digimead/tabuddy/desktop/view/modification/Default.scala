@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -73,14 +73,14 @@ object Default {
   def toolTipDisplayDelayTime = DI.toolTipDisplayDelayTime
   /** The time in milliseconds the tool tip is shown for. */
   def toolTipTimeDisplayed = DI.toolTipTimeDisplayed
-  object ViewModification {
+  /*object ViewModification {
     /** Default view definition id. */
     lazy val view = DI.defaultViewId.flatMap(Data.viewDefinitions.get) getOrElse payload.view.View.displayName
     /** Default view sorting id. */
     lazy val sorting = DI.defaultViewId.flatMap(Data.viewSortings.get) getOrElse payload.view.Sorting.simpleSorting
     /** Default view filter id. */
     lazy val filter = DI.defaultViewId.flatMap(Data.viewFilters.get) getOrElse payload.view.Filter.allowAllFilter
-  }
+  }*/
   /**
    * Dependency injection routines.
    */

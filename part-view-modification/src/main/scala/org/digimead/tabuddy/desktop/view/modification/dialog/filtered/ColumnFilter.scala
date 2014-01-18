@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -49,7 +49,7 @@ import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
 import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
 import org.digimead.tabuddy.desktop.logic.payload.view.api
 import org.digimead.tabuddy.desktop.logic.comparator
-import org.digimead.tabuddy.desktop.support.WritableList
+import org.digimead.tabuddy.desktop.core.support.WritableList
 import org.digimead.tabuddy.desktop.view.modification.Default
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.viewers.CellEditor
@@ -69,16 +69,16 @@ object ColumnSorting extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: api.Filter.Rule =>
+      case item: api.Filter.Rule ⇒
         cell.setText(AvailableFilters.map.get(item.filter).map(_.name).getOrElse(""))
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: api.Filter.Rule =>
-        AvailableFilters.map.get(item.filter).map(c => "filter: " + c.description).getOrElse(null)
-      case unknown =>
+      case item: api.Filter.Rule ⇒
+        AvailableFilters.map.get(item.filter).map(c ⇒ "filter: " + c.description).getOrElse(null)
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
@@ -94,39 +94,39 @@ object ColumnSorting extends Loggable {
   }
   class TEditingSupport(viewer: TableViewer, container: FilterEditor) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = element match {
-      case item: api.Filter.Rule =>
+      case item: api.Filter.Rule ⇒
         val cellEditor = new ComboBoxViewerCellEditor(viewer.getControl().asInstanceOf[Composite], SWT.READ_ONLY)
         cellEditor.setLabelProvider(new ComparatorLabelProvider)
         cellEditor.setContentProvider(new ObservableListContentProvider())
         cellEditor.setInput(WritableList(AvailableComparators.map.values.filter(_.canCompare(PropertyType.container(item.propertyType).typeClass)).
           toList.sortBy(_.name)).underlying)
         cellEditor
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: api.Filter.Rule =>
+      case item: api.Filter.Rule ⇒
         AvailableFilters.map.get(item.filter) getOrElse null
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: api.Filter.Rule =>
-      //        val description = value.asInstanceOf[String].trim
-      //        if (before.description != description)
-      //          container.updateActualSorting(before, before.copy(description = description))
-      case unknown =>
+      case before: api.Filter.Rule ⇒
+        val description = value.asInstanceOf[String].trim
+//        if (before.description != description)
+  //        container.updateActualSorting(before, before.copy(description = description))
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
   }
   class ComparatorLabelProvider() extends LabelProvider {
     override def getText(element: AnyRef): String = element match {
-      case comparator: comparator.api.Comparator[_] =>
+      case comparator: comparator.api.Comparator[_] ⇒
         comparator.name
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         unknown.toString()
     }

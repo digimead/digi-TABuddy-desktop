@@ -131,6 +131,7 @@ class TypeList @Inject() (
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
+    context.set(classOf[Composite], parent)
     new ActionContributionItem(ActionActivate).fill(getCompositeActivator())
     new ActionContributionItem(ActionCreate).fill(getCompositeFooter())
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())

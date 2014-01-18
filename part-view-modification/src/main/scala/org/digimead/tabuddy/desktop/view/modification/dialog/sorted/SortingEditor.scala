@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,69 +43,58 @@
 
 package org.digimead.tabuddy.desktop.view.modification.dialog.sorted
 
+
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
-
+import javax.inject.Inject
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.WritableList
+import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, api ⇒ papi, view }
+import org.digimead.tabuddy.desktop.ui.UI
+import org.digimead.tabuddy.desktop.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.ui.support.RegexFilterListener
+import org.digimead.tabuddy.desktop.ui.support.Validator
+import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.e4.core.contexts.IEclipseContext
+import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
+import org.eclipse.jface.databinding.swt.WidgetProperties
+import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
+import org.eclipse.jface.dialogs.IDialogConstants
+import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator, ViewerFilter }
+import org.eclipse.swt.SWT
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
+import org.eclipse.swt.widgets.Text
+import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
+import scala.collection.immutable
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
-import org.digimead.tabuddy.desktop.logic.comparator.api.Comparator
-import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.logic.payload.TemplateProperty
-import org.digimead.tabuddy.desktop.logic.payload.view
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.Validator
-import org.digimead.tabuddy.desktop.support.WritableList
-import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
-import org.digimead.tabuddy.desktop.support.ui.RegexFilterListener
-import org.digimead.tabuddy.desktop.view.modification.Default
-import org.digimead.tabuddy.desktop.view.modification.dialog.CustomMessages
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.jface.action.Action
-import org.eclipse.jface.action.ActionContributionItem
-import org.eclipse.jface.action.IAction
-import org.eclipse.jface.action.IMenuListener
-import org.eclipse.jface.action.IMenuManager
-import org.eclipse.jface.action.MenuManager
-import org.eclipse.jface.databinding.swt.WidgetProperties
-import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
-import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.dialogs.IDialogConstants
-import org.eclipse.jface.viewers.ColumnViewerToolTipSupport
-import org.eclipse.jface.viewers.ISelectionChangedListener
-import org.eclipse.jface.viewers.IStructuredSelection
-import org.eclipse.jface.viewers.SelectionChangedEvent
-import org.eclipse.jface.viewers.StructuredSelection
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.Viewer
-import org.eclipse.jface.viewers.ViewerComparator
-import org.eclipse.jface.viewers.ViewerFilter
-import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
-import org.eclipse.swt.events.SelectionAdapter
-import org.eclipse.swt.events.SelectionEvent
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Event
-import org.eclipse.swt.widgets.Listener
-import org.eclipse.swt.widgets.Shell
-import org.eclipse.swt.widgets.TableItem
-import org.eclipse.swt.widgets.Text
-
-class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val sortingList: List[view.api.Sorting])
+class SortingEditor(
+  /** This dialog context. */
+  val context: IEclipseContext,
+  /** Parent shell. */
+  val parentShell: Shell,
+  /** Graph container. */
+  val graph: Graph[_ <: Model.Like],
+  /** Graph marker. */
+  val marker: GraphMarker,
+  /** Graph payload. */
+  val payload: Payload,
+  /** Initial sorting definition. */
+  val sorting: view.api.Sorting,
+  /** Initial sorting list. */
+  val sortingList: List[view.api.Sorting])
   extends SortingEditorSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
   protected[sorted] val actual = WritableList(sorting.definitions.toList)
@@ -119,20 +108,29 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
   protected val filterProperties = WritableValue("")
   /** The property representing sorting filter content */
   protected val filterSortings = WritableValue("")
+  /** Activate context on focus. */
+  protected val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
   /** The property representing current view name */
   protected val nameField = WritableValue[String]("")
   /** The property representing a selected property */
   protected val selectedProperty = WritableValue[SortingEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]
   /** The property representing a selected sorting */
   protected val selectedSorting = WritableValue[view.api.Sorting.Definition]
+  /** Activate context on shell events. */
+  protected val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0 // by an id
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
   /** All defined properties of the current model grouped by id, type  */
-  protected[sorted] lazy val total: WritableList[SortingEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]] = WritableList(Data.elementTemplates.values.
-    flatMap { template => template.properties.flatMap(_._2) }.map(property => SortingEditor.PropertyItem(property.id, property.ptype,
-      !actual.exists(definition => definition.property == property.id && definition.propertyType == property.ptype.id))).
+  protected[sorted] lazy val total: WritableList[SortingEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]] = WritableList(payload.elementTemplates.values.
+    flatMap { template ⇒ template.properties.flatMap(_._2) }.map(property ⇒ SortingEditor.PropertyItem(property.id, property.ptype,
+      !actual.exists(definition ⇒ definition.property == property.id && definition.propertyType == property.ptype.id))).
     toList.distinct.sortBy(_.ptype.typeSymbol.name).sortBy(_.id.name))
 
   def getModifiedSorting(): view.api.Sorting = {
@@ -146,12 +144,12 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewerSortings.getTable.isDisposed() && !getTableViewerProperties.getTable.isDisposed()) {
-        App.adjustTableViewerColumnWidth(getTableViewerColumnPropertyFrom(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnN(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnProperty(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnDirection(), Default.columnPadding)
-        App.adjustTableViewerColumnWidth(getTableViewerColumnSorting(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnPropertyFrom(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnN(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnProperty(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnDirection(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnSorting(), Default.columnPadding)
         getTableViewerProperties.refresh()
         getTableViewerSortings.refresh()
       }
@@ -162,6 +160,7 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
+    context.set(classOf[Composite], parent)
     new ActionContributionItem(ActionAdd).fill(getCompositeBody1())
     new ActionContributionItem(ActionRemove).fill(getCompositeBody1())
     new ActionContributionItem(ActionUp).fill(getCompositeBody2())
@@ -174,25 +173,29 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     initTableViewerSortings()
     // bind the sorting info: an availability
     App.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckAvailability()), availabilityField)
-    val availabilityFieldListener = availabilityField.addChangeListener { (_, _) => updateOK() }
+    val availabilityFieldListener = availabilityField.addChangeListener { (_, _) ⇒ updateOK() }
     availabilityField.value = sorting.availability
     // bind the sorting info: a description
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextDescription()), descriptionField)
-    val descriptionFieldListener = descriptionField.addChangeListener { (_, _) => updateOK() }
+    val descriptionFieldListener = descriptionField.addChangeListener { (_, _) ⇒ updateOK() }
     descriptionField.value = sorting.description
     // bind the sorting info: a name
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextName()), nameField)
-    val nameFieldValidator = Validator(getTextName(), true)((validator, event) =>
+    val nameFieldValidator = Validator(getTextName(), true)((validator, event) ⇒
       if (event.keyCode != 0) validateName(validator, event.getSource.asInstanceOf[Text].getText, event.doit))
-    val nameFieldListener = nameField.addChangeListener { (name, event) =>
+    val nameFieldListener = nameField.addChangeListener { (name, event) ⇒
       validateName(nameFieldValidator, name.trim(), true)
       updateOK()
     }
     nameField.value = sorting.name
-    val actualListener = actual.addChangeListener { event => updateOK() }
+    val actualListener = actual.addChangeListener { event ⇒ updateOK() }
+    getShell().addShellListener(shellListener)
+    getShell().addFocusListener(focusListener)
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
         actual.removeChangeListener(actualListener)
         availabilityField.removeChangeListener(availabilityFieldListener)
         descriptionField.removeChangeListener(descriptionFieldListener)
@@ -200,9 +203,9 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
       }
     })
     // Set the dialog message
-    setMessage(CustomMessages.viewSortingEditorDescription_text.format(sorting.name))
+    setMessage(Messages.viewSortingEditorDescription_text.format(sorting.name))
     // Set the dialog window title
-    getShell().setText(CustomMessages.viewSortingEditorDialog_text.format(sorting.name))
+    getShell().setText(Messages.viewSortingEditorDialog_text.format(sorting.name))
     result
   }
   /** Allow external access for scala classes */
@@ -215,7 +218,7 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     viewer.setContentProvider(new ObservableListContentProvider())
     getTableViewerColumnPropertyFrom.setLabelProvider(new ColumnPropertyFrom.TLabelProvider)
     getTableViewerColumnPropertyFrom.getColumn.addSelectionListener(new SortingEditor.PropertySelectionAdapter(new WeakReference(this), 0))
-    getTableViewerColumnTypeFrom.setLabelProvider(new ColumnTypeFrom.TLabelProvider)
+    getTableViewerColumnTypeFrom.setLabelProvider(new ColumnTypeFrom.TLabelProvider(graph))
     getTableViewerColumnTypeFrom.getColumn.addSelectionListener(new SortingEditor.PropertySelectionAdapter(new WeakReference(this), 1))
     // Activate the tooltip support for the viewer
     ColumnViewerToolTipSupport.enableFor(viewer)
@@ -232,9 +235,9 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     // Add the selection listener
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
-        case selection: IStructuredSelection if !selection.isEmpty() =>
+        case selection: IStructuredSelection if !selection.isEmpty() ⇒
           ActionAdd.setEnabled(true)
-        case selection =>
+        case selection ⇒
           ActionAdd.setEnabled(false)
       }
     })
@@ -252,9 +255,9 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
       }
     }
     filterProperties.underlying.addChangeListener(filterListener)
-    viewer.setFilters(Array(visibleFilter, new SortingEditor.PropertyFilter(filter)))
+    viewer.setFilters(Array(visibleFilter, new SortingEditor.PropertyFilter(graph, filter)))
     // Set sorting
-    viewer.setComparator(new SortingEditor.SortingComparator(new WeakReference(this)))
+    viewer.setComparator(new SortingEditor.SortingComparator(graph, new WeakReference(this)))
     viewer.setInput(total.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selectedProperty)
     viewer.getTable().pack
@@ -293,12 +296,12 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     // Add the selection listener
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
-        case selection: IStructuredSelection if !selection.isEmpty() =>
+        case selection: IStructuredSelection if !selection.isEmpty() ⇒
           val definition = selection.getFirstElement().asInstanceOf[view.api.Sorting.Definition]
           ActionUp.setEnabled(actual.headOption != Some(definition))
           ActionDown.setEnabled(actual.lastOption != Some(definition))
           ActionRemove.setEnabled(true)
-        case selection =>
+        case selection ⇒
           ActionRemove.setEnabled(false)
           ActionUp.setEnabled(false)
           ActionDown.setEnabled(false)
@@ -314,9 +317,9 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
       }
     }
     filterSortings.underlying.addChangeListener(filterListener)
-    viewer.setFilters(Array(new SortingEditor.SortingFilter(filter)))
+    viewer.setFilters(Array(new SortingEditor.SortingFilter(graph, filter)))
     // Set sorting
-    viewer.setComparator(new SortingEditor.SortingComparator(new WeakReference(this)))
+    viewer.setComparator(new SortingEditor.SortingComparator(graph, new WeakReference(this)))
     viewer.setInput(actual.underlying)
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selectedSorting)
   }
@@ -325,8 +328,8 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     updateOK()
     if (ActionAutoResize.isChecked())
       future { autoresize() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
     // prevent interference with the size calculation
     getTextFilterProperties().setMessage(Messages.lookupFilter_text);
@@ -341,16 +344,16 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     getTableViewerSortings.setSelection(new StructuredSelection(after), true)
     if (ActionAutoResize.isChecked())
       future { autoresize() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
   }
   /** Update the dialog message */
   protected def updateDescription(error: Option[String]): String = {
-    CustomMessages.viewSortingEditorDescription_text.format(nameField.value.trim) +
+    Messages.viewSortingEditorDescription_text.format(nameField.value.trim) +
       (error match {
-        case Some(error) => "\n    * - " + error
-        case None => "\n "
+        case Some(error) ⇒ "\n    * - " + error
+        case None ⇒ "\n "
       })
   }
   /** Update OK button state */
@@ -392,39 +395,39 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     setChecked(true)
     override def run = if (isChecked()) {
       future { autoresize } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
     }
   }
   object ActionAdd extends Action(">") with Loggable {
-    override def run = Option(selectedProperty.value) foreach { property =>
+    override def run = Option(selectedProperty.value) foreach { property ⇒
       property.visible = false
       actual += new view.api.Sorting.Definition(property.id, property.ptype.id, Default.sortingDirection, AvailableComparators.default.id, "")
       if (ActionAutoResize.isChecked())
         future { autoresize() } onFailure {
-          case e: Exception => log.error(e.getMessage(), e)
-          case e => log.error(e.toString())
+          case e: Exception ⇒ log.error(e.getMessage(), e)
+          case e ⇒ log.error(e.toString())
         }
       else
         getTableViewerProperties.refresh()
     }
   }
   object ActionRemove extends Action("<") with Loggable {
-    override def run = Option(selectedSorting.value) foreach { definition =>
+    override def run = Option(selectedSorting.value) foreach { definition ⇒
       actual -= definition
-      total.find(property => definition.property == property.id && definition.propertyType == property.ptype.id).foreach(_.visible = true)
+      total.find(property ⇒ definition.property == property.id && definition.propertyType == property.ptype.id).foreach(_.visible = true)
       if (ActionAutoResize.isChecked())
         future { autoresize() } onFailure {
-          case e: Exception => log.error(e.getMessage(), e)
-          case e => log.error(e.toString())
+          case e: Exception ⇒ log.error(e.getMessage(), e)
+          case e ⇒ log.error(e.toString())
         }
       else
         getTableViewerProperties.refresh()
     }
   }
   object ActionUp extends Action(Messages.up_text) with Loggable {
-    override def run = Option(selectedSorting.value) foreach { definition =>
+    override def run = Option(selectedSorting.value) foreach { definition ⇒
       val index = actual.indexOf(definition)
       if (index > -1 && 0 <= (index - 1)) {
         actual.update(index, actual(index - 1))
@@ -435,7 +438,7 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
     }
   }
   object ActionDown extends Action(Messages.down_text) with Loggable {
-    override def run = Option(selectedSorting.value) foreach { definition =>
+    override def run = Option(selectedSorting.value) foreach { definition ⇒
       val index = actual.indexOf(definition)
       if (index > -1 && actual.size > (index + 1)) {
         actual.update(index, actual(index + 1))
@@ -448,16 +451,16 @@ class SortingEditor(val parentShell: Shell, val sorting: view.api.Sorting, val s
 }
 
 object SortingEditor extends Loggable {
-  class PropertyFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
+  class PropertyFilter(graph: Graph[_ <: Model.Like], filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
       val item = element.asInstanceOf[PropertyItem[AnyRef with java.io.Serializable]]
-      pattern.matcher(item.id.name.toLowerCase()).matches() || pattern.matcher(item.ptype.name.toLowerCase()).matches()
+      pattern.matcher(item.id.name.toLowerCase()).matches() || pattern.matcher(item.ptype.name(graph).toLowerCase()).matches()
     }
   }
-  case class PropertyItem[T <: AnyRef with java.io.Serializable](val id: Symbol, ptype: payload.api.PropertyType[T], var visible: Boolean)
+  case class PropertyItem[T <: AnyRef with java.io.Serializable](val id: Symbol, ptype: papi.PropertyType[T], var visible: Boolean)
   class PropertySelectionAdapter(dialog: WeakReference[SortingEditor], column: Int) extends SelectionAdapter {
-    override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog =>
+    override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog ⇒
       val viewer = dialog.getTableViewerProperties()
       val comparator = viewer.getComparator().asInstanceOf[SortingComparator]
       if (comparator.column == column) {
@@ -469,7 +472,7 @@ object SortingEditor extends Loggable {
       }
     }
   }
-  class SortingComparator(dialog: WeakReference[SortingEditor]) extends ViewerComparator {
+  class SortingComparator(graph: Graph[_ <: Model.Like], dialog: WeakReference[SortingEditor]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
     private var _direction = dialog.get.map(_.sortDirection) getOrElse
@@ -493,32 +496,32 @@ object SortingEditor extends Loggable {
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
       e1 match {
-        case entity1: view.api.Sorting.Definition =>
+        case entity1: view.api.Sorting.Definition ⇒
           val entity2 = e2.asInstanceOf[view.api.Sorting.Definition]
           val rc = column match {
-            case 0 =>
+            case 0 ⇒
               val input = viewer.getInput().asInstanceOf[org.eclipse.core.databinding.observable.list.WritableList]
               input.indexOf(entity1).compareTo(input.indexOf(entity2))
-            case 1 => entity1.property.name.compareTo(entity2.property.name)
-            case 2 => entity1.propertyType.name.compareTo(entity2.propertyType.name)
-            case 3 => entity1.direction.compareTo(entity2.direction)
-            case 4 => AvailableComparators.map.get(entity1.comparator).map(_.name).getOrElse("").
+            case 1 ⇒ entity1.property.name.compareTo(entity2.property.name)
+            case 2 ⇒ entity1.propertyType.name.compareTo(entity2.propertyType.name)
+            case 3 ⇒ entity1.direction.compareTo(entity2.direction)
+            case 4 ⇒ AvailableComparators.map.get(entity1.comparator).map(_.name).getOrElse("").
               compareTo(AvailableComparators.map.get(entity2.comparator).map(_.name).getOrElse(""))
-            case 5 =>
+            case 5 ⇒
               //              val argument1 = AvailableComparators.map.get(entity1.comparator).flatMap(c => c.stringToArgument(entity1.argument).map(c.argumentToText)).getOrElse(entity1.argument)
               //              val argument2 = AvailableComparators.map.get(entity2.comparator).flatMap(c => c.stringToArgument(entity2.argument).map(c.argumentToText)).getOrElse(entity2.argument)
               //              argument1.compareTo(argument2)
               0
-            case index =>
+            case index ⇒
               log.fatal(s"unknown column with index $index"); 0
           }
           if (_direction) -rc else rc
-        case entity1: PropertyItem[_] =>
+        case entity1: PropertyItem[_] ⇒
           val entity2 = e2.asInstanceOf[PropertyItem[_]]
           val rc = column match {
-            case 0 => entity1.id.name.compareTo(entity2.id.name)
-            case 1 => entity1.ptype.name.compareTo(entity2.ptype.name)
-            case index =>
+            case 0 ⇒ entity1.id.name.compareTo(entity2.id.name)
+            case 1 ⇒ entity1.ptype.name(graph).compareTo(entity2.ptype.name(graph))
+            case index ⇒
               log.fatal(s"unknown column with index $index"); 0
           }
           if (_direction) -rc else rc
@@ -530,19 +533,19 @@ object SortingEditor extends Loggable {
       dialog.get.foreach(_.sortDirection = _direction)
     }
   }
-  class SortingFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
+  class SortingFilter(graph: Graph[_ <: Model.Like], filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
       val item = element.asInstanceOf[view.api.Sorting.Definition]
       pattern.matcher(item.property.name.toLowerCase()).matches() ||
-        pattern.matcher(payload.PropertyType.get(item.propertyType).name.toLowerCase()).matches() ||
+        pattern.matcher(PropertyType.get(item.propertyType).name(graph).toLowerCase()).matches() ||
         pattern.matcher(AvailableComparators.map(item.comparator).name.toLowerCase()).matches() ||
         pattern.matcher(AvailableComparators.map.get(item.comparator).
           flatMap(_.stringToText(item.argument)).getOrElse(item.argument).toLowerCase()).matches()
     }
   }
   class SortingSelectionAdapter(dialog: WeakReference[SortingEditor], column: Int) extends SelectionAdapter {
-    override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog =>
+    override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog ⇒
       val viewer = dialog.getTableViewerSortings()
       val comparator = viewer.getComparator().asInstanceOf[SortingComparator]
       if (comparator.column == column) {

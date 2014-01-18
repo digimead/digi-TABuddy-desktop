@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -55,7 +55,7 @@ import scala.annotation.tailrec
 /**
  * Trait with support functions for org.digimead.tabuddy.desktop.ui.UI
  */
-trait UI {
+trait Generic {
   this: org.digimead.tabuddy.desktop.ui.UI.type ⇒
   /** Adjust table viewer column width. */
   def adjustTableViewerColumnWidth(viewerColumn: TableViewerColumn, padding: Int, n: Int = 3) {

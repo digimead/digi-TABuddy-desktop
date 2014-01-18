@@ -69,11 +69,13 @@ class OperationModifyElementTemplateList extends logic.operation.OperationModify
    * @param templateList exists templates
    * @return the modified element template list
    */
-  def apply(graph: Graph[_ <: Model.Like], templateList: Set[papi.ElementTemplate]): Set[papi.ElementTemplate] =
+  def apply(graph: Graph[_ <: Model.Like], templateList: Set[papi.ElementTemplate]): Set[papi.ElementTemplate] = {
+    log.info(s"Modify the template list of ${graph}.")
     dialog(graph, templateList) match {
       case Operation.Result.OK(Some(templateList), _) ⇒ templateList
       case _ ⇒ templateList
     }
+  }
   /**
    * Create 'Modify an element template list' operation.
    *

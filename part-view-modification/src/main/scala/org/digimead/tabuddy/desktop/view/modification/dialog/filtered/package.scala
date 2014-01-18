@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,46 +41,8 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.view
+package org.digimead.tabuddy.desktop.view.modification.dialog
 
-import org.digimead.digi.lib.DependencyInjection
-import com.escalatesoft.subcut.inject.NewBindingModule
-
-/**
- * View modification component contains:
- *   modify filter dialog
- *   modify filter list dialog
- *   modify sorting dialog
- *   modify sorting list dialog
- *   modify view dialog
- *   modify view list dialog
- */
-package object modification {
-  lazy val default = new NewBindingModule(module => {
-    // implementation of logic.operation.view.OperationModifyFilter
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyFilter] toSingle {
-      new operation.OperationModifyFilter()
-    }
-    // implementation of logic.operation.view.OperationModifyFilterList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyFilterList] toSingle {
-      new operation.OperationModifyFilterList()
-    }
-    // implementation of logic.operation.view.OperationModifySorting
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifySorting] toSingle {
-      new operation.OperationModifySorting()
-    }
-    // implementation of logic.operation.view.OperationModifySortingList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifySortingList] toSingle {
-      new operation.OperationModifySortingList()
-    }
-    // implementation of logic.operation.view.OperationModifyView
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyView] toSingle {
-      new operation.OperationModifyView()
-    }
-    // implementation of logic.operation.view.OperationModifyViewList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyViewList] toSingle {
-      new operation.OperationModifyViewList()
-    }
-  })
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.view.modification.Default$DI$")
+package object filtered {
+  type AnySRef = AnyRef with java.io.Serializable
 }

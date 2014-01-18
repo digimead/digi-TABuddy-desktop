@@ -92,7 +92,6 @@ class Filter(
     case _ ⇒ false
   }
   override def hashCode() = elementId.hashCode
-  override def toString() = s"Filter($id, $name)"
 }
 
 object Filter extends Loggable {

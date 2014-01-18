@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,70 +43,50 @@
 
 package org.digimead.tabuddy.desktop.view.modification.dialog.sortlist
 
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
-
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.WritableList
+import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.ui.UI
+import org.digimead.tabuddy.desktop.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.ui.support.RegexFilterListener
+import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.e4.core.contexts.IEclipseContext
+import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
+import org.eclipse.jface.databinding.swt.WidgetProperties
+import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, ViewersObservables }
+import org.eclipse.jface.dialogs.IDialogConstants
+import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator, ViewerFilter }
+import org.eclipse.swt.SWT
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
+import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
 import scala.collection.immutable
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySorting
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-import org.digimead.tabuddy.desktop.logic.payload.view
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.WritableList
-import org.digimead.tabuddy.desktop.support.WritableList.wrapper2underlying
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
-import org.digimead.tabuddy.desktop.support.ui.RegexFilterListener
-import org.digimead.tabuddy.desktop.view.modification.Default
-import org.digimead.tabuddy.desktop.view.modification.dialog.CustomMessages
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.Action
-import org.eclipse.jface.action.ActionContributionItem
-import org.eclipse.jface.action.IAction
-import org.eclipse.jface.action.IMenuListener
-import org.eclipse.jface.action.IMenuManager
-import org.eclipse.jface.action.MenuManager
-import org.eclipse.jface.databinding.swt.WidgetProperties
-import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
-import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.dialogs.IDialogConstants
-import org.eclipse.jface.viewers.ColumnViewerToolTipSupport
-import org.eclipse.jface.viewers.ISelectionChangedListener
-import org.eclipse.jface.viewers.IStructuredSelection
-import org.eclipse.jface.viewers.SelectionChangedEvent
-import org.eclipse.jface.viewers.StructuredSelection
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.Viewer
-import org.eclipse.jface.viewers.ViewerComparator
-import org.eclipse.jface.viewers.ViewerFilter
-import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
-import org.eclipse.swt.events.SelectionAdapter
-import org.eclipse.swt.events.SelectionEvent
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Event
-import org.eclipse.swt.widgets.Listener
-import org.eclipse.swt.widgets.Shell
-import org.eclipse.swt.widgets.TableItem
-
-class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
+class SortingList(
+  /** This dialog context. */
+  val context: IEclipseContext,
+  /** Parent shell. */
+  val parentShell: Shell,
+  /** Graph container. */
+  val graph: Graph[_ <: Model.Like],
+  /** Graph marker. */
+  val marker: GraphMarker,
+  /** Graph payload. */
+  val payload: Payload,
+  /** Initial sortirg list. */
+  val initial: List[view.api.Sorting])
   extends SortingListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
   protected[sortlist] val actual = WritableList(initial)
@@ -114,8 +94,17 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing sorting filter content */
   protected val filterSortings = WritableValue("")
+  /** Activate context on focus. */
+  protected val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
   /** The property representing a selected view */
   protected val selected = WritableValue[view.api.Sorting]
+  /** Activate context on shell events. */
+  protected val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0 // by an id
   /** Actual sort direction */
@@ -128,7 +117,7 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        App.adjustTableViewerColumnWidth(getTableViewerColumnName(), Default.columnPadding)
+        UI.adjustTableViewerColumnWidth(getTableViewerColumnName(), Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -138,6 +127,7 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
+    context.set(classOf[Composite], parent)
     new ActionContributionItem(ActionCreate).fill(getCompositeFooter())
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
     new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
@@ -146,24 +136,28 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
     ActionEdit.setEnabled(false)
     ActionRemove.setEnabled(false)
     initTableViews()
-    val actualListener = actual.addChangeListener { event =>
+    val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
         future { autoresize() } onFailure {
-          case e: Exception => log.error(e.getMessage(), e)
-          case e => log.error(e.toString())
+          case e: Exception ⇒ log.error(e.getMessage(), e)
+          case e ⇒ log.error(e.toString())
         }
       updateOK()
     }
+    getShell().addShellListener(shellListener)
+    getShell().addFocusListener(focusListener)
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
         actual.removeChangeListener(actualListener)
       }
     })
     // Set the dialog message
-    setMessage(CustomMessages.viewSortingListDescription_text.format(Model.eId.name))
+    setMessage(Messages.viewSortingListDescription_text.format(graph.model.eId.name))
     // Set the dialog window title
-    getShell().setText(CustomMessages.viewSortingListDialog_text.format(Model.eId.name))
+    getShell().setText(Messages.viewSortingListDialog_text.format(graph.model.eId.name))
     result
   }
   /** Generate new name: old name + ' Copy' + N */
@@ -191,18 +185,18 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
     viewer.getTable.addListener(SWT.Selection, new Listener() {
       def handleEvent(event: Event) = if (event.detail == SWT.CHECK)
         event.item match {
-          case tableItem: TableItem =>
+          case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: view.api.Sorting =>
+              case before: view.api.Sorting ⇒
                 if (before.availability != tableItem.getChecked()) {
                   val after = before.copy(availability = tableItem.getChecked())
                   updateActualSorting(before, after)
                 }
-              case item =>
+              case item ⇒
                 log.fatal(s"unknown item $item")
             }
-          case item =>
+          case item ⇒
             log.fatal(s"unknown item $item")
         }
     })
@@ -221,12 +215,12 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
     // Add the selection listener
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
-        case selection: IStructuredSelection if !selection.isEmpty() =>
+        case selection: IStructuredSelection if !selection.isEmpty() ⇒
           val sorting = selection.getFirstElement().asInstanceOf[view.api.Sorting]
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
           ActionRemove.setEnabled(view.Sorting.simpleSorting != sorting) // exclude predefined
-        case selection =>
+        case selection ⇒
           ActionCreateFrom.setEnabled(false)
           ActionEdit.setEnabled(false)
           ActionRemove.setEnabled(false)
@@ -253,8 +247,8 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
     updateOK()
     if (ActionAutoResize.isChecked())
       future { autoresize() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
   }
   /** Updates an actual element template */
@@ -266,8 +260,8 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
     getTableViewer.setSelection(new StructuredSelection(after), true)
     if (ActionAutoResize.isChecked())
       future { autoresize() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
   }
   /** Update OK button state */
@@ -278,84 +272,84 @@ class SortingList(val parentShell: Shell, val initial: List[view.api.Sorting])
     setChecked(true)
     override def run = if (isChecked())
       future { autoresize } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
+        case e: Exception ⇒ log.error(e.getMessage(), e)
+        case e ⇒ log.error(e.toString())
       }
   }
   object ActionCreate extends Action(Messages.create_text) with Loggable {
     override def run = {
-      val newSortingName = Payload.generateNew(Messages.newSortingName_text, " ", newName => actual.exists(_.name == newName))
-      val newSorting = new view.Sorting(UUID.randomUUID(), newSortingName, "", true, mutable.LinkedHashSet())
-      OperationModifySorting(newSorting, actual.toSet).foreach { operation =>
-        operation.getExecuteJob() match {
-          case Some(job) =>
-            job.setPriority(Job.SHORT)
-            job.onComplete(_ match {
-              case Operation.Result.OK(result, message) =>
-                log.info(s"Operation completed successfully: ${result}")
-                result.foreach { case (sorting) => App.exec { actual += sorting } }
-              case Operation.Result.Cancel(message) =>
-                log.warn(s"Operation canceled, reason: ${message}.")
-              case other =>
-                log.error(s"Unable to complete operation: ${other}.")
-            }).schedule()
-          case None =>
-            log.fatal(s"Unable to create job for ${operation}.")
-        }
-      }
+      //      val newSortingName = payload.generateNew(Messages.newSortingName_text, " ", newName ⇒ actual.exists(_.name == newName))
+      //      val newSorting = new view.Sorting(UUID.randomUUID(), newSortingName, "", true, mutable.LinkedHashSet())
+      //      OperationModifySorting(newSorting, actual.toSet).foreach { operation ⇒
+      //        operation.getExecuteJob() match {
+      //          case Some(job) ⇒
+      //            job.setPriority(Job.SHORT)
+      //            job.onComplete(_ match {
+      //              case Operation.Result.OK(result, message) ⇒
+      //                log.info(s"Operation completed successfully: ${result}")
+      //                result.foreach { case (sorting) ⇒ App.exec { actual += sorting } }
+      //              case Operation.Result.Cancel(message) ⇒
+      //                log.warn(s"Operation canceled, reason: ${message}.")
+      //              case other ⇒
+      //                log.error(s"Unable to complete operation: ${other}.")
+      //            }).schedule()
+      //          case None ⇒
+      //            log.fatal(s"Unable to create job for ${operation}.")
+      //        }
+      //      }
     }
   }
   object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
-    override def run = Option(selected.value) foreach { selected =>
-      val name = getNewSortingCopyName(selected.name, actual.toList)
-      val newSorting = selected.copy(id = UUID.randomUUID(), name = name)
-      OperationModifySorting(newSorting, actual.toSet).foreach { operation =>
-        operation.getExecuteJob() match {
-          case Some(job) =>
-            job.setPriority(Job.SHORT)
-            job.onComplete(_ match {
-              case Operation.Result.OK(result, message) =>
-                log.info(s"Operation completed successfully: ${result}")
-                result.foreach {
-                  case (sorting) => App.exec {
-                    assert(!actual.exists(_.id == sorting.id), "Sorting %s already exists".format(sorting))
-                    actual += sorting
-                  }
-                }
-              case Operation.Result.Cancel(message) =>
-                log.warn(s"Operation canceled, reason: ${message}.")
-              case other =>
-                log.error(s"Unable to complete operation: ${other}.")
-            }).schedule()
-          case None =>
-            log.fatal(s"Unable to create job for ${operation}.")
-        }
-      }
+    override def run = Option(selected.value) foreach { selected ⇒
+      //      val name = getNewSortingCopyName(selected.name, actual.toList)
+      //      val newSorting = selected.copy(id = UUID.randomUUID(), name = name)
+      //      OperationModifySorting(newSorting, actual.toSet).foreach { operation ⇒
+      //        operation.getExecuteJob() match {
+      //          case Some(job) ⇒
+      //            job.setPriority(Job.SHORT)
+      //            job.onComplete(_ match {
+      //              case Operation.Result.OK(result, message) ⇒
+      //                log.info(s"Operation completed successfully: ${result}")
+      //                result.foreach {
+      //                  case (sorting) ⇒ App.exec {
+      //                    assert(!actual.exists(_.id == sorting.id), "Sorting %s already exists".format(sorting))
+      //                    actual += sorting
+      //                  }
+      //                }
+      //              case Operation.Result.Cancel(message) ⇒
+      //                log.warn(s"Operation canceled, reason: ${message}.")
+      //              case other ⇒
+      //                log.error(s"Unable to complete operation: ${other}.")
+      //            }).schedule()
+      //          case None ⇒
+      //            log.fatal(s"Unable to create job for ${operation}.")
+      //        }
+      //      }
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
-    override def run = Option(selected.value) foreach { before =>
-      OperationModifySorting(before, actual.toSet).foreach { operation =>
-        operation.getExecuteJob() match {
-          case Some(job) =>
-            job.setPriority(Job.SHORT)
-            job.onComplete(_ match {
-              case Operation.Result.OK(result, message) =>
-                log.info(s"Operation completed successfully: ${result}")
-                result.foreach { case (after) => App.exec { updateActualSorting(before, after) } }
-              case Operation.Result.Cancel(message) =>
-                log.warn(s"Operation canceled, reason: ${message}.")
-              case other =>
-                log.error(s"Unable to complete operation: ${other}.")
-            }).schedule()
-          case None =>
-            log.fatal(s"Unable to create job for ${operation}.")
-        }
-      }
+    override def run = Option(selected.value) foreach { before ⇒
+      //      OperationModifySorting(before, actual.toSet).foreach { operation ⇒
+      //        operation.getExecuteJob() match {
+      //          case Some(job) ⇒
+      //            job.setPriority(Job.SHORT)
+      //            job.onComplete(_ match {
+      //              case Operation.Result.OK(result, message) ⇒
+      //                log.info(s"Operation completed successfully: ${result}")
+      //                result.foreach { case (after) ⇒ App.exec { updateActualSorting(before, after) } }
+      //              case Operation.Result.Cancel(message) ⇒
+      //                log.warn(s"Operation canceled, reason: ${message}.")
+      //              case other ⇒
+      //                log.error(s"Unable to complete operation: ${other}.")
+      //            }).schedule()
+      //          case None ⇒
+      //            log.fatal(s"Unable to create job for ${operation}.")
+      //        }
+      //      }
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {
-    override def run = Option(selected.value) foreach { selected =>
+    override def run = Option(selected.value) foreach { selected ⇒
       actual -= selected
     }
   }
@@ -388,9 +382,9 @@ object SortingList extends Loggable {
       val entity1 = e1.asInstanceOf[view.api.Sorting]
       val entity2 = e2.asInstanceOf[view.api.Sorting]
       val rc = column match {
-        case 0 => entity1.name.compareTo(entity2.name)
-        case 1 => entity1.description.compareTo(entity2.description)
-        case index =>
+        case 0 ⇒ entity1.name.compareTo(entity2.name)
+        case 1 ⇒ entity1.description.compareTo(entity2.description)
+        case index ⇒
           log.fatal(s"unknown column with index $index"); 0
       }
       if (_direction) -rc else rc
@@ -411,14 +405,14 @@ object SortingList extends Loggable {
   }
   class SortingSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
     override def widgetSelected(e: SelectionEvent) = {
-      tableViewer.get.foreach(viewer => viewer.getComparator() match {
-        case comparator: SortingComparator if comparator.column == column =>
+      tableViewer.get.foreach(viewer ⇒ viewer.getComparator() match {
+        case comparator: SortingComparator if comparator.column == column ⇒
           comparator.switchDirection()
           viewer.refresh()
-        case comparator: SortingComparator =>
+        case comparator: SortingComparator ⇒
           comparator.column = column
           viewer.refresh()
-        case _ =>
+        case _ ⇒
       })
     }
   }

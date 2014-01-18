@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,10 +43,35 @@
 
 package org.digimead.tabuddy.desktop.view.modification
 
-import org.digimead.tabuddy.desktop.definition.NLS
+import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.NLS
+
+/**
+ * Resource bundle implementation.
+ *
+ * This code is directly evaluated in IDE (WindowBuilderPro).
+ * Any runtime references that may prevent creation are prohibited.
+ */
+class Messages extends ResourceBundle {
+  def getKeys() = new java.util.Enumeration[String] {
+    private val iterator = Messages.T.messages.keys.iterator
+    def hasMoreElements(): Boolean = iterator.hasNext
+    def nextElement(): String = iterator.next()
+  }
+  protected def handleGetObject(key: String): Object = try {
+    Messages.T.messages.get(key).
+      getOrElse { Messages.log.error(s"'${key}' not found in ${this.getClass()}"); key }
+  } catch {
+    case e: Throwable ⇒
+      key
+  }
+}
 
 object Messages extends NLS with Loggable {
+  val ascending_text = ""
+  val descending_text = ""
+  val no_text = ""
   val viewEditorDescription_text = ""
   val viewEditorDialog_text = ""
   val viewEditorTitle_text = ""
@@ -65,6 +90,19 @@ object Messages extends NLS with Loggable {
   val viewSortingListDescription_text = ""
   val viewSortingListDialog_text = ""
   val viewSortingListTitle_text = ""
+  val yes_text = ""
+  val lookupFilter_text = ""
+  val nameIsNotDefined_text = ""
+  val nameIsAlreadyInUse_text = ""
+  val thereAreNoSelectedProperties_text = ""
+  val autoresize_key = ""
+  val copy_item_text = ""
+  val create_text = ""
+  val createFrom_text = ""
+  val edit_text = ""
+  val remove_text = ""
+val up_text = ""
+val down_text = ""
 
-  T.ranslate("org.digimead.tabuddy.desktop.view.modification.dialog.messages")
+  T.ranslate("org.digimead.tabuddy.desktop.view.modification.messages")
 }

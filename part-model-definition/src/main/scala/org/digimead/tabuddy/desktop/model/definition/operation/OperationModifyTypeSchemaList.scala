@@ -69,12 +69,13 @@ class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeS
    * @param activeSchema the active type schema
    * @return the modified type schema list, the active type schema
    */
-  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[papi.TypeSchema], activeSchema: papi.TypeSchema): (Set[papi.TypeSchema], papi.TypeSchema) =
+  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[papi.TypeSchema], activeSchema: papi.TypeSchema): (Set[papi.TypeSchema], papi.TypeSchema) = {
+    log.info(s"Modify the type schema list of ${graph}.")
     dialog(graph, schemaList, activeSchema) match {
       case Operation.Result.OK(Some((schemaList, activeSchema)), _) ⇒ (schemaList, activeSchema)
       case _ ⇒ (schemaList, activeSchema)
     }
-
+  }
   /**
    * Create 'Modify a type schema list' operation.
    *
@@ -98,7 +99,7 @@ class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeS
           case Some((context, shell)) ⇒
             // actual lock inside event loop thread
             marker.safeRead { state ⇒
-              val dialogContext = context.createChild("EnumerationListDialog")
+              val dialogContext = context.createChild("TypeListDialog")
               dialogContext.set(classOf[Shell], shell)
               dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
               dialogContext.set(classOf[GraphMarker], marker)

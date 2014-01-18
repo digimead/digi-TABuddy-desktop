@@ -70,12 +70,13 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
    * @param isSchemaActive the flag indicating whether the type schema is active
    * @return the modified type schema, the flag whether the type schema is active
    */
-  def apply(graph: Graph[_ <: Model.Like], schema: papi.TypeSchema, schemaList: Set[papi.TypeSchema], isSchemaActive: Boolean): (papi.TypeSchema, Boolean) =
+  def apply(graph: Graph[_ <: Model.Like], schema: papi.TypeSchema, schemaList: Set[papi.TypeSchema], isSchemaActive: Boolean): (papi.TypeSchema, Boolean) = {
+    log.info(s"Modify ${schema} for ${graph}.")
     dialog(graph, schema, schemaList, isSchemaActive) match {
       case Operation.Result.OK(Some((schema, isSchemaActive)), _) ⇒ (schema, isSchemaActive)
       case _ ⇒ (schema, isSchemaActive)
     }
-
+  }
   /**
    * Create 'Modify a type schema' operation.
    *
@@ -100,7 +101,7 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
           case Some((context, shell)) ⇒
             // actual lock inside event loop thread
             marker.safeRead { state ⇒
-              val dialogContext = context.createChild("EnumerationListDialog")
+              val dialogContext = context.createChild("TypeEditorDialog")
               dialogContext.set(classOf[Shell], shell)
               dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
               dialogContext.set(classOf[GraphMarker], marker)

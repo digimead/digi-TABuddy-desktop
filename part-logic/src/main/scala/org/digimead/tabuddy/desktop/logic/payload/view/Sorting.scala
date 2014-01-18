@@ -94,7 +94,6 @@ class Sorting(
     case _ ⇒ false
   }
   override def hashCode() = elementId.hashCode
-  override def toString() = s"Sorting($id, $name)"
 }
 
 object Sorting extends Loggable {

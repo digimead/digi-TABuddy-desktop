@@ -68,12 +68,13 @@ class OperationModifyEnumerationList extends logic.operation.OperationModifyEnum
    * @param enumerationList exists enumerations
    * @return the modified enumeration list
    */
-  def apply(graph: Graph[_ <: Model.Like], enumerationList: Set[papi.Enumeration[_ <: AnySRef]]): Set[papi.Enumeration[_ <: AnySRef]] =
+  def apply(graph: Graph[_ <: Model.Like], enumerationList: Set[papi.Enumeration[_ <: AnySRef]]): Set[papi.Enumeration[_ <: AnySRef]] = {
+    log.info(s"Modify the enumeration list of ${graph}.")
     dialog(graph, enumerationList) match {
       case Operation.Result.OK(Some(enumerationList), _) ⇒ enumerationList
       case _ ⇒ enumerationList
     }
-
+  }
   /**
    * Create 'Modify an enumeration list' operation.
    *

@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -47,24 +47,23 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
 import org.digimead.tabuddy.desktop.logic.payload.view.api
 import org.digimead.tabuddy.desktop.view.modification.Default
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.jface.viewers.ViewerCell
+import org.eclipse.jface.viewers.{ CellLabelProvider, ViewerCell }
 import org.eclipse.swt.graphics.Point
 
 object ColumnType extends Loggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: api.Filter.Rule =>
+      case item: api.Filter.Rule ⇒
         cell.setText(item.propertyType.name)
-      case unknown =>
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: api.Filter.Rule =>
-        AvailableFilters.map.get(item.filter).map(c => "filter: " + c.description).getOrElse(null)
-      case unknown =>
+      case item: api.Filter.Rule ⇒
+        AvailableFilters.map.get(item.filter).map(c ⇒ "filter: " + c.description).getOrElse(null)
+      case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null
     }

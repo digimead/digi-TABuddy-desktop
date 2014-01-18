@@ -153,6 +153,7 @@ class TypeEditor @Inject() (
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
+    context.set(classOf[Composite], parent)
     new ActionContributionItem(ActionAliasLookup).fill(getCompositeFooter())
     ActionAliasLookup.setEnabled(false)
     // Bind the schema info: a name

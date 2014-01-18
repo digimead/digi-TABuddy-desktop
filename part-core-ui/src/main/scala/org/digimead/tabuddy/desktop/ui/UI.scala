@@ -148,7 +148,7 @@ class UI extends akka.actor.Actor with Loggable {
   }
 }
 
-object UI extends support.UI with Loggable {
+object UI extends support.Generic with Loggable {
   implicit def ui2actorRef(c: UI.type): ActorRef = c.actor
   implicit def ui2actorSRef(c: UI.type): ScalaActorRef = c.actor
   /** UI actor reference. */

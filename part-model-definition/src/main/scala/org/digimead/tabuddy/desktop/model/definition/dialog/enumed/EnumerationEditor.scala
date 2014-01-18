@@ -161,6 +161,7 @@ class EnumerationEditor @Inject() (
   override protected def createDialogArea(parent: Composite): Control = {
     // create dialog elements
     val result = super.createDialogArea(parent)
+    context.set(classOf[Composite], parent)
     new ActionContributionItem(ActionAdd).fill(getCompositeFooter())
     new ActionContributionItem(ActionDelete).fill(getCompositeFooter())
     ActionAdd.setEnabled(true)
