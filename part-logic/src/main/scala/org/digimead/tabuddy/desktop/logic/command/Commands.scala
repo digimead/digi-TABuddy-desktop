@@ -50,6 +50,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.logic.operation.{ OperationModifyElementTemplateList, OperationModifyEnumerationList, OperationModifyTypeSchemaList }
+import org.digimead.tabuddy.desktop.logic.operation.view.{ OperationModifyFilterList, OperationModifySortingList, OperationModifyViewList }
 import scala.language.implicitConversions
 
 /**
@@ -122,11 +123,32 @@ class Commands extends Loggable {
       Command.addToContext(Core.context, CommandModifyTypeSchemaList.parser).
         foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     }
+    // Only if OperationModifyFilterList is defined
+    if (OperationModifyFilterList.operation.nonEmpty) {
+      Command.register(CommandModifyFilterList.descriptor)
+      Command.addToContext(Core.context, CommandModifyFilterList.parser).
+        foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    }
+    // Only if OperationModifySortingList is defined
+    if (OperationModifySortingList.operation.nonEmpty) {
+      Command.register(CommandModifySortingList.descriptor)
+      Command.addToContext(Core.context, CommandModifySortingList.parser).
+        foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    }
+    // Only if OperationModifyViewList is defined
+    if (OperationModifyViewList.operation.nonEmpty) {
+      Command.register(CommandModifyViewList.descriptor)
+      Command.addToContext(Core.context, CommandModifyViewList.parser).
+        foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    }
   }
   /** Unconfigure component actions. */
   @log
   def unconfigure() = lock.synchronized {
     contextParsers.foreach(Command.removeFromContext(Core.context, _))
+    Command.get(CommandModifyViewList.descriptor.parserId).foreach(Command.unregister)
+    Command.get(CommandModifySortingList.descriptor.parserId).foreach(Command.unregister)
+    Command.get(CommandModifyFilterList.descriptor.parserId).foreach(Command.unregister)
     Command.get(CommandModifyElementTemplateList.descriptor.parserId).foreach(Command.unregister)
     Command.get(CommandModifyEnumerationList.descriptor.parserId).foreach(Command.unregister)
     Command.get(CommandModifyTypeSchemaList.descriptor.parserId).foreach(Command.unregister)
