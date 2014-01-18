@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,21 +27,23 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
  */
 
 package org.digimead.tabuddy.desktop.model.editor;
+
+import java.util.ResourceBundle;
 
 import org.eclipse.jface.action.CoolBarManager;
 import org.eclipse.swt.SWT;
@@ -60,14 +62,29 @@ import org.eclipse.swt.widgets.Label;
  * @author ezh
  */
 public class MainPartActiveView extends Composite {
-	/**
-	 * Cool bar manager.
-	 */
+	private static final ResourceBundle BUNDLE = getResourceBundle();
 	private Button btnResetActiveElement;
 	private CoolBarManager coolBarManager;
 	private SashForm sashForm;
 	private StyledText textActiveElement;
 	private StyledText textRootElement;
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceBundle() {
+		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.editor.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.messages");
+		}
+	}
 
 	/**
 	 * Create the composite.
@@ -81,39 +98,30 @@ public class MainPartActiveView extends Composite {
 
 		coolBarManager = new CoolBarManager(SWT.FLAT);
 		CoolBar coolBar = coolBarManager.createControl(this);
-		coolBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false,
-				3, 1));
+		coolBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
 
 		sashForm = new SashForm(this, SWT.SMOOTH);
-		sashForm.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3,
-				1));
+		sashForm.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));
 
 		Label lblRoot = new Label(this, SWT.NONE);
 		lblRoot.setText("Root element");
 
-		textRootElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY
-				| SWT.WRAP | SWT.SINGLE);
-		GridData gd_styledTextRootElement = new GridData(SWT.FILL, SWT.CENTER,
-				false, false, 2, 1);
+		textRootElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY | SWT.WRAP | SWT.SINGLE);
+		GridData gd_styledTextRootElement = new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1);
 		gd_styledTextRootElement.widthHint = 10;
 		textRootElement.setLayoutData(gd_styledTextRootElement);
 
 		Label lblActiveElement = new Label(this, SWT.NONE);
-		lblActiveElement.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,
-				false, false, 1, 1));
+		lblActiveElement.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
 		lblActiveElement.setText("Active element");
 
-		textActiveElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY
-				| SWT.WRAP | SWT.SINGLE);
+		textActiveElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY | SWT.WRAP | SWT.SINGLE);
 		textActiveElement.setAlignment(SWT.CENTER);
-		textActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
-				true, false, 1, 1));
+		textActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
 
 		btnResetActiveElement = new Button(this, SWT.NONE);
-		btnResetActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
-				false, false, 1, 1));
-		btnResetActiveElement
-				.setText(org.digimead.tabuddy.desktop.Messages$.MODULE$.reset_text());
+		btnResetActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 1, 1));
+		btnResetActiveElement.setText(BUNDLE.getString("reset_text"));
 
 	}
 

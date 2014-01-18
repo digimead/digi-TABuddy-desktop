@@ -84,11 +84,11 @@ public class FilterListSkel extends TitleAreaDialog {
 		try {
 			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.view.modification.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.view.modification.dialog.filterlist.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.view.modification.messages");
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.view.modification.dialog.filterlist.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.view.modification.messages");
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.view.modification.dialog.filterlist.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.view.modification.messages");
 		}
 	}
 

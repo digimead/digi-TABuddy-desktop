@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,76 +43,83 @@
 
 package org.digimead.tabuddy.desktop.model.editor
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.MILLISECONDS
-import scala.ref.WeakReference
-
-import org.digimead.digi.lib.DependencyInjection
-import org.digimead.digi.lib.Disposable
+import akka.actor.{ Inbox, PoisonPill, Terminated }
+import org.digimead.digi.lib.{ DependencyInjection, Disposable }
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Resources
-import org.digimead.tabuddy.desktop.model.editor.Editor.editor2actorRef
-import org.digimead.tabuddy.desktop.model.editor.Editor.editor2actorSRef
-import org.digimead.tabuddy.desktop.model.editor.toolbar.EditorToolBar.toolbar2actorRef
-import org.digimead.tabuddy.desktop.model.editor.toolbar.ElementToolBar.toolbar2actorRef
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.Timeout
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.osgi.framework.BundleActivator
-import org.osgi.framework.BundleContext
-
-import akka.actor.Inbox
-import akka.actor.PoisonPill
-import akka.actor.Terminated
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.osgi.framework.{ BundleActivator, BundleContext }
+import scala.concurrent.Future
+import scala.ref.WeakReference
 
 /**
  * OSGi entry point.
  */
 class Activator extends BundleActivator with Loggable {
-  @volatile protected var started = false
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
 
   /** Start bundle. */
   def start(context: BundleContext) = Activator.startStopLock.synchronized {
     if (Option(Activator.disposable).isEmpty)
       throw new IllegalStateException("Bundle is already disposed. Please reinstall it before activation.")
-    log.debug("Start TABuddy Desktop model editor.")
+    log.debug("Start TABuddy Desktop ModelEditor component.")
     // Setup DI for this bundle
-    Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
-      map { currencyServiceRef => (currencyServiceRef, context.getService(currencyServiceRef)) } match {
-        case Some((reference, diService)) =>
-          diService.getDependencyValidator.foreach { validator =>
+    val diReady = Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
+      map { currencyServiceRef ⇒ (currencyServiceRef, context.getService(currencyServiceRef)) } match {
+        case Some((reference, diService)) ⇒
+          diService.getDependencyValidator.foreach { validator ⇒
             val invalid = DependencyInjection.validate(validator, this)
             if (invalid.nonEmpty)
               throw new IllegalArgumentException("Illegal DI keys found: " + invalid.mkString(","))
           }
           context.ungetService(reference)
-        case None =>
+          Some(diService.getDependencyInjection())
+        case None ⇒
           log.warn("DI service not found.")
+          None
       }
-    DependencyInjection.inject()
-    Editor.actor // Start component actors hierarchy
-    System.out.println("Model editor component is started.")
+    diReady match {
+      case Some(di) ⇒
+        DependencyInjection.reset()
+        DependencyInjection(di, false)
+      case None ⇒
+        log.warn("Skip DI initialization in test environment.")
+    }
+    // Start component actors hierarchy
+    val f = Future {
+      Activator.startStopLock.synchronized {
+        App.watch(Activator).once.makeBeforeStop {
+          // This hook is hold Activator.stop() while initialization is incomplete.
+          App.watch(context).waitForStart(Timeout.normal)
+          // Initialization complete.
+          App.watch(context).off()
+        } on { ModelEditor.actor }
+      }
+    }
+    f onFailure { case e: Throwable ⇒ log.error("Error while starting ModelEditor: " + e.getMessage(), e) }
+    f onComplete { case _ ⇒ App.watch(context).on() }
+    //    System.out.println("Model editor component is started.")
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
-    log.debug("Stop TABuddy Desktop model editor.")
+    log.debug("Stop TABuddy Desktop ModelEditor component.")
+    App.watch(Activator) off {}
     try {
       // Stop component actors.
       val inbox = Inbox.create(App.system)
-      inbox.watch(Editor)
-      Editor ! PoisonPill
+      inbox.watch(ModelEditor)
+      ModelEditor ! PoisonPill
       if (inbox.receive(Timeout.long).isInstanceOf[Terminated])
-        log.debug("Editor actors hierarchy is terminated.")
+        log.debug("ModelEditor actors hierarchy is terminated.")
       else
-        log.fatal("Unable to shutdown Editor actors hierarchy.")
+        log.fatal("Unable to shutdown ModelEditor actors hierarchy.")
     } catch {
-      case e if App.system == null =>
+      case e if App.system == null ⇒
         log.debug("Skip Akka cleanup: ecosystem is already shut down.")
     }
     Activator.dispose()
-    System.out.println("Model editor component is stopped.")
+    //    System.out.println("Model editor component is stopped.")
   }
 }
 
@@ -131,7 +138,7 @@ object Activator extends Disposable.Manager with Loggable {
   /** Dispose all registered instances. */
   protected def dispose() = disposableLock.synchronized {
     log.debug(s"Dispose ${disposable.size} instance(s).")
-    disposable.reverse.foreach(_.get.foreach { disposable =>
+    disposable.reverse.foreach(_.get.foreach { disposable ⇒
       callDispose(disposable)
     })
     disposable = null

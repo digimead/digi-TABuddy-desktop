@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.view.modification.dialog.sortlist
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableList
@@ -74,7 +75,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class SortingList(
+class SortingList @Inject() (
   /** This dialog context. */
   val context: IEclipseContext,
   /** Parent shell. */
@@ -86,10 +87,10 @@ class SortingList(
   /** Graph payload. */
   val payload: Payload,
   /** Initial sortirg list. */
-  val initial: List[view.api.Sorting])
+  val initial: Set[view.api.Sorting])
   extends SortingListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
-  protected[sortlist] val actual = WritableList(initial)
+  protected[sortlist] val actual = WritableList(initial.toList)
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing sorting filter content */

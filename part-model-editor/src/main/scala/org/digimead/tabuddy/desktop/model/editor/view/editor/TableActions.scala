@@ -1,5 +1,5 @@
 /**
- * This file is part of the TABuddy project.
+ * This file is part of the TA Buddy project.
  * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,76 +27,76 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
  */
 
 package org.digimead.tabuddy.desktop.model.editor.view.editor
-
-import scala.concurrent.future
-
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.TreeProxy
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.jface.action.Action
-import org.eclipse.jface.action.IAction
-import org.eclipse.jface.util.ConfigureColumns
-import org.eclipse.jface.viewers.StructuredSelection
-import org.eclipse.jface.window.SameShellProvider
-
-/**
- * Table actions
- */
-trait TableActions {
-  this: Table =>
-
-  object ActionConfigureColumns extends Action("Configure Columns...") {
-    def apply() = ConfigureColumns.forTable(tableViewer.getTable(), new SameShellProvider(view.getShell()))
-    override def run() = apply()
-  }
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-    def apply(immediately: Boolean = false) = if (immediately)
-      autoresize(true)
-    else {
-      implicit val ec = App.system.dispatcher
-      future { autoresize(false) } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
-      }
-    }
-    override def run = if (isChecked()) apply()
-  }
-  object ActionResetSorting extends Action(Messages.resetSorting_text) {
-    // column -1 is user defined sorting
-    def apply(immediately: Boolean = false) = {
-      val comparator = tableViewer.getComparator().asInstanceOf[Table.TableComparator]
-      comparator.column = -1
-      tableViewer.refresh()
-    }
-    override def run = apply()
-  }
-  class ActionSelectInTree(val element: Element.Generic) extends Action(Messages.select_text) {
-    def apply() = view.tree.treeViewer.setSelection(new StructuredSelection(TreeProxy.Item(element)), true)
-    override def run() = apply()
-  }
-  object ActionShowTree extends Action(Messages.tree_text) {
-    def apply() = {
-      view.ActionHideTree.setChecked(false)
-      view.ActionHideTree()
-    }
-    override def run() = apply()
-  }
-}
+//
+//import scala.concurrent.future
+//
+//import org.digimead.tabuddy.desktop.Messages
+//import org.digimead.tabuddy.desktop.support.App
+//import org.digimead.tabuddy.desktop.support.App.app2implementation
+//import org.digimead.tabuddy.desktop.support.TreeProxy
+//import org.digimead.tabuddy.model.element.Element
+//import org.eclipse.jface.action.Action
+//import org.eclipse.jface.action.IAction
+//import org.eclipse.jface.util.ConfigureColumns
+//import org.eclipse.jface.viewers.StructuredSelection
+//import org.eclipse.jface.window.SameShellProvider
+//
+///**
+// * Table actions
+// */
+//trait TableActions {
+//  this: Table =>
+//
+//  object ActionConfigureColumns extends Action("Configure Columns...") {
+//    def apply() = ConfigureColumns.forTable(tableViewer.getTable(), new SameShellProvider(view.getShell()))
+//    override def run() = apply()
+//  }
+//  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+//    setChecked(true)
+//    def apply(immediately: Boolean = false) = if (immediately)
+//      autoresize(true)
+//    else {
+//      implicit val ec = App.system.dispatcher
+//      future { autoresize(false) } onFailure {
+//        case e: Exception => log.error(e.getMessage(), e)
+//        case e => log.error(e.toString())
+//      }
+//    }
+//    override def run = if (isChecked()) apply()
+//  }
+//  object ActionResetSorting extends Action(Messages.resetSorting_text) {
+//    // column -1 is user defined sorting
+//    def apply(immediately: Boolean = false) = {
+//      val comparator = tableViewer.getComparator().asInstanceOf[Table.TableComparator]
+//      comparator.column = -1
+//      tableViewer.refresh()
+//    }
+//    override def run = apply()
+//  }
+//  class ActionSelectInTree(val element: Element.Generic) extends Action(Messages.select_text) {
+//    def apply() = view.tree.treeViewer.setSelection(new StructuredSelection(TreeProxy.Item(element)), true)
+//    override def run() = apply()
+//  }
+//  object ActionShowTree extends Action(Messages.tree_text) {
+//    def apply() = {
+//      view.ActionHideTree.setChecked(false)
+//      view.ActionHideTree()
+//    }
+//    override def run() = apply()
+//  }
+//}

@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.view.modification.dialog.filterlist
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableList
@@ -74,7 +75,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.future
 import scala.ref.WeakReference
 
-class FilterList(
+class FilterList @Inject() (
   /** This dialog context. */
   val context: IEclipseContext,
   /** Parent shell. */
@@ -86,10 +87,10 @@ class FilterList(
   /** Graph payload. */
   val payload: Payload,
   /** Initial filter list. */
-  val initial: List[view.api.Filter])
+  val initial: Set[view.api.Filter])
   extends FilterListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
-  protected[filterlist] val actual = WritableList(initial)
+  protected[filterlist] val actual = WritableList(initial.toList)
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing filter field content */

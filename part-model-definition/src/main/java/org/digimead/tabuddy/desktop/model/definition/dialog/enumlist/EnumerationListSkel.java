@@ -84,11 +84,11 @@ public class EnumerationListSkel extends TitleAreaDialog {
 		try {
 			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.core.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.enumlist.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.enumlist.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.dialog.enumlist.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
 		}
 	}
 

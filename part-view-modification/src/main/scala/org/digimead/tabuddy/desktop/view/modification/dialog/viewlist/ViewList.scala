@@ -87,10 +87,10 @@ class ViewList @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial view list. */
-  val initial: List[view.api.View])
+  val initial: Set[view.api.View])
   extends ViewListSkel(parentShell) with Dialog with Loggable {
   /** The actual content */
-  protected[viewlist] val actual = WritableList(initial)
+  protected[viewlist] val actual = WritableList(initial.toList)
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing view filter content */
