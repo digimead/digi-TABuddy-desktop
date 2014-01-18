@@ -126,7 +126,7 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
                       if (enumerationList.contains(enumeration) && Enumeration.compareDeep(enumeration, modifiedEnumeration))
                         None // nothing changes, and enumeration is already exists
                       else
-                        Some(enumeration)
+                        Some(modifiedEnumeration)
                     }))
                   else
                     exchanger.exchange(Operation.Result.Cancel())
