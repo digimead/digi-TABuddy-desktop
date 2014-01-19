@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -60,6 +60,7 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.{ Composite, Control, Widget }
 import scala.collection.immutable
 import scala.concurrent.{ Await, Future }
+import org.digimead.tabuddy.desktop.ui.Messages
 
 class DefaultView(val contentId: UUID) extends Actor with Loggable {
   /** Parent view widget. */
@@ -127,8 +128,10 @@ object DefaultView extends ViewLayer.Factory with Loggable {
   val id = getClass.getSimpleName().dropRight(1)
   /** View name. */
   lazy val name = DI.name
-  /** View description. */
-  lazy val description = DI.description
+  /** Short view description (one line). */
+  lazy val shortDescription = DI.shortDescription
+  /** Long view description. */
+  lazy val longDescription = DI.longDescription
   /** View image. */
   lazy val image = DI.image
 
@@ -161,9 +164,16 @@ object DefaultView extends ViewLayer.Factory with Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** View name. */
-    lazy val name = injectOptional[String]("Core.View.Default.Name") getOrElse "Default"
-    /** View description. */
-    lazy val description = injectOptional[String]("Core.View.Default.Description") orElse Some("Default view description")
+    lazy val name = injectOptional[Symbol]("Core.View.Default.Name") getOrElse Symbol({
+      val name = Messages.default_text
+      if (!App.symbolPattern.matcher(name).matches())
+        throw new IllegalArgumentException(s"'${name}' isn't a correct Scala symbol.")
+      name
+    })
+    /** Short view description (one line). */
+    lazy val shortDescription = injectOptional[String]("Core.View.Default.ShortDescription") getOrElse Messages.defaultViewShortDescription
+    /** Long view description. */
+    lazy val longDescription = injectOptional[String]("Core.View.Default.LongDescription") getOrElse Messages.defaultViewLongDescription
     /** View image. */
     lazy val image = injectOptional[Image]("Core.View.Default.Image")
     /** Default view actor reference configuration object. */

@@ -63,7 +63,7 @@ class TransformAttachView extends Loggable {
     val parentWidget = App.execNGet {
       StackTabBuilder.addTabItem(tabStack, (tabItem) ⇒ {
         tabItem.setData(UI.swtId, viewConfiguration.id)
-        newView.description.foreach(tabItem.setToolTipText)
+        tabItem.setToolTipText(newView.shortDescription)
         newView.image.foreach(tabItem.setImage)
       })
     }

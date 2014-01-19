@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -124,7 +124,6 @@ class UI extends akka.actor.Actor with Loggable {
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(UI) on {
       App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }
-      core.command.Commands.configure()
       core.view.Views.configure()
       WindowSupervisor ! App.Message.Restore
       Console ! Console.Message.Notice("UI component is started.")
@@ -135,7 +134,6 @@ class UI extends akka.actor.Actor with Loggable {
   protected def onCoreStopped() = initializationLock.synchronized {
     App.watch(UI) off {
       core.view.Views.unconfigure()
-      core.command.Commands.unconfigure()
       Console ! Console.Message.Notice("UI component is stopped.")
     }
     Future {
@@ -149,8 +147,8 @@ class UI extends akka.actor.Actor with Loggable {
 }
 
 object UI extends support.Generic with Loggable {
-  implicit def ui2actorRef(c: UI.type): ActorRef = c.actor
-  implicit def ui2actorSRef(c: UI.type): ScalaActorRef = c.actor
+  implicit def ui2actorRef(u: UI.type): ActorRef = u.actor
+  implicit def ui2actorSRef(u: UI.type): ScalaActorRef = u.actor
   /** UI actor reference. */
   lazy val actor = {
     val inbox = Inbox.create(App.system)

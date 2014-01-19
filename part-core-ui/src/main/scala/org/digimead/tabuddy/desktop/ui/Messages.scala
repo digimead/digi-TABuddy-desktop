@@ -41,74 +41,22 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor
+package org.digimead.tabuddy.desktop.ui
 
-import java.util.ResourceBundle
-import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
-
-/**
- * Resource bundle implementation.
- *
- * This code is directly evaluated in IDE (WindowBuilderPro).
- * Any runtime references that may prevent creation are prohibited.
- */
-class Messages extends ResourceBundle {
-  def getKeys() = new java.util.Enumeration[String] {
-    private val iterator = Messages.T.messages.keys.iterator
-    def hasMoreElements(): Boolean = iterator.hasNext
-    def nextElement(): String = iterator.next()
-  }
-  protected def handleGetObject(key: String): Object = try {
-    Messages.T.messages.get(key).
-      getOrElse { Messages.log.error(s"'${key}' not found in ${this.getClass()}"); key }
-  } catch {
-    case e: Throwable ⇒
-      key
-  }
-}
+import org.digimead.digi.lib.log.api.Loggable
 
 object Messages extends NLS with Loggable {
-  val autoresize_key = ""
-  val btnModelLocation_text = ""
-  val collapseAll_text = ""
-  val collapseRecursively_text = ""
-  val creationError_text = ""
-  val delete_text = ""
-  val description_text = ""
-  val edit_text = ""
-  val editorViewLongDescription = ""
-  val editorViewShortDescription = ""
-  val emptyRows_text = ""
-  val expandAll_text = ""
-  val expandNew_text = ""
-  val expandRecursively_text = ""
-  val hide_text = ""
-  val identificator_text = ""
-  val identificators_text = ""
-  val identifierIsEmpty_text = ""
-  val lastModification_text = ""
-  val lblModelIdentificator_hint_text = ""
-  val lblModelIdentificator_text = ""
-  val lblModelLocation_hint_text = ""
-  val lblModelLocation_text = ""
-  val lblModelSerialization_text = ""
-  val locationIsAlreadyExists_text = ""
-  val locationIsEmpty_text = ""
-  val locationIsIncorrect_text = ""
-  val markAsRoot_text = ""
-  val name_text = ""
-  val new_text = ""
-  val path_text = ""
-  val resetSorting_text = ""
-  val select_text = ""
-  val shellTitleEmpty_text = ""
-  val shellTitle_text = ""
-  val systemElements_text = ""
-  val tableView_text = ""
-  val table_text = ""
-  val title_text = ""
-  val tree_text = ""
+  val defaultViewLongDescription = ""
+  val defaultViewShortDescription = ""
+  val default_text = ""
+  val viewDescriptionLong_text = ""
+  val viewDescriptionShort_text = ""
+  val viewInfoDescriptionLong_text = ""
+  val viewInfoDescriptionShort_text = ""
+  val viewInfo_text = ""
+  val view_text = ""
+  val open_text  = ""
 
-  T.ranslate("org.digimead.tabuddy.desktop.model.editor.messages")
+  T.ranslate("org.digimead.tabuddy.desktop.ui.messages")
 }

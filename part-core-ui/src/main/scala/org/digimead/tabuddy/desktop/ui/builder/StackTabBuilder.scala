@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -67,7 +67,7 @@ class StackTabBuilder extends Loggable {
     content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
     val containers = for (child ← configuration.children) yield addTabItem(content, (tabItem) ⇒ {
       tabItem.setData(UI.swtId, child.id)
-      child.factory().description.foreach(tabItem.setToolTipText)
+      tabItem.setToolTipText(child.factory().shortDescription)
       child.factory().image.foreach(tabItem.setImage)
     })
     (content, containers)

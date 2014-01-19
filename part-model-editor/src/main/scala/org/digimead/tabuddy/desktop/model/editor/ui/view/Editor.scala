@@ -51,7 +51,6 @@ import scala.concurrent.Future
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.ui
 import org.digimead.tabuddy.desktop.ui.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Data
@@ -80,6 +79,7 @@ import org.digimead.tabuddy.model.graph.Event
 import org.digimead.tabuddy.desktop.model.editor.ModelEditor
 import org.digimead.tabuddy.desktop.ui.block.ViewLayer
 import org.digimead.tabuddy.desktop.ui.block.Configuration
+import org.digimead.tabuddy.desktop.model.editor.Messages
 
 class Editor(val contentId: UUID) extends Actor with Loggable {
   /** Aggregation listener delay */
@@ -120,31 +120,31 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[Event.ValueUpdate[_ <: Element]])
     App.exec {
       // handle presentation changes
-//      Observables.observeDelayedValue(aggregatorDelay, updateEventsAggregator).addValueChangeListener(new IValueChangeListener {
-//        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
-//          val set = updateEventsAggregator.value
-//          updateEventsAggregator.value = Set()
-//          if (set.nonEmpty)
-//            view.update(set.toArray)
-//        })
-//      })
+      //      Observables.observeDelayedValue(aggregatorDelay, updateEventsAggregator).addValueChangeListener(new IValueChangeListener {
+      //        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
+      //          val set = updateEventsAggregator.value
+      //          updateEventsAggregator.value = Set()
+      //          if (set.nonEmpty)
+      //            view.update(set.toArray)
+      //        })
+      //      })
       // handle data modification changes
-//      Data.modelName.addChangeListener { (_, _) ⇒ reloadEventsAggregator.value = System.currentTimeMillis() }
-//      Data.elementTemplates.addChangeListener { event ⇒ reloadEventsAggregator.value = System.currentTimeMillis() }
-//      Observables.observeDelayedValue(aggregatorDelay, reloadEventsAggregator).addValueChangeListener(new IValueChangeListener {
-//        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
-//          view.reload()
-//        })
-//      })
+      //      Data.modelName.addChangeListener { (_, _) ⇒ reloadEventsAggregator.value = System.currentTimeMillis() }
+      //      Data.elementTemplates.addChangeListener { event ⇒ reloadEventsAggregator.value = System.currentTimeMillis() }
+      //      Observables.observeDelayedValue(aggregatorDelay, reloadEventsAggregator).addValueChangeListener(new IValueChangeListener {
+      //        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
+      //          view.reload()
+      //        })
+      //      })
       // handle structural changes
-//      Observables.observeDelayedValue(aggregatorDelay, refreshEventsAggregator).addValueChangeListener(new IValueChangeListener {
-//        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
-//          val set = refreshEventsAggregator.value
-//          refreshEventsAggregator.value = Set()
-//          if (set.nonEmpty)
-//            view.refresh(set.toArray)
-//        })
-//      })
+      //      Observables.observeDelayedValue(aggregatorDelay, refreshEventsAggregator).addValueChangeListener(new IValueChangeListener {
+      //        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
+      //          val set = refreshEventsAggregator.value
+      //          refreshEventsAggregator.value = Set()
+      //          if (set.nonEmpty)
+      //            view.refresh(set.toArray)
+      //        })
+      //      })
     }
     log.debug(self.path.name + " actor is started.")
   }
@@ -270,8 +270,10 @@ object Editor extends ViewLayer.Factory with Loggable {
   val id = getClass.getSimpleName().dropRight(1)
   /** View name. */
   lazy val name = DI.name
-  /** View description. */
-  lazy val description = DI.description
+  /** Short view description (one line). */
+  lazy val shortDescription = DI.shortDescription
+  /** Long view description. */
+  lazy val longDescription = DI.longDescription
   /** View image. */
   lazy val image = DI.image
 
@@ -304,9 +306,16 @@ object Editor extends ViewLayer.Factory with Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** View name. */
-    lazy val name = injectOptional[String]("Editor.View.Editor.Name") getOrElse Messages.tableView_text
-    /** View description. */
-    lazy val description = injectOptional[String]("Editor.View.Editor.Description") orElse Some("Generic model editor.")
+    lazy val name = injectOptional[Symbol]("Editor.View.Editor.Name") getOrElse Symbol({
+      val name = Messages.tableView_text
+      if (!App.symbolPattern.matcher(name).matches())
+        throw new IllegalArgumentException(s"'${name}' isn't a correct Scala symbol.")
+      name
+    })
+    /** Short view description (one line). */
+    lazy val shortDescription = injectOptional[String]("Editor.View.Default.ShortDescription") getOrElse Messages.editorViewShortDescription
+    /** Long view description. */
+    lazy val longDescription = injectOptional[String]("Editor.View.Default.LongDescription") getOrElse Messages.editorViewLongDescription
     /** View image. */
     lazy val image = injectOptional[Image]("Editor.View.Editor.Image")
     /** Editor view actor reference configuration object. */

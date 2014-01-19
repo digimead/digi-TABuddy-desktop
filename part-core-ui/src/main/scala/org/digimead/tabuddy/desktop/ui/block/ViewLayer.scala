@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -154,9 +154,11 @@ object ViewLayer {
    */
   trait Factory {
     /** View name. */
-    val name: String
-    /** View description. */
-    val description: Option[String]
+    val name: Symbol
+    /** Short view description (one line). */
+    val shortDescription: String
+    /** Long view description. */
+    val longDescription: String
     /** View image. */
     val image: Option[Image]
     /** View title with regards of number of views. */
@@ -187,7 +189,7 @@ object ViewLayer {
      */
     def viewActor(configuration: Configuration.View): Option[ActorRef]
 
-    override def toString() = s"""View.Factory("${name}", "${description}")"""
+    override def toString() = s"""View.Factory("${name}", "${shortDescription}")"""
 
     class TitleObservableValue(ref: ActorRef) extends AbstractObservableValue(App.realm) {
       @volatile protected var value: AnyRef = name

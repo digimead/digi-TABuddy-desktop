@@ -108,7 +108,7 @@ object CommandModifyTypeSchemaList extends Loggable {
     })
   /** Command parser. */
   lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> contextParser)
-  /** Create parser for the list of contexts with binded graph		. */
+  /** Create parser for the list of contexts with binded graph. */
   protected def contextParser: Command.parser.Parser[Any] = commandRegex("""\S+""".r, HintContainer) ^^ {
     contextName ⇒
       GraphMarker.contextToMarker((Core.context.context +: App.contextChildren(Core.context)).map {

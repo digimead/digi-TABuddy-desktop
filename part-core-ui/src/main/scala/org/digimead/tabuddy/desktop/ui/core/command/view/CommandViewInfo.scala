@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,61 +41,35 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.ui.core.command
+package org.digimead.tabuddy.desktop.ui.core.command.view
 
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.ui.block.ViewLayer
-import org.digimead.tabuddy.desktop.ui.operation.OperationView
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
+import org.digimead.tabuddy.desktop.ui.Resources
+import org.digimead.tabuddy.desktop.ui.Messages
 
 /**
- * View command that starts 'new view' operation.
+ * Show info about available view.
  */
-object CommandView extends Loggable {
+object CommandViewInfo extends Loggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())("view",
-    "Create the specific view.", "Long description",
-    (activeContext, parserContext, parserResult) ⇒ parserResult match {
-      case Some(viewFactory: ViewLayer.Factory) ⇒
-        Future {
-          val exchanger = new Exchanger[Operation.Result[Unit]]()
-          OperationView(activeContext, viewFactory).foreach { operation ⇒
-            operation.getExecuteJob() match {
-              case Some(job) ⇒
-                job.setPriority(Job.LONG)
-                job.onComplete(exchanger.exchange).schedule()
-              case None ⇒
-                log.fatal(s"Unable to create job for ${operation}.")
-            }
-          }
-          exchanger.exchange(null) match {
-            case Operation.Result.OK(result, message) ⇒
-              log.info(s"Operation completed successfully.")
-            case Operation.Result.Cancel(message) ⇒
-              throw new CancellationException(s"Operation canceled, reason: ${message}.")
-            case other ⇒
-              throw new RuntimeException(s"Unable to complete operation: ${other}.")
-          }
-        }
-      case unknown ⇒
-        Future.failed(new IllegalArgumentException(s"Unknown parser result: ${unknown.getClass}/${unknown}."))
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.viewInfo_text,
+    Messages.viewInfoDescriptionShort_text, Messages.viewInfoDescriptionLong_text,
+    (activeContext, parserContext, parserResult) ⇒ Future {
+      Resources.factories()
     })
-
   /** Command parser. */
-  def parser(viewFactories: Seq[ViewLayer.Factory]) =
-    Command.CmdParser("view" ~ "." ~> viewNameParser(viewFactories))
-  /** Create parser for the compound view factories. */
-  protected def viewNameParser(viewFactories: Seq[ViewLayer.Factory]): Command.parser.Parser[Any] =
-    commandRegex(viewFactories.map(_.name).mkString("|").r,
-      Command.Hint.Container(viewFactories.map(vf ⇒ Command.Hint(vf.name, vf.description, Seq(vf.name))) /*.
-        sortBy(_.completionLabel)*/ )) ^^ { result ⇒ viewFactories.find(_.name == result) }
+  lazy val parser = Command.CmdParser(descriptor.name)
 }

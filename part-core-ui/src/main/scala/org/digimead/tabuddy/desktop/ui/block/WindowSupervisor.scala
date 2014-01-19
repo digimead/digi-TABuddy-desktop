@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -91,6 +91,11 @@ class WindowSupervisor extends Actor with Loggable {
   protected var lastFocusEvent: Either[(UUID, Widget), (UUID, Widget)] = null
   log.debug("Start actor " + self.path)
 
+  if (App.watch(UI, this).hooks.isEmpty)
+    App.watch(UI, this).always().
+      makeAfterStart { onUIStarted() }.
+      makeBeforeStop { onUIStopped() }.sync()
+
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
@@ -105,6 +110,7 @@ class WindowSupervisor extends Actor with Loggable {
       if (saveFuture != configurationsSave.get)
         configurationsSave.get.map(future ⇒ Await.result(future, Timeout.short))
     }
+    App.watch(this) off ()
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
@@ -113,6 +119,7 @@ class WindowSupervisor extends Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[App.Message.Destroy[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
+    App.watch(this) on ()
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
@@ -132,10 +139,6 @@ class WindowSupervisor extends Actor with Loggable {
       save()
     }
 
-    case message @ App.Message.Start(Right(element: UI.type), _) ⇒ App.traceMessage(message) {
-      onGUIStarted()
-    }
-
     case message @ App.Message.Start(event @ Left((id: UUID, widget: Widget)), _) ⇒ App.traceMessage(message) {
       // Stop previous active widget if any
       activeFocusEvent match {
@@ -145,10 +148,6 @@ class WindowSupervisor extends Actor with Loggable {
       }
       // Start new
       start(id, widget)
-    }
-
-    case message @ App.Message.Stop(Right(element: UI.type), _) ⇒ App.traceMessage(message) {
-      onGUIStopped()
     }
 
     case message @ App.Message.Stop(Left((id: UUID, widget: Widget)), _) ⇒ App.traceMessage(message) {
@@ -193,6 +192,8 @@ class WindowSupervisor extends Actor with Loggable {
     case None ⇒
       sender ! WindowConfiguration.default
   }
+  /** Get last active window for this application. */
+  protected def lastActiveWindow: Option[WComposite] = Core.context.getLocal(UI.windowContextKey)
   /** Update/create window pointer with AppWindow value. */
   protected def onCreated(window: AppWindow, sender: ActorRef) {
     pointers.get(window.id).flatMap(ptr ⇒ Option(ptr.window.get())) match {
@@ -200,6 +201,13 @@ class WindowSupervisor extends Actor with Loggable {
         log.fatal(s"Window ${window} is already created.")
       case None ⇒
         pointers += window.id -> WindowSupervisor.WindowPointer(sender)(new WeakReference(window))
+        if (lastActiveWindow.isEmpty) {
+          // if there is no last active window
+          // this is the 1st...
+          if (Core.context.getLocal(UI.shellContextKey).isEmpty)
+            Core.context.set(UI.shellContextKey, Seq(window.getShell()))
+          Core.context.set(UI.windowContextKey, window)
+        }
         implicit val timeout = akka.util.Timeout(Timeout.short)
         Await.result(sender ? App.Message.Open, timeout.duration)
     }
@@ -211,7 +219,7 @@ class WindowSupervisor extends Actor with Loggable {
   }
   /** Start global focus listener when GUI is available. */
   @log
-  protected def onGUIStarted() = App.exec {
+  protected def onUIStarted() = App.exec {
     App.display.addFilter(SWT.FocusIn, FocusListener)
     App.display.addFilter(SWT.FocusOut, FocusListener)
     App.display.addFilter(SWT.Activate, FocusListener)
@@ -219,7 +227,7 @@ class WindowSupervisor extends Actor with Loggable {
   }
   /** Stop global focus listener when GUI is not available. */
   @log
-  protected def onGUIStopped() = App.exec {
+  protected def onUIStopped() = App.exec {
     App.display.removeFilter(SWT.FocusIn, FocusListener)
     App.display.removeFilter(SWT.FocusOut, FocusListener)
     App.display.removeFilter(SWT.Activate, FocusListener)

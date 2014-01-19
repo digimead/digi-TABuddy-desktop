@@ -43,25 +43,43 @@
 
 package org.digimead.tabuddy.desktop.ui.core.command
 
+import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.support.App
 import scala.language.implicitConversions
 
 /**
  * The configurator is responsible for configure/unconfigure core GUI commands.
  */
 class Commands extends Loggable {
+  @volatile protected var contextParsers = Seq.empty[UUID]
+  private val lock = new Object
+
   /** Configure component actions. */
   @log
-  def configure() {
-    Command.register(CommandView.descriptor) // CommandView.parsers added via Resources.ViewFactoryMap
+  def configure() = lock.synchronized {
+    /*
+     * view (only if UI is available)
+     */
+    if (App.isUIAvailable) {
+      Command.register(view.CommandView.descriptor)
+      Command.addToContext(Core.context, view.CommandView.parser).
+        foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+      Command.register(view.CommandViewInfo.descriptor)
+      Command.addToContext(Core.context, view.CommandViewInfo.parser).
+        foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    }
   }
   /** Unconfigure component actions. */
   @log
-  def unconfigure() {
-    Command.unregister(CommandView.descriptor)
+  def unconfigure() = lock.synchronized {
+    contextParsers.foreach(Command.removeFromContext(Core.context, _))
+    Command.get(view.CommandView.descriptor.parserId).foreach(Command.unregister)
+    Command.get(view.CommandViewInfo.descriptor.parserId).foreach(Command.unregister)
   }
 }
 

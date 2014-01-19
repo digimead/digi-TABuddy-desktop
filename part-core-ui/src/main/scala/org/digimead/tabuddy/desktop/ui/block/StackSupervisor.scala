@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -81,8 +81,8 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   val configurationsSaveRestart = new AtomicBoolean()
   /** Top level stack hierarchy container. It is ScrolledComposite of content of AppWindow. */
   @volatile var container: Option[ScrolledComposite] = None
-  /** Last active view id. */
-  val lastActiveView = new AtomicReference[Option[UUID]](None)
+  /** Last active view id for this window. */
+  val lastActiveViewIdForCurrentWindow = new AtomicReference[Option[UUID]](None)
   /** List of all window stacks. */
   val pointers = new StackSupervisor.PointerMap()
   log.debug("Start actor " + self.path)
@@ -158,7 +158,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
      * REPL interaction
      */
     case "configuration" ⇒ sender ! configuration.container.get
-    case "lastActiveView" ⇒ sender ! lastActiveView.get
+    case "lastActiveViewIdForCurrentWindow" ⇒ sender ! lastActiveViewIdForCurrentWindow.get
     case "pointers" ⇒ sender ! pointers
   }
 
@@ -207,7 +207,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       throw new IllegalStateException(s"Unable to create view from ${viewFactory}. Stack container isn't created.")
     App.assertEventThread(false)
     log.debug("Create new view from %s within StackSupervisor[%08X].".format(viewFactory, windowId.hashCode()))
-    val neighborViewId = lastActiveView.get() orElse {
+    val neighborViewId = lastActiveViewIdForCurrentWindow.get() orElse {
       pointers.find {
         case (id, pointer) ⇒ Option(pointer.stack.get()).
           map(_.isInstanceOf[VComposite]).getOrElse(false)
@@ -267,11 +267,11 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       }
     } else {
       log.debug(s"Focus obtained by non view widget ${widget}, reactivate last view.")
-      lastActiveView.get().foreach { view ⇒
-        val lastActiveViewGUIHierarchy = pointers.get(view).flatMap(pointer ⇒ Option(pointer.stack.get()).map(view ⇒
+      lastActiveViewIdForCurrentWindow.get().foreach { view ⇒
+        val lastActiveViewIdForCurrentWindowGUIHierarchy = pointers.get(view).flatMap(pointer ⇒ Option(pointer.stack.get()).map(view ⇒
           App.execNGet { UI.widgetHierarchy(view) })).getOrElse(Seq[Widget]())
-        log.debug("Last active view hierarchy: " + lastActiveViewGUIHierarchy)
-        lastActiveViewGUIHierarchy match {
+        log.debug("Last active view hierarchy: " + lastActiveViewIdForCurrentWindowGUIHierarchy)
+        lastActiveViewIdForCurrentWindowGUIHierarchy match {
           case Seq(view: VComposite, windowContent: WComposite) ⇒
             // View is directly attached to shell.
             setActiveView(view.id, view)
@@ -288,7 +288,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   }
   /** Focus is lost. */
   protected def onStop(widget: Widget) {
-    lastActiveView.get.foreach { viewId ⇒
+    lastActiveViewIdForCurrentWindow.get.foreach { viewId ⇒
       val viewPointer = pointers(viewId)
       val seq = App.execNGet { UI.widgetHierarchy(widget) }
       // Replace event widget with view composite if the original one is unknown (not a child of a view).
@@ -325,7 +325,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
           }
         }
         // Set active if none.
-        if (lastActiveView.get().isEmpty && stackLayer.isInstanceOf[VComposite])
+        if (lastActiveViewIdForCurrentWindow.get().isEmpty && stackLayer.isInstanceOf[VComposite])
           setActiveView(stackLayer.id, stackLayer)
       case other ⇒
     }
@@ -394,9 +394,9 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   }
   /** Set active view. */
   protected def setActiveView(id: UUID, widget: Widget): Unit = try {
-    if (lastActiveView.get() != Some(id)) {
+    if (lastActiveViewIdForCurrentWindow.get() != Some(id)) {
       log.debug(s"Set active view ${configuration.element(id)._2} with full id ${id}.")
-      lastActiveView.set(Option(id))
+      lastActiveViewIdForCurrentWindow.set(Option(id))
     }
     Await.ready(ask(pointers(id).actor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
   } catch {

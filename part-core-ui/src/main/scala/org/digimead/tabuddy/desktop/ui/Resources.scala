@@ -226,40 +226,11 @@ object Resources extends Loggable {
   }
   /** Application view map. This class is responsible for action.View command update. */
   class ViewFactoryMap extends mutable.WeakHashMap[ViewLayer.Factory, Boolean] {
-    /** Unique parser id within Core.context. */
-    @volatile protected var uniqueParserId: Option[UUID] = None
-
     override def +=(kv: (ViewLayer.Factory, Boolean)): this.type = {
       val (key, value) = kv
       if (keys.exists(_.name == key.name))
-        throw new IllegalArgumentException(s"View with name '${key.name}' is already exists.")
+        throw new IllegalArgumentException(s"View with name '${key.name.name}' is already exists.")
       super.+=(kv)
-      // remove old parser if any
-      uniqueParserId.foreach(Command.removeFromContext(Core.context, _))
-      // add new parser
-      val enabled = filter { case (key, value) ⇒ value }.map(_._1).toSeq
-      val parser = core.command.CommandView.parser(enabled)
-      uniqueParserId = Command.addToContext(Core.context, parser)
-      this
-    }
-
-    override def -=(key: ViewLayer.Factory): this.type = {
-      super.-=(key)
-      // remove old parser if any
-      uniqueParserId.foreach(Command.removeFromContext(Core.context, _))
-      // add new parser
-      val enabled = filter { case (key, value) ⇒ value }.map(_._1).toSeq
-      val parser = core.command.CommandView.parser(enabled)
-      if (Command.getDescriptor(parser.parserId).nonEmpty)
-        uniqueParserId = Command.addToContext(Core.context, parser)
-      else
-        uniqueParserId = None
-      this
-    }
-
-    override def clear() {
-      uniqueParserId.foreach(Command.removeFromContext(Core.context, _))
-      super.clear()
     }
   }
   /**

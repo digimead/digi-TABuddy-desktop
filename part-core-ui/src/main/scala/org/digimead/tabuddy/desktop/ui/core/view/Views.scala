@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -53,14 +53,15 @@ import scala.language.implicitConversions
  * Configurator responsible for configure/unconfigure application views.
  */
 class Views extends Loggable {
+  private val lock = new Object
   /** Configure component views. */
   @log
-  def configure() {
+  def configure() = lock.synchronized {
     Resources.registerViewFactory(DefaultView, true)
   }
   /** Unconfigure component views. */
   @log
-  def unconfigure() {
+  def unconfigure() = lock.synchronized {
     Resources.unregisterViewFactory(DefaultView)
   }
 }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,12 +43,11 @@
 
 package org.digimead.tabuddy.desktop.model
 
+import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-
 package object editor {
-  lazy val default = new NewBindingModule(module => {})
+  lazy val default = new NewBindingModule(module ⇒ {})
 
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.model.editor.Default$DI$")
 }

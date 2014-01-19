@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.ui.block
 import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
@@ -146,6 +147,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     close(sender)
   }
   /** User start interaction with window. Focus is gained. */
+  @log
   protected def onStart(widget: Widget) = window match {
     case Some(window) ⇒
       App.execNGet {
@@ -157,6 +159,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       log.fatal("Unable to start unexists window.")
   }
   /** Focus is lost. */
+  @log
   protected def onStop(widget: Widget) = window match {
     case Some(window) ⇒
       Await.ready(ask(stackSupervisor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
