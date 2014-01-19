@@ -100,8 +100,6 @@ class Activator extends BundleActivator with Loggable {
     }
     f onFailure { case e: Throwable ⇒ log.error("Error while starting ModelDefinition: " + e.getMessage(), e) }
     f onComplete { case _ ⇒ App.watch(context).on() }
-    //ViewModification.actor // Start component actors hierarchy
-    //System.out.println("View modification component is started.")
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
@@ -121,7 +119,6 @@ class Activator extends BundleActivator with Loggable {
         log.debug("Skip Akka cleanup: ecosystem is already shut down.")
     }
     Activator.dispose()
-    //System.out.println("View modification component is stopped.")
   }
 }
 

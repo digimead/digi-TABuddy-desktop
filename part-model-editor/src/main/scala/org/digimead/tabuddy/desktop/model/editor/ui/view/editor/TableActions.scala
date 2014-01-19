@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,69 +41,60 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor
+package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
-import java.util.ResourceBundle
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.NLS
+import scala.concurrent.future
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.ui.support.TreeProxy
+import org.digimead.tabuddy.model.element.Element
+import org.eclipse.jface.action.Action
+import org.eclipse.jface.action.IAction
+import org.eclipse.jface.util.ConfigureColumns
+import org.eclipse.jface.viewers.StructuredSelection
+import org.eclipse.jface.window.SameShellProvider
+import org.digimead.tabuddy.desktop.model.editor.Messages
 
 /**
- * Resource bundle implementation.
- *
- * This code is directly evaluated in IDE (WindowBuilderPro).
- * Any runtime references that may prevent creation are prohibited.
+ * Table actions
  */
-class Messages extends ResourceBundle {
-  def getKeys() = new java.util.Enumeration[String] {
-    private val iterator = Messages.T.messages.keys.iterator
-    def hasMoreElements(): Boolean = iterator.hasNext
-    def nextElement(): String = iterator.next()
-  }
-  protected def handleGetObject(key: String): Object = try {
-    Messages.T.messages.get(key).
-      getOrElse { Messages.log.error(s"'${key}' not found in ${this.getClass()}"); key }
-  } catch {
-    case e: Throwable ⇒
-      key
-  }
-}
+trait TableActions {
+  this: Table =>
 
-object Messages extends NLS with Loggable {
-  val btnModelLocation_text = ""
-  val creationError_text = ""
-  val description_text = ""
-  val identifierIsEmpty_text = ""
-  val lblModelIdentificator_hint_text = ""
-  val lblModelIdentificator_text = ""
-  val lblModelLocation_hint_text = ""
-  val lblModelLocation_text = ""
-  val lblModelSerialization_text = ""
-  val locationIsAlreadyExists_text = ""
-  val locationIsEmpty_text = ""
-  val locationIsIncorrect_text = ""
-  val shellTitleEmpty_text = ""
-  val shellTitle_text = ""
-  val title_text = ""
-  val tree_text = ""
-  val select_text = ""
-  val resetSorting_text = ""
-  val autoresize_key = ""
-  val name_text = ""
-  val lastModification_text = ""
-  val collapseAll_text = ""
-  val expandAll_text = ""
-  val new_text = ""
-  val edit_text = ""
-  val delete_text = ""
-  val identificators_text = ""
-  val emptyRows_text = ""
-  val expandNew_text = ""
-  val systemElements_text = ""
-  val identificator_text = ""
-  val table_text = ""
-  val markAsRoot_text = ""
-  val collapseRecursively_text = ""
-  val expandRecursively_text = ""
-  val hide_text = ""
-  val path_text = ""
+  object ActionConfigureColumns extends Action("Configure Columns...") {
+    def apply() = {} //ConfigureColumns.forTable(tableViewer.getTable(), new SameShellProvider(view.getShell()))
+    override def run() = apply()
+  }
+  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+    setChecked(true)
+    def apply(immediately: Boolean = false) = if (immediately)
+      autoresize(true)
+    else {
+      implicit val ec = App.system.dispatcher
+      future { autoresize(false) } onFailure {
+        case e: Exception => log.error(e.getMessage(), e)
+        case e => log.error(e.toString())
+      }
+    }
+    override def run = if (isChecked()) apply()
+  }
+  object ActionResetSorting extends Action(Messages.resetSorting_text) {
+    // column -1 is user defined sorting
+    def apply(immediately: Boolean = false) = {
+      val comparator = tableViewer.getComparator().asInstanceOf[Table.TableComparator]
+      comparator.column = -1
+      tableViewer.refresh()
+    }
+    override def run = apply()
+  }
+  class ActionSelectInTree(val element: Element) extends Action(Messages.select_text) {
+    def apply() = view.tree.treeViewer.setSelection(new StructuredSelection(TreeProxy.Item(element)), true)
+    override def run() = apply()
+  }
+  object ActionShowTree extends Action(Messages.tree_text) {
+    def apply() = {
+//      view.ActionHideTree.setChecked(false)
+//      view.ActionHideTree()
+    }
+    override def run() = apply()
+  }
 }

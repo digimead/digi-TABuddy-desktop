@@ -68,7 +68,7 @@ class ModelEditor extends akka.actor.Actor with Loggable {
   /*
    * ModelEditor component actors.
    */
-  val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  val actionRef = context.actorOf(ui.action.Action.props, ui.action.Action.id)
 
   if (App.watch(Activator, Logic, this).hooks.isEmpty)
     App.watch(Activator, Logic, this).always().
@@ -116,8 +116,8 @@ class ModelEditor extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(ModelEditor) on {
-      Views.configure
-      Wizards.configure
+      ui.Views.configure
+      ui.Wizards.configure
       //Approver.start()
       Console ! Console.Message.Notice("ModelEditor component is started.")
       self ! App.Message.Consistent(ModelEditor, None)
@@ -128,8 +128,8 @@ class ModelEditor extends akka.actor.Actor with Loggable {
   protected def onGUIStopped() = initializationLock.synchronized {
     App.watch(ModelEditor) off {
       //Actions.unconfigure
-      Wizards.unconfigure
-      Views.unconfigure
+      ui.Wizards.unconfigure
+      ui.Views.unconfigure
       if (inconsistentSet.nonEmpty)
         log.fatal("Inconsistent elements detected: " + inconsistentSet)
       Console ! Console.Message.Notice("ModelEditor component is stopped.")
@@ -158,9 +158,9 @@ object ModelEditor {
   /** ModelEditor actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  action.Action
+  ui.action.Action
 
-  override def toString = "ModelDefinition[Singleton]"
+  override def toString = "ModelEditor[Singleton]"
 
   /*
    * Explicit import for runtime components/bundle manifest generation.
