@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemed
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
+import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, EditingSupport, TableViewer, TextCellEditor, ViewerCell }

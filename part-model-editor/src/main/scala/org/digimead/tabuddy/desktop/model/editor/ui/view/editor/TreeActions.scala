@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
 import scala.concurrent.future
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.ui.support.TreeProxy
+import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.jface.action.Action
 import org.eclipse.jface.action.IAction

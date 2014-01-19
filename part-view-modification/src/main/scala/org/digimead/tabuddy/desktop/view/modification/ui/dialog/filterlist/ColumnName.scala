@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.view.modification.ui.dialog.filterlist
 
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.logic.payload.view.Filter
-import org.digimead.tabuddy.desktop.ui.support.Validator
+import org.digimead.tabuddy.desktop.core.ui.support.Validator
 import org.digimead.tabuddy.desktop.view.modification.Messages
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.jface.databinding.swt.WidgetProperties

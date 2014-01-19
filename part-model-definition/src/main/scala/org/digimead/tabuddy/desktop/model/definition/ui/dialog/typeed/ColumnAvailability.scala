@@ -47,7 +47,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.logic.payload.{ PropertyType, TypeSchema }
 import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.ui.ResourceManager
+import org.digimead.tabuddy.desktop.core.ui.ResourceManager
 import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, CheckboxCellEditor, EditingSupport, TableViewer, ViewerCell }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point

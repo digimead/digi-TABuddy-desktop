@@ -51,13 +51,13 @@ import scala.concurrent.Future
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.ui
-import org.digimead.tabuddy.desktop.ui.widget.VComposite
+import org.digimead.tabuddy.desktop.core.ui
+import org.digimead.tabuddy.desktop.core.ui.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.ui.support.TreeProxy
+import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
 import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
@@ -77,8 +77,8 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import org.digimead.tabuddy.model.graph.Event
 import org.digimead.tabuddy.desktop.model.editor.ModelEditor
-import org.digimead.tabuddy.desktop.ui.block.ViewLayer
-import org.digimead.tabuddy.desktop.ui.block.Configuration
+import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
+import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.model.editor.Messages
 
 class Editor(val contentId: UUID) extends Actor with Loggable {

@@ -59,7 +59,7 @@ import org.digimead.tabuddy.desktop.logic.payload.PropertyType
 import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.desktop.ui.support.TreeProxy
+import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
 import org.digimead.tabuddy.desktop.core.support.WritableList
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.jface.action.IMenuListener

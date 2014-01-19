@@ -56,10 +56,10 @@ import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
 import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, api ⇒ papi, view }
-import org.digimead.tabuddy.desktop.ui.UI
-import org.digimead.tabuddy.desktop.ui.definition.Dialog
-import org.digimead.tabuddy.desktop.ui.support.RegexFilterListener
-import org.digimead.tabuddy.desktop.ui.support.Validator
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.ui.support.RegexFilterListener
+import org.digimead.tabuddy.desktop.core.ui.support.Validator
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph

@@ -48,7 +48,7 @@ import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, PropertyType }
-import org.digimead.tabuddy.desktop.ui.support.Validator
+import org.digimead.tabuddy.desktop.core.ui.support.Validator
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.jface.databinding.swt.WidgetProperties

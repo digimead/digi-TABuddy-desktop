@@ -47,7 +47,7 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import language.implicitConversions
-import org.digimead.tabuddy.desktop.ui.Resources
+import org.digimead.tabuddy.desktop.core.ui.Resources
 
 /**
  * Configurator responsible for configure/unconfigure application views.

@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.tabuddy.desktop.logic.ui.support.Dialog
-import org.digimead.tabuddy.desktop.ui.definition.{ api ⇒ uapi }
+import org.digimead.tabuddy.desktop.core.ui.definition.{ api ⇒ uapi }
 
 package object ui {
   lazy val default = new NewBindingModule(module ⇒ {

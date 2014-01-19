@@ -56,8 +56,8 @@ import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, TypeSchema, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.ui.UI
-import org.digimead.tabuddy.desktop.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job

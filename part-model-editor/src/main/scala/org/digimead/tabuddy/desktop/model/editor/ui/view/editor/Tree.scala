@@ -59,7 +59,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.model.editor.Default
 import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.ui.support.TreeProxy
+import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element

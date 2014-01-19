@@ -53,7 +53,7 @@ object Dialog {
   val configPrefix = "persistence.dialogs"
 
   class Settings(sectionName: String, prefix: String)
-    extends org.digimead.tabuddy.desktop.ui.definition.api.Dialog.Settings(sectionName, prefix) with IDialogSettings {
+    extends org.digimead.tabuddy.desktop.core.ui.definition.api.Dialog.Settings(sectionName, prefix) with IDialogSettings {
     /**
      * Create a new section in the receiver and return it.
      *

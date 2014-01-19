@@ -54,9 +54,9 @@ import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ view ⇒ pview }
-import org.digimead.tabuddy.desktop.ui.UI
-import org.digimead.tabuddy.desktop.ui.definition.Dialog
-import org.digimead.tabuddy.desktop.ui.support.{ RegexFilterListener, Validator }
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.ui.support.{ RegexFilterListener, Validator }
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph

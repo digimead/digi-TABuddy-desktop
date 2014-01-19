@@ -51,9 +51,9 @@ import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableVa
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.ui.UI
-import org.digimead.tabuddy.desktop.ui.definition.Dialog
-import org.digimead.tabuddy.desktop.ui.support.{ SymbolValidator, Validator }
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
