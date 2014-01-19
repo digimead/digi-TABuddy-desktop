@@ -50,7 +50,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.{ Payload, TypeSchema, api ⇒ papi }
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.model.definition.dialog.typeed.TypeEditor
+import org.digimead.tabuddy.desktop.model.definition.ui.dialog.typeed.TypeEditor
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory

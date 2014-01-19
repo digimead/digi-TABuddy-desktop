@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
-import org.digimead.tabuddy.desktop.model.definition.dialog.eltemlist.ElementTemplateList
+import org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemlist.ElementTemplateList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }

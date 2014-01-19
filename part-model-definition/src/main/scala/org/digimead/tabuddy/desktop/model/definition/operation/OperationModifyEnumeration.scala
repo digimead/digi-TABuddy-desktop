@@ -52,7 +52,7 @@ import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.Enumeration
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
-import org.digimead.tabuddy.desktop.model.definition.dialog.enumed.EnumerationEditor
+import org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumed.EnumerationEditor
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor, IStatus, Status }

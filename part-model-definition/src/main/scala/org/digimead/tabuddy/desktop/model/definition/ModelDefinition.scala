@@ -68,7 +68,7 @@ class ModelDefinition extends akka.actor.Actor with Loggable {
   /*
    * Logic component actors.
    */
-  val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  val actionRef = context.actorOf(ui.action.Action.props, ui.action.Action.id)
 
   if (App.watch(Activator, Logic, this).hooks.isEmpty)
     App.watch(Activator, Logic, this).always().
@@ -154,7 +154,7 @@ object ModelDefinition {
   /** ModelDefinition actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  action.Action
+  ui.action.Action
 
   override def toString = "ModelDefinition[Singleton]"
 
