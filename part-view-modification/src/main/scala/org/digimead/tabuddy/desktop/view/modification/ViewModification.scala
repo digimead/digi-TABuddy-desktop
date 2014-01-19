@@ -154,7 +154,7 @@ object ViewModification {
   /** ViewModification actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  action.Action
+  ui.action.Action
 
   override def toString = "ViewModification[Singleton]"
 

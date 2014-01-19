@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
-import org.digimead.tabuddy.desktop.view.modification.dialog.filterlist.FilterList
+import org.digimead.tabuddy.desktop.view.modification.ui.dialog.filterlist.FilterList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
