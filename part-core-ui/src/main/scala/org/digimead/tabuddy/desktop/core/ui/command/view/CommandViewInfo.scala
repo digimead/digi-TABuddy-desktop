@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,24 +41,35 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.command.view
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import java.util.UUID
+import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.support.App
+import org.eclipse.core.runtime.jobs.Job
+import scala.concurrent.Future
+import org.digimead.tabuddy.desktop.core.ui.Resources
+import org.digimead.tabuddy.desktop.core.ui.Messages
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
-      case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
-    }
-  }
+/**
+ * Show info about available view.
+ */
+object CommandViewInfo extends Loggable {
+  import Command.parser._
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Command description. */
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.viewInfo_text,
+    Messages.viewInfoDescriptionShort_text, Messages.viewInfoDescriptionLong_text,
+    (activeContext, parserContext, parserResult) ⇒ Future {
+      Resources.factories()
+    })
+  /** Command parser. */
+  lazy val parser = Command.CmdParser(descriptor.name)
 }

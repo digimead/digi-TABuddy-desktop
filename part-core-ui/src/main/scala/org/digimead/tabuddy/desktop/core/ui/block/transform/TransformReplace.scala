@@ -41,24 +41,32 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.block.transform
 
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.block.{ StackSupervisor, ViewLayer }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import scala.language.implicitConversions
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
-      case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
-    }
+class TransformReplace extends Loggable {
+  def apply(stackSupervisorIternals: StackSupervisor, window: AppWindow, newView: ViewLayer.Factory) {
+    log.debug(s"Replace window ${window} content with ${newView}.")
+    App.assertEventThread()
+  }
+}
+
+object TransformReplace {
+  implicit def transform2implementation(t: TransformReplace.type): TransformReplace = inner
+
+  def inner(): TransformReplace = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** TransformAttachView implementation */
+    lazy val implementation = injectOptional[TransformReplace] getOrElse new TransformReplace
   }
 }

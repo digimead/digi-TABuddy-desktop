@@ -41,24 +41,45 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.block.builder
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import akka.actor.ActorRef
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.block.Configuration
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.SCompositeVSash
+import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.layout.GridLayout
+import scala.language.implicitConversions
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
-      case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
-    }
+class StackVSashBuilder extends Loggable {
+  def apply(vsash: Configuration.Stack.VSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeVSash, ScrolledComposite, ScrolledComposite) = {
+    log.debug("Build content for vertical sash.")
+    App.assertEventThread()
+    if (parentWidget.getLayout().isInstanceOf[GridLayout])
+      throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
+    val stackContainer = new SCompositeVSash(vsash.id, stackRef, parentWidget, SWT.NONE)
+    val top = new ScrolledComposite(stackContainer, SWT.NONE)
+    top.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GRAY))
+    val bottom = new ScrolledComposite(stackContainer, SWT.NONE)
+    bottom.setBackground(App.display.getSystemColor(SWT.COLOR_MAGENTA))
+    (stackContainer, top, bottom)
+  }
+}
+
+object StackVSashBuilder {
+  implicit def builder2implementation(c: StackVSashBuilder.type): StackVSashBuilder = c.inner
+
+  /** StackVSashBuilder implementation. */
+  def inner = DI.implementation
+
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** StackVSashBuilder implementation. */
+    lazy val implementation = injectOptional[StackVSashBuilder] getOrElse new StackVSashBuilder
   }
 }

@@ -49,8 +49,8 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.builder.StackBuilder
-import org.digimead.tabuddy.desktop.core.ui.widget.SComposite
+import org.digimead.tabuddy.desktop.core.ui.block.builder.StackBuilder
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.SComposite
 import org.eclipse.swt.custom.ScrolledComposite
 
 /**

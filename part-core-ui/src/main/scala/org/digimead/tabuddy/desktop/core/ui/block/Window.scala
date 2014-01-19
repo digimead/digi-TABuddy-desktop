@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.swt.widgets.Widget
 import scala.collection.immutable
 import scala.concurrent.Await

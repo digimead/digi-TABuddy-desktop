@@ -41,24 +41,29 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import akka.actor.ActorRef
+import java.util.UUID
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.eclipse.swt.widgets.Composite
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
-      case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
-    }
+/**
+ * Stack layer.
+ */
+trait SComposite extends Composite {
+  /** Stack layer id. */
+  val id: UUID
+  /** Stack layer actor reference. */
+  val ref: ActorRef
+
+  App.assertEventThread()
+  setData(UI.swtId, id)
+
+  override protected def checkSubclass() {
+    // Disable the check that prevents subclassing of SWT components
   }
+
+  override def toString() = super.toString + "[%08X]".format(id.hashCode())
 }

@@ -51,7 +51,7 @@ import scala.collection.mutable
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.ui.ResourceManager
-import org.digimead.tabuddy.desktop.core.ui.widget.VComposite
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Data
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate

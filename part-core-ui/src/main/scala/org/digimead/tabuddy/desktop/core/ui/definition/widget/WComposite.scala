@@ -41,24 +41,26 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import akka.actor.ActorRef
+import java.util.UUID
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.widgets.Composite
+import scala.ref.WeakReference
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
-      case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
-    }
-  }
+/** Window actual content container. */
+class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppWindow], parent: Composite, style: Int)
+  extends ScrolledComposite(parent, style) with SComposite {
+  /** Get window context. */
+  def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
+  /** Get AppWindow. */
+  def getAppWindow() = window.get
+}
+
+object WComposite {
+  /** Window context name. */
+  final val contextName = "WCompositeContext"
 }

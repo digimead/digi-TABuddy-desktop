@@ -50,7 +50,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
-import org.digimead.tabuddy.desktop.core.ui.core.view.DefaultView
+import org.digimead.tabuddy.desktop.core.ui.view.DefaultView
 import org.osgi.framework.wiring.BundleWiring
 import scala.language.implicitConversions
 

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,34 +41,60 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.block.builder
 
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.definition.{ ToolBarContributionItem, ToolBarManager }
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, WComposite }
+import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.StackLayout
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
+import org.eclipse.swt.layout.GridLayout
+import org.eclipse.swt.widgets.Composite
+import scala.language.implicitConversions
+import scala.ref.WeakReference
 
-object WindowToolbar extends Loggable {
-  /** ToolBar descriptor. */
-  case class Descriptor(val id: String, val factory: () ⇒ ToolBarManager = () ⇒ new ToolBarManager())
-  /** Return toolbar with the specific id from the window CoolBarManager. */
-  def apply(window: AppWindow, toolBarDescriptor: Descriptor): ToolBarContributionItem = {
+/**
+ * Create initial window content.
+ */
+class ContentBuilder extends Loggable {
+  /** Creates and returns this window's contents. */
+  def apply(window: AppWindow, parent: Composite): (Composite, Composite, WComposite) = {
+    log.debug(s"Build content for window ${window.id}.")
     App.assertEventThread()
-    val cbm = window.getCoolBarManager()
-    Option(cbm.find(toolBarDescriptor.id)) match {
-      case Some(toolbar: ToolBarContributionItem) ⇒
-        toolbar
-      case Some(unknown) ⇒
-        throw new IllegalArgumentException(s"${toolBarDescriptor} id points to unexpected toolbar contribution item.")
-      case None ⇒
-        val manager = toolBarDescriptor.factory()
-        val toolBarContributionItem = new ToolBarContributionItem(manager, toolBarDescriptor.id)
-        manager match {
-          case manager: ToolBarManager ⇒ manager.setToolBarManagerContribution(toolBarContributionItem)
-          case other ⇒
-        }
-        cbm.add(toolBarContributionItem)
-        toolBarContributionItem
-    }
+    val container = new Composite(parent, SWT.NONE)
+    val layout = new StackLayout()
+    container.setLayout(layout)
+    val filler = new Composite(container, SWT.NONE)
+    filler.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GREEN))
+    val content = new WComposite(window.id, window.ref, WeakReference(window), container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
+    content.setLayout(new GridLayout)
+    content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
+    content.addDisposeListener(new DisposeListener {
+      def widgetDisposed(event: DisposeEvent) = Option(content.getData(App.widgetContextKey)).foreach {
+        case context: Context ⇒
+          context.remove(classOf[Composite])
+          content.setData(App.widgetContextKey, null)
+      }
+    })
+    layout.topControl = filler
+    (container, filler, content)
+  }
+}
+
+object ContentBuilder {
+  implicit def builder2implementation(c: ContentBuilder.type): ContentBuilder = c.inner
+
+  /** ContentBuilder implementation. */
+  def inner = DI.implementation
+
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Window ContentBuilder implementation. */
+    lazy val implementation = injectOptional[ContentBuilder] getOrElse new ContentBuilder
   }
 }

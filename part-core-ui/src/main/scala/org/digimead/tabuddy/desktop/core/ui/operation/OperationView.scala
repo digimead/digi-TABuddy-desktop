@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
-import org.digimead.tabuddy.desktop.core.ui.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Create a new view' operation. */

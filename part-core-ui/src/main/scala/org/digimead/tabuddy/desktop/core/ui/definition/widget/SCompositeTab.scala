@@ -41,24 +41,43 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import akka.actor.{ ActorRef, actorRef2Scala }
+import java.util.UUID
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.events.{ SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.widgets.TabFolder
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
+class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
+  extends TabFolder(parent, style) with SComposite with Loggable {
+  /** Returns the receiver's parent, which must be a ScrolledComposite. */
+  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
+
+  // Add an event listener to write the selected tab to stdout
+  addSelectionListener(new SelectionAdapter() {
+    override def widgetSelected(event: SelectionEvent) = getSelection().headOption match {
+      case Some(selection) ⇒
+        selection.getControl() match {
+          case composite: ScrolledComposite if composite.getContent().isInstanceOf[VComposite] ⇒
+            val viewLayerComposite = composite.getContent()
+            App.execAsync {
+              // After item will be selected, but will not block UI thread.
+              log.debug(s"Start tab item with ${viewLayerComposite}.")
+              val windowId = UI.widgetHierarchy(viewLayerComposite).last.asInstanceOf[WComposite].id
+              WindowSupervisor.actor ! App.Message.Start(Left(windowId, viewLayerComposite))
+            }
+          case composite: ScrolledComposite if composite.getContent() == null ⇒
+            log.debug("Skip selection event for the empty tab.")
+          case unexpected ⇒
+            log.fatal(s"Tab item contains unexpected JFace element: ${unexpected}.")
+        }
       case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
+        log.debug(s"Skip empty selection.")
     }
-  }
+  })
 }

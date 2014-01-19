@@ -56,7 +56,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.{ Timeout, WritableValue }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.widget.{ AppWindow, WComposite }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, WComposite }
 import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.{ IValueChangeListener, ValueChangeEvent }
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue

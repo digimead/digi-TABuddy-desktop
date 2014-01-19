@@ -73,7 +73,7 @@ class UI extends akka.actor.Actor with Loggable {
   /*
    * UI component actors.
    */
-  val coreRef = context.actorOf(core.Core.props, core.Core.id)
+  val watcherRef = context.actorOf(Watcher.props, Watcher.id)
   val windowSupervisorRef = context.actorOf(WindowSupervisor.props, WindowSupervisor.id)
 
   if (App.watch(Activator, Core, this).hooks.isEmpty)
@@ -124,7 +124,8 @@ class UI extends akka.actor.Actor with Loggable {
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(UI) on {
       App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }
-      core.view.Views.configure()
+      view.Views.configure()
+      command.Commands.configure()
       WindowSupervisor ! App.Message.Restore
       Console ! Console.Message.Notice("UI component is started.")
       self ! App.Message.Consistent(UI, None)
@@ -133,7 +134,8 @@ class UI extends akka.actor.Actor with Loggable {
   /** Invoked on Core stopped. */
   protected def onCoreStopped() = initializationLock.synchronized {
     App.watch(UI) off {
-      core.view.Views.unconfigure()
+      command.Commands.unconfigure()
+      view.Views.unconfigure()
       Console ! Console.Message.Notice("UI component is stopped.")
     }
     Future {

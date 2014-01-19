@@ -54,8 +54,8 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.builder.StackViewBuilder
-import org.digimead.tabuddy.desktop.core.ui.widget.{ SCompositeTab, VComposite }
+import org.digimead.tabuddy.desktop.core.ui.block.builder.StackViewBuilder
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
 import org.eclipse.core.databinding.observable.Diffs
 import org.eclipse.core.databinding.observable.value.AbstractObservableValue
 import org.eclipse.jface.databinding.swt.SWTObservables

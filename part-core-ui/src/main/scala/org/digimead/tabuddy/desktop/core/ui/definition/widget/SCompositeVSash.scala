@@ -41,24 +41,15 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import akka.actor.ActorRef
+import java.util.UUID
+import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.widgets.Composite
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
-      case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
-    }
-  }
+class SCompositeVSash(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
+  extends Composite(parent, style) with SComposite {
+  /** Returns the receiver's parent, which must be a ScrolledComposite. */
+  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
 }

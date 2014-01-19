@@ -41,24 +41,54 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.command
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import java.util.UUID
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.support.App
+import scala.language.implicitConversions
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
-      case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
-    }
+/**
+ * The configurator is responsible for configure/unconfigure core GUI commands.
+ */
+class Commands extends Loggable {
+  @volatile protected var contextParsers = Seq.empty[UUID]
+  private val lock = new Object
+
+  /** Configure component actions. */
+  @log
+  def configure() = lock.synchronized {
+    Command.register(view.CommandView.descriptor)
+    Command.addToContext(Core.context, view.CommandView.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(view.CommandViewInfo.descriptor)
+    Command.addToContext(Core.context, view.CommandViewInfo.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+  }
+  /** Unconfigure component actions. */
+  @log
+  def unconfigure() = lock.synchronized {
+    contextParsers.foreach(Command.removeFromContext(Core.context, _))
+    Command.get(view.CommandView.descriptor.parserId).foreach(Command.unregister)
+    Command.get(view.CommandViewInfo.descriptor.parserId).foreach(Command.unregister)
+  }
+}
+
+object Commands {
+  implicit def configurator2implementation(c: Commands.type): Commands = c.inner
+
+  /** Commands implementation. */
+  def inner(): Commands = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Actions implementation */
+    lazy val implementation = injectOptional[Commands] getOrElse new Commands
   }
 }

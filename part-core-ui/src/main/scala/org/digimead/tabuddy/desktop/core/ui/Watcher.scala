@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,20 +41,21 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.ui
+package org.digimead.tabuddy.desktop.core.ui
 
 import akka.actor.{ Actor, ActorRef, Props }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 
 /**
  * Register action in new windows.
  * There is no need subscribe to App.Message.Destroyed because SWT dispose will do all job.
  */
-class UI extends Actor with Loggable {
+class Watcher extends Actor with Loggable {
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
@@ -84,91 +85,31 @@ class UI extends Actor with Loggable {
       adjustToolbar(window)
     }
     // publish that window menu and toolbar are ready
-    //App.publish(App.Message.Create(Right(Core, window), self))
+    App.publish(App.Message.Create(Right(Watcher, window), self))
   }
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    //val file = WindowMenu(window, Core.fileMenu)
-    //file.add(action.ActionExit)
+    val file = WindowMenu(window, Watcher.fileMenu)
+    file.add(action.ActionExit)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    //val commonToolBar = WindowToolbar(window, Core.commonToolbar)
-    //commonToolBar.getToolBarManager().add(action.ActionExit)
-    //commonToolBar.getToolBarManager().add(action.ActionTest)
-    //window.getCoolBarManager2().update(true)
+    val commonToolBar = WindowToolbar(window, Watcher.commonToolbar)
+    commonToolBar.getToolBarManager().add(action.ActionExit)
+    commonToolBar.getToolBarManager().add(action.ActionTest)
+    window.getCoolBarManager2().update(true)
   }
 }
 
-object UI extends Loggable {
-  /*/** This callback is invoked at an every model initialization. */
-  @log
-  protected def onModelInitialization(oldModel: Model.Like, newModel: Model.Like, modified: Element.Timestamp) = try {
-    TypeSchema.onModelInitialization(oldModel, newModel, modified)
-    ElementTemplate.onModelInitialization(oldModel, newModel, modified)
-    Data.onModelInitialization(oldModel, newModel, modified)
-    Config.save()
-  } catch {
-    case e: Throwable =>
-      log.error(e.getMessage, e)
-  }
-  /** This callback is invoked when GUI is valid. */
-  @log
-  protected def onGUIValid() = initializationLock.synchronized {
-    App.afterStart("Desktop Logic", Timeout.normal.toMillis, Core.getClass()) {
-      val context = thisBundle.getBundleContext()
-      openContainer()
-      // Prepare for startup.
-      // Reset for sure. There is maybe still something in memory after the bundle reload.
-      Model.reset(Payload.defaultModel)
-      // Startup sequence.
-      Config.start(context) // Initialize the application configuration based on Configgy
-      //Transport.start() // Initialize the network transport(s)
-      Actions.configure
-      App.markAsStarted(Logic.getClass)
-      future { onApplicationStartup() } onFailure {
-        case e: Exception => log.error(e.getMessage(), e)
-        case e => log.error(e.toString())
-      }
-    }
-  }
-  /** This callback is invoked when GUI is invalid. */
-  @log
-  protected def onGUIInvalid() = initializationLock.synchronized {
-    val context = thisBundle.getBundleContext()
-    App.markAsStopped(Logic.getClass())
-    // Prepare for shutdown.
-    Actions.unconfigure
-    //Transport.stop()
-    Config.stop(context)
-    closeContainer()
-    // Avoid deadlock.
-    App.system.eventStream.unsubscribe(self, classOf[org.digimead.tabuddy.model.element.Element.Event.ModelReplace[_ <: org.digimead.tabuddy.model.Model.Interface[_ <: org.digimead.tabuddy.model.Model.Stash], _ <: org.digimead.tabuddy.model.Model.Interface[_ <: org.digimead.tabuddy.model.Model.Stash]]])
-    Model.reset(Payload.defaultModel)
-    if (inconsistentSet.nonEmpty)
-      log.fatal("Inconsistent elements detected: " + inconsistentSet)
-    // The everything is stopped. Absolutely consistent.
-    App.publish(App.Message.Consistent(Logic, self))
-  }
-      case message @ App.Message.Start(Right(GUI), _) ⇒ App.traceMessage(message) {
-      fGUIStarted = true
-      future { onGUIValid() } onFailure {
-        case e: Exception ⇒ log.error(e.getMessage(), e)
-        case e ⇒ log.error(e.toString())
-      }
-    }
-    case message @ App.Message.Stop(Right(GUI), _) ⇒ App.traceMessage(message) {
-      fGUIStarted = false
-      future { onGUIInvalid } onFailure {
-        case e: Exception ⇒ log.error(e.getMessage(), e)
-        case e ⇒ log.error(e.toString())
-      }
-    }*/
-
+object Watcher {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  /** Common toolbar descriptor. */
+  val commonToolbar = WindowToolbar.Descriptor(getClass.getName() + "#common")
+  /** File menu descriptor. */
+  val fileMenu = WindowMenu.Descriptor("&File", None, getClass.getName() + "#file")
 
   /** Core actor reference configuration object. */
   def props = DI.props
@@ -177,7 +118,7 @@ object UI extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Core actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Logic.UI") getOrElse Props[UI]
+    /** Watcher actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Core.UI.Watcher") getOrElse Props[Watcher]
   }
 }

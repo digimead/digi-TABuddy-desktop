@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,24 +41,42 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.view
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.ui.Resources
+import scala.language.implicitConversions
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
-      case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
-    }
+/**
+ * Configurator responsible for configure/unconfigure application views.
+ */
+class Views extends Loggable {
+  private val lock = new Object
+  /** Configure component views. */
+  @log
+  def configure() = lock.synchronized {
+    Resources.registerViewFactory(DefaultView, true)
+  }
+  /** Unconfigure component views. */
+  @log
+  def unconfigure() = lock.synchronized {
+    Resources.unregisterViewFactory(DefaultView)
+  }
+}
+
+object Views {
+  implicit def configurator2implementation(c: Views.type): Views = c.inner
+
+  /** Views implementation. */
+  def inner(): Views = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Views implementation */
+    lazy val implementation = injectOptional[Views] getOrElse new Views
   }
 }

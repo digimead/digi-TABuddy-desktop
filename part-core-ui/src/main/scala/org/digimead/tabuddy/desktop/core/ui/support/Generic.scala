@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.core.ui.support
 
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.widget.{ AppWindow, SComposite, VComposite, WComposite }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, VComposite, WComposite }
 import org.eclipse.jface.viewers.TableViewerColumn
 import org.eclipse.swt.custom.{ CTabItem, TableTreeItem }
 import org.eclipse.swt.dnd.{ DragSource, DropTarget }

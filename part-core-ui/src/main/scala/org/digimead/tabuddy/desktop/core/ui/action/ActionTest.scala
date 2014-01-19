@@ -41,24 +41,24 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui.action
 
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
-import org.eclipse.jface.resource.ImageDescriptor
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.operation.OperationTest
+import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
-      case Some(menu) ⇒ menu
+object ActionTest extends JFaceAction("test") with Loggable {
+  @log
+  override def run = OperationTest().foreach { operation ⇒
+    operation.getExecuteJob() match {
+      case Some(job) ⇒
+        job.setPriority(Job.LONG)
+        job.schedule(Timeout.shortest.toMillis)
       case None ⇒
-        val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
-        menu
+        log.fatal(s"Unable to create job for ${operation}.")
     }
   }
 }
