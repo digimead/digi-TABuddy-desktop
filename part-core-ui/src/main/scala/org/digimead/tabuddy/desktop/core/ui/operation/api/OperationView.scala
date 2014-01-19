@@ -43,11 +43,16 @@
 
 package org.digimead.tabuddy.desktop.core.ui.operation.api
 
-import org.digimead.tabuddy.desktop.core.definition.{ Context, api }
-import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
+import org.digimead.tabuddy.desktop.core.definition.api
 
 /**
  * OperationView base trait.
+ */
+/*
+ * activeContext and viewFactory must be AnyRef since 'Context' and
+ * 'ViewLayer.Factory' are private classes that is not shared across OSGi boundaries.
+ * In other way there will be "java.lang.LinkageError: loader constraint violation
+ * in interface itable initialization: when resolving method ..." as expected.
  */
 trait OperationView {
   checkSubclass()
@@ -55,11 +60,11 @@ trait OperationView {
   /**
    * Create a new view.
    */
-  def apply(activeContext: Context, viewFactory: ViewLayer.Factory): Unit
+  def apply(activeContext: AnyRef, viewFactory: AnyRef): Unit
   /**
    * Create 'Create a new view' operation.
    */
-  def operation(activeContext: Context, viewFactory: ViewLayer.Factory): api.Operation[Unit]
+  def operation(activeContext: AnyRef, viewFactory: AnyRef): api.Operation[Unit]
 
   /**
    * Checks that this class can be subclassed.

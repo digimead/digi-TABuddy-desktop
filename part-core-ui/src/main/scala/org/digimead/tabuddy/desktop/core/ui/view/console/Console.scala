@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,22 +41,49 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.support
+package org.digimead.tabuddy.desktop.core.ui.view.console
 
-import java.io.{ InputStream, ObjectInputStream, ObjectStreamClass }
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.console.Projection
+import org.digimead.tabuddy.desktop.core.support.{App, Timeout}
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.eclipse.swt.events.{DisposeEvent, DisposeListener}
+import org.eclipse.ui.console.{MessageConsole, MessageConsoleStream}
+import org.eclipse.ui.console.IOConsoleOutputStream
 
-/**
- * ObjectInputStream helper that try to load classes from thread ContextClassLoader
- */
-// outerClassLoader.loadClass is not acceptable because
-// JDK-6446627 : Reading Serialized arrays of objects throws ClassNotFoundException
-class CustomObjectInputStream(in: InputStream, outerClassLoader: ClassLoader) extends ObjectInputStream(in) {
-  override def resolveClass(desc: ObjectStreamClass): Class[_] = try {
-    val currentTccl = Thread.currentThread.getContextClassLoader()
-    return currentTccl.loadClass(desc.getName())
-  } catch {
-    case e: Exception ⇒
-      try Class.forName(desc.getName(), false, outerClassLoader)
-      catch { case e: Exception ⇒ super.resolveClass(desc) }
+class Console(parent: VComposite, style: Int, console: MessageConsole)
+  extends ConsoleSkel(parent, style, console) with Projection with Loggable {
+  implicit val timeout = akka.util.Timeout(Timeout.short)
+  @volatile var output: Option[IOConsoleOutputStream] = None
+
+  initialize()
+
+  override def enablePrompt() {}
+  def echo(msg: String) = output.foreach { output ⇒
+//    println("!!!!!!!!!!!!" + msg)
+//    output.write(msg)
+//    output.flush()
+  }
+  def start() {
+    output = Option(console.newOutputStream())
+    log.debug(s"$this is started.")
+    echo("hello")
+  }
+  def stop() {
+    output.foreach { output ⇒
+      output.flush()
+      output.close()
+    }
+    log.debug(s"$this is stopped.")
+  }
+
+  /** Initialize console. */
+  protected def initialize() {
+    addDisposeListener(new DisposeListener { def widgetDisposed(event: DisposeEvent) = deinitialize() })
+    org.digimead.tabuddy.desktop.core.console.Console.actor ! App.Message.Open(Left(this))
+  }
+  /** Deinitialize console. */
+  protected def deinitialize() {
+    org.digimead.tabuddy.desktop.core.console.Console.actor ! App.Message.Close(Left(this))
   }
 }

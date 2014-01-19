@@ -64,14 +64,17 @@ class ContentBuilder extends Loggable {
   def apply(window: AppWindow, parent: Composite): (Composite, Composite, WComposite) = {
     log.debug(s"Build content for window ${window.id}.")
     App.assertEventThread()
+    // Add top level container with StackLayout for switching between Composites.
     val container = new Composite(parent, SWT.NONE)
     val layout = new StackLayout()
     container.setLayout(layout)
+    // Add empty stub that is visible by default.
     val filler = new Composite(container, SWT.NONE)
-    filler.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GREEN))
+    // filler.setBackground(App.display.getSystemColor(SWT.COLOR_DARK_GREEN))
+    // Add content that is hidden by default.
     val content = new WComposite(window.id, window.ref, WeakReference(window), container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
     content.setLayout(new GridLayout)
-    content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
+    // content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
     content.addDisposeListener(new DisposeListener {
       def widgetDisposed(event: DisposeEvent) = Option(content.getData(App.widgetContextKey)).foreach {
         case context: Context ⇒

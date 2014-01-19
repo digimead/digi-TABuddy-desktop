@@ -64,24 +64,40 @@ import scala.util.Success
 class Console extends Actor with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
+  /** Set of the consoles. */
+  var consoles = Console.list.toSet
+  /** Flag indicating whether the prompt is enabled. */
+  var promptEnabled = false
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
     log.debug(s"Stop application consoles.")
-    Console.list.foreach(_.stop)
+    consoles.foreach(_.stop)
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
     log.debug(s"Start application consoles.")
-    Console.list.foreach(_.start)
+    consoles.foreach(_.start)
     log.debug(self.path.name + " actor is started.")
     Core ! App.Message.Consistent(Console, self)
   }
   def receive = {
+    case message @ App.Message.Close(Left(console: api.Console.Projection), _) ⇒ App.traceMessage(message) {
+      consoles = consoles - console
+    }
+
+    case message @ App.Message.Open(Left(console: api.Console.Projection), _) ⇒ App.traceMessage(message) {
+      consoles = consoles + console
+      console.start()
+      if (promptEnabled)
+        console.enablePrompt()
+    }
+
     case message @ App.Message.Start(Left(Console), _) ⇒ App.traceMessage(message) {
-      Console.list.foreach(_.enablePrompt())
+      consoles.foreach(_.enablePrompt())
+      promptEnabled = true
     }
 
     case message @ Console.Message.Command(string, from) ⇒ App.traceMessage(message) {
@@ -102,6 +118,7 @@ class Console extends Actor with Loggable {
 
     case Console.Message.Alert(string) ⇒
       echo(Console.DI.msgAlert.format(string))
+
   }
 
   /** Run one command submitted by the user. */
@@ -183,7 +200,7 @@ class Console extends Actor with Loggable {
     Console ! Console.Message.Notice(message)
   }
   /** Echo message. */
-  protected def echo(msg: String) = Console.list.foreach(_.echo(msg + Console.RESET))
+  protected def echo(msg: String) = consoles.foreach(_.echo(msg + Console.RESET))
 }
 
 object Console extends api.Console with Loggable {

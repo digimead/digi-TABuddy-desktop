@@ -57,12 +57,14 @@ class Views extends Loggable {
   /** Configure component views. */
   @log
   def configure() = lock.synchronized {
-    Resources.registerViewFactory(DefaultView, true)
+    Resources.registerViewFactory(ViewDefault, true)
+    Resources.registerViewFactory(console.ViewConsole, true)
   }
   /** Unconfigure component views. */
   @log
   def unconfigure() = lock.synchronized {
-    Resources.unregisterViewFactory(DefaultView)
+    Resources.unregisterViewFactory(console.ViewConsole)
+    Resources.unregisterViewFactory(ViewDefault)
   }
 }
 

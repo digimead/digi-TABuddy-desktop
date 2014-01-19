@@ -50,7 +50,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
-import org.digimead.tabuddy.desktop.core.ui.view.DefaultView
+import org.digimead.tabuddy.desktop.core.ui.view.ViewDefault
 import org.osgi.framework.wiring.BundleWiring
 import scala.language.implicitConversions
 
@@ -127,7 +127,7 @@ object StackConfiguration {
     lazy val configurationExtenstion = injectOptional[String]("Core.UI.StackConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
     lazy val default = injectOptional[Configuration]("Core.UI.StackConfiguration.Default") getOrElse
-      Configuration(Configuration.View(DefaultView.configuration))
+      Configuration(Configuration.View(ViewDefault.configuration))
     //      StackConfiguration(Stack.Tab(Seq(View(UUID.fromString("00000000-0000-0000-0000-000000000000")))))
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()

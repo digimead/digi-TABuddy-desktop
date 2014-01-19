@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.view
+package org.digimead.tabuddy.desktop.core.ui.view.console
 
 import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
@@ -59,11 +59,12 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.layout.FillLayout
-import org.eclipse.swt.widgets.{ Composite, Control, Widget }
+import org.eclipse.swt.widgets.{ Composite, Widget }
+import org.eclipse.ui.console.MessageConsole
 import scala.collection.immutable
 import scala.concurrent.{ Await, Future }
 
-class ViewDefault(val contentId: UUID) extends Actor with Loggable {
+class ViewConsole(val contentId: UUID) extends Actor with Loggable {
   /** Parent view widget. */
   @volatile protected var view: Option[VComposite] = None
   log.debug("Start actor " + self.path)
@@ -105,10 +106,9 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
     view = Option(parent)
     App.execNGet {
       parent.setLayout(new FillLayout())
-      val button = new org.eclipse.swt.widgets.Button(parent, SWT.PUSH)
-      button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
+      new Console(parent, SWT.NONE, new MessageConsole("console", null, false))
       parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-      parent.layout(Array[Control](button), SWT.ALL)
+      parent.layout()
     }
     Some(null)
   }
@@ -125,7 +125,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
   }
 }
 
-object ViewDefault extends ViewLayer.Factory with Loggable {
+object ViewConsole extends ViewLayer.Factory with Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** View name. */
@@ -166,20 +166,20 @@ object ViewDefault extends ViewLayer.Factory with Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** View name. */
-    lazy val name = injectOptional[Symbol]("Core.View.Default.Name") getOrElse Symbol({
-      val name = Messages.default_text
+    lazy val name = injectOptional[Symbol]("Core.View.Console.Name") getOrElse Symbol({
+      val name = Messages.console_text
       if (!App.symbolPattern.matcher(name).matches())
         throw new IllegalArgumentException(s"'${name}' isn't a correct Scala symbol.")
       name
     })
     /** Short view description (one line). */
-    lazy val shortDescription = injectOptional[String]("Core.View.Default.ShortDescription") getOrElse Messages.defaultViewShortDescription
+    lazy val shortDescription = injectOptional[String]("Core.View.Console.ShortDescription") getOrElse Messages.consoleViewShortDescription
     /** Long view description. */
-    lazy val longDescription = injectOptional[String]("Core.View.Default.LongDescription") getOrElse Messages.defaultViewLongDescription
+    lazy val longDescription = injectOptional[String]("Core.View.Console.LongDescription") getOrElse Messages.consoleViewLongDescription
     /** View image. */
-    lazy val image = injectOptional[Image]("Core.View.Default.Image")
-    /** Default view actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.View.Default") getOrElse Props(classOf[ViewDefault],
+    lazy val image = injectOptional[Image]("Core.View.Console.Image")
+    /** Console view actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Core.View.Console") getOrElse Props(classOf[ViewConsole],
       // content id == view layer id
       UUID.fromString("00000000-0000-0000-0000-000000000000"))
   }

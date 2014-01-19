@@ -108,21 +108,15 @@ class StackViewBuilder extends Loggable {
     log.debug(s"Build content for ${configuration}.")
     App.assertEventThread(false)
     // Create view widget.
-    val viewWidget = App.execNGet {
+    val viewWidget: Option[VComposite] = App.execNGet {
       if (pWidget.getLayout().isInstanceOf[GridLayout])
         throw new IllegalArgumentException(s"Unexpected parent layout ${pWidget.getLayout().getClass()}.")
       configuration.factory().viewActor(configuration) match {
         case Some(actualViewActorRef) ⇒
-          val layout = new GridLayout
-          layout.marginHeight = 0
-          layout.marginWidth = 0
           val content = new VComposite(configuration.id, ref, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
           context.set(classOf[Composite], content)
           content.setData(App.widgetContextKey, context)
-          content.setLayout(layout)
-          content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-          content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
-          content.pack(true)
+//          content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
           pWidget.setContent(content)
           pWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           pWidget.setExpandHorizontal(true)

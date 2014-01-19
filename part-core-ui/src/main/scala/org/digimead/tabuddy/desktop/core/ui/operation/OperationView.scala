@@ -59,19 +59,22 @@ class OperationView extends api.OperationView with Loggable {
   /**
    * Create a new view.
    */
-  def apply(activeContext: Context, viewFactory: ViewLayer.Factory) {
+  def apply(activeContext: AnyRef, viewFactory: AnyRef) {
     log.info("Create new view from " + viewFactory)
-    activeContext.get(UI.windowContextKey) match {
-      case window: AppWindow ⇒
-        window.ref ! App.Message.Create(Left(viewFactory))
-      case unknwon ⇒
-        log.fatal(s"Unable to find active window for ${this}: '${activeContext}', '${viewFactory}'.")
+    activeContext match {
+      case context: Context ⇒
+        context.get(UI.windowContextKey) match {
+          case window: AppWindow ⇒
+            window.ref ! App.Message.Create(Left(viewFactory))
+          case unknwon ⇒
+            log.fatal(s"Unable to find active window for ${this}: '${activeContext}', '${viewFactory}'.")
+        }
     }
   }
   /**
    * Create 'Create a new view' operation.
    */
-  def operation(activeContext: Context, viewFactory: ViewLayer.Factory) =
+  def operation(activeContext: AnyRef, viewFactory: AnyRef) =
     new Implemetation(activeContext, viewFactory)
 
   /**
@@ -90,7 +93,7 @@ class OperationView extends api.OperationView with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(val activeContext: Context, val viewFactory: ViewLayer.Factory) extends OperationView.Abstract() with Loggable {
+  class Implemetation(val activeContext: AnyRef, val viewFactory: AnyRef) extends OperationView.Abstract() with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
