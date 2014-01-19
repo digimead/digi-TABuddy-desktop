@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Create a new view' operation. */
-class OperationView extends api.OperationView with Loggable {
+class OperationViewCreate extends api.OperationViewCreate with Loggable {
   /**
    * Create a new view.
    */
@@ -93,7 +93,7 @@ class OperationView extends api.OperationView with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(val activeContext: AnyRef, val viewFactory: AnyRef) extends OperationView.Abstract() with Loggable {
+  class Implemetation(val activeContext: AnyRef, val viewFactory: AnyRef) extends OperationViewCreate.Abstract() with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -101,7 +101,7 @@ class OperationView extends api.OperationView with Loggable {
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      try Operation.Result.OK(Option(OperationView.this(activeContext, viewFactory)))
+      try Operation.Result.OK(Option(OperationViewCreate.this(activeContext, viewFactory)))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
@@ -110,9 +110,9 @@ class OperationView extends api.OperationView with Loggable {
   }
 }
 
-object OperationView extends Loggable {
-  /** Stable identifier with OperationView DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationView]
+object OperationViewCreate extends Loggable {
+  /** Stable identifier with OperationViewCreate DI */
+  lazy val operation = DI.operation.asInstanceOf[OperationViewCreate]
 
   /** Build a new 'Create a new view' operation */
   @log
@@ -127,6 +127,6 @@ object OperationView extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationView] getOrElse new OperationView
+    lazy val operation = injectOptional[api.OperationViewCreate] getOrElse new OperationViewCreate
   }
 }

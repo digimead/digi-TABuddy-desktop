@@ -46,22 +46,24 @@ package org.digimead.tabuddy.desktop.core.ui.block.builder
 import akka.actor.{ ActorContext, ActorRef }
 import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, ViewLayer }
+import org.digimead.tabuddy.desktop.core.ui.command.view.CommandViewClose
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, VComposite }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
-import org.eclipse.swt.layout.{ GridData, GridLayout }
-import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.layout.GridLayout
+import org.eclipse.swt.widgets.{ Composite, Control }
 import scala.collection.immutable
 import scala.concurrent.Await
 import scala.language.implicitConversions
-import org.eclipse.swt.widgets.Composite
 
 class StackViewBuilder extends Loggable {
   /**
@@ -79,6 +81,7 @@ class StackViewBuilder extends Loggable {
     log.debug(s"Build view layer ${viewName}.")
     App.assertEventThread(false)
     val viewContext = pEContext.createChild(VComposite.contextName): Context.Rich
+    Command.addToContext(viewContext, CommandViewClose.parser)
     val view = pAContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
     // Block until view is created.
     implicit val sender = pAContext.self
@@ -116,7 +119,7 @@ class StackViewBuilder extends Loggable {
           val content = new VComposite(configuration.id, ref, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
           context.set(classOf[Composite], content)
           content.setData(App.widgetContextKey, context)
-//          content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
+          //          content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
           pWidget.setContent(content)
           pWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           pWidget.setExpandHorizontal(true)

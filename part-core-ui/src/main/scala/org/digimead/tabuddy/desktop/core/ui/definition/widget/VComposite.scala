@@ -61,6 +61,8 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
   def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
   /** Returns the receiver's parent, which must be a ScrolledComposite. */
   override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
+
+  override def toString() = s"VComposite {${factory}} [%08X]".format(id.hashCode())
 }
 
 object VComposite {

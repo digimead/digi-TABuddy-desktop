@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,27 +41,30 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.operation
+package org.digimead.tabuddy.desktop.core.ui.operation.api
 
-import java.util.concurrent.CancellationException
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.digimead.tabuddy.desktop.core.definition.api
 
-/** 'Close an active view' operation. */
-class OperationClose extends api.OperationClose with Loggable {
+/**
+ * OperationViewCreate base trait.
+ */
+/*
+ * activeContext and viewFactory must be AnyRef since 'Context' and
+ * 'ViewLayer.Factory' are private classes that is not shared across OSGi boundaries.
+ * In other way there will be "java.lang.LinkageError: loader constraint violation
+ * in interface itable initialization: when resolving method ..." as expected.
+ */
+trait OperationViewCreate {
+  checkSubclass()
+
   /**
-   * Close an active view.
+   * Create a new view.
    */
-  def apply() {
-    log.info(s"Close an active view.")
-  }
+  def apply(activeContext: AnyRef, viewFactory: AnyRef): Unit
   /**
-   * Create 'Close an active view' operation.
+   * Create 'Create a new view' operation.
    */
-  def operation() = new Implemetation()
+  def operation(activeContext: AnyRef, viewFactory: AnyRef): api.Operation[Unit]
 
   /**
    * Checks that this class can be subclassed.
@@ -77,41 +80,6 @@ class OperationClose extends api.OperationClose with Loggable {
    * subclass will likely fail.
    * </p>
    */
-  override protected def checkSubclass() {}
-
-  class Implemetation() extends OperationClose.Abstract() with Loggable {
-    @volatile protected var allowExecute = true
-
-    override def canExecute() = allowExecute
-    override def canRedo() = false
-    override def canUndo() = false
-
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      try Operation.Result.OK(Option(OperationClose.this()))
-      catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      throw new UnsupportedOperationException
-  }
-}
-
-object OperationClose extends Loggable {
-  /** Stable identifier with OperationClose DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationClose]
-
-  /** Build a new 'Close an active view' operation */
-  @log
-  def apply(): Option[Abstract] = Some(operation.operation())
-
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract() extends Operation[Unit](s"Close an active view.") {
-    this: Loggable ⇒
-  }
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationClose] getOrElse new OperationClose
-  }
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate instead.")
 }

@@ -82,6 +82,16 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
       }
     } foreach { sender ! _ }
 
+    case message @ App.Message.Destroy ⇒ App.traceMessage(message) {
+      /*destroy(sender) match {
+        case Some(viewWidget) ⇒
+          App.publish(App.Message.Create(Right(viewWidget), self))
+          App.Message.Create(Right(viewWidget))
+        case None ⇒
+          App.Message.Error(s"Unable to create ${viewConfiguration}.")
+      }*/
+    } foreach { sender ! _ }
+
     case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
       onStart(widget)
       App.Message.Start(Right(widget))

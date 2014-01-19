@@ -44,27 +44,22 @@
 package org.digimead.tabuddy.desktop.core.ui.command.view
 
 import java.util.UUID
+import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
-import org.digimead.tabuddy.desktop.core.support.App
-import org.eclipse.e4.core.internal.contexts.EclipseContext
-import scala.concurrent.Future
-import org.digimead.tabuddy.desktop.core.ui.Resources
-import java.util.concurrent.Exchanger
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import java.util.concurrent.CancellationException
-import org.digimead.tabuddy.desktop.core.ui.operation.OperationView
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
+import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
+import org.digimead.tabuddy.desktop.core.ui.{ Messages, Resources }
 import org.eclipse.core.runtime.jobs.Job
-import org.digimead.tabuddy.desktop.core.ui.Messages
+import scala.concurrent.Future
 
 /**
  * Create new or select exists view.
  */
-object CommandView {
+object CommandView extends Loggable {
   import Command.parser._
   private val newArg = "-new"
   /** Akka execution context. */
@@ -78,7 +73,7 @@ object CommandView {
         case ~(factory: ViewLayer.Factory, None) ⇒ (factory, false)
       }
       val exchanger = new Exchanger[Operation.Result[Unit]]()
-      OperationView(activeContext, viewFactory).foreach { operation ⇒
+      OperationViewCreate(activeContext, viewFactory).foreach { operation ⇒
         operation.getExecuteJob() match {
           case Some(job) ⇒
             job.setPriority(Job.LONG)
@@ -115,7 +110,7 @@ object CommandView {
     def apply(arg: String): Seq[Command.Hint] = {
       val viewFactories = Resources.factories().filter(_._2 == true).keys.toSeq
       viewFactories.filter(_.name.name.startsWith(arg)).map(proposal ⇒
-        Command.Hint("view name", Some(Messages.open_text  + " " + proposal.shortDescription), Seq(proposal.name.name.drop(arg.length)))).
+        Command.Hint("view name", Some(Messages.open_text + " " + proposal.shortDescription), Seq(proposal.name.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
   }

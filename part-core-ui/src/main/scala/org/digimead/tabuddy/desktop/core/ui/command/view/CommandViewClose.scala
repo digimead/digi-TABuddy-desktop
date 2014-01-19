@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,56 +41,59 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.command
+package org.digimead.tabuddy.desktop.core.ui.command.view
 
 import java.util.UUID
+import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.core.ui.Messages
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewClose
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.swt.widgets.Composite
+import scala.concurrent.Future
 
 /**
- * The configurator is responsible for configure/unconfigure core GUI commands.
+ * Close the current view.
  */
-class Commands extends Loggable {
-  @volatile protected var contextParsers = Seq.empty[UUID]
-  private val lock = new Object
-
-  /** Configure component actions. */
-  @log
-  def configure() = lock.synchronized {
-    Command.register(view.CommandView.descriptor)
-    Command.addToContext(Core.context, view.CommandView.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(view.CommandViewInfo.descriptor)
-    Command.addToContext(Core.context, view.CommandViewInfo.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(view.CommandViewClose.descriptor)
-  }
-  /** Unconfigure component actions. */
-  @log
-  def unconfigure() = lock.synchronized {
-    contextParsers.foreach(Command.removeFromContext(Core.context, _))
-    Command.unregister(view.CommandViewClose.descriptor)
-    Command.unregister(view.CommandViewInfo.descriptor)
-    Command.unregister(view.CommandView.descriptor)
-  }
-}
-
-object Commands {
-  implicit def configurator2implementation(c: Commands.type): Commands = c.inner
-
-  /** Commands implementation. */
-  def inner(): Commands = DI.implementation
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Commands] getOrElse new Commands
-  }
+object CommandViewClose extends Loggable {
+  import Command.parser._
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Command description. */
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.viewClose_text,
+    Messages.viewCloseDescriptionShort_text, Messages.viewCloseDescriptionLong_text,
+    (activeContext, parserContext, parserResult) ⇒ Future {
+      activeContext.get(classOf[Composite]) match {
+        case vComposite: VComposite ⇒
+          val exchanger = new Exchanger[Operation.Result[Unit]]()
+          OperationViewClose(vComposite).foreach { operation ⇒
+            operation.getExecuteJob() match {
+              case Some(job) ⇒
+                job.setPriority(Job.LONG)
+                job.onComplete(exchanger.exchange).schedule()
+              case None ⇒
+                log.fatal(s"Unable to create job for ${operation}.")
+            }
+          }
+          exchanger.exchange(null) match {
+            case Operation.Result.OK(result, message) ⇒
+              log.info(s"Operation completed successfully.")
+            case Operation.Result.Cancel(message) ⇒
+              throw new CancellationException(s"Operation canceled, reason: ${message}.")
+            case err: Operation.Result.Error[_] ⇒
+              throw err
+            case other ⇒
+              throw new RuntimeException(s"Unable to complete operation: ${other}.")
+          }
+        case _ ⇒
+          throw new IllegalStateException(s"Unable to complete operation: VComposite not found.")
+      }
+    })
+  /** Command parser. */
+  lazy val parser = Command.CmdParser(descriptor.name)
 }
