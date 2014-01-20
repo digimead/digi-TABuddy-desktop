@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.{ WindowConfiguration, WindowSupervisor }
-import org.digimead.tabuddy.desktop.core.ui.block.builder.ContentBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.builder.WindowContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
 import org.eclipse.jface.action.{ CoolBarManager, StatusLineManager }
 import org.eclipse.jface.window.ApplicationWindow
@@ -130,7 +130,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   }
   /** Creates and returns this window's contents. */
   override protected def createContents(parent: Composite): Control = {
-    val (container, filler, content) = ContentBuilder(this, parent)
+    val (container, filler, content) = WindowContentBuilder(this, parent)
     this.filler = Option(filler)
     this.content = Option(content)
     showContent(content)
@@ -179,7 +179,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   override protected def handleShellCloseEvent() {
     updateConfiguration()
     for (configuration ← configuration if saveOnClose)
-      WindowSupervisor ! WindowSupervisor.Message.Set(id, configuration)
+      WindowSupervisor ! App.Message.Set(id, configuration)
     super.handleShellCloseEvent
     App.publish(App.Message.Destroy(Right(this), ref))
   }

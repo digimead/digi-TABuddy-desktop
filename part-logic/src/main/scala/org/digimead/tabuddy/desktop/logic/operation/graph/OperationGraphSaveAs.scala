@@ -84,14 +84,17 @@ class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
       throw new IOException(newGraphDescriptor + " descriptor is already exists.")
     val newMarker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(path, name),
       marker.graphCreated, marker.graphOrigin)
-    newMarker.safeUpdate(_.safeWrite(_.graphObject = Some(graph.copy() { g ⇒
-      g.withData { data ⇒
-        data.clear()
-        data(GraphMarker) = newMarker
-      }
-      g.storages = g.storages.filterNot(_ == localStorageURI)
-      g.storages = g.storages :+ newMarker.graphPath.toURI()
-    })))
+    newMarker.safeUpdate(_.safeWrite { state ⇒
+      state.graphObject = Some(graph.copy() { g ⇒
+        g.withData { data ⇒
+          data.clear()
+          data(GraphMarker) = newMarker
+        }
+        g.storages = g.storages.filterNot(_ == localStorageURI)
+        g.storages = g.storages :+ newMarker.graphPath.toURI()
+      })
+      state.payloadObject = Option(marker.safeRead(_.payload))
+    })
     if (!newMarker.markerIsValid)
       throw new IllegalStateException(marker + " is not valid.")
     val newGraph = newMarker.safeRead(_.graph)

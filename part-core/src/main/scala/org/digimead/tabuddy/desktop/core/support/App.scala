@@ -50,6 +50,9 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.eclipse.core.runtime.adaptor.LocationManager
 import org.eclipse.osgi.framework.internal.core.FrameworkProperties
+import scala.annotation.elidable
+import scala.annotation.elidable._
+import scala.collection.immutable
 import scala.language.implicitConversions
 
 class App extends Loggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection with app.Watch {
@@ -113,6 +116,13 @@ object App {
    */
   trait Message {
     val publisher: Option[ActorRef] = None
+    val source: Throwable = getThrowable()
+
+    @elidable(FINE) protected def getThrowable() = {
+      val t = new Throwable(toString + " origin")
+      t.fillInStackTrace()
+      t
+    }
   }
   object Message {
     /*
@@ -145,11 +155,11 @@ object App {
       override def toString = "Message.Consistent"
     }
     /** Get consistency state. */
-    case class Consistency[T <: AnyRef](val current: Set[AnyRef], override val publisher: Option[ActorRef]) extends Message {
+    case class Consistency[T <: AnyRef](val current: immutable.Set[AnyRef], override val publisher: Option[ActorRef]) extends Message {
       override def productPrefix = "Message.Consistency"
     }
     object Consistency {
-      def apply[T <: AnyRef](publisher: ActorRef) = new Consistent(Set(), Some(publisher))
+      def apply[T <: AnyRef](publisher: ActorRef) = new Consistent(immutable.Set(), Some(publisher))
       override def toString = "Message.Consistency"
     }
     /** Create something. */
@@ -178,6 +188,13 @@ object App {
       def apply[T <: AnyRef](arg: T, publisher: ActorRef) = new Error(arg, Some(publisher))
       def apply[T <: AnyRef](arg: T) = new Error(arg, None)
       override def toString = "Message.Error"
+    }
+    /** Get something. */
+    case class Get[T <: AnyRef](val key: T = null) extends Message {
+      override def productPrefix = "Message.Get"
+    }
+    object Get {
+      override def toString = "Message.Get"
     }
     /** Something lost consistency. */
     case class Inconsistent[T <: AnyRef](val element: T, override val publisher: Option[ActorRef]) extends Message {
@@ -214,6 +231,14 @@ object App {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Save(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Save(arg, None)
       override def toString = "Message.Save"
+    }
+    /** Set something. */
+    case class Set[T <: AnyRef](val key: AnyRef, val newVal: T) extends Message {
+      override def productPrefix = "Message.Set"
+    }
+    object Set {
+      def apply[T <: AnyRef](newVal: T) = new Set[T](null, newVal)
+      override def toString = "Message.Set"
     }
     /** Start something. */
     case class Start[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {

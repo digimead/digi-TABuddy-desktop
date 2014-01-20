@@ -59,7 +59,7 @@ import scala.ref.WeakReference
 /**
  * Create initial window content.
  */
-class ContentBuilder extends Loggable {
+class WindowContentBuilder extends Loggable {
   /** Creates and returns this window's contents. */
   def apply(window: AppWindow, parent: Composite): (Composite, Composite, WComposite) = {
     log.debug(s"Build content for window ${window.id}.")
@@ -87,17 +87,17 @@ class ContentBuilder extends Loggable {
   }
 }
 
-object ContentBuilder {
-  implicit def builder2implementation(c: ContentBuilder.type): ContentBuilder = c.inner
+object WindowContentBuilder {
+  implicit def builder2implementation(c: WindowContentBuilder.type): WindowContentBuilder = c.inner
 
-  /** ContentBuilder implementation. */
+  /** WindowContentBuilder implementation. */
   def inner = DI.implementation
 
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Window ContentBuilder implementation. */
-    lazy val implementation = injectOptional[ContentBuilder] getOrElse new ContentBuilder
+    /** Window WindowContentBuilder implementation. */
+    lazy val implementation = injectOptional[WindowContentBuilder] getOrElse new WindowContentBuilder
   }
 }

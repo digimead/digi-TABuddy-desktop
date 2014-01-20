@@ -131,6 +131,12 @@ class WindowSupervisor extends Actor with Loggable {
       onDestroyed(window, publisher)
     }
 
+    case message @ App.Message.Get(Some(windowId: UUID)) ⇒ getConfiguration(sender, Some(windowId))
+
+    case message @ App.Message.Get(None) ⇒ getConfiguration(sender, None)
+
+    case message @ App.Message.Get(null) ⇒ sender ! pointers.toSeq
+
     case message @ App.Message.Restore ⇒ App.traceMessage(message) {
       restore()
     }
@@ -138,6 +144,8 @@ class WindowSupervisor extends Actor with Loggable {
     case message @ App.Message.Save ⇒ App.traceMessage(message) {
       save()
     }
+
+    case message @ App.Message.Set(windowId: UUID, configuration: WindowConfiguration) ⇒ setConfiguration(sender, windowId, configuration)
 
     case message @ App.Message.Start(event @ Left((id: UUID, widget: Widget)), _) ⇒ App.traceMessage(message) {
       // Stop previous active widget if any
@@ -152,17 +160,6 @@ class WindowSupervisor extends Actor with Loggable {
 
     case message @ App.Message.Stop(Left((id: UUID, widget: Widget)), _) ⇒ App.traceMessage(message) {
       stop(id, widget)
-    }
-
-    case message @ WindowSupervisor.Message.Get(windowId) ⇒ App.traceMessage(message) {
-      getConfiguration(sender, windowId)
-    }
-
-    case message @ WindowSupervisor.Message.Peek ⇒
-      sender ! pointers.toSeq
-
-    case message @ WindowSupervisor.Message.Set(windowId, configuration) ⇒ App.traceMessage(message) {
-      setConfiguration(sender, windowId, configuration)
     }
 
     case message @ App.Message.Create(_, _) ⇒
@@ -186,6 +183,7 @@ class WindowSupervisor extends Actor with Loggable {
     Await.result(window ? App.Message.Create(Left(Window.<>(windowId, configurations.get(windowId) getOrElse WindowConfiguration.default))), timeout.duration)
   }
   /** Send exists or default window configuration to sender. */
+  @log
   protected def getConfiguration(sender: ActorRef, windowId: Option[UUID]) = windowId match {
     case Some(id: UUID) ⇒
       sender ! (configurations.get(id) getOrElse WindowConfiguration.default)
@@ -196,9 +194,9 @@ class WindowSupervisor extends Actor with Loggable {
   protected def lastActiveWindow: Option[WComposite] = Core.context.getLocal(UI.windowContextKey)
   /** Update/create window pointer with AppWindow value. */
   protected def onCreated(window: AppWindow, sender: ActorRef) {
-    pointers.get(window.id).flatMap(ptr ⇒ Option(ptr.window.get())) match {
-      case Some(window) ⇒
-        log.fatal(s"Window ${window} is already created.")
+    pointers.get(window.id).flatMap(ptr ⇒ Option(ptr.appWindowRef.get())) match {
+      case Some(appWindow) ⇒
+        log.fatal(s"Window ${appWindow} is already created.")
       case None ⇒
         pointers += window.id -> WindowSupervisor.WindowPointer(sender)(new WeakReference(window))
         if (lastActiveWindow.isEmpty) {
@@ -214,7 +212,7 @@ class WindowSupervisor extends Actor with Loggable {
   }
   /** Remove window pointer with AppWindow value. */
   protected def onDestroyed(window: AppWindow, sender: ActorRef) {
-    pointers.get(window.id).foreach(_.actor ! App.Message.Save)
+    pointers.get(window.id).foreach(_.windowActor ! App.Message.Save)
     pointers -= window.id
   }
   /** Start global focus listener when GUI is available. */
@@ -280,7 +278,7 @@ class WindowSupervisor extends Actor with Loggable {
   def start(id: UUID, widget: Widget) {
     if (Left(id, widget) != lastFocusEvent)
       pointers.get(id).foreach { pointer ⇒
-        Await.ready(ask(pointer.actor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
+        Await.ready(ask(pointer.windowActor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
         lastFocusEvent = Left(id, widget)
         activeFocusEvent = Some((id, widget))
       }
@@ -289,12 +287,13 @@ class WindowSupervisor extends Actor with Loggable {
   def stop(id: UUID, widget: Widget) {
     if (Right(id, widget) != lastFocusEvent)
       pointers.get(id).foreach { pointer ⇒
-        Await.ready(ask(pointer.actor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
+        Await.ready(ask(pointer.windowActor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
         lastFocusEvent = Right(id, widget)
         activeFocusEvent = None
       }
   }
   /** Update configuration for window. */
+  @log
   protected def setConfiguration(sender: ActorRef, windowId: UUID, configuration: WindowConfiguration) = {
     configurations(windowId) = configuration
   }
@@ -393,6 +392,10 @@ object WindowSupervisor extends Loggable {
   }
   /** WindowSupervisor actor path. */
   lazy val actorPath = UI.path / id
+  /** Get window id. */
+  def getId(window: AppWindow) = Option(window.id)
+  /** Get window id. */
+  def getId(window: JWindow) = Option(window.getShell().getData(UI.swtId).asInstanceOf[UUID])
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   // Initialize descendant actor singletons
@@ -401,35 +404,6 @@ object WindowSupervisor extends Loggable {
   /** WindowSupervisor actor reference configuration object. */
   def props = DI.props
 
-  trait Message extends App.Message
-  object Message {
-    /** Get window configuration. */
-    case class Get(windowId: Option[UUID])
-    object Get {
-      def apply(window: AppWindow): Get = apply(Option(window.id))
-      def apply(window: JWindow): Get = {
-        val id = Option(window.getShell().getData(UI.swtId).asInstanceOf[UUID])
-        if (id.isEmpty) log.fatal(s"${window} window ID not found.")
-        apply(id)
-      }
-    }
-    /** Get all known windows. */
-    case object Peek extends Message
-    /** Save window configuration. */
-    case class Set(windowId: UUID, configuration: WindowConfiguration)
-    object Set {
-      def apply(window: AppWindow, configuration: WindowConfiguration): Set = apply(window.id, configuration)
-      def apply(window: JWindow, configuration: WindowConfiguration): Set = {
-        val id = Option(window.getShell().getData(UI.swtId).asInstanceOf[UUID])
-        id match {
-          case Some(id) ⇒
-            apply(id, configuration)
-          case None ⇒
-            throw new IllegalArgumentException(s"${window} window ID not found.")
-        }
-      }
-    }
-  }
   /**
    * Window pointers map.
    * Shut down application on empty.
@@ -456,7 +430,11 @@ object WindowSupervisor extends Loggable {
     }
   }
   /** Wrapper that contains window and ActorRef. */
-  case class WindowPointer(val actor: ActorRef)(val window: WeakReference[AppWindow])
+  case class WindowPointer(val windowActor: ActorRef)(val appWindowRef: WeakReference[AppWindow]) {
+    def stackSupervisorActor: ActorRef = App.getActorRef(windowActor.path / StackSupervisor.id) getOrElse {
+      throw new IllegalStateException(s"Unable to get StackSupervisor for ${windowActor}.")
+    }
+  }
   /**
    * Dependency injection routines.
    */

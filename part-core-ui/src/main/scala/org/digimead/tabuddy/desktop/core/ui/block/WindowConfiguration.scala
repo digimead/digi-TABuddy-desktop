@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -67,7 +67,7 @@ case class WindowConfiguration(
   /** Window location. -1 for default value. */
   val location: Rectangle,
   /** List of window view */
-  valviews: Seq[UUID]) {
+  val views: Seq[UUID]) {
   val timestamp = System.currentTimeMillis()
 }
 

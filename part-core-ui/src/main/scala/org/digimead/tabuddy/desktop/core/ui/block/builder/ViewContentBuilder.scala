@@ -65,7 +65,10 @@ import scala.collection.immutable
 import scala.concurrent.Await
 import scala.language.implicitConversions
 
-class StackViewBuilder extends Loggable {
+/**
+ * Create initial view content.
+ */
+class ViewContentBuilder extends Loggable {
   /**
    * Build view actor and get actor content.
    * Must not be UI thread.
@@ -141,6 +144,7 @@ class StackViewBuilder extends Loggable {
     }
     // Create widget content
     viewWidget.flatMap { widget ⇒
+      // Ask widget.contentRef to create it
       Await.result(ask(widget.contentRef, App.Message.Create(Left(widget)))(Timeout.short), Timeout.short) match {
         case App.Message.Create(Right(contentContainerWidget), None) ⇒
           log.debug(s"View layer ${configuration} content created.")
@@ -162,17 +166,17 @@ class StackViewBuilder extends Loggable {
   }
 }
 
-object StackViewBuilder {
-  implicit def builder2implementation(c: StackViewBuilder.type): StackViewBuilder = c.inner
+object ViewContentBuilder {
+  implicit def builder2implementation(c: ViewContentBuilder.type): ViewContentBuilder = c.inner
 
-  /** StackViewBuilder implementation. */
+  /** ViewContentBuilder implementation. */
   def inner = DI.implementation
 
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** StackViewBuilder implementation. */
-    lazy val implementation = injectOptional[StackViewBuilder] getOrElse new StackViewBuilder
+    /** ViewContentBuilder implementation. */
+    lazy val implementation = injectOptional[ViewContentBuilder] getOrElse new ViewContentBuilder
   }
 }

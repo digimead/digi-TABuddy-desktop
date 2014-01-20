@@ -66,7 +66,7 @@ class StackBuilder extends Loggable {
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }
         // Attach list of Configuration.View(from tab.children) to ScrolledComposite(from containers)
         val tabs = for { (container, viewConfiguration) <- containers zip tab.children } yield {
-          StackViewBuilder(viewConfiguration, container, parentContext, supervisorContext) match {
+          ViewContentBuilder(viewConfiguration, container, parentContext, supervisorContext) match {
             case result @ Some(viewWidget) =>
               App.execNGet {
                 // Adjust tab.

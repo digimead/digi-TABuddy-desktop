@@ -49,7 +49,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor, ViewLayer }
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackTabBuilder
-import org.digimead.tabuddy.desktop.core.ui.block.builder.StackViewBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.SCompositeTab
 import scala.language.implicitConversions
 
@@ -67,7 +67,7 @@ class TransformAttachView extends Loggable {
         newView.image.foreach(tabItem.setImage)
       })
     }
-    StackViewBuilder(viewConfiguration, parentWidget, ss.parentContext, ss.context)
+    ViewContentBuilder(viewConfiguration, parentWidget, ss.parentContext, ss.context)
   }
 }
 

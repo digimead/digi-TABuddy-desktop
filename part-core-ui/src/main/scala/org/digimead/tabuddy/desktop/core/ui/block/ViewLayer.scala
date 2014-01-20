@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.builder.StackViewBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
 import org.eclipse.core.databinding.observable.Diffs
 import org.eclipse.core.databinding.observable.value.AbstractObservableValue
@@ -83,13 +83,13 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
     } foreach { sender ! _ }
 
     case message @ App.Message.Destroy ⇒ App.traceMessage(message) {
-      /*destroy(sender) match {
+      destroy(sender) match {
         case Some(viewWidget) ⇒
-          App.publish(App.Message.Create(Right(viewWidget), self))
-          App.Message.Create(Right(viewWidget))
+          App.publish(App.Message.Destroy(Right(viewWidget), self))
+          App.Message.Destroy(Right(viewWidget))
         case None ⇒
-          App.Message.Error(s"Unable to create ${viewConfiguration}.")
-      }*/
+          App.Message.Error(s"Unable to destroy ${view}.")
+      }
     } foreach { sender ! _ }
 
     case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
@@ -108,17 +108,17 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertEventThread(false)
-    StackViewBuilder(viewConfiguration, self, viewContext, parentWidget) match {
-      case Some(viewWidget) ⇒
-        this.view = Some(viewWidget)
+    ViewContentBuilder(viewConfiguration, self, viewContext, parentWidget) match {
+      case Some(viewWidgetWithContent) ⇒
+        this.view = Some(viewWidgetWithContent)
         // Update parent tab title if any.
         App.execAsync {
           parentWidget.getParent() match {
             case tab: SCompositeTab ⇒
               tab.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
                 case Some(tabItem) ⇒
-                  App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(viewWidget.contentRef))
-                  tabItem.setText(viewConfiguration.factory().title(viewWidget.contentRef).getValue().asInstanceOf[String])
+                  App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(viewWidgetWithContent.contentRef))
+                  tabItem.setText(viewConfiguration.factory().title(viewWidgetWithContent.contentRef).getValue().asInstanceOf[String])
                 case None ⇒
                   log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
               }
@@ -128,6 +128,24 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
         this.view
       case None ⇒
         log.fatal(s"Unable to build view ${viewConfiguration}.")
+        None
+    }
+  }
+  /** Destroy view. */
+  protected def destroy(initiator: ActorRef): Option[VComposite] = view.flatMap { view ⇒
+    // Ask widget.contentRef to destroy it
+    Await.result(ask(view.contentRef, App.Message.Destroy(Left(view)))(Timeout.short), Timeout.short) match {
+      case App.Message.Destroy(Right(viewDestroyed: VComposite), None) ⇒
+        if (viewDestroyed != view)
+          throw new IllegalArgumentException(s"Expected ${view}, but received ${viewDestroyed}")
+        log.debug(s"View layer ${view} content is destroyed.")
+        App.execNGet { view.dispose() }
+        Some(view)
+      case App.Message.Error(error, None) ⇒
+        log.fatal(s"Unable to destroy content for view layer ${view}: ${error}.")
+        None
+      case _ ⇒
+        log.fatal(s"Unable to destroy content for view layer ${view}.")
         None
     }
   }

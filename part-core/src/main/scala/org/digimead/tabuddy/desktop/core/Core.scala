@@ -138,6 +138,8 @@ class Core extends akka.actor.Actor with Loggable {
 
     case message: BundleContext ⇒ App.traceMessage(message) { main(message) }
 
+    case UnhandledMessage(message: App.Message, sender, self) if message.source != null ⇒
+      log.error(s"Received unexpected message '${sender}' -> '${self}': '${message}'", message.source)
     case UnhandledMessage(message, sender, self) ⇒
       log.fatal(s"Received unexpected message '${sender}' -> '${self}': '${message}'")
   }

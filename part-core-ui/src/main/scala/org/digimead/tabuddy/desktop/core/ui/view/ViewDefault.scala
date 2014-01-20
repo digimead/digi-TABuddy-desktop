@@ -69,20 +69,23 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(Left(parentWidget: VComposite), None) ⇒ App.traceMessage(message) {
-      create(parentWidget) match {
+    case message @ App.Message.Create(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
+      create(viewLayerWidget) match {
         case Some(contentWidget) ⇒
           App.publish(App.Message.Create(Right(contentWidget), self))
           App.Message.Create(Right(contentWidget))
         case None ⇒
-          App.Message.Error(s"Unable to create ${this} for ${parentWidget}.")
+          App.Message.Error(s"Unable to create ${this} in ${viewLayerWidget}.")
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy ⇒ App.traceMessage(message) {
-      App.execNGet { destroy(sender) }
-      this.view = None
-    }
+    case message @ App.Message.Destroy(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
+      this.view.map { viewLayerWidget ⇒
+        App.execNGet { destroy(sender) }
+        this.view = None
+        App.Message.Destroy(Right(viewLayerWidget))
+      } getOrElse App.Message.Error(s"Unable to destroy ${this} in ${viewLayerWidget}.")
+    } foreach { sender ! _ }
 
     case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
       onStart(widget)
@@ -98,6 +101,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
    * Create view content.
    * @return content container.
    */
+  @log
   protected def create(parent: VComposite): Option[Composite] = {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
@@ -113,6 +117,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
     Some(null)
   }
   /** Destroy created window. */
+  @log
   protected def destroy(sender: ActorRef) = this.view.foreach { view ⇒
     App.assertEventThread()
   }

@@ -55,17 +55,19 @@ import org.eclipse.core.runtime.{ IStatus, MultiStatus, Status }
 import org.eclipse.jface.preference.IPreferenceStore
 import org.eclipse.ui.preferences.ScopedPreferenceStore
 import org.osgi.framework.{ Bundle, FrameworkUtil }
+import scala.annotation.elidable
+import scala.annotation.elidable._
 import scala.annotation.tailrec
 
 trait Generic extends EventLoop.Consumer {
   this: Loggable with Context with Thread with Watch ⇒
   /** Flag indicating whether debug methods is enabled. */
-  @volatile var debug = true
+  val debug = debugMode
   /** Application preference store. */
   protected lazy val preferenceStore = new ScopedPreferenceStore(InstanceScope.INSTANCE, bundle(getClass).getSymbolicName())
   /** Flag indicating whether UI available. */
   lazy val isUIAvailable = try {
-    val state = bundle(Class.forName("org.digimead.tabuddy.desktop.ui.Activator")).getState()
+    val state = bundle(Class.forName("org.digimead.tabuddy.desktop.core.ui.Activator")).getState()
     Bundle.ACTIVE == state || { watch(UIFlag).waitForStart(Timeout.short); isActive(UIFlag) }
   } catch {
     case e: TimeoutException ⇒ false
@@ -146,6 +148,9 @@ trait Generic extends EventLoop.Consumer {
     }.seq
     copyRecursiveImpl(toNextCopy.flatten)
   }
+  /** Returns debug mode. */
+  @elidable(FINE) protected def debugMode: Boolean = true
+
   /** Process files recursively in parallel from the tail. */
   @tailrec
   final protected def processRecursiveImpl[T](toList: Iterable[File], toProcess: Seq[Iterable[File]], depth: Int, maxDepth: Int)(f: File ⇒ T): Seq[Iterable[T]] = {

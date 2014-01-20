@@ -73,7 +73,7 @@ class UI extends akka.actor.Actor with Loggable {
   /*
    * UI component actors.
    */
-  val watcherRef = context.actorOf(Watcher.props, Watcher.id)
+  val watcherRef = context.actorOf(WindowWatcher.props, WindowWatcher.id)
   val windowSupervisorRef = context.actorOf(WindowSupervisor.props, WindowSupervisor.id)
 
   if (App.watch(Activator, Core, this).hooks.isEmpty)
@@ -180,7 +180,7 @@ object UI extends support.Generic with Loggable {
   Core
   WindowSupervisor
 
-  override def toString = "Core.UI[Singleton]"
+  override def toString = "UI[Singleton]"
 
   /*
    * Explicit import of runtime components.

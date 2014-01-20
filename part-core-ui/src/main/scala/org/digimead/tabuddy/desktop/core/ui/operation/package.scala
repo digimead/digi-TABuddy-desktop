@@ -48,6 +48,6 @@ import org.digimead.digi.lib.DependencyInjection
 
 package object operation {
   lazy val default = new NewBindingModule(module ⇒ {})
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.operation.OperationClose$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.operation.OperationView$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.operation.OperationViewClose$DI$")
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate$DI$")
 }

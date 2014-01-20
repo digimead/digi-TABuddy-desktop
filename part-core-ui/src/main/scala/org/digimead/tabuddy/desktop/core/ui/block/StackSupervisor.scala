@@ -56,7 +56,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.builder.StackViewBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, SCompositeHSash, SCompositeTab, SCompositeVSash, VComposite, WComposite }
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.{ Composite, Shell, Widget }
@@ -102,7 +102,6 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     case message @ App.Message.Create(Left(viewFactory: ViewLayer.Factory), None) ⇒ App.traceMessage(message) {
       create(viewFactory) match {
         case Some(windowComposite) ⇒
-          App.publish(App.Message.Create(Right(windowComposite)))
           App.Message.Create(Right(windowComposite))
         case None ⇒
           App.Message.Error(s"Unable to create ${viewFactory}.")
@@ -117,10 +116,15 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       onDestroyed(stackLayer)
     }
 
+    case message @ App.Message.Get(Configuration) ⇒ sender ! configuration.container.get
+
+    case message @ App.Message.Get(Option) ⇒ sender ! lastActiveViewIdForCurrentWindow.get
+
+    case message @ App.Message.Get(Seq) ⇒ sender ! pointers.toSeq
+
     case message @ App.Message.Restore(Left(content: WComposite), None) ⇒ App.traceMessage(message) {
       restore(content) match {
         case Some(windowComposite) ⇒
-          App.publish(App.Message.Create(Right(windowComposite)))
           App.Message.Create(Right(windowComposite))
         case None ⇒
           App.Message.Error(s"Unable to restore content for ${content}.")
@@ -152,13 +156,6 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     case message @ App.Message.Destroy(_, _) ⇒
     case message @ App.Message.Start(_, _) ⇒
     case message @ App.Message.Stop(_, _) ⇒
-
-    /*
-     * REPL interaction
-     */
-    case "configuration" ⇒ sender ! configuration.container.get
-    case "lastActiveViewIdForCurrentWindow" ⇒ sender ! lastActiveViewIdForCurrentWindow.get
-    case "pointers" ⇒ sender ! pointers
   }
 
   /** Create new stack element from configuration */
@@ -190,7 +187,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       case (parent, viewConfiguration: Configuration.View) ⇒
         // There is only a view that is directly attached to the window.
         log.debug(s"Attach ${viewConfiguration} as top level element.")
-        StackViewBuilder(viewConfiguration, parentWidget, parentContext, context) match {
+        ViewContentBuilder(viewConfiguration, parentWidget, parentContext, context) match {
           case result @ Some(viewWidget) ⇒
             pointers += stackId -> StackSupervisor.StackPointer(viewWidget.ref)(new WeakReference(viewWidget))
             result

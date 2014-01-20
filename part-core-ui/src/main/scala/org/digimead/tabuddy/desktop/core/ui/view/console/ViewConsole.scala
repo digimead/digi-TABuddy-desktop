@@ -80,10 +80,14 @@ class ViewConsole(val contentId: UUID) extends Actor with Loggable {
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy ⇒ App.traceMessage(message) {
-      App.execNGet { destroy(sender) }
-      this.view = None
-    }
+    case message @ App.Message.Destroy(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
+      this.view.map { viewLayerWidget ⇒
+        App.execNGet { destroy(sender) }
+        this.view = None
+        App.Message.Destroy(Right(viewLayerWidget))
+      } getOrElse App.Message.Error(s"Unable to destroy ${this} in ${viewLayerWidget}.")
+    } foreach { sender ! _ }
+
 
     case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
       onStart(widget)
@@ -99,6 +103,7 @@ class ViewConsole(val contentId: UUID) extends Actor with Loggable {
    * Create view content.
    * @return content container.
    */
+  @log
   protected def create(parent: VComposite): Option[Composite] = {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
@@ -113,6 +118,7 @@ class ViewConsole(val contentId: UUID) extends Actor with Loggable {
     Some(null)
   }
   /** Destroy created window. */
+  @log
   protected def destroy(sender: ActorRef) = this.view.foreach { view ⇒
     App.assertEventThread()
   }

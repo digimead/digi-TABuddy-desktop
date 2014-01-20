@@ -75,6 +75,7 @@ object CommandInfo extends Loggable {
             |os: ${info.os}
             |arch: ${info.arch}
             |platform: ${info.platform}
+            |debug mode: ${if (App.debug) "enabled" else "disabled"}
             |${
           info.component.map { c ⇒
             val code = try {

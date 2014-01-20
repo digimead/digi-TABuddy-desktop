@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
  * Register action in new windows.
  * There is no need subscribe to App.Message.Destroyed because SWT dispose will do all job.
  */
-class Watcher extends Actor with Loggable {
+class WindowWatcher extends Actor with Loggable {
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
@@ -85,25 +85,25 @@ class Watcher extends Actor with Loggable {
       adjustToolbar(window)
     }
     // publish that window menu and toolbar are ready
-    App.publish(App.Message.Create(Right(Watcher, window), self))
+    App.publish(App.Message.Create(Right(WindowWatcher, window), self))
   }
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(window, Watcher.fileMenu)
+    val file = WindowMenu(window, WindowWatcher.fileMenu)
     file.add(action.ActionExit)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val commonToolBar = WindowToolbar(window, Watcher.commonToolbar)
+    val commonToolBar = WindowToolbar(window, WindowWatcher.commonToolbar)
     commonToolBar.getToolBarManager().add(action.ActionExit)
     commonToolBar.getToolBarManager().add(action.ActionTest)
     window.getCoolBarManager2().update(true)
   }
 }
 
-object Watcher {
+object WindowWatcher {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Common toolbar descriptor. */
@@ -114,11 +114,13 @@ object Watcher {
   /** Core actor reference configuration object. */
   def props = DI.props
 
+  override def toString = "WindowWatcher[Singleton]"
+
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Watcher actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.UI.Watcher") getOrElse Props[Watcher]
+    /** WindowWatcher actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Core.UI.WindowWatcher") getOrElse Props[WindowWatcher]
   }
 }
