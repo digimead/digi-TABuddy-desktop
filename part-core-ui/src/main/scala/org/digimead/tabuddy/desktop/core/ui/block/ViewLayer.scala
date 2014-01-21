@@ -47,6 +47,7 @@ import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
@@ -55,14 +56,14 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, SCompositeTab, VComposite }
 import org.eclipse.core.databinding.observable.Diffs
 import org.eclipse.core.databinding.observable.value.AbstractObservableValue
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.graphics.Image
-import org.eclipse.swt.widgets.Widget
-import scala.collection.mutable
+import org.eclipse.swt.widgets.{ Composite, Widget }
+import scala.collection.{ immutable, mutable }
 import scala.concurrent.Await
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
@@ -83,9 +84,9 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
     } foreach { sender ! _ }
 
     case message @ App.Message.Destroy ⇒ App.traceMessage(message) {
-      destroy(sender) match {
+      destroy() match {
         case Some(viewWidget) ⇒
-          App.publish(App.Message.Destroy(Right(viewWidget), self))
+          // App.publish(App.Message.Destroy(Right(viewWidget), self)) via VComposite dispose listener
           App.Message.Destroy(Right(viewWidget))
         case None ⇒
           App.Message.Error(s"Unable to destroy ${view}.")
@@ -125,6 +126,10 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
             case other ⇒
           }
         }
+        // Add new view to the common map.
+        ViewLayer.viewMapRWL.writeLock().lock()
+        try ViewLayer.viewMap += viewWidgetWithContent -> self
+        finally ViewLayer.viewMapRWL.writeLock().unlock()
         this.view
       case None ⇒
         log.fatal(s"Unable to build view ${viewConfiguration}.")
@@ -132,12 +137,16 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
     }
   }
   /** Destroy view. */
-  protected def destroy(initiator: ActorRef): Option[VComposite] = view.flatMap { view ⇒
+  protected def destroy(): Option[VComposite] = view.flatMap { view ⇒
+    // Remove view from the common map.
+    ViewLayer.viewMapRWL.writeLock().lock()
+    try ViewLayer.viewMap -= view
+    finally ViewLayer.viewMapRWL.writeLock().unlock()
     // Ask widget.contentRef to destroy it
     Await.result(ask(view.contentRef, App.Message.Destroy(Left(view)))(Timeout.short), Timeout.short) match {
-      case App.Message.Destroy(Right(viewDestroyed: VComposite), None) ⇒
-        if (viewDestroyed != view)
-          throw new IllegalArgumentException(s"Expected ${view}, but received ${viewDestroyed}")
+      case App.Message.Destroy(Right(body: Composite), None) ⇒
+        if (body.isInstanceOf[SComposite]) // This must be not a part of stack.
+          throw new IllegalArgumentException(s"Illegal body received ${body}")
         log.debug(s"View layer ${view} content is destroyed.")
         App.execNGet { view.dispose() }
         Some(view)
@@ -171,6 +180,10 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
 object ViewLayer {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  /** All application view layers. */
+  protected val viewMap = mutable.WeakHashMap[VComposite, ActorRef]()
+  /** View layer map lock. */
+  protected val viewMapRWL = new ReentrantReadWriteLock
 
   /** ViewLayer actor reference configuration object. */
   def props = DI.props
@@ -233,6 +246,17 @@ object ViewLayer {
       }
       /** Get actual value. */
       protected def doGetValue(): AnyRef = value
+    }
+  }
+  /**
+   * View map consumer.
+   */
+  trait ViewMapConsumer {
+    /** Get map with all application view layers. */
+    def viewMap: immutable.Map[VComposite, ActorRef] = {
+      ViewLayer.viewMapRWL.readLock().lock()
+      try ViewLayer.viewMap.toMap
+      finally ViewLayer.viewMapRWL.readLock().unlock()
     }
   }
   /**

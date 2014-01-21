@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block.builder
 
-import akka.actor.{ActorContext, ActorRef}
+import akka.actor.{ ActorContext, ActorRef }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -62,29 +62,29 @@ class StackBuilder extends Loggable {
   @log
   def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
     stack match {
-      case tab: Configuration.Stack.Tab =>
+      case tab: Configuration.Stack.Tab ⇒
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }
         // Attach list of Configuration.View(from tab.children) to ScrolledComposite(from containers)
-        val tabs = for { (container, viewConfiguration) <- containers zip tab.children } yield {
+        val tabs = for { (container, viewConfiguration) ← containers zip tab.children } yield {
           ViewContentBuilder(viewConfiguration, container, parentContext, supervisorContext) match {
-            case result @ Some(viewWidget) =>
+            case result @ Some(viewWidget) ⇒
               App.execNGet {
                 // Adjust tab.
-                tabComposite.getItems().find { item => item.getData(UI.swtId) == viewConfiguration.id } match {
-                  case Some(tabItem) =>
+                tabComposite.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
+                  case Some(tabItem) ⇒
                     container.setContent(viewWidget)
                     container.setMinSize(viewWidget.computeSize(SWT.DEFAULT, SWT.DEFAULT))
                     container.layout(true)
                     App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(viewWidget.contentRef))
                     tabItem.setText(viewConfiguration.factory().title(viewWidget.contentRef).getValue().asInstanceOf[String])
                     Some(viewWidget)
-                  case None =>
+                  case None ⇒
                     log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")
                     None
                 }
               }
               result
-            case None =>
+            case None ⇒
               None
           }
         }
@@ -100,20 +100,24 @@ class StackBuilder extends Loggable {
         } else
           None
 
-      case hsash: Configuration.Stack.HSash =>
+      case hsash: Configuration.Stack.HSash ⇒
         val (sashComposite, left, right) = StackHSashBuilder(hsash, parentWidget, stackRef)
         //buildLevel(hsash.left, left)
         //buildLevel(hsash.right, right)
         Option(sashComposite)
 
-      case vsash: Configuration.Stack.VSash =>
+      case vsash: Configuration.Stack.VSash ⇒
         val (sashComposite, top, bottom) = StackVSashBuilder(vsash, parentWidget, stackRef)
         //buildLevel(vsash.top, top)
         //buildLevel(vsash.bottom, bottom)
         Option(sashComposite)
 
-      case view: Configuration.View =>
+      case view: Configuration.View ⇒
         log.fatal("Unable to process view as stack.")
+        None
+
+      case empty: Configuration.Empty ⇒
+        log.fatal("Unable to process empty element as stack.")
         None
     }
   }

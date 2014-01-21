@@ -146,7 +146,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     } foreach { sender ! _ }
 
     case message @ App.Message.Update(Right(stackLayer: SComposite), Some(publisher)) ⇒ App.traceMessage(message) {
-      onUpdated(stackLayer)
+      updatedStackConfiguration(Some(stackLayer))
     }
 
     /*
@@ -158,7 +158,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     case message @ App.Message.Stop(_, _) ⇒
   }
 
-  /** Create new stack element from configuration */
+  /** Create new stack element from configuration. */
   protected def create(stackId: UUID, parentWidget: ScrolledComposite): Option[SComposite] = {
     log.debug("Create a top level stack element with id %08X=%s.".format(stackId.hashCode(), stackId))
     if (pointers.contains(stackId))
@@ -194,10 +194,12 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
           case None ⇒
             None
         }
+      case (parent, viewConfiguration: Configuration.Empty) ⇒
+        // Skip an empty configuration.
+        None
     }
   }
   /** Create new view within stack hierarchy. */
-  @log
   protected def create(viewFactory: ViewLayer.Factory): Option[VComposite] = {
     if (container.isEmpty)
       throw new IllegalStateException(s"Unable to create view from ${viewFactory}. Stack container isn't created.")
@@ -238,11 +240,17 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   /** Register created stack element. */
   protected def onCreated(stackLayer: SComposite, sender: ActorRef) {
     pointers += stackLayer.id -> StackSupervisor.StackPointer(sender)(new WeakReference(stackLayer))
-    onUpdated(stackLayer)
+    updatedStackConfiguration(Some(stackLayer))
   }
   /** Unregister destroyed stack element. */
   protected def onDestroyed(stack: SComposite) {
+    val stackOpt = Option(stack.id)
     pointers -= stack.id
+    if (lastActiveViewIdForCurrentWindow.get() == stackOpt)
+      lastActiveViewIdForCurrentWindow.set(None)
+    if (UI.getActiveView().map(_.id) == stackOpt)
+      Core.context.remove(UI.viewContextKey)
+    updatedStackConfiguration(None)
   }
   /** User start interaction with window/stack supervisor. Focus is gained. */
   protected def onStart(widget: Widget) {
@@ -292,39 +300,48 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       actualWidget.foreach(actualWidget ⇒ Await.ready(ask(viewPointer.actor, App.Message.Stop(Left(actualWidget)))(Timeout.short), Timeout.short))
     }
   }
-  /** Stack layer updated. */
-  def onUpdated(stackLayer: SComposite) {
-    stackLayer match {
-      case view: VComposite ⇒
-        log.debug(s"${view} created. Process widgets hierarchy.")
-        val existHierarchy = stackLayer.id +: configuration.parents(stackLayer.id) :+ windowId
-        val newHierarchy = App.execNGet {
-          UI.widgetHierarchy(stackLayer).map {
-            case shell: Shell ⇒
-              val id = shell.getData(UI.swtId)
-              if (id == null)
-                throw new IllegalStateException("Unable to find AppWindow id.")
-              id
-            case widget: SComposite ⇒
-              widget.id
-          }
+  /** Update stack layer configuration. */
+  def updatedStackConfiguration(stackLayer: Option[SComposite]): Unit = stackLayer match {
+    case Some(view: VComposite) ⇒
+      log.debug(s"${view} created. Process widgets hierarchy.")
+      val existHierarchy = view.id +: configuration.parents(view.id) :+ windowId
+      val newHierarchy = App.execNGet {
+        UI.widgetHierarchy(view).map {
+          case shell: Shell ⇒
+            val id = shell.getData(UI.swtId)
+            if (id == null)
+              throw new IllegalStateException("Unable to find AppWindow id.")
+            id
+          case widget: SComposite ⇒
+            widget.id
         }
-        if (existHierarchy == newHierarchy)
-          log.debug("Widgets hierarchy is preserved.")
-        else {
-          log.debug("Rebuild widgets hierarchy.")
-          App.execNGet { stackLayer.getShell().getChildren().map(rebuildConfiguration).flatten } match {
-            case Array(topLayerConfigurationElement) ⇒
-              configuration.set(Configuration(topLayerConfigurationElement))
-            case unexpected ⇒
-              log.fatal(s"Unexpected configuration: ${unexpected.mkString(", ")}")
-          }
+      }
+      if (existHierarchy == newHierarchy)
+        log.debug("Widgets hierarchy is preserved.")
+      else {
+        log.debug("Rebuild widgets hierarchy.")
+        App.execNGet { view.getShell().getChildren().map(rebuildConfiguration).flatten } match {
+          case Array(topLayerConfigurationElement) ⇒
+            configuration.set(Configuration(topLayerConfigurationElement))
+          case unexpected ⇒
+            log.fatal(s"Unexpected configuration: ${unexpected.mkString(", ")}")
         }
-        // Set active if none.
-        if (lastActiveViewIdForCurrentWindow.get().isEmpty && stackLayer.isInstanceOf[VComposite])
-          setActiveView(stackLayer.id, stackLayer)
-      case other ⇒
-    }
+      }
+      // Set active if none.
+      if (lastActiveViewIdForCurrentWindow.get().isEmpty)
+        setActiveView(view.id, view)
+    case Some(other) ⇒
+    case None ⇒
+      log.debug("Rebuild widgets hierarchy.")
+      App.execNGet {
+        UI.getActiveShell().map(_.getChildren().
+          flatMap(rebuildConfiguration)).getOrElse(Array[Configuration.PlaceHolder]())
+      } match {
+        case Array(topLayerConfigurationElement) ⇒
+          configuration.set(Configuration(topLayerConfigurationElement))
+        case Array() ⇒
+          configuration.set(Configuration(Configuration.Empty()))
+      }
   }
   /** Rebuild configuration from the actual widgets hierarchy */
   protected def rebuildConfiguration(widget: Widget): Option[Configuration.PlaceHolder] = widget match {
@@ -446,6 +463,7 @@ object StackSupervisor extends Loggable {
             visit(vsash.top, Some(vsash.id))
             visit(vsash.bottom, Some(vsash.id))
           case view: Configuration.View ⇒
+          case empty: Configuration.Empty ⇒
         }
       }
       visit(configuration.stack, None)

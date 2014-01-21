@@ -64,27 +64,31 @@ import scala.collection.immutable
 import scala.concurrent.{ Await, Future }
 
 class ViewDefault(val contentId: UUID) extends Actor with Loggable {
-  /** Parent view widget. */
-  @volatile protected var view: Option[VComposite] = None
+  /** View parent widget. */
+  @volatile protected var parent: Option[VComposite] = None
+  /** View body widget. */
+  @volatile protected var body: Option[Composite] = None
   log.debug("Start actor " + self.path)
 
   def receive = {
     case message @ App.Message.Create(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
       create(viewLayerWidget) match {
-        case Some(contentWidget) ⇒
-          App.publish(App.Message.Create(Right(contentWidget), self))
-          App.Message.Create(Right(contentWidget))
+        case Some(body) ⇒
+          App.publish(App.Message.Create(Right(body), self))
+          App.Message.Create(Right(body))
         case None ⇒
-          App.Message.Error(s"Unable to create ${this} in ${viewLayerWidget}.")
+          App.Message.Error(s"Unable to create ${this} for ${viewLayerWidget}.")
       }
     } foreach { sender ! _ }
 
     case message @ App.Message.Destroy(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
-      this.view.map { viewLayerWidget ⇒
-        App.execNGet { destroy(sender) }
-        this.view = None
-        App.Message.Destroy(Right(viewLayerWidget))
-      } getOrElse App.Message.Error(s"Unable to destroy ${this} in ${viewLayerWidget}.")
+      destroy() match {
+        case Some(body) ⇒
+          App.publish(App.Message.Destroy(Right(body), self))
+          App.Message.Destroy(Right(body))
+        case None ⇒
+          App.Message.Error(s"Unable to destroy ${this} for ${viewLayerWidget}.")
+      }
     } foreach { sender ! _ }
 
     case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
@@ -103,27 +107,38 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
    */
   @log
   protected def create(parent: VComposite): Option[Composite] = {
-    if (view.nonEmpty)
+    if (this.parent.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertEventThread(false)
-    view = Option(parent)
     App.execNGet {
       parent.setLayout(new FillLayout())
+      val body = new Composite(parent, SWT.NONE)
+      body.setLayout(new FillLayout())
       val button = new org.eclipse.swt.widgets.Button(parent, SWT.PUSH)
       button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
       parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
       parent.layout(Array[Control](button), SWT.ALL)
+      this.parent = Option(parent)
+      this.body = Option(body)
+      this.body
     }
-    Some(null)
   }
   /** Destroy created window. */
   @log
-  protected def destroy(sender: ActorRef) = this.view.foreach { view ⇒
-    App.assertEventThread()
+  protected def destroy(): Option[Composite] = {
+    App.assertEventThread(false)
+    for {
+      parent ← parent
+      body ← body
+    } yield App.execNGet {
+      this.parent = None
+      this.body = None
+      body
+    }
   }
   /** User start interaction with window/stack supervisor/view/this content. Focus is gained. */
-  protected def onStart(widget: Widget) = view match {
-    case Some(view) ⇒
+  protected def onStart(widget: Widget) = parent match {
+    case Some(parent) ⇒
       log.debug("View started by focus event on " + widget)
     case None ⇒
       log.fatal("Unable to start view without widget.")

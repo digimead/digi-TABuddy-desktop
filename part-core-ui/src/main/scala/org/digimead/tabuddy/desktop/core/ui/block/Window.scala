@@ -58,6 +58,9 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.swt.widgets.Widget
 import scala.collection.immutable
 import scala.concurrent.Await
+import scala.collection.{ immutable, mutable }
+import scala.concurrent.Await
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /**
  * Actor that represents application window, responsible for:
@@ -90,8 +93,14 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     } foreach { sender ! _ }
 
     case message @ App.Message.Destroy ⇒ App.traceMessage(message) {
-      destroy(sender)
-    }
+      destroy(sender) match {
+        case Some(appWindow) ⇒
+          // App.publish(App.Message.Destroy(Right(appWindow), self)) via AppWindow dispose listener
+          App.Message.Destroy(Right(appWindow))
+        case None ⇒
+          App.Message.Error(s"Unable to destroy ${window}.")
+      }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Open ⇒ App.traceMessage(message) {
       open(sender)
@@ -124,8 +133,10 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     log.debug(s"Close window ${windowId}.")
     this.window.foreach(window ⇒ App.exec {
       if (window.getShell() != null && !window.getShell().isDisposed())
-        if (sender != context.system.deadLetters)
-          sender ! Window.Message.CloseResult(window.close())
+        if (sender != context.system.deadLetters) {
+          val closeResult = window.close()
+          sender ! Window.Message.CloseResult(closeResult)
+        }
     })
   }
   /** Create window. */
@@ -137,14 +148,25 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     this.window = App.execNGet {
       val window = new AppWindow(windowId, self, stackSupervisor, windowContext, null)
       window.configuration = Some(configuration)
+      // Add new window to the common map.
+      Window.windowMapRWL.writeLock().lock()
+      try Window.windowMap += window -> self
+      finally Window.windowMapRWL.writeLock().unlock()
       Option(window)
     }
     this.window
   }
   /** Destroy created window. */
-  protected def destroy(sender: ActorRef) = this.window.foreach { window ⇒
+  protected def destroy(sender: ActorRef): Option[AppWindow] = this.window.map { window ⇒
+    log.debug(s"Destroy window ${windowId}.")
+    // Remove window from the common map.
+    Window.windowMapRWL.writeLock().lock()
+    try Window.windowMap -= window
+    finally Window.windowMapRWL.writeLock().unlock()
     window.saveOnClose = false
     close(sender)
+    this.window = None
+    window
   }
   /** User start interaction with window. Focus is gained. */
   @log
@@ -179,6 +201,10 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
 object Window extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  /** All application windows. */
+  protected val windowMap = mutable.WeakHashMap[AppWindow, ActorRef]()
+  /** Window map lock. */
+  protected val windowMapRWL = new ReentrantReadWriteLock
   // Initialize descendant actor singletons
   StackSupervisor
 
@@ -195,6 +221,17 @@ object Window extends Loggable {
     case object Get
     case class OpenResult private[Window] (arg: Int) extends Message
     case class CloseResult private[Window] (arg: Boolean) extends Message
+  }
+  /**
+   * Window map consumer.
+   */
+  trait WindowMapConsumer {
+    /** Get map with all application windows. */
+    def windowMap: immutable.Map[AppWindow, ActorRef] = {
+      Window.windowMapRWL.readLock().lock()
+      try Window.windowMap.toMap
+      finally Window.windowMapRWL.readLock().unlock()
+    }
   }
   /**
    * Dependency injection routines.

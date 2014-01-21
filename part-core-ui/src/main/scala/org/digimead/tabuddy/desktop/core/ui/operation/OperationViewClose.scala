@@ -54,10 +54,11 @@ import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
-/** 'Close a view' operation. */
+/** 'Close view' operation. */
 class OperationViewClose extends api.OperationViewClose with Loggable {
   /**
-   * Close a view.
+   * Close view.
+   *
    * @param vComposite view composite
    */
   def apply(vComposite: AnyRef) {
@@ -67,8 +68,10 @@ class OperationViewClose extends api.OperationViewClose with Loggable {
     vComposite.asInstanceOf[VComposite].ref ? App.Message.Destroy
   }
   /**
-   * Create 'Close a view' operation.
+   * Create 'Close view' operation.
+   *
    * @param vComposite view composite
+   * @return 'Close view' operation
    */
   def operation(vComposite: AnyRef) = new Implemetation(vComposite)
 
@@ -109,7 +112,12 @@ object OperationViewClose extends Loggable {
   /** Stable identifier with OperationViewClose DI */
   lazy val operation = DI.operation.asInstanceOf[OperationViewClose]
 
-  /** Build a new 'Close a view' operation */
+  /**
+   *  Build a new 'Close view' operation.
+   *
+   * @param vComposite view composite
+   * @return 'Close view' operation
+   */
   @log
   def apply(vComposite: VComposite): Option[Abstract] = Some(operation.operation(vComposite))
 

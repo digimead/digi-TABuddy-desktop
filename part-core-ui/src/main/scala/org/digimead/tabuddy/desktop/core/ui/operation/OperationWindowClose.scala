@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,46 +43,37 @@
 
 package org.digimead.tabuddy.desktop.core.ui.operation
 
+import akka.pattern.ask
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
+import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
-/** 'Create view' operation. */
-class OperationViewCreate extends api.OperationViewCreate with Loggable {
+/** 'Close window' operation. */
+class OperationWindowClose extends api.OperationWindowClose with Loggable {
   /**
-   * Create view.
+   * Close window.
    *
-   * @param containerContext context with UI.windowContextKey that points to parent shell
-   * @param viewFactory new view factory
+   * @param window AppWindow instance
    */
-  def apply(containerContext: AnyRef, viewFactory: AnyRef) {
-    log.info("Create new view from " + viewFactory)
-    containerContext match {
-      case context: Context ⇒
-        context.get(UI.windowContextKey) match {
-          case window: AppWindow ⇒
-            window.ref ! App.Message.Create(Left(viewFactory))
-          case unknwon ⇒
-            log.fatal(s"Unable to find active window for ${this}: '${containerContext}', '${viewFactory}'.")
-        }
-    }
+  def apply(window: AnyRef) {
+    log.info(s"Close ${window}.")
+    implicit val ec = App.system.dispatcher
+    implicit val timeout = akka.util.Timeout(Timeout.short)
+    window.asInstanceOf[AppWindow].ref ? App.Message.Destroy
   }
   /**
-   * Create 'Create view' operation.
+   * Create 'Close window' operation.
    *
-   * @param containerContext context with UI.windowContextKey that points to parent shell
-   * @param viewFactory new view factory
-   * @return 'Create view' operation
+   * @param window AppWindow instance
+   * @return 'Close window' operation
    */
-  def operation(activeContext: AnyRef, viewFactory: AnyRef) =
-    new Implemetation(activeContext.asInstanceOf[Context], viewFactory.asInstanceOf[ViewLayer.Factory])
+  def operation(window: AnyRef) = new Implemetation(window.asInstanceOf[AppWindow])
 
   /**
    * Checks that this class can be subclassed.
@@ -100,8 +91,7 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(activeContext: Context, viewFactory: ViewLayer.Factory)
-    extends OperationViewCreate.Abstract(activeContext, viewFactory) with Loggable {
+  class Implemetation(window: AppWindow) extends OperationWindowClose.Abstract(window) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -109,7 +99,7 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      try Operation.Result.OK(Option(OperationViewCreate.this(activeContext, viewFactory)))
+      try Operation.Result.OK(Option(OperationWindowClose.this(window)))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
@@ -118,30 +108,27 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
   }
 }
 
-object OperationViewCreate extends Loggable {
-  /** Stable identifier with OperationViewCreate DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationViewCreate]
+object OperationWindowClose extends Loggable {
+  /** Stable identifier with OperationWindowClose DI */
+  lazy val operation = DI.operation.asInstanceOf[OperationWindowClose]
 
   /**
-   * Build a new 'Create view' operation.
+   * Build a new 'Close window' operation.
    *
-   * @param containerContext context with UI.windowContextKey that points to parent shell
-   * @param viewFactory new view factory
-   * @return 'Create view' operation
+   * @param window AppWindow instance
+   * @return 'Close window' operation
    */
   @log
-  def apply(activeContext: Context, viewFactory: ViewLayer.Factory): Option[Abstract] =
-    Some(operation.operation(activeContext, viewFactory))
+  def apply(window: AppWindow): Option[Abstract] = Some(operation.operation(window))
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val activeContext: Context, val viewFactory: ViewLayer.Factory)
-    extends Operation[Unit](s"Create view with ${viewFactory}.") {
+  abstract class Abstract(val window: AppWindow) extends Operation[Unit](s"Close ${window}.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationViewCreate] getOrElse new OperationViewCreate
+    lazy val operation = injectOptional[api.OperationWindowClose] getOrElse new OperationWindowClose
   }
 }

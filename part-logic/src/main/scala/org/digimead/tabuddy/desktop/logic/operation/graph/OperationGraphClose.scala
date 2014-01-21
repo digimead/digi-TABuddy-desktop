@@ -56,7 +56,7 @@ import org.eclipse.jface.window.Window
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.MessageBox
 
-/** 'Close model' operation. */
+/** 'Close graph' operation. */
 class OperationGraphClose extends api.OperationGraphClose with Loggable {
   /**
    * Close graph.

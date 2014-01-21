@@ -53,8 +53,8 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.{ WindowConfiguration, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.block.builder.WindowContentBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.{ WindowConfiguration, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
 import org.eclipse.jface.action.{ CoolBarManager, StatusLineManager }
 import org.eclipse.jface.window.ApplicationWindow
@@ -75,8 +75,6 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   @volatile protected var filler: Option[Composite] = None
   /** Content composite that contains views. */
   @volatile protected var content: Option[WComposite] = None
-  /** Flag indicating whether the content is visible. */
-  protected val contentVisible = new AtomicBoolean()
   /** On active listener flag */
   protected val onActiveFlag = new AtomicBoolean(true)
   /** On active listener */
@@ -85,14 +83,8 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   App.assertEventThread()
   initialize()
 
-  def initialize() {
-    addStatusLine()
-    addCoolBar(SWT.FLAT | SWT.WRAP)
-    addMenuBar()
-    setBlockOnOpen(false)
-    getCoolBarManager.setOverrides(ToolBarManager.Overrides)
-  }
-
+  /** Get window content widget. */
+  def getContent() = content
   /** Update window configuration. */
   def updateConfiguration() {
     val location = getShell.getBounds()
@@ -107,7 +99,13 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     // The onPaintListener solution is not sufficient
     App.display.addFilter(SWT.Paint, onActiveListener)
     shell.addDisposeListener(new DisposeListener {
-      def widgetDisposed(e: DisposeEvent) = App.display.removeFilter(SWT.Paint, onActiveListener)
+      def widgetDisposed(e: DisposeEvent) {
+        updateConfiguration()
+        for (configuration ← configuration if saveOnClose)
+          WindowSupervisor ! App.Message.Set(id, configuration)
+        App.publish(App.Message.Destroy(Right(AppWindow.this), ref))
+        App.display.removeFilter(SWT.Paint, onActiveListener)
+      }
     })
     shell.setFocus()
     configuration.foreach { configuration ⇒
@@ -175,13 +173,13 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     status.StatusLineContributor(manager)
     manager
   }
-  /** Add close listener. */
-  override protected def handleShellCloseEvent() {
-    updateConfiguration()
-    for (configuration ← configuration if saveOnClose)
-      WindowSupervisor ! App.Message.Set(id, configuration)
-    super.handleShellCloseEvent
-    App.publish(App.Message.Destroy(Right(this), ref))
+  /** Initialize current window. */
+  protected def initialize() {
+    addStatusLine()
+    addCoolBar(SWT.FLAT | SWT.WRAP)
+    addMenuBar()
+    setBlockOnOpen(false)
+    getCoolBarManager.setOverrides(ToolBarManager.Overrides)
   }
   /** On window active. */
   protected def onActive() = {}
@@ -240,7 +238,6 @@ object AppWindow {
     def content = appWindow.content
     def configuration: Option[WindowConfiguration] = appWindow.configuration
     def configuration_=(arg: Option[WindowConfiguration]) = appWindow.configuration = arg
-    def contentVisible = appWindow.contentVisible
     def saveOnClose: Boolean = appWindow.saveOnClose
     def saveOnClose_=(arg: Boolean) = appWindow.saveOnClose = arg
   }

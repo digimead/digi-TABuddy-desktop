@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -91,6 +91,14 @@ object Configuration extends Loggable {
     def dump(indent: String): Seq[String]
     /** Map stack element to the new one. */
     def map(f: PlaceHolder ⇒ PlaceHolder): PlaceHolder = f(this)
+  }
+  case class Empty() extends PlaceHolder {
+    lazy val id: UUID = UUID.randomUUID()
+
+    /** Dump element hierarchy. */
+    def dump(indent: String): Seq[String] = Seq(indent + this.toString)
+
+    override def toString = "Configuration.Empty[%08X]".format(id.hashCode())
   }
   /** View element. */
   case class View(val factory: Factory, val id: UUID = UUID.randomUUID()) extends PlaceHolder {

@@ -58,13 +58,20 @@ trait OperationViewCreate {
   checkSubclass()
 
   /**
-   * Create a new view.
+   * Create view.
+   *
+   * @param containerContext context with UI.windowContextKey that points to parent shell
+   * @param viewFactory new view factory
    */
-  def apply(activeContext: AnyRef, viewFactory: AnyRef): Unit
+  def apply(containerContext: AnyRef, viewFactory: AnyRef): Unit
   /**
-   * Create 'Create a new view' operation.
+   * Create 'Create view' operation.
+   *
+   * @param containerContext context with UI.windowContextKey that points to parent shell
+   * @param viewFactory new view factory
+   * @return 'Create view' operation
    */
-  def operation(activeContext: AnyRef, viewFactory: AnyRef): api.Operation[Unit]
+  def operation(containerContext: AnyRef, viewFactory: AnyRef): api.Operation[Unit]
 
   /**
    * Checks that this class can be subclassed.

@@ -191,7 +191,7 @@ class WindowSupervisor extends Actor with Loggable {
       sender ! WindowConfiguration.default
   }
   /** Get last active window for this application. */
-  protected def lastActiveWindow: Option[WComposite] = Core.context.getLocal(UI.windowContextKey)
+  protected def lastActiveWindow: Option[WComposite] = UI.getActiveWindow().flatMap(_.getContent())
   /** Update/create window pointer with AppWindow value. */
   protected def onCreated(window: AppWindow, sender: ActorRef) {
     pointers.get(window.id).flatMap(ptr ⇒ Option(ptr.appWindowRef.get())) match {
@@ -202,7 +202,7 @@ class WindowSupervisor extends Actor with Loggable {
         if (lastActiveWindow.isEmpty) {
           // if there is no last active window
           // this is the 1st...
-          if (Core.context.getLocal(UI.shellContextKey).isEmpty)
+          if (UI.getActiveShell().isEmpty)
             Core.context.set(UI.shellContextKey, Seq(window.getShell()))
           Core.context.set(UI.windowContextKey, window)
         }

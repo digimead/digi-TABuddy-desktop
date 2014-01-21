@@ -123,8 +123,10 @@ object Context {
     def getActive[T](name: String): T = context.getActive(name).asInstanceOf[T]
     def getChildren(): Set[Context] = (context.getChildren.asInstanceOf[java.util.Set[Context]]).toSet
     def getLocal[T](name: String): Option[T] = Option(context.getLocal(name).asInstanceOf[T])
+    def getLocal[T](clazz: Class[T]): Option[T] = Option(context.getLocal(clazz))
     def getParent(): Option[Context] = Option(context.getParent()).map(p ⇒ p.asInstanceOf[Context])
     def get[T](name: String): Option[T] = Option(context.get(name).asInstanceOf[T])
+    def get[T](clazz: Class[T]): Option[T] = Option(context.get(clazz))
   }
 
   /** Everything is based on string. Erasure is out of scope :-( Do we need rewrite EclipseContext completely? */

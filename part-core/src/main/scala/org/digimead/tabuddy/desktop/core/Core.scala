@@ -113,20 +113,23 @@ class Core extends akka.actor.Actor with Loggable {
       sender ! context.actorOf(props, name)
     }
 
+    case message @ App.Message.Consistent(element, from) if from != Some(self) ⇒ App.traceMessage(message) {
+      if (inconsistentSet.nonEmpty) {
+        inconsistentSet = inconsistentSet - element
+        if (inconsistentSet.isEmpty) {
+          log.debug("Return integrity.")
+          context.system.eventStream.publish(App.Message.Consistent(Core, self))
+        }
+      } else
+        log.debug(s"Skip message ${message}. Core is already consistent.")
+    }
+
     case message @ App.Message.Inconsistent(element, from) if from != Some(self) ⇒ App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
         context.system.eventStream.publish(App.Message.Inconsistent(Core, self))
       }
       inconsistentSet = inconsistentSet + element
-    }
-
-    case message @ App.Message.Consistent(element, from) if from != Some(self) ⇒ App.traceMessage(message) {
-      inconsistentSet = inconsistentSet - element
-      if (inconsistentSet.isEmpty) {
-        log.debug("Return integrity.")
-        context.system.eventStream.publish(App.Message.Consistent(Core, self))
-      }
     }
 
     case message @ App.Message.Consistency(set, from) if set.isEmpty ⇒ App.traceMessage(message) {

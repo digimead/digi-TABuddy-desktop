@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
+import org.digimead.tabuddy.desktop.core.ui.block.{ ViewLayer, Window, WindowSupervisor }
 import org.eclipse.jface.commands.ToggleState
 import scala.concurrent.Future
 import scala.language.implicitConversions
@@ -99,14 +99,20 @@ class UI extends akka.actor.Actor with Loggable {
     case message @ App.Message.Attach(props, name) ⇒ App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
+
     case message @ App.Message.Consistent(element, from) if from != Some(self) &&
       App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
-      inconsistentSet = inconsistentSet - element
-      if (inconsistentSet.isEmpty) {
-        log.debug("Return integrity.")
-        context.system.eventStream.publish(App.Message.Consistent(UI, self))
-      }
+      if (inconsistentSet.nonEmpty) {
+        inconsistentSet = inconsistentSet - element
+        if (inconsistentSet.isEmpty) {
+          log.debug("Return integrity.")
+          //message.source.printStackTrace()
+          context.system.eventStream.publish(App.Message.Consistent(UI, self))
+        }
+      } else
+        log.debug(s"Skip message ${message}. UI is already consistent.")
     }
+
     case message @ App.Message.Inconsistent(element, from) if from != Some(self) &&
       App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
@@ -148,7 +154,7 @@ class UI extends akka.actor.Actor with Loggable {
   }
 }
 
-object UI extends support.Generic with Loggable {
+object UI extends support.Generic with Window.WindowMapConsumer with ViewLayer.ViewMapConsumer with Loggable {
   implicit def ui2actorRef(u: UI.type): ActorRef = u.actor
   implicit def ui2actorSRef(u: UI.type): ScalaActorRef = u.actor
   /** UI actor reference. */

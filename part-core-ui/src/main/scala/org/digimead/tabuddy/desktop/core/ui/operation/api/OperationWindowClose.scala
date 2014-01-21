@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,24 +46,24 @@ package org.digimead.tabuddy.desktop.core.ui.operation.api
 import org.digimead.tabuddy.desktop.core.definition.api
 
 /**
- * OperationViewClose base trait.
+ * OperationWindowClose base trait.
  */
-trait OperationViewClose {
+trait OperationWindowClose {
   checkSubclass()
 
   /**
-   * Close view.
+   * Close window.
    *
-   * @param vComposite view composite
+   * @param window AppWindow instance
    */
-  def apply(vComposite: AnyRef): Unit
+  def apply(window: AnyRef): Unit
   /**
-   * Create 'Close view' operation.
+   * Create 'Close window' operation.
    *
-   * @param vComposite view composite
-   * @return 'Close view' operation
+   * @param window AppWindow instance
+   * @return 'Close window' operation
    */
-  def operation(vComposite: AnyRef): api.Operation[Unit]
+  def operation(window: AnyRef): api.Operation[Unit]
 
   /**
    * Checks that this class can be subclassed.
@@ -80,5 +80,5 @@ trait OperationViewClose {
    * </p>
    */
   protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.core.ui.operation.OperationViewClose instead.")
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.core.ui.operation.OperationWindowClose instead.")
 }

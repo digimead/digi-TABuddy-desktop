@@ -133,6 +133,7 @@ class ViewContentBuilder extends Loggable {
               case context: Context ⇒
                 context.remove(classOf[Composite])
                 content.setData(App.widgetContextKey, null)
+                App.publish(App.Message.Destroy(Right(content), ref))
             }
           })
           Some(content)

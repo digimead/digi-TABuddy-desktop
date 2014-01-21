@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.view.modification
 
-import akka.actor.{ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala}
+import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -93,13 +93,18 @@ class ViewModification extends akka.actor.Actor with Loggable {
     case message @ App.Message.Attach(props, name) ⇒ App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
+
     case message @ App.Message.Consistent(element, from) if from != Some(self) && App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
-      inconsistentSet = inconsistentSet - element
-      if (inconsistentSet.isEmpty) {
-        log.debug("Return integrity.")
-        context.system.eventStream.publish(App.Message.Consistent(ViewModification, self))
-      }
+      if (inconsistentSet.nonEmpty) {
+        inconsistentSet = inconsistentSet - element
+        if (inconsistentSet.isEmpty) {
+          log.debug("Return integrity.")
+          context.system.eventStream.publish(App.Message.Consistent(ViewModification, self))
+        }
+      } else
+        log.debug(s"Skip message ${message}. ViewModification is already consistent.")
     }
+
     case message @ App.Message.Inconsistent(element, from) if from != Some(self) && App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
