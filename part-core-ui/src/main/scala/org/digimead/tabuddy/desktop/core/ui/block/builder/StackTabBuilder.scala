@@ -58,7 +58,7 @@ import scala.language.implicitConversions
 
 /** Build tab layer and allocate N tab items for views. */
 class StackTabBuilder extends Loggable {
-  def apply(configuration: Configuration.Stack.Tab, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeTab, Seq[ScrolledComposite]) = {
+  def apply(configuration: Configuration.Stack.CTab, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeTab, Seq[ScrolledComposite]) = {
     log.debug(s"Build content for ${configuration}.")
     App.assertEventThread()
     if (parentWidget.getLayout().isInstanceOf[GridLayout])

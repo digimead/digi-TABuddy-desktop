@@ -68,7 +68,7 @@ trait Generic extends EventLoop.Consumer {
   /** Flag indicating whether UI available. */
   lazy val isUIAvailable = try {
     val state = bundle(Class.forName("org.digimead.tabuddy.desktop.core.ui.Activator")).getState()
-    Bundle.ACTIVE == state || { watch(UIFlag).waitForStart(Timeout.short); isActive(UIFlag) }
+    watch(UIFlag).waitForStart(Timeout.short); isActive(UIFlag)
   } catch {
     case e: TimeoutException ⇒ false
     case e: ClassNotFoundException ⇒ false

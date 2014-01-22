@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.block.Window
 import org.digimead.tabuddy.desktop.core.ui.block.builder.WindowContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.{ WindowConfiguration, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
@@ -68,8 +69,10 @@ import scala.language.implicitConversions
  * Instance that represents visible window which is based on JFace framework.
  */
 class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
-  val windowContext: Context.Rich, parentShell: Shell) extends ApplicationWindow(parentShell) with Loggable {
+  val windowContext: Context.Rich, parentShell: Shell)
+  extends ApplicationWindow(parentShell) with Window.WindowMapDisposer with Loggable {
   @volatile protected var configuration: Option[WindowConfiguration] = None
+  /** Flag indicating whether the window configuration should be saved. */
   @volatile protected var saveOnClose = true
   /** Filler composite that visible by default. */
   @volatile protected var filler: Option[Composite] = None
@@ -95,16 +98,19 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   /** Add window ID to shell. */
   override protected def configureShell(shell: Shell) {
     shell.setData(UI.swtId, id) // order is important
+    windowContext.set(classOf[Shell], shell)
     super.configureShell(shell)
     // The onPaintListener solution is not sufficient
     App.display.addFilter(SWT.Paint, onActiveListener)
     shell.addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        windowContext.dispose() // see WComposite dispose listener
         updateConfiguration()
         for (configuration ← configuration if saveOnClose)
           WindowSupervisor ! App.Message.Set(id, configuration)
-        App.publish(App.Message.Destroy(Right(AppWindow.this), ref))
         App.display.removeFilter(SWT.Paint, onActiveListener)
+        windowRemoveFromCommonMap()
+        App.publish(App.Message.Destroy(Right(AppWindow.this), ref))
       }
     })
     shell.setFocus()
@@ -131,6 +137,10 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     val (container, filler, content) = WindowContentBuilder(this, parent)
     this.filler = Option(filler)
     this.content = Option(content)
+    // Set the specific widget
+    windowContext.set(classOf[WComposite], content)
+    // Set the common top level widget
+    windowContext.set(classOf[Composite], content)
     showContent(content)
     App.publish(App.Message.Open(Right(this)))
     container
@@ -180,6 +190,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     addMenuBar()
     setBlockOnOpen(false)
     getCoolBarManager.setOverrides(ToolBarManager.Overrides)
+    windowContext.set(classOf[AppWindow], this)
   }
   /** On window active. */
   protected def onActive() = {}
@@ -222,7 +233,6 @@ object AppWindow {
   trait Controller {
     implicit def appWindowAccess(appWindow: AppWindow): AppWindowAccessor = AppWindowAccessor(appWindow)
   }
-
   /** OnActive listener that trigger on first SWT.Paint event. */
   class OnActiveListener(window: AppWindow) extends Listener() {
     def handleEvent(event: Event) = event.widget match {

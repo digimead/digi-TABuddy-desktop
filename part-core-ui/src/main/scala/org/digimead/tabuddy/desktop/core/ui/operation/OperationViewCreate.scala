@@ -50,7 +50,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
+import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
@@ -66,7 +66,7 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
     log.info("Create new view from " + viewFactory)
     containerContext match {
       case context: Context ⇒
-        context.get(UI.windowContextKey) match {
+        context.get(classOf[AppWindow]) match {
           case window: AppWindow ⇒
             window.ref ! App.Message.Create(Left(viewFactory))
           case unknwon ⇒
@@ -82,7 +82,7 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    * @return 'Create view' operation
    */
   def operation(activeContext: AnyRef, viewFactory: AnyRef) =
-    new Implemetation(activeContext.asInstanceOf[Context], viewFactory.asInstanceOf[ViewLayer.Factory])
+    new Implemetation(activeContext.asInstanceOf[Context], viewFactory.asInstanceOf[View.Factory])
 
   /**
    * Checks that this class can be subclassed.
@@ -100,7 +100,7 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(activeContext: Context, viewFactory: ViewLayer.Factory)
+  class Implemetation(activeContext: Context, viewFactory: View.Factory)
     extends OperationViewCreate.Abstract(activeContext, viewFactory) with Loggable {
     @volatile protected var allowExecute = true
 
@@ -130,11 +130,11 @@ object OperationViewCreate extends Loggable {
    * @return 'Create view' operation
    */
   @log
-  def apply(activeContext: Context, viewFactory: ViewLayer.Factory): Option[Abstract] =
+  def apply(activeContext: Context, viewFactory: View.Factory): Option[Abstract] =
     Some(operation.operation(activeContext, viewFactory))
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val activeContext: Context, val viewFactory: ViewLayer.Factory)
+  abstract class Abstract(val activeContext: Context, val viewFactory: View.Factory)
     extends Operation[Unit](s"Create view with ${viewFactory}.") {
     this: Loggable ⇒
   }

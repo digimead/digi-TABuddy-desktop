@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, ViewLayer }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, View }
 import org.digimead.tabuddy.desktop.core.ui.command.view.CommandViewClose
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, VComposite }
 import org.eclipse.swt.SWT
@@ -79,16 +79,16 @@ class ViewContentBuilder extends Loggable {
    * @param pAContext parent ActorContext
    * @return Option[VComposite]
    */
-  def apply(configuration: Configuration.View, pWidget: ScrolledComposite, pEContext: Context.Rich, pAContext: ActorContext): Option[VComposite] = {
-    val viewName = ViewLayer.id + "_%08X".format(configuration.id.hashCode())
+  def apply(configuration: Configuration.CView, pWidget: ScrolledComposite, pEContext: Context.Rich, pAContext: ActorContext): Option[VComposite] = {
+    val viewName = View.id + "_%08X".format(configuration.id.hashCode())
     log.debug(s"Build view layer ${viewName}.")
     App.assertEventThread(false)
-    val viewContext = pEContext.createChild(VComposite.contextName): Context.Rich
+    val viewContext = pEContext.createChild(viewName): Context.Rich
     Command.addToContext(viewContext, CommandViewClose.parser)
-    val view = pAContext.actorOf(ViewLayer.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
+    val view = pAContext.actorOf(View.props.copy(args = immutable.Seq(configuration.id, viewContext)), viewName)
     // Block until view is created.
     implicit val sender = pAContext.self
-    Await.result(ask(view, App.Message.Create(Left(ViewLayer.<>(configuration, pWidget))))(Timeout.short), Timeout.short) match {
+    Await.result(ask(view, App.Message.Create(Left(View.<>(configuration, pWidget))))(Timeout.short), Timeout.short) match {
       case App.Message.Create(Right(viewWidget: VComposite), None) ⇒
         log.debug(s"View layer ${configuration} content created.")
         Some(viewWidget)
@@ -110,7 +110,7 @@ class ViewContentBuilder extends Loggable {
    * @param pWidget parent widget
    * @return Option[VComposite]
    */
-  def apply(configuration: Configuration.View, ref: ActorRef, context: Context, pWidget: ScrolledComposite): Option[VComposite] = {
+  def apply(configuration: Configuration.CView, ref: ActorRef, context: Context, pWidget: ScrolledComposite): Option[VComposite] = {
     log.debug(s"Build content for ${configuration}.")
     App.assertEventThread(false)
     // Create view widget.
@@ -120,22 +120,17 @@ class ViewContentBuilder extends Loggable {
       configuration.factory().viewActor(configuration) match {
         case Some(actualViewActorRef) ⇒
           val content = new VComposite(configuration.id, ref, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
-          context.set(classOf[Composite], content)
           content.setData(App.widgetContextKey, context)
+          // Set the specific widget
+          context.set(classOf[VComposite], content)
+          // Set the common top level widget
+          context.set(classOf[Composite], content)
           //          content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
           pWidget.setContent(content)
           pWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           pWidget.setExpandHorizontal(true)
           pWidget.setExpandVertical(true)
           pWidget.layout(Array[Control](content), SWT.ALL)
-          content.addDisposeListener(new DisposeListener {
-            def widgetDisposed(event: DisposeEvent) = Option(content.getData(App.widgetContextKey)).foreach {
-              case context: Context ⇒
-                context.remove(classOf[Composite])
-                content.setData(App.widgetContextKey, null)
-                App.publish(App.Message.Destroy(Right(content), ref))
-            }
-          })
           Some(content)
         case None ⇒
           // TODO destroy
@@ -151,7 +146,7 @@ class ViewContentBuilder extends Loggable {
           log.debug(s"View layer ${configuration} content created.")
           if (contentContainerWidget.isInstanceOf[SComposite])
             // SComposite matching is involved in GUI hierarchy creation.
-            // This view will overwrite exists hierarchy element like ViewLayer with the same ID.
+            // This view will overwrite exists hierarchy element like View with the same ID.
             log.fatal(s"View ${configuration} is broken. View container is ${contentContainerWidget}.")
           viewWidget
         case App.Message.Error(error, None) ⇒

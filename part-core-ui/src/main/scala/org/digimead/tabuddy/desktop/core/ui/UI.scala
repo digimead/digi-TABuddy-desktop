@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.core.ui.block.{ ViewLayer, Window, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.{ View, Window, WindowSupervisor }
 import org.eclipse.jface.commands.ToggleState
 import scala.concurrent.Future
 import scala.language.implicitConversions
@@ -154,7 +154,7 @@ class UI extends akka.actor.Actor with Loggable {
   }
 }
 
-object UI extends support.Generic with Window.WindowMapConsumer with ViewLayer.ViewMapConsumer with Loggable {
+object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMapConsumer with Loggable {
   implicit def ui2actorRef(u: UI.type): ActorRef = u.actor
   implicit def ui2actorSRef(u: UI.type): ScalaActorRef = u.actor
   /** UI actor reference. */
@@ -176,15 +176,14 @@ object UI extends support.Generic with Window.WindowMapConsumer with ViewLayer.V
   lazy val props = DI.props
   /** SWT Data ID key */
   val swtId = getClass.getName() + "#ID"
-  /** Context key with the current shell. */
-  final val shellContextKey = "shell"
-  /** Context key with current view. */
-  final val viewContextKey = "view"
-  /** Context key with current window. */
-  final val windowContextKey = "window"
   // Initialize descendant actor singletons
   Core
   WindowSupervisor
+
+  /** Stop event loop when last window is closed. */
+  def stopEventLoopWithLastWindow = DI.stopEventLoopWithLastWindow
+  /** Close window when last view is closed. */
+  def closeWindowWithLastView = DI.closeWindowWithLastView
 
   override def toString = "UI[Singleton]"
 
@@ -198,6 +197,10 @@ object UI extends support.Generic with Window.WindowMapConsumer with ViewLayer.V
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** Stop event loop when last window is closed. */
+    lazy val stopEventLoopWithLastWindow = injectOptional[Boolean]("Core.UI.stopEventLoopWithLastWindow") getOrElse true
+    /** Close window when last view is closed. */
+    lazy val closeWindowWithLastView = injectOptional[Boolean]("Core.UI.closeWindowWithLastView") getOrElse true
     /** UI actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI") getOrElse Props[UI]
   }

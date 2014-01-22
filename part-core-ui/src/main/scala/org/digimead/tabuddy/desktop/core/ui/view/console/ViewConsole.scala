@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.Messages
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, ViewLayer }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, View }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Image
@@ -131,7 +131,7 @@ class ViewConsole(val contentId: UUID) extends Actor with Loggable {
   }
 }
 
-object ViewConsole extends ViewLayer.Factory with Loggable {
+object ViewConsole extends View.Factory with Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** View name. */
@@ -145,7 +145,7 @@ object ViewConsole extends ViewLayer.Factory with Loggable {
 
   /** Returns actor reference that could handle Create/Destroy messages. */
   @log
-  def viewActor(configuration: Configuration.View): Option[ActorRef] = viewActorLock.synchronized {
+  def viewActor(configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
     val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())

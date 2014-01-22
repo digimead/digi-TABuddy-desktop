@@ -54,9 +54,10 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.Messages
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, ViewLayer }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, View }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.swt.SWT
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.layout.FillLayout
 import org.eclipse.swt.widgets.{ Composite, Control, Widget }
@@ -84,7 +85,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
     case message @ App.Message.Destroy(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
       destroy() match {
         case Some(body) ⇒
-          App.publish(App.Message.Destroy(Right(body), self))
+          // App.publish(App.Message.Destroy(Right(body), self)) see body dispose listener
           App.Message.Destroy(Right(body))
         case None ⇒
           App.Message.Error(s"Unable to destroy ${this} for ${viewLayerWidget}.")
@@ -92,7 +93,6 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
     } foreach { sender ! _ }
 
     case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      onStart(widget)
       App.Message.Start(Right(widget))
     } foreach { sender ! _ }
 
@@ -118,6 +118,9 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
       button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
       parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
       parent.layout(Array[Control](button), SWT.ALL)
+      body.addDisposeListener(new DisposeListener {
+        def widgetDisposed(e: DisposeEvent) = App.publish(App.Message.Destroy(Right(body), self))
+      })
       this.parent = Option(parent)
       this.body = Option(body)
       this.body
@@ -136,16 +139,9 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
       body
     }
   }
-  /** User start interaction with window/stack supervisor/view/this content. Focus is gained. */
-  protected def onStart(widget: Widget) = parent match {
-    case Some(parent) ⇒
-      log.debug("View started by focus event on " + widget)
-    case None ⇒
-      log.fatal("Unable to start view without widget.")
-  }
 }
 
-object ViewDefault extends ViewLayer.Factory with Loggable {
+object ViewDefault extends View.Factory with Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** View name. */
@@ -159,7 +155,7 @@ object ViewDefault extends ViewLayer.Factory with Loggable {
 
   /** Returns actor reference that could handle Create/Destroy messages. */
   @log
-  def viewActor(configuration: Configuration.View): Option[ActorRef] = viewActorLock.synchronized {
+  def viewActor(configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
     val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())

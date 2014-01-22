@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,12 +46,12 @@ package org.digimead.tabuddy.desktop.core.ui.block.transform
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ StackSupervisor, ViewLayer }
+import org.digimead.tabuddy.desktop.core.ui.block.{ StackSupervisor, View }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import scala.language.implicitConversions
 
 class TransformReplace extends Loggable {
-  def apply(stackSupervisorIternals: StackSupervisor, window: AppWindow, newView: ViewLayer.Factory) {
+  def apply(stackSupervisorIternals: StackSupervisor, window: AppWindow, newView: View.Factory) {
     log.debug(s"Replace window ${window} content with ${newView}.")
     App.assertEventThread()
   }

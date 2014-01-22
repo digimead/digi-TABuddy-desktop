@@ -152,22 +152,22 @@ trait Generic {
     }.flatten.headOption
   }
   /** Get active view. */
-  def getActiveView(): Option[VComposite] = Core.context.get(viewContextKey)
+  def getActiveView(): Option[VComposite] = Option(App.getActiveLeaf().get(classOf[VComposite]))
   /** Get active window. */
-  def getActiveWindow(): Option[AppWindow] = Core.context.get(windowContextKey)
+  def getActiveWindow(): Option[AppWindow] = Option(App.getActiveLeaf().get(classOf[AppWindow]))
   /** Get active shell (from window or dialog). */
-  def getActiveShell(): Option[Shell] = Core.context.get[Seq[Shell]](shellContextKey).flatMap(_.find(!_.isDisposed()))
+  def getActiveShell(): Option[Shell] = Option(App.getActiveLeaf().get(classOf[Shell]))
   /** Get all GUI components from the current widget to top level parent(shell). */
   def widgetHierarchy(widget: Widget): Seq[Widget] = Option(widget) match {
-    case Some(composite: SComposite) ⇒
+    case Some(composite: SComposite) if !composite.isDisposed ⇒
       App.assertEventThread()
       widgetHierarchy(composite, Seq(composite))
-    case Some(shell: Shell) ⇒
+    case Some(shell: Shell) if !shell.isDisposed ⇒
       findWindowComposite(shell).toSeq
-    case Some(parent) ⇒
+    case Some(parent) if !parent.isDisposed ⇒
       App.assertEventThread()
       widgetHierarchy(parent, Seq())
-    case None ⇒
+    case _ ⇒ // None or disposed element
       Seq()
   }
 

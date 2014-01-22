@@ -77,7 +77,7 @@ import akka.actor.actorRef2Scala
 import akka.pattern.ask
 import org.digimead.tabuddy.model.graph.Event
 import org.digimead.tabuddy.desktop.model.editor.ModelEditor
-import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
+import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.model.editor.Messages
 
@@ -265,7 +265,7 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
   }
 }
 
-object Editor extends ViewLayer.Factory with Loggable {
+object Editor extends View.Factory with Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** View name. */
@@ -279,7 +279,7 @@ object Editor extends ViewLayer.Factory with Loggable {
 
   /** Returns actor reference that could handle Create/Destroy messages. */
   @log
-  def viewActor(configuration: Configuration.View): Option[ActorRef] = viewActorLock.synchronized {
+  def viewActor(configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
     val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())

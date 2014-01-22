@@ -48,24 +48,38 @@ import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
+import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.events.DisposeEvent
+import org.eclipse.swt.events.DisposeListener
 import org.eclipse.swt.widgets.Composite
 
 /**
  * View composite that contains additional reference to content actor.
  * Content view actor is bound to root component because of changing parent by Akka is unsupported.
  */
-class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val factory: Configuration.Factory, parent: ScrolledComposite, style: Int)
-  extends Composite(parent, style) with SComposite {
+class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val factory: Configuration.Factory,
+  parent: ScrolledComposite, style: Int)
+  extends Composite(parent, style) with View.ViewMapDisposer with SComposite {
+  initialize
+
   /** Get view context. */
   def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
   /** Returns the receiver's parent, which must be a ScrolledComposite. */
   override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
 
-  override def toString() = s"VComposite {${factory}} [%08X]".format(id.hashCode())
-}
+  /** Initialize current view composite. */
+  protected def initialize() {
+    addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) {
+        val context = Option(getContext())
+        setData(App.widgetContextKey, null)
+        context.foreach(_.dispose())
+        viewRemoveFromCommonMap()
+        App.publish(App.Message.Destroy(Right(VComposite.this), ref))
+      }
+    })
+  }
 
-object VComposite {
-  /** View context name. */
-  final val contextName = "VCompositeContext"
+  override def toString() = s"VComposite {${factory}} [%08X]".format(id.hashCode())
 }

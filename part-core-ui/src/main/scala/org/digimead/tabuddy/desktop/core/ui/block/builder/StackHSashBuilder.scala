@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -55,7 +55,7 @@ import org.eclipse.swt.layout.GridLayout
 import scala.language.implicitConversions
 
 class StackHSashBuilder extends Loggable {
-  def apply(hsash: Configuration.Stack.HSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeHSash, ScrolledComposite, ScrolledComposite) = {
+  def apply(hsash: Configuration.Stack.CHSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeHSash, ScrolledComposite, ScrolledComposite) = {
     log.debug("Build content for horizontal sash.")
     App.assertEventThread()
     if (parentWidget.getLayout().isInstanceOf[GridLayout])

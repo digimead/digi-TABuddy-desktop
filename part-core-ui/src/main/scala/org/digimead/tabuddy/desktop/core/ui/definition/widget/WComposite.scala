@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,19 +48,30 @@ import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.widgets.Composite
 import scala.ref.WeakReference
 
 /** Window actual content container. */
 class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppWindow], parent: Composite, style: Int)
   extends ScrolledComposite(parent, style) with SComposite {
+  initialize
+
   /** Get window context. */
   def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
   /** Get AppWindow. */
   def getAppWindow() = window.get
+
+  /** Initialize current view composite. */
+  protected def initialize() {
+    addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) {
+        val context = Option(getContext())
+        setData(App.widgetContextKey, null)
+        context.foreach(_.dispose()) // see AppWindow dispose listener
+        App.publish(App.Message.Destroy(Right(WComposite.this), ref))
+      }
+    })
+  }
 }
 
-object WComposite {
-  /** Window context name. */
-  final val contextName = "WCompositeContext"
-}

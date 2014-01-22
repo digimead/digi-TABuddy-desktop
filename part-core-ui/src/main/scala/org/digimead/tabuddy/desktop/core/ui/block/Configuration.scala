@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.support.App
  */
 case class Configuration(
   /** Stack element configuration. */
-  val stack: Configuration.PlaceHolder) {
+  val stack: Configuration.CPlaceHolder) {
   val timestamp = System.currentTimeMillis()
 
   /** Dump element hierarchy. */
@@ -70,9 +70,9 @@ object Configuration extends Loggable {
     protected lazy val singleton = {
       val singletonClass = App.bundle(getClass).getBundleContext().getBundles().
         find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(singletonClassName)).get
-      singletonClass.getField("MODULE$").get(singletonClass).asInstanceOf[ViewLayer.Factory]
+      singletonClass.getField("MODULE$").get(singletonClass).asInstanceOf[View.Factory]
     }
-    def apply(): ViewLayer.Factory = singleton
+    def apply(): View.Factory = singleton
     /** Validate if this factory is exists. */
     def validate(): Boolean = try {
       App.bundle(getClass).getBundleContext().getBundles().find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(singletonClassName)).nonEmpty
@@ -83,89 +83,89 @@ object Configuration extends Loggable {
     override def toString() = s"Factory(Symbolic-Name: ${bundleSymbolicName}, Singleton: ${singletonClassName})"
   }
   /** Any element of the configuration. */
-  sealed trait PlaceHolder {
+  sealed trait CPlaceHolder {
     val id: UUID
     log.debug(s"Configuration element ${this} with id ${id} is alive.")
 
     /** Dump element hierarchy. */
     def dump(indent: String): Seq[String]
     /** Map stack element to the new one. */
-    def map(f: PlaceHolder ⇒ PlaceHolder): PlaceHolder = f(this)
+    def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder = f(this)
   }
-  case class Empty() extends PlaceHolder {
+  case class CEmpty() extends CPlaceHolder {
     lazy val id: UUID = UUID.randomUUID()
 
     /** Dump element hierarchy. */
     def dump(indent: String): Seq[String] = Seq(indent + this.toString)
 
-    override def toString = "Configuration.Empty[%08X]".format(id.hashCode())
+    override def toString = "CEmpty[%08X]".format(id.hashCode())
   }
   /** View element. */
-  case class View(val factory: Factory, val id: UUID = UUID.randomUUID()) extends PlaceHolder {
+  case class CView(val factory: Factory, val id: UUID = UUID.randomUUID()) extends CPlaceHolder {
     factory.validate()
 
     /** Dump element hierarchy. */
     def dump(indent: String): Seq[String] =
-      Seq(indent + "Configuration.View[%08X#%s]".format(id.hashCode(), id) + " with factory " + factory)
-    override def toString = "Configuration.View[%08X]".format(id.hashCode())
+      Seq(indent + "CView[%08X#%s]".format(id.hashCode(), id) + " with factory " + factory)
+    override def toString = "CView[%08X]".format(id.hashCode())
   }
   /** Stack element of the configuration. */
-  sealed trait Stack extends PlaceHolder
+  sealed trait Stack extends CPlaceHolder
   object Stack {
     /** Tab stack. */
-    case class Tab(children: Seq[View], val id: UUID = UUID.randomUUID()) extends Stack {
+    case class CTab(children: Seq[CView], val id: UUID = UUID.randomUUID()) extends Stack {
       /** Dump element hierarchy. */
       def dump(indent: String): Seq[String] =
-        Seq(indent + "Configuration.Tab[%08X#%s]".format(id.hashCode(), id) + " with views: ") ++ children.map(_.dump("  " + indent)).flatten
+        Seq(indent + "CTab[%08X#%s]".format(id.hashCode(), id) + " with views: ") ++ children.map(_.dump("  " + indent)).flatten
       /** Map stack element to the new one. */
-      override def map(f: PlaceHolder ⇒ PlaceHolder): PlaceHolder =
+      override def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder =
         this.copy(children = this.children.map { child ⇒
           val newElement = child.map(f)
-          if (!newElement.isInstanceOf[View])
-            throw new IllegalArgumentException("Tab stack could contains only view elements.")
-          newElement.asInstanceOf[View]
+          if (!newElement.isInstanceOf[CView])
+            throw new IllegalArgumentException("CTab stack could contains only view elements.")
+          newElement.asInstanceOf[CView]
         })
-      override def toString = "Configuration.Tab[%08X]".format(id.hashCode())
+      override def toString = "CTab[%08X]".format(id.hashCode())
     }
     /** Horizontal stack. */
-    case class HSash(left: Stack, right: Stack, val ratio: Double = 0.5, val id: UUID = UUID.randomUUID()) extends Stack {
+    case class CHSash(left: Stack, right: Stack, val ratio: Double = 0.5, val id: UUID = UUID.randomUUID()) extends Stack {
       /** Dump element hierarchy. */
       def dump(indent: String): Seq[String] =
-        Seq(indent + "Configuration.HSash[%08X#%s]".format(id.hashCode(), id) + " with parts: ") ++ left.dump("  " + indent) ++ right.dump("  " + indent)
+        Seq(indent + "CHSash[%08X#%s]".format(id.hashCode(), id) + " with parts: ") ++ left.dump("  " + indent) ++ right.dump("  " + indent)
       /** Map stack element to the new one. */
-      override def map(f: PlaceHolder ⇒ PlaceHolder): PlaceHolder =
+      override def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder =
         this.copy(left = {
           val newElement = left.map(f)
           if (!newElement.isInstanceOf[Stack])
-            throw new IllegalArgumentException("HSash stack could contains only stack elements.")
+            throw new IllegalArgumentException("CHSash stack could contains only stack elements.")
           newElement.asInstanceOf[Stack]
         }, right = {
           val newElement = right.map(f)
           if (!newElement.isInstanceOf[Stack])
-            throw new IllegalArgumentException("HSash stack could contains only stack elements.")
+            throw new IllegalArgumentException("CHSash stack could contains only stack elements.")
           newElement.asInstanceOf[Stack]
         })
-      override def toString = "Configuration.HSash[%08X]".format(id.hashCode())
+      override def toString = "CHSash[%08X]".format(id.hashCode())
     }
     /** Vertical stack. */
-    case class VSash(top: Stack, bottom: Stack, val ratio: Double = 0.5, val id: UUID = UUID.randomUUID()) extends Stack {
+    case class CVSash(top: Stack, bottom: Stack, val ratio: Double = 0.5, val id: UUID = UUID.randomUUID()) extends Stack {
       /** Dump element hierarchy. */
       def dump(indent: String): Seq[String] =
-        Seq(indent + "Configuration.VSash[%08X#%s]".format(id.hashCode(), id) + " with parts: ") ++ top.dump("  " + indent) ++ bottom.dump("  " + indent)
+        Seq(indent + "CVSash[%08X#%s]".format(id.hashCode(), id) + " with parts: ") ++ top.dump("  " + indent) ++ bottom.dump("  " + indent)
       /** Map stack element to the new one. */
-      override def map(f: PlaceHolder ⇒ PlaceHolder): PlaceHolder =
+      override def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder =
         this.copy(top = {
           val newElement = top.map(f)
           if (!newElement.isInstanceOf[Stack])
-            throw new IllegalArgumentException("VStack stack could contains only stack elements.")
+            throw new IllegalArgumentException("CVStack stack could contains only stack elements.")
           newElement.asInstanceOf[Stack]
         }, bottom = {
           val newElement = bottom.map(f)
           if (!newElement.isInstanceOf[Stack])
-            throw new IllegalArgumentException("VSash stack could contains only stack elements.")
+            throw new IllegalArgumentException("CVSash stack could contains only stack elements.")
           newElement.asInstanceOf[Stack]
         })
-      override def toString = "Configuration.VSash[%08X]".format(id.hashCode())
+      override def toString = "CVSash[%08X]".format(id.hashCode())
     }
   }
 }

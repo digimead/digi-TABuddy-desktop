@@ -55,15 +55,17 @@ trait OperationWindowClose {
    * Close window.
    *
    * @param window AppWindow instance
+   * @param saveOnClose Flag indicating whether the window configuration should be saved
    */
-  def apply(window: AnyRef): Unit
+  def apply(window: AnyRef, saveOnClose: Boolean): Unit
   /**
    * Create 'Close window' operation.
    *
    * @param window AppWindow instance
+   * @param saveOnClose Flag indicating whether the window configuration should be saved
    * @return 'Close window' operation
    */
-  def operation(window: AnyRef): api.Operation[Unit]
+  def operation(window: AnyRef, saveOnClose: Boolean): api.Operation[Unit]
 
   /**
    * Checks that this class can be subclassed.

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -70,8 +70,8 @@ class TransformViewToTab extends Loggable {
       case wComposite: WComposite ⇒
         App.execNGet {
           val tabParentWidget = view.getParent
-          val viewConfiguration = ss.configuration.element(view.id)._2.asInstanceOf[Configuration.View]
-          val tabConfiguration = Configuration.Stack.Tab(Seq(viewConfiguration))
+          val viewConfiguration = ss.configuration.element(view.id)._2.asInstanceOf[Configuration.CView]
+          val tabConfiguration = Configuration.Stack.CTab(Seq(viewConfiguration))
           log.debug(s"Reconfigure stack hierarchy. Bind ${tabConfiguration} to ${wComposite}.")
           val stackRef = ss.context.actorOf(StackLayer.props.copy(args = immutable.Seq(tabConfiguration.id)), StackLayer.id + "_%08X".format(tabConfiguration.id.hashCode()))
           val (tabComposite, containers) = StackTabBuilder(tabConfiguration, tabParentWidget, stackRef)

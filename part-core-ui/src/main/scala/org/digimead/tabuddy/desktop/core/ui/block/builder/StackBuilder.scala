@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -60,9 +60,9 @@ import scala.language.implicitConversions
 class StackBuilder extends Loggable {
   /** Creates stack content. */
   @log
-  def apply(stack: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
+  def apply(stack: Configuration.CPlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
     stack match {
-      case tab: Configuration.Stack.Tab ⇒
+      case tab: Configuration.Stack.CTab ⇒
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }
         // Attach list of Configuration.View(from tab.children) to ScrolledComposite(from containers)
         val tabs = for { (container, viewConfiguration) ← containers zip tab.children } yield {
@@ -100,23 +100,23 @@ class StackBuilder extends Loggable {
         } else
           None
 
-      case hsash: Configuration.Stack.HSash ⇒
+      case hsash: Configuration.Stack.CHSash ⇒
         val (sashComposite, left, right) = StackHSashBuilder(hsash, parentWidget, stackRef)
         //buildLevel(hsash.left, left)
         //buildLevel(hsash.right, right)
         Option(sashComposite)
 
-      case vsash: Configuration.Stack.VSash ⇒
+      case vsash: Configuration.Stack.CVSash ⇒
         val (sashComposite, top, bottom) = StackVSashBuilder(vsash, parentWidget, stackRef)
         //buildLevel(vsash.top, top)
         //buildLevel(vsash.bottom, bottom)
         Option(sashComposite)
 
-      case view: Configuration.View ⇒
+      case view: Configuration.CView ⇒
         log.fatal("Unable to process view as stack.")
         None
 
-      case empty: Configuration.Empty ⇒
+      case empty: Configuration.CEmpty ⇒
         log.fatal("Unable to process empty element as stack.")
         None
     }

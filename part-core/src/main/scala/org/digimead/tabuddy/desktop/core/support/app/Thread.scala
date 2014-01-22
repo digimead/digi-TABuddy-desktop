@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.{ Exchanger, TimeUnit, TimeoutException }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
@@ -82,7 +83,7 @@ trait Thread {
       })
     }
   /** Execute runnable in event thread and return result or exception. */
-  def execNGet[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): T =
+  def execNGet[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): T = try {
     if (duration == App.ShortRunnable && debug) {
       val t = new Throwable("Entry point.")
       if (isEventLoop) {
@@ -96,6 +97,10 @@ trait Thread {
     } else {
       if (isEventLoop) { f } else execNGetAsync({ f })
     }
+  } catch {
+    case e: Throwable ⇒
+      throw new ExecutionException(e)
+  }
   /** Asynchronously execute runnable in event thread and return result or exception. */
   def execNGetAsync[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): T = {
     val exchanger = new Exchanger[Either[Throwable, T]]()

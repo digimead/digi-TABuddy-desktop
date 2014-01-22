@@ -65,15 +65,16 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.{ Composite, Widget }
 import scala.collection.{ immutable, mutable }
 import scala.concurrent.Await
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
-class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable {
+class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable {
   /** View JFace instance. */
   var view: Option[VComposite] = None
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(Left(ViewLayer.<>(viewConfiguration, parentWidget)), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(Left(View.<>(viewConfiguration, parentWidget)), None) ⇒ App.traceMessage(message) {
       create(viewConfiguration, parentWidget, sender) match {
         case Some(viewWidget) ⇒
           App.publish(App.Message.Create(Right(viewWidget), self))
@@ -105,7 +106,7 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
   }
 
   /** Create view. */
-  protected def create(viewConfiguration: Configuration.View, parentWidget: ScrolledComposite, supervisor: ActorRef): Option[VComposite] = {
+  protected def create(viewConfiguration: Configuration.CView, parentWidget: ScrolledComposite, supervisor: ActorRef): Option[VComposite] = {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertEventThread(false)
@@ -127,9 +128,9 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
           }
         }
         // Add new view to the common map.
-        ViewLayer.viewMapRWL.writeLock().lock()
-        try ViewLayer.viewMap += viewWidgetWithContent -> self
-        finally ViewLayer.viewMapRWL.writeLock().unlock()
+        View.viewMapRWL.writeLock().lock()
+        try View.viewMap += viewWidgetWithContent -> self
+        finally View.viewMapRWL.writeLock().unlock()
         this.view
       case None ⇒
         log.fatal(s"Unable to build view ${viewConfiguration}.")
@@ -138,10 +139,6 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
   }
   /** Destroy view. */
   protected def destroy(): Option[VComposite] = view.flatMap { view ⇒
-    // Remove view from the common map.
-    ViewLayer.viewMapRWL.writeLock().lock()
-    try ViewLayer.viewMap -= view
-    finally ViewLayer.viewMapRWL.writeLock().unlock()
     // Ask widget.contentRef to destroy it
     Await.result(ask(view.contentRef, App.Message.Destroy(Left(view)))(Timeout.short), Timeout.short) match {
       case App.Message.Destroy(Right(body: Composite), None) ⇒
@@ -162,7 +159,6 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
   protected def onStart(widget: Widget) = view match {
     case Some(view) ⇒
       log.debug("View layer started by focus event on " + widget)
-      Core.context.set(UI.viewContextKey, view)
       viewContext.activateBranch()
       Await.ready(ask(view.contentRef, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
     case None ⇒
@@ -177,7 +173,7 @@ class ViewLayer(viewId: UUID, viewContext: Context.Rich) extends Actor with Logg
   }
 }
 
-object ViewLayer {
+object View {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** All application view layers. */
@@ -185,11 +181,11 @@ object ViewLayer {
   /** View layer map lock. */
   protected val viewMapRWL = new ReentrantReadWriteLock
 
-  /** ViewLayer actor reference configuration object. */
+  /** View actor reference configuration object. */
   def props = DI.props
 
   /** Wrapper for App.Message,Create argument. */
-  case class <>(val viewConfiguration: Configuration.View, val parentWidget: ScrolledComposite)
+  case class <>(val viewConfiguration: Configuration.CView, val parentWidget: ScrolledComposite)
   /**
    * User implemented factory, that returns ActorRef, responsible for view creation/destroying.
    */
@@ -228,7 +224,7 @@ object ViewLayer {
      * Returns the actor reference that could handle Create/Destroy messages.
      * Add reference to activeActors list.
      */
-    def viewActor(configuration: Configuration.View): Option[ActorRef]
+    def viewActor(configuration: Configuration.CView): Option[ActorRef]
 
     override def toString() = s"""View.Factory("${name}", "${shortDescription}")"""
 
@@ -254,17 +250,30 @@ object ViewLayer {
   trait ViewMapConsumer {
     /** Get map with all application view layers. */
     def viewMap: immutable.Map[VComposite, ActorRef] = {
-      ViewLayer.viewMapRWL.readLock().lock()
-      try ViewLayer.viewMap.toMap
-      finally ViewLayer.viewMapRWL.readLock().unlock()
+      View.viewMapRWL.readLock().lock()
+      try View.viewMap.toMap
+      finally View.viewMapRWL.readLock().unlock()
+    }
+  }
+  /**
+   * View map consumer.
+   */
+  trait ViewMapDisposer {
+    this: VComposite ⇒
+    /** Remove this VComposite from the common map. */
+    def viewRemoveFromCommonMap() {
+      // Remove view from the common map.
+      View.viewMapRWL.writeLock().lock()
+      try View.viewMap -= this
+      finally View.viewMapRWL.writeLock().unlock()
     }
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** ViewLayer actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.UI.ViewLayer") getOrElse Props(classOf[ViewLayer],
+    /** View actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Core.UI.View") getOrElse Props(classOf[View],
       // view layer id
       UUID.fromString("00000000-0000-0000-0000-000000000000"),
       // parent context

@@ -50,7 +50,7 @@ import org.digimead.tabuddy.desktop.core.definition.api
  */
 /*
  * activeContext and viewFactory must be AnyRef since 'Context' and
- * 'ViewLayer.Factory' are private classes that is not shared across OSGi boundaries.
+ * 'View.Factory' are private classes that are not shared across OSGi boundaries.
  * In other way there will be "java.lang.LinkageError: loader constraint violation
  * in interface itable initialization: when resolving method ..." as expected.
  */

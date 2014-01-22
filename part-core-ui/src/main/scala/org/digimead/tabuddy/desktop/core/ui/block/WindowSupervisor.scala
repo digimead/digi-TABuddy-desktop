@@ -174,7 +174,7 @@ class WindowSupervisor extends Actor with Loggable {
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
     App.assertEventThread(false)
     val windowName = Window.id + "_%08X".format(windowId.hashCode())
-    val windowContext = Core.context.createChild(WComposite.contextName): Context.Rich
+    val windowContext = Core.context.createChild(windowName): Context.Rich
     val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), windowName)
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
     // Block supervisor until window is created
@@ -203,8 +203,8 @@ class WindowSupervisor extends Actor with Loggable {
           // if there is no last active window
           // this is the 1st...
           if (UI.getActiveShell().isEmpty)
-            Core.context.set(UI.shellContextKey, Seq(window.getShell()))
-          Core.context.set(UI.windowContextKey, window)
+            Core.context.set("shellList", Seq(window.getShell()))
+          window.windowContext.activateBranch()
         }
         implicit val timeout = akka.util.Timeout(Timeout.short)
         Await.result(sender ? App.Message.Open, timeout.duration)
@@ -321,7 +321,7 @@ class WindowSupervisor extends Actor with Loggable {
         //head is last active shell
         val (active, disposed) = shellMap.toSeq.sortBy(-_._2).map(_._1).partition(!_.isDisposed)
         shellMap --= disposed
-        Core.context.set(UI.shellContextKey, active)
+        Core.context.set("shellList", active)
       }
       UI.findShell(event.widget).foreach { shell ⇒
         Option(shell.getData(UI.swtId).asInstanceOf[UUID]).foreach { id ⇒
@@ -414,8 +414,8 @@ object WindowSupervisor extends Loggable {
         case None ⇒
         case Some(old) ⇒
           super.-=(key)
-          if (isEmpty) {
-            log.debug("There are no active windows. Shutdown main loop.")
+          if (isEmpty && UI.stopEventLoopWithLastWindow) {
+            log.info("There are no windows. Shutdown main loop.")
             WindowSupervisor ! App.Message.Save
             EventLoop.thread.stopEventLoop(EventLoop.Code.Ok)
           }
@@ -424,9 +424,11 @@ object WindowSupervisor extends Loggable {
     }
     override def clear(): Unit = {
       super.clear()
-      log.debug("There are no active windows. Shutdown main loop.")
-      WindowSupervisor ! App.Message.Save
-      EventLoop.thread.stopEventLoop(EventLoop.Code.Ok)
+      if (UI.stopEventLoopWithLastWindow) {
+        log.info("There are no windows. Shutdown main loop.")
+        WindowSupervisor ! App.Message.Save
+        EventLoop.thread.stopEventLoop(EventLoop.Code.Ok)
+      }
     }
   }
   /** Wrapper that contains window and ActorRef. */

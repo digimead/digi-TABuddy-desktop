@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -91,7 +91,8 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
   }
 
   /** Create stack. */
-  protected def create(stackConfiguration: Configuration.PlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, supervisor: ActorRef, supervisorContext: ActorContext): Option[SComposite] = {
+  protected def create(stackConfiguration: Configuration.CPlaceHolder, parentWidget: ScrolledComposite,
+    parentContext: Context, supervisor: ActorRef, supervisorContext: ActorContext): Option[SComposite] = {
     if (stack.nonEmpty)
       throw new IllegalStateException("Unable to create stack. It is already created.")
     App.assertEventThread(false)
@@ -104,7 +105,7 @@ object StackLayer extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   // Initialize descendant actor singletons
-  ViewLayer
+  View
 
   /** StackLayer actor reference configuration object. */
   def props = DI.props

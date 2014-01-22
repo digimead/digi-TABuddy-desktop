@@ -60,20 +60,26 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
    * Close window.
    *
    * @param window AppWindow instance
+   * @param saveOnClose Flag indicating whether the window configuration should be saved
    */
-  def apply(window: AnyRef) {
+  def apply(window: AnyRef, saveOnClose: Boolean) {
     log.info(s"Close ${window}.")
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
-    window.asInstanceOf[AppWindow].ref ? App.Message.Destroy
+    if (saveOnClose)
+      window.asInstanceOf[AppWindow].ref ? App.Message.Close
+    else
+      window.asInstanceOf[AppWindow].ref ? App.Message.Destroy
   }
   /**
    * Create 'Close window' operation.
    *
    * @param window AppWindow instance
+   * @param saveOnClose Flag indicating whether the window configuration should be saved
    * @return 'Close window' operation
    */
-  def operation(window: AnyRef) = new Implemetation(window.asInstanceOf[AppWindow])
+  def operation(window: AnyRef, saveOnClose: Boolean) =
+    new Implemetation(window.asInstanceOf[AppWindow], saveOnClose)
 
   /**
    * Checks that this class can be subclassed.
@@ -91,7 +97,8 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(window: AppWindow) extends OperationWindowClose.Abstract(window) with Loggable {
+  class Implemetation(window: AppWindow, saveOnClose: Boolean)
+    extends OperationWindowClose.Abstract(window, saveOnClose) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -99,7 +106,7 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      try Operation.Result.OK(Option(OperationWindowClose.this(window)))
+      try Operation.Result.OK(Option(OperationWindowClose.this(window, saveOnClose)))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
@@ -116,13 +123,21 @@ object OperationWindowClose extends Loggable {
    * Build a new 'Close window' operation.
    *
    * @param window AppWindow instance
+   * @param saveOnClose Flag indicating whether the window configuration should be saved
    * @return 'Close window' operation
    */
   @log
-  def apply(window: AppWindow): Option[Abstract] = Some(operation.operation(window))
+  def apply(window: AppWindow, saveOnClose: Boolean): Option[Abstract] =
+    Some(operation.operation(window, saveOnClose))
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val window: AppWindow) extends Operation[Unit](s"Close ${window}.") {
+  abstract class Abstract(val window: AppWindow, val saveOnClose: Boolean)
+    extends Operation[Unit]({
+      if (saveOnClose)
+        s"Close ${window} and save configuration."
+      else
+        s"Close ${window} without saving configuration."
+    }) {
     this: Loggable ⇒
   }
   /**

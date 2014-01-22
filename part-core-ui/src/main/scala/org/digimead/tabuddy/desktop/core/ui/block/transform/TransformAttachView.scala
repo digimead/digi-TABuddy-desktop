@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,18 +47,18 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor, ViewLayer }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor, View }
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackTabBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.SCompositeTab
 import scala.language.implicitConversions
 
 class TransformAttachView extends Loggable {
-  def apply(ss: StackSupervisor, tabStack: SCompositeTab, newView: ViewLayer.Factory) {
+  def apply(ss: StackSupervisor, tabStack: SCompositeTab, newView: View.Factory) {
     log.debug(s"Create new view from ${newView} and attach it to ${tabStack}.")
     App.assertEventThread(false)
     log.debug("Update stack supervisor configuration.")
-    val viewConfiguration = Configuration.View(newView.configuration)
+    val viewConfiguration = Configuration.CView(newView.configuration)
     // Prepare tab item.
     val parentWidget = App.execNGet {
       StackTabBuilder.addTabItem(tabStack, (tabItem) ⇒ {

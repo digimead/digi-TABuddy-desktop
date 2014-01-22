@@ -49,7 +49,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
+import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.definition.IWizard
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry
 import org.eclipse.jface.resource.{ ImageDescriptor, JFaceResources }
@@ -78,13 +78,13 @@ class Resources extends BundleActivator with Loggable {
     new Font(App.display, fD.head)
   }
   /** List of all application view factories. */
-  protected val viewFactoriesMap = new Resources.ViewFactoryMap with mutable.SynchronizedMap[ViewLayer.Factory, Boolean]
+  protected val viewFactoriesMap = new Resources.ViewFactoryMap with mutable.SynchronizedMap[View.Factory, Boolean]
   /** Application wizards set. */
   protected val wizardsSet = new mutable.HashSet[Class[_ <: IWizard]]() with mutable.SynchronizedSet[Class[_ <: IWizard]]
   private val lock = new Object
 
   /** Get factory by singleton class name. */
-  def factory(singletonClassName: String): Option[ViewLayer.Factory] =
+  def factory(singletonClassName: String): Option[View.Factory] =
     viewFactoriesMap.find(_._1.getClass().getName() == singletonClassName).map(_._1)
   /** Get map of factories. */
   def factories() = viewFactoriesMap.toMap
@@ -94,7 +94,7 @@ class Resources extends BundleActivator with Loggable {
     scale(image, k)
   }
   /** Register view factory in the map of the application views. */
-  def registerViewFactory(factory: ViewLayer.Factory, enabled: Boolean) = lock.synchronized {
+  def registerViewFactory(factory: View.Factory, enabled: Boolean) = lock.synchronized {
     log.debug(s"Register view factory ${factory}.")
     viewFactoriesMap += factory -> enabled
   }
@@ -173,7 +173,7 @@ class Resources extends BundleActivator with Loggable {
   /** Get set of wizards. */
   def wizards() = lock.synchronized { wizardsSet.toSet }
   /** Remove view factory from the map of the application known views. */
-  def unregisterViewFactory(factory: ViewLayer.Factory) = lock.synchronized {
+  def unregisterViewFactory(factory: View.Factory) = lock.synchronized {
     log.debug("Remove " + factory)
     viewFactoriesMap -= factory
   }
@@ -224,8 +224,8 @@ object Resources extends Loggable {
     case object Dark extends Resources.IconTheme { val name = "dark" }
   }
   /** Application view map. This class is responsible for action.View command update. */
-  class ViewFactoryMap extends mutable.WeakHashMap[ViewLayer.Factory, Boolean] {
-    override def +=(kv: (ViewLayer.Factory, Boolean)): this.type = {
+  class ViewFactoryMap extends mutable.WeakHashMap[View.Factory, Boolean] {
+    override def +=(kv: (View.Factory, Boolean)): this.type = {
       val (key, value) = kv
       if (keys.exists(_.name == key.name))
         throw new IllegalArgumentException(s"View with name '${key.name.name}' is already exists.")

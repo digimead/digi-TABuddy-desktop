@@ -50,7 +50,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.ViewLayer
+import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.digimead.tabuddy.desktop.core.ui.{ Messages, Resources }
 import org.eclipse.core.runtime.jobs.Job
@@ -69,8 +69,8 @@ object CommandView extends Loggable {
     Messages.viewDescriptionShort_text, Messages.viewDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       val (viewFactory, createNew) = parserResult match {
-        case ~(factory: ViewLayer.Factory, Some(newArg)) ⇒ (factory, true)
-        case ~(factory: ViewLayer.Factory, None) ⇒ (factory, false)
+        case ~(factory: View.Factory, Some(newArg)) ⇒ (factory, true)
+        case ~(factory: View.Factory, None) ⇒ (factory, false)
       }
       val exchanger = new Exchanger[Operation.Result[Unit]]()
       OperationViewCreate(activeContext, viewFactory).foreach { operation ⇒

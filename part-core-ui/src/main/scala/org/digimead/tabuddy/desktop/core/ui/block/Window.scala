@@ -78,8 +78,13 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
 
   def receive = {
     case message @ App.Message.Close ⇒ App.traceMessage(message) {
-      close(sender)
-    }
+      close(sender) match {
+        case Some(appWindow) ⇒
+          App.Message.Close(Right(appWindow))
+        case None ⇒
+          App.Message.Error(s"Unable to close ${window}.")
+      }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Create(Left(Window.<>(windowId, configuration)), None) ⇒ App.traceMessage(message) {
       assert(windowId == this.windowId)
@@ -102,9 +107,18 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       }
     } foreach { sender ! _ }
 
+    case message @ App.Message.Get ⇒ App.traceMessage(message) {
+      window
+    } foreach { sender ! _ }
+
     case message @ App.Message.Open ⇒ App.traceMessage(message) {
-      open(sender)
-    }
+      open(sender) match {
+        case Some(appWindow) ⇒
+          App.Message.Open(Right(appWindow))
+        case None ⇒
+          App.Message.Error(s"Unable to open ${window}.")
+      }
+    } foreach { sender ! _ }
 
     case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
       onStart(widget)
@@ -116,11 +130,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       App.Message.Stop(Right(widget))
     } foreach { sender ! _ }
 
-    case message @ Window.Message.Get ⇒ App.traceMessage(message) {
-      window
-    } foreach { sender ! _ }
-
-    case message @ App.Message.Create(Left(viewFactory: ViewLayer.Factory), None) ⇒
+    case message @ App.Message.Create(Left(viewFactory: View.Factory), None) ⇒
       stackSupervisor.forward(message)
 
     case message @ App.Message.Save ⇒
@@ -129,15 +139,19 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   override def postStop() = log.debug(self.path.name + " actor is stopped.")
 
   /** Close window. */
-  protected def close(sender: ActorRef) = {
+  protected def close(sender: ActorRef): Option[AppWindow] = {
     log.debug(s"Close window ${windowId}.")
-    this.window.foreach(window ⇒ App.exec {
-      if (window.getShell() != null && !window.getShell().isDisposed())
-        if (sender != context.system.deadLetters) {
-          val closeResult = window.close()
-          sender ! Window.Message.CloseResult(closeResult)
-        }
-    })
+    this.window.flatMap { window ⇒
+      val closed = App.execNGet {
+        if (window.getShell() != null && !window.getShell().isDisposed()) window.close() else false
+      }
+      if (closed) {
+        this.window = None
+        Some(window)
+      } else {
+        None
+      }
+    }
   }
   /** Create window. */
   protected def create(configuration: WindowConfiguration, supervisor: ActorRef): Option[AppWindow] = {
@@ -157,28 +171,20 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     this.window
   }
   /** Destroy created window. */
-  protected def destroy(sender: ActorRef): Option[AppWindow] = this.window.map { window ⇒
+  protected def destroy(sender: ActorRef): Option[AppWindow] = this.window.flatMap { window ⇒
     log.debug(s"Destroy window ${windowId}.")
-    // Remove window from the common map.
-    Window.windowMapRWL.writeLock().lock()
-    try Window.windowMap -= window
-    finally Window.windowMapRWL.writeLock().unlock()
     window.saveOnClose = false
     close(sender)
-    this.window = None
-    window
   }
   /** User start interaction with window. Focus is gained. */
   @log
   protected def onStart(widget: Widget) = window match {
     case Some(window) ⇒
-      App.execNGet {
-        Core.context.set(UI.windowContextKey, window)
-        windowContext.activateBranch()
-      }
+      windowContext.activateBranch()
       Await.ready(ask(stackSupervisor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
     case None ⇒
-      log.fatal("Unable to start unexists window.")
+      // Is window deleted while event was delivered?
+      log.debug(s"Unable to start unexists window for ${this}.")
   }
   /** Focus is lost. */
   @log
@@ -186,16 +192,25 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     case Some(window) ⇒
       Await.ready(ask(stackSupervisor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
     case None ⇒
-      log.fatal("Unable to stop unexists window.")
+      // Is window deleted while event was delivered?
+      log.debug(s"Unable to stop unexists window for ${this}.")
   }
   /** Open created window. */
-  protected def open(sender: ActorRef) = this.window.foreach(window ⇒ App.execNGet {
-    if (window.getShell() == null || (window.getShell() != null && !window.getShell().isDisposed()))
-      if (sender != context.system.deadLetters) {
-        val result = window.open()
-        sender ! Window.Message.OpenResult(result)
-      }
-  })
+  protected def open(sender: ActorRef): Option[AppWindow] = {
+    log.debug(s"Open window ${windowId}.")
+    this.window.flatMap { window ⇒
+      val opened = App.execNGet {
+        if (window.getShell() == null || (window.getShell() != null && !window.getShell().isDisposed()))
+          window.open() == org.eclipse.jface.window.Window.OK
+        else
+          false
+      }(App.LongRunnable)
+      if (opened)
+        Some(window)
+      else
+        None
+    }
+  }
 }
 
 object Window extends Loggable {
@@ -215,13 +230,6 @@ object Window extends Loggable {
   case class <>(val windowId: UUID, val configuration: WindowConfiguration) {
     override def toString() = "<>([%08X]=%s, %s)".format(windowId.hashCode(), windowId.toString(), configuration)
   }
-  trait Message extends App.Message
-  object Message {
-    /** Get window composite. */
-    case object Get
-    case class OpenResult private[Window] (arg: Int) extends Message
-    case class CloseResult private[Window] (arg: Boolean) extends Message
-  }
   /**
    * Window map consumer.
    */
@@ -231,6 +239,19 @@ object Window extends Loggable {
       Window.windowMapRWL.readLock().lock()
       try Window.windowMap.toMap
       finally Window.windowMapRWL.readLock().unlock()
+    }
+  }
+  /**
+   * Window map consumer.
+   */
+  trait WindowMapDisposer {
+    this: AppWindow ⇒
+    /** Remove this AppWindow from the common map. */
+    def windowRemoveFromCommonMap() {
+      // Remove window from the common map.
+      Window.windowMapRWL.writeLock().lock()
+      try Window.windowMap -= this
+      finally Window.windowMapRWL.writeLock().unlock()
     }
   }
   /**
