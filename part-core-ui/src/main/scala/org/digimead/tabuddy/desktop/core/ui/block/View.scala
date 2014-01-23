@@ -73,6 +73,9 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
   var view: Option[VComposite] = None
   log.debug("Start actor " + self.path)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() { view.foreach { view ⇒ context.stop(view.contentRef) } }
+
   def receive = {
     case message @ App.Message.Create(Left(View.<>(viewConfiguration, parentWidget)), None) ⇒ App.traceMessage(message) {
       create(viewConfiguration, parentWidget, sender) match {

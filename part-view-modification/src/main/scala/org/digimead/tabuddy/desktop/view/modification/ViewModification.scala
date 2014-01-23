@@ -50,6 +50,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.logic.Logic
 import scala.language.implicitConversions
 
@@ -70,8 +71,8 @@ class ViewModification extends akka.actor.Actor with Loggable {
    */
   //val actionRef = context.actorOf(action.Action.props, action.Action.id)
 
-  if (App.watch(Activator, Logic, this).hooks.isEmpty)
-    App.watch(Activator, Logic, this).always().
+  if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
+    App.watch(Activator, Logic, UI, this).always().
       makeAfterStart { onGUIStarted() }.
       makeBeforeStop { onGUIStopped() }.sync()
 
@@ -94,7 +95,8 @@ class ViewModification extends akka.actor.Actor with Loggable {
       sender ! context.actorOf(props, name)
     }
 
-    case message @ App.Message.Consistent(element, from) if from != Some(self) && App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
+    case message @ App.Message.Consistent(element, from) if from != Some(self) &&
+      App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.nonEmpty) {
         inconsistentSet = inconsistentSet - element
         if (inconsistentSet.isEmpty) {
@@ -105,7 +107,8 @@ class ViewModification extends akka.actor.Actor with Loggable {
         log.debug(s"Skip message ${message}. ViewModification is already consistent.")
     }
 
-    case message @ App.Message.Inconsistent(element, from) if from != Some(self) && App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
+    case message @ App.Message.Inconsistent(element, from) if from != Some(self) &&
+      App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
         context.system.eventStream.publish(App.Message.Inconsistent(ViewModification, self))

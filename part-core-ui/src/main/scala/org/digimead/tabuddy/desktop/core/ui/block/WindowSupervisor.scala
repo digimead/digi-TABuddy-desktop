@@ -78,7 +78,7 @@ import scala.language.implicitConversions
  */
 class WindowSupervisor extends Actor with Loggable {
   /** All known window configurations. */
-  val configurations = new mutable.HashMap[UUID, WindowConfiguration]() with mutable.SynchronizedMap[UUID, WindowConfiguration]
+  val configurations = new WindowSupervisor.ConfigurationMap()
   /** Reference to configurations save process future. */
   val configurationsSave = new AtomicReference[Option[Future[_]]](None)
   /** Flag indicating whether the configurations save process restart is required. */
@@ -89,6 +89,9 @@ class WindowSupervisor extends Actor with Loggable {
   protected var activeFocusEvent: Option[(UUID, Widget)] = None
   /** Last App.Message.Start/Stop event from FocusListener. */
   protected var lastFocusEvent: Either[(UUID, Widget), (UUID, Widget)] = null
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(Timeout.short)
+
   log.debug("Start actor " + self.path)
 
   if (App.watch(UI, this).hooks.isEmpty)
@@ -135,7 +138,17 @@ class WindowSupervisor extends Actor with Loggable {
 
     case message @ App.Message.Get(None) ⇒ getConfiguration(sender, None)
 
-    case message @ App.Message.Get(null) ⇒ sender ! pointers.toSeq
+    case message @ App.Message.Get(WindowSupervisor.ConfigurationMap) ⇒ sender ! configurations.toMap
+
+    case message @ App.Message.Get(WindowSupervisor.PointerMap) ⇒ sender ! pointers.toMap
+
+    case message @ App.Message.Open(Left(Some(id: UUID)), _) ⇒ App.traceMessage(message) {
+      open(Some(id))
+    } foreach { sender ! _ }
+
+    case message @ App.Message.Open(Left(None), _) ⇒ App.traceMessage(message) {
+      open(None)
+    } foreach { sender ! _ }
 
     case message @ App.Message.Restore ⇒ App.traceMessage(message) {
       restore()
@@ -178,8 +191,6 @@ class WindowSupervisor extends Actor with Loggable {
     val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), windowName)
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
     // Block supervisor until window is created
-    implicit val ec = App.system.dispatcher
-    implicit val timeout = akka.util.Timeout(Timeout.short)
     Await.result(window ? App.Message.Create(Left(Window.<>(windowId, configurations.get(windowId) getOrElse WindowConfiguration.default))), timeout.duration)
   }
   /** Send exists or default window configuration to sender. */
@@ -206,13 +217,15 @@ class WindowSupervisor extends Actor with Loggable {
             Core.context.set("shellList", Seq(window.getShell()))
           window.windowContext.activateBranch()
         }
-        implicit val timeout = akka.util.Timeout(Timeout.short)
         Await.result(sender ? App.Message.Open, timeout.duration)
     }
   }
   /** Remove window pointer with AppWindow value. */
   protected def onDestroyed(window: AppWindow, sender: ActorRef) {
-    pointers.get(window.id).foreach(_.windowActor ! App.Message.Save)
+    pointers.get(window.id).foreach { window ⇒
+      Await.result(window.windowActor ? App.Message.Save, timeout.duration)
+      context.stop(window.windowActor)
+    }
     pointers -= window.id
   }
   /** Start global focus listener when GUI is available. */
@@ -230,6 +243,24 @@ class WindowSupervisor extends Actor with Loggable {
     App.display.removeFilter(SWT.FocusOut, FocusListener)
     App.display.removeFilter(SWT.Activate, FocusListener)
     App.display.removeFilter(SWT.Deactivate, FocusListener)
+  }
+  /** Open new window or switch to the exists one. */
+  protected def open(windowId: Option[UUID]) = {
+    log.debug(s"Open window ${windowId}.")
+    windowId.flatMap(pointers.get) match {
+      case Some(pointer) ⇒
+        log.debug(s"Window ${windowId} is already exists. Make active exists one.")
+        Option(pointer.appWindowRef.get).map(appWindow ⇒
+          App.exec { appWindow.getShell().forceActive() })
+      case None ⇒
+        val saved = configurations.keySet -- pointers.keySet
+        val id = windowId orElse saved.headOption getOrElse UUID.randomUUID()
+        if (configurations.isDefinedAt(id))
+          log.debug(s"Restore window ${id}.")
+        else
+          log.debug(s"Create window ${id}.")
+        create(id)
+    }
   }
   /** Restore windows from configuration. */
   protected def restore() {
@@ -405,8 +436,14 @@ object WindowSupervisor extends Loggable {
   def props = DI.props
 
   /**
+   * Configurations map.
+   */
+  class ConfigurationMap extends mutable.HashMap[UUID, WindowConfiguration]
+  object ConfigurationMap
+  /**
    * Window pointers map.
-   * Shut down application on empty.
+   *
+   * Shut down application on empty if UI.stopEventLoopWithLastWindow is true.
    */
   class PointerMap extends mutable.HashMap[UUID, WindowPointer] {
     override def -=(key: UUID): this.type = {
@@ -431,6 +468,7 @@ object WindowSupervisor extends Loggable {
       }
     }
   }
+  object PointerMap
   /** Wrapper that contains window and ActorRef. */
   case class WindowPointer(val windowActor: ActorRef)(val appWindowRef: WeakReference[AppWindow]) {
     def stackSupervisorActor: ActorRef = App.getActorRef(windowActor.path / StackSupervisor.id) getOrElse {

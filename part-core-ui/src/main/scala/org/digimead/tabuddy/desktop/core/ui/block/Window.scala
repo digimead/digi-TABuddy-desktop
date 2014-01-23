@@ -133,8 +133,9 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     case message @ App.Message.Create(Left(viewFactory: View.Factory), None) ⇒
       stackSupervisor.forward(message)
 
-    case message @ App.Message.Save ⇒
+    case message @ App.Message.Save ⇒ App.traceMessage(message) {
       stackSupervisor.forward(message)
+    } foreach { sender ! _ }
   }
   override def postStop() = log.debug(self.path.name + " actor is stopped.")
 
