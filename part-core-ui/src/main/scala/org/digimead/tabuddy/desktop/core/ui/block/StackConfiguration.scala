@@ -109,7 +109,7 @@ object StackConfiguration {
   implicit def configuration2implementation(c: StackConfiguration.type): StackConfiguration = c.inner
 
   /** Default view configuration. */
-  def default = DI.default
+  def default = DI.default()
   /** Stack configuration file extension. */
   def configurationExtenstion = DI.configurationExtenstion
   /** Stack configuration directory name. */
@@ -117,6 +117,7 @@ object StackConfiguration {
   /** StackConfiguration implementation. */
   def inner = DI.implementation
 
+  trait Builder extends Function0[Configuration]
   /**
    * Dependency injection routines
    */
@@ -126,8 +127,9 @@ object StackConfiguration {
     /** Extension for stored configurations. */
     lazy val configurationExtenstion = injectOptional[String]("Core.UI.StackConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
-    lazy val default = injectOptional[Configuration]("Core.UI.StackConfiguration.Default") getOrElse
-      Configuration(Configuration.CView(ViewDefault.configuration))
+    lazy val default = injectOptional[StackConfiguration.Builder]("Core.UI.StackConfiguration.Default") getOrElse {
+      () ⇒ Configuration(Configuration.CView(ViewDefault.configuration))
+    }
     //      StackConfiguration(Stack.Tab(Seq(View(UUID.fromString("00000000-0000-0000-0000-000000000000")))))
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()

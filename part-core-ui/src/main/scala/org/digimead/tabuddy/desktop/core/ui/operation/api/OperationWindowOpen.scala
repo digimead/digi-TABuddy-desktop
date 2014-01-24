@@ -57,14 +57,14 @@ trait OperationWindowOpen {
    *
    * @param windowId Specific window Id or None
    */
-  def apply(windowId: Option[UUID]): Unit
+  def apply(windowId: Option[UUID]): Option[UUID]
   /**
    * Create 'Open window' operation.
    *
    * @param windowId Specific window Id or None
    * @return 'Open window' operation
    */
-  def operation(windowId: Option[UUID]): api.Operation[Unit]
+  def operation(windowId: Option[UUID]): api.Operation[Option[UUID]]
 
   /**
    * Checks that this class can be subclassed.

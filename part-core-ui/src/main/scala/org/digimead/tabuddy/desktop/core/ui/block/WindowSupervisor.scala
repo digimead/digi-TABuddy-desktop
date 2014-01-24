@@ -143,11 +143,21 @@ class WindowSupervisor extends Actor with Loggable {
     case message @ App.Message.Get(WindowSupervisor.PointerMap) ⇒ sender ! pointers.toMap
 
     case message @ App.Message.Open(Left(Some(id: UUID)), _) ⇒ App.traceMessage(message) {
-      open(Some(id))
+      open(Some(id)) match {
+        case Some(uuid) ⇒
+          App.Message.Open(Right(uuid))
+        case None ⇒
+          App.Message.Error(s"Unable to open window ${id}.")
+      }
     } foreach { sender ! _ }
 
     case message @ App.Message.Open(Left(None), _) ⇒ App.traceMessage(message) {
-      open(None)
+      open(None) match {
+        case Some(uuid) ⇒
+          App.Message.Open(Right(uuid))
+        case None ⇒
+          App.Message.Error("Unable to open new window.")
+      }
     } foreach { sender ! _ }
 
     case message @ App.Message.Restore ⇒ App.traceMessage(message) {
@@ -245,13 +255,15 @@ class WindowSupervisor extends Actor with Loggable {
     App.display.removeFilter(SWT.Deactivate, FocusListener)
   }
   /** Open new window or switch to the exists one. */
-  protected def open(windowId: Option[UUID]) = {
+  protected def open(windowId: Option[UUID]): Option[UUID] = {
     log.debug(s"Open window ${windowId}.")
     windowId.flatMap(pointers.get) match {
       case Some(pointer) ⇒
         log.debug(s"Window ${windowId} is already exists. Make active exists one.")
-        Option(pointer.appWindowRef.get).map(appWindow ⇒
-          App.exec { appWindow.getShell().forceActive() })
+        Option(pointer.appWindowRef.get).map { appWindow ⇒
+          App.exec { appWindow.getShell().forceActive() }
+          appWindow.id
+        }
       case None ⇒
         val saved = configurations.keySet -- pointers.keySet
         val id = windowId orElse saved.headOption getOrElse UUID.randomUUID()
@@ -260,6 +272,7 @@ class WindowSupervisor extends Actor with Loggable {
         else
           log.debug(s"Create window ${id}.")
         create(id)
+        Some(id)
     }
   }
   /** Restore windows from configuration. */

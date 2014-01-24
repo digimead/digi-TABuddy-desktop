@@ -54,6 +54,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import scala.concurrent.Await
 
 /** 'Open window' operation. */
 class OperationWindowOpen extends api.OperationWindowOpen with Loggable {
@@ -62,11 +63,17 @@ class OperationWindowOpen extends api.OperationWindowOpen with Loggable {
    *
    * @param windowId Specific window Id or None
    */
-  def apply(windowId: Option[UUID]) {
+  def apply(windowId: Option[UUID]): Option[UUID] = {
     log.info(s"Open window with Id ${windowId}.")
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
-    WindowSupervisor.actor ? App.Message.Open(Left(windowId))
+    Await.result(WindowSupervisor.actor ? App.Message.Open(Left(windowId)), timeout.duration) match {
+      case App.Message.Open(Right(uuid: UUID), _) ⇒
+        Some(uuid)
+      case App.Message.Error(message, _) ⇒
+        log.error(s"Unable to open window ${}: ${message}")
+        None
+    }
   }
   /**
    * Create 'Open window' operation.
@@ -101,12 +108,12 @@ class OperationWindowOpen extends api.OperationWindowOpen with Loggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Option[UUID]] =
       try Operation.Result.OK(Option(OperationWindowOpen.this(windowId)))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Option[UUID]] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Option[UUID]] =
       throw new UnsupportedOperationException
   }
 }
@@ -125,10 +132,10 @@ object OperationWindowOpen extends Loggable {
   def apply(windowId: Option[UUID]): Option[Abstract] =
     Some(operation.operation(windowId))
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val windowId: Option[UUID]) extends Operation[Unit](windowId match {
+  /** Bridge between abstract api.Operation[Option[UUID]] and concrete Operation[Option[UUID]] */
+  abstract class Abstract(val windowId: Option[UUID]) extends Operation[Option[UUID]](windowId match {
     case Some(windowId) ⇒ s"Open specific window with Id ${windowId}."
-    case None ⇒ s"Open any window."
+    case None ⇒ s"Open window."
   }) {
     this: Loggable ⇒
   }

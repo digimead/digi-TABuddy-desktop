@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.core.support
 import akka.actor.{ Actor, actorRef2Scala }
 import akka.event.Logging
 import akka.event.Logging.{ InitializeLogger, LogEvent, LoggerInitialized }
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.slf4j.LoggerFactory
 
@@ -65,7 +66,7 @@ class AkkaLogBridge extends Actor with Loggable {
   def record(event: LogEvent) = {
     val log = LoggerFactory.getLogger("¤." + event.logSource)
     event match {
-      case e: Logging.Error ⇒
+      case e: Logging.Error if AkkaLogBridge.DI.logError ⇒
         Option(e.message) match {
           case Some(message) ⇒
             if (e.cause != null)
@@ -74,9 +75,22 @@ class AkkaLogBridge extends Actor with Loggable {
               log.error(e.message.toString)
           case None ⇒ log.error(e.cause.getMessage(), e.cause.getCause())
         }
-      case e: Logging.Warning ⇒ log.warn(e.message.toString)
-      case e: Logging.Info ⇒ log.info(e.message.toString)
-      case e: Logging.Debug ⇒ log.debug(e.message.toString)
+      case e: Logging.Warning if AkkaLogBridge.DI.logWarning ⇒ log.warn(e.message.toString)
+      case e: Logging.Info if AkkaLogBridge.DI.logInfo ⇒ log.info(e.message.toString)
+      case e: Logging.Debug if AkkaLogBridge.DI.logDebug ⇒ log.debug(e.message.toString)
+      case e ⇒
     }
+  }
+}
+
+object AkkaLogBridge {
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    lazy val logError = injectOptional[Boolean]("Core.AkkaLogBridge.Error") getOrElse true
+    lazy val logWarning = injectOptional[Boolean]("Core.AkkaLogBridge.Warning") getOrElse true
+    lazy val logInfo = injectOptional[Boolean]("Core.AkkaLogBridge.Info") getOrElse false
+    lazy val logDebug = injectOptional[Boolean]("Core.AkkaLogBridge.Debug") getOrElse false
   }
 }

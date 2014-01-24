@@ -165,7 +165,6 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       throw new IllegalArgumentException(s"Stack with id ${stackId} is already exists.")
     if (!configuration.element.contains(stackId))
       throw new IllegalArgumentException(s"Stack with id ${stackId} is unknown.")
-    implicit val ec = App.system.dispatcher
     configuration.element(stackId) match {
       case (parent, stackConfiguration: Configuration.Stack) ⇒
         log.debug(s"Attach ${stackConfiguration} as top level element.")
@@ -386,8 +385,16 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   }
   /** Restore stack configuration. */
   protected def restore(parent: WComposite): Option[SComposite] = {
-    // TODO destroy all current stacks
-    StackConfiguration.load(windowId).foreach(configuration.set)
+    log.debug("Restore stack for ${parent}.")
+    context.children.foreach(context.stop)
+    StackConfiguration.load(windowId) match {
+      case Some(loaded) ⇒
+        log.debug("Load exists configuration.")
+        configuration.set(loaded)
+      case None ⇒
+        log.debug("Create new configuration.")
+        configuration.set(StackConfiguration.default)
+    }
     container = Some(parent)
     create(configuration.stack.id, parent)
     // TODO activate last

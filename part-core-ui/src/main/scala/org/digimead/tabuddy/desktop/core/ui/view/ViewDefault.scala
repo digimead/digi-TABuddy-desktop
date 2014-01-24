@@ -156,7 +156,6 @@ object ViewDefault extends View.Factory with Loggable {
   /** Returns actor reference that could handle Create/Destroy messages. */
   @log
   def viewActor(configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
-    implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
     val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
     val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
