@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.core.ui.block
 import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -53,14 +54,10 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.swt.widgets.Widget
-import scala.collection.immutable
-import scala.concurrent.Await
 import scala.collection.{ immutable, mutable }
 import scala.concurrent.Await
-import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /**
  * Actor that represents application window, responsible for:
@@ -132,10 +129,6 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
 
     case message @ App.Message.Create(Left(viewFactory: View.Factory), None) ⇒
       stackSupervisor.forward(message)
-
-    case message @ App.Message.Save ⇒ App.traceMessage(message) {
-      stackSupervisor.forward(message)
-    } foreach { sender ! _ }
   }
   override def postStop() = log.debug(self.path.name + " actor is stopped.")
 

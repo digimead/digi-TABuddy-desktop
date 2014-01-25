@@ -233,7 +233,6 @@ class WindowSupervisor extends Actor with Loggable {
   /** Remove window pointer with AppWindow value. */
   protected def onDestroyed(window: AppWindow, sender: ActorRef) {
     pointers.get(window.id).foreach { window ⇒
-      Await.result(window.windowActor ? App.Message.Save, timeout.duration)
       context.stop(window.windowActor)
     }
     pointers -= window.id

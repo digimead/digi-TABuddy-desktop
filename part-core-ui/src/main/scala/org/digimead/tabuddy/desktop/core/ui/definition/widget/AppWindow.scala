@@ -48,14 +48,15 @@ import akka.pattern.ask
 import akka.util.Timeout.durationToTimeout
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.Window
+import org.digimead.tabuddy.desktop.core.ui.block.{ Window, WindowConfiguration, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.StackConfiguration
 import org.digimead.tabuddy.desktop.core.ui.block.builder.WindowContentBuilder
-import org.digimead.tabuddy.desktop.core.ui.block.{ WindowConfiguration, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
 import org.eclipse.jface.action.{ CoolBarManager, StatusLineManager }
 import org.eclipse.jface.window.ApplicationWindow
@@ -105,9 +106,12 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     shell.addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         windowContext.dispose() // see WComposite dispose listener
-        updateConfiguration()
-        for (configuration ← configuration if saveOnClose)
-          WindowSupervisor ! App.Message.Set(id, configuration)
+        if (saveOnClose) {
+          updateConfiguration()
+          for (configuration ← configuration)
+            WindowSupervisor ! App.Message.Set(id, configuration)
+          StackConfiguration.save(id, StackConfiguration.build(shell))
+        }
         App.display.removeFilter(SWT.Paint, onActiveListener)
         windowRemoveFromCommonMap()
         App.publish(App.Message.Destroy(Right(AppWindow.this), ref))
@@ -194,6 +198,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
   }
   /** On window active. */
   protected def onActive() = {}
+
   /** Show content. */
   protected def showContent(content: WComposite) {
     log.debug(s"Show content of ${this}.")
@@ -207,13 +212,14 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
       case App.Message.Create(Right(topLevelWidget: SComposite), None) ⇒
         log.debug(s"Window content created. Show one.")
         App.exec {
-          this.content.foreach { content ⇒
-            val parent = content.getParent()
-            val layout = parent.getLayout().asInstanceOf[StackLayout]
-            layout.topControl = content
-            layout.topControl.setFocus()
-            parent.layout()
-          }
+          if (!content.isDisposed()) // Yes, it is possible.
+            this.content.foreach { content ⇒
+              val parent = content.getParent()
+              val layout = parent.getLayout().asInstanceOf[StackLayout]
+              layout.topControl = content
+              layout.topControl.setFocus()
+              parent.layout()
+            }
         }
       case App.Message.Error(error, None) ⇒
         log.fatal(s"Unable to create top level content for window ${this}: ${error}.")

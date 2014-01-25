@@ -70,7 +70,7 @@ class TransformViewToTab extends Loggable {
       case wComposite: WComposite ⇒
         App.execNGet {
           val tabParentWidget = view.getParent
-          val viewConfiguration = ss.configuration.element(view.id)._2.asInstanceOf[Configuration.CView]
+          val viewConfiguration = ss.configurationMap(view.id)._2.asInstanceOf[Configuration.CView]
           val tabConfiguration = Configuration.Stack.CTab(Seq(viewConfiguration))
           log.debug(s"Reconfigure stack hierarchy. Bind ${tabConfiguration} to ${wComposite}.")
           val stackRef = ss.context.actorOf(StackLayer.props.copy(args = immutable.Seq(tabConfiguration.id)), StackLayer.id + "_%08X".format(tabConfiguration.id.hashCode()))

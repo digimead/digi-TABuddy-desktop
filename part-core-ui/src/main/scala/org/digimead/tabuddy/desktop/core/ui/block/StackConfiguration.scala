@@ -50,7 +50,9 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeHSash, SCompositeTab, SCompositeVSash, VComposite }
 import org.digimead.tabuddy.desktop.core.ui.view.ViewDefault
+import org.eclipse.swt.widgets.{ Composite, Shell, Widget }
 import org.osgi.framework.wiring.BundleWiring
 import scala.language.implicitConversions
 
@@ -70,6 +72,27 @@ class StackConfiguration extends Loggable {
   }
   private val loadSaveLock = new Object
 
+  /** Build configuration for the specific shell. */
+  def build(shell: Shell) = {
+    App.assertEventThread()
+    shell.getChildren().flatMap(rebuildConfiguration) match {
+      case Array(topLayerConfigurationElement) ⇒ Configuration(topLayerConfigurationElement)
+      case Array() ⇒ Configuration(Configuration.CEmpty())
+    }
+  }
+  /** Default view configuration. */
+  def default() = StackConfiguration.DI.default()
+  /** List all available configurations. */
+  def list(): Seq[UUID] = loadSaveLock.synchronized {
+    val suffix = "." + StackConfiguration.configurationExtenstion
+    configurationContainer.listFiles().flatMap(_.getName() match {
+      case name if name endsWith suffix ⇒
+        try Some(UUID.fromString(name.dropRight(suffix.length())))
+        catch { case e: Throwable ⇒ None }
+      case _ ⇒
+        None
+    })
+  }
   /** Load views configurations. */
   @log
   def load(stackId: UUID): Option[Configuration] = loadSaveLock.synchronized {
@@ -103,13 +126,52 @@ class StackConfiguration extends Loggable {
     out.writeObject(configuration)
     out.close()
   }
+
+  /** Rebuild configuration from the actual widgets hierarchy */
+  protected def rebuildConfiguration(widget: Widget): Option[Configuration.CPlaceHolder] = widget match {
+    case vcomposite: VComposite ⇒
+      Some(Configuration.CView(vcomposite.factory, vcomposite.id))
+    case scomposite: SCompositeTab ⇒
+      val children: Array[Configuration.CView] = scomposite.getItems().map { tabItem ⇒
+        rebuildConfiguration(tabItem.getControl()) match {
+          case Some(view: Configuration.CView) ⇒
+            Some(view)
+          case Some(unexpected) ⇒
+            log.fatal("Unexpected configuration element: ${unexpected}.")
+            None
+          case None ⇒
+            None
+        }
+      }.flatten
+      if (children.nonEmpty)
+        Some(Configuration.Stack.CTab(children, scomposite.id))
+      else
+        None
+    case scomposite: SCompositeHSash ⇒
+      // TODO
+      None
+    case scomposite: SCompositeVSash ⇒
+      // TODO
+      None
+    case widget: Composite ⇒
+      // pass through via other composite
+      widget.getChildren().map(rebuildConfiguration).flatten match {
+        case Array() ⇒
+          None
+        case Array(configuration) ⇒
+          Some(configuration)
+        case unexpected ⇒
+          log.fatal(s"Unexpected configuration: ${unexpected.mkString(", ")}")
+          None
+      }
+    case unknownWidget ⇒
+      None
+  }
 }
 
 object StackConfiguration {
   implicit def configuration2implementation(c: StackConfiguration.type): StackConfiguration = c.inner
 
-  /** Default view configuration. */
-  def default = DI.default()
   /** Stack configuration file extension. */
   def configurationExtenstion = DI.configurationExtenstion
   /** Stack configuration directory name. */
