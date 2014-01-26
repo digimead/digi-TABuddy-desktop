@@ -132,7 +132,7 @@ class UI extends akka.actor.Actor with Loggable {
       App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }
       view.Views.configure()
       command.Commands.configure()
-      WindowSupervisor ! App.Message.Restore
+      WindowSupervisor ! App.Message.Restore()
       Console ! Console.Message.Notice("UI component is started.")
       self ! App.Message.Consistent(UI, None)
     }

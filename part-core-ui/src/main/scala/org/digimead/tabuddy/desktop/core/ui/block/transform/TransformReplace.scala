@@ -62,10 +62,19 @@ class TransformReplace extends Loggable {
     stackSupervisorIternals.wComposite.flatMap { wComposite ⇒
       log.debug(s"Replace window ${window} content with ${viewConfiguration}.")
       implicit val ec = App.system.dispatcher
-      val futures = stackSupervisorIternals.context.children.map(_ ? App.Message.Destroy)
+      val futures = stackSupervisorIternals.context.children.map(_ ? App.Message.Destroy())
       val result = Await.result(Future.sequence(futures), Timeout.short)
-      println("!!!!!!!!!!!!!!!!!!!" + result)
-      ViewContentBuilder(viewConfiguration, wComposite, stackSupervisorIternals.parentContext, stackSupervisorIternals.context)
+      val errors = result.filter(_ match {
+        case App.Message.Error(message, _) ⇒ true
+        case _ ⇒ false
+      })
+      if (errors.isEmpty) {
+        stackSupervisorIternals.lastActiveViewIdForCurrentWindow.set(None)
+        ViewContentBuilder(viewConfiguration, wComposite, stackSupervisorIternals.parentContext, stackSupervisorIternals.context)
+      } else {
+        errors.foreach(err ⇒ log.error(s"Unable to TransformReplace ${viewConfiguration}: ${err.asInstanceOf[App.Message.Error[_]].arg}"))
+        None
+      }
     }
 }
 

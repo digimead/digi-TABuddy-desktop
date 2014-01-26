@@ -107,11 +107,13 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     } foreach { sender ! _ }
 
     case message @ App.Message.Create(Right(stackLayer: SComposite), Some(publisher)) ⇒ App.traceMessage(message) {
-      onCreated(stackLayer, publisher)
+      if (App.execNGet { wComposite.map(UI.widgetHierarchy(stackLayer).contains).getOrElse(false) })
+        onCreated(stackLayer, publisher)
     }
 
     case message @ App.Message.Destroy(Right(stackLayer: SComposite), Some(publisher)) ⇒ App.traceMessage(message) {
-      onDestroyed(stackLayer)
+      if (pointers.isDefinedAt(stackLayer.id))
+        onDestroyed(stackLayer)
     }
 
     case message @ App.Message.Get(Configuration) ⇒ sender ! App.execNGet { wComposite.map(w ⇒ StackConfiguration.build(w.getShell)) getOrElse configuration }
@@ -157,7 +159,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     if (!configuration.asMap.contains(stackId))
       throw new IllegalArgumentException(s"Stack with id ${stackId} is unknown.")
     log.debug("Create a top level stack element %s with id %08X=%s.".format(configuration.asMap(stackId)._2, stackId.hashCode(), stackId))
-    val composite = configuration.asMap(stackId) match {
+    configuration.asMap(stackId) match {
       case (parent, stackConfiguration: Configuration.Stack) ⇒
         log.debug(s"Attach ${stackConfiguration} as top level element.")
         val stack = context.actorOf(StackLayer.props.copy(args = immutable.Seq(stackConfiguration.id)), StackLayer.id + "_%08X".format(stackConfiguration.id.hashCode()))
@@ -178,21 +180,11 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       case (parent, viewConfiguration: Configuration.CView) ⇒
         // There is only a view that is directly attached to the window.
         log.debug(s"Attach ${viewConfiguration} as top level element.")
-        ViewContentBuilder(viewConfiguration, parentWidget, parentContext, context) match {
-          case result @ Some(viewWidget) ⇒
-            pointers += stackId -> StackSupervisor.StackPointer(viewWidget.ref)(new WeakReference(viewWidget))
-            result
-          case None ⇒
-            None
-        }
+        ViewContentBuilder(viewConfiguration, parentWidget, parentContext, context)
       case (parent, viewConfiguration: Configuration.CEmpty) ⇒
         // Skip an empty configuration.
         None
     }
-    Option(Core.context.getActiveLeaf().get(classOf[VComposite])).getOrElse {
-      composite.foreach(setActiveView(stackId, _))
-    }
-    composite
   }
   /** Create new view within stack hierarchy. */
   protected def create(viewConfiguration: Configuration.CView): Option[VComposite] = {
@@ -224,28 +216,33 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
           wComposite ← wComposite
           appWindow ← wComposite.getAppWindow()
         } yield transform.TransformReplace(this, appWindow, viewConfiguration)
-        vComposite.flatten match {
-          case result @ Some(viewWidget) ⇒
-            //            pointers += stackId -> StackSupervisor.StackPointer(viewWidget.ref)(new WeakReference(viewWidget))
-            result
-          case None ⇒
-            None
-        }
-
+        vComposite.flatten
     }
   }
   /** Register created stack element. */
-  protected def onCreated(stackLayer: SComposite, sender: ActorRef) {
-    pointers += stackLayer.id -> StackSupervisor.StackPointer(sender)(new WeakReference(stackLayer))
+  @log
+  protected def onCreated(stack: SComposite, sender: ActorRef) {
+    log.debug(s"Add created ${stack} to ${this}.")
+    pointers += stack.id -> StackSupervisor.StackPointer(sender)(new WeakReference(stack))
+    stack match {
+      case vComposite: VComposite ⇒
+        if (Core.context.getActiveLeaf().get(classOf[VComposite]) == null)
+          setActiveView(stack.id, vComposite)
+      case _ ⇒
+    }
   }
   /** Unregister destroyed stack element. */
+  @log
   protected def onDestroyed(stack: SComposite) {
+    log.debug(s"Remove destroyed ${stack} to ${this}.")
     val stackOpt = Option(stack.id)
+    context.children.find(child ⇒ if (child == stack.ref) { context.stop(child); true } else false)
     pointers -= stack.id
     if (lastActiveViewIdForCurrentWindow.get() == stackOpt)
       lastActiveViewIdForCurrentWindow.set(None)
   }
   /** User start interaction with window/stack supervisor. Focus is gained. */
+  @log
   protected def onStart(widget: Widget) {
     val seq = App.execNGet { UI.widgetHierarchy(widget) }
     if (seq.headOption.map(_.isInstanceOf[VComposite]).getOrElse(false)) {
@@ -284,6 +281,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     }
   }
   /** Focus is lost. */
+  @log
   protected def onStop(widget: Widget) {
     lastActiveViewIdForCurrentWindow.get.foreach { viewId ⇒
       val viewPointer = pointers(viewId)
@@ -296,17 +294,20 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   /** Restore stack configuration. */
   protected def restore(parent: WComposite): Option[SComposite] = {
     log.debug(s"Restore stack for ${parent}.")
-    context.children.foreach(context.stop)
-    wComposite = Some(parent)
-    createStackContent(configuration.stack.id, parent)
-    // TODO activate last
+    val existConfiguration = App.execNGet { wComposite.map(w ⇒ StackConfiguration.build(w.getShell)) getOrElse configuration }
+    if (pointers.nonEmpty && existConfiguration == configuration) {
+      Option(pointers(configuration.stack.id).stack.get())
+    } else {
+      context.children.foreach(context.stop)
+      wComposite = Some(parent)
+      createStackContent(configuration.stack.id, parent)
+      // TODO activate last
+    }
   }
   /** Set active view. */
   protected def setActiveView(id: UUID, widget: Widget): Unit = try {
-    if (lastActiveViewIdForCurrentWindow.get() != Some(id)) {
-      log.debug(s"Set active view ${configuration.asMap(id)._2} with full id ${id}.")
+    if (lastActiveViewIdForCurrentWindow.get() != Some(id))
       lastActiveViewIdForCurrentWindow.set(Option(id))
-    }
     Await.ready(ask(pointers(id).actor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
   } catch {
     case e: Throwable ⇒
@@ -337,7 +338,7 @@ object StackSupervisor extends Loggable {
             (old.stack.get().isInstanceOf[VComposite] || old.stack.get() == null) &&
             this.find { case (uuid, pointer) ⇒ pointer.stack.get().isInstanceOf[VComposite] }.isEmpty) {
             log.info("There are no views. Close window.")
-            parent ! App.Message.Close
+            parent ! App.Message.Close()
           }
       }
       this
@@ -346,7 +347,7 @@ object StackSupervisor extends Loggable {
       super.clear()
       if (UI.closeWindowWithLastView) {
         log.info("There are no views. Close window.")
-        parent ! App.Message.Close
+        parent ! App.Message.Close()
       }
     }
   }

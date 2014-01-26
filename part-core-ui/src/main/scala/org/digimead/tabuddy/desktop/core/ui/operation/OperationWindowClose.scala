@@ -67,9 +67,9 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
     if (saveOnClose)
-      window.asInstanceOf[AppWindow].ref ? App.Message.Close
+      window.asInstanceOf[AppWindow].ref ? App.Message.Close()
     else
-      window.asInstanceOf[AppWindow].ref ? App.Message.Destroy
+      window.asInstanceOf[AppWindow].ref ? App.Message.Destroy()
   }
   /**
    * Create 'Close window' operation.

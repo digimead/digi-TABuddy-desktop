@@ -74,7 +74,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Close ⇒ App.traceMessage(message) {
+    case message @ App.Message.Close(_, None) ⇒ App.traceMessage(message) {
       close(sender) match {
         case Some(appWindow) ⇒
           App.Message.Close(Right(appWindow))
@@ -94,7 +94,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(_, None) ⇒ App.traceMessage(message) {
       destroy(sender) match {
         case Some(appWindow) ⇒
           // App.publish(App.Message.Destroy(Right(appWindow), self)) via AppWindow dispose listener
@@ -108,7 +108,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       window
     } foreach { sender ! _ }
 
-    case message @ App.Message.Open ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(_, None) ⇒ App.traceMessage(message) {
       open(sender) match {
         case Some(appWindow) ⇒
           App.Message.Open(Right(appWindow))
@@ -172,7 +172,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   protected def onStart(widget: Widget) = window match {
     case Some(window) ⇒
       windowContext.activateBranch()
-      Await.ready(ask(stackSupervisor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
+      Await.result(ask(stackSupervisor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
     case None ⇒
       // Is window deleted while event was delivered?
       log.debug(s"Unable to start unexists window for ${this}.")
@@ -181,7 +181,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   @log
   protected def onStop(widget: Widget) = window match {
     case Some(window) ⇒
-      Await.ready(ask(stackSupervisor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
+      Await.result(ask(stackSupervisor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
     case None ⇒
       // Is window deleted while event was delivered?
       log.debug(s"Unable to stop unexists window for ${this}.")

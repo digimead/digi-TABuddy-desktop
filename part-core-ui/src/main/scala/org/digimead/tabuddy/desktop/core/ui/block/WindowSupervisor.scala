@@ -160,11 +160,11 @@ class WindowSupervisor extends Actor with Loggable {
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Restore ⇒ App.traceMessage(message) {
+    case message @ App.Message.Restore(_, None) ⇒ App.traceMessage(message) {
       restore()
     }
 
-    case message @ App.Message.Save ⇒ App.traceMessage(message) {
+    case message @ App.Message.Save(_, None) ⇒ App.traceMessage(message) {
       save()
     }
 
@@ -227,7 +227,7 @@ class WindowSupervisor extends Actor with Loggable {
             Core.context.set("shellList", Seq(window.getShell()))
           window.windowContext.activateBranch()
         }
-        Await.result(sender ? App.Message.Open, timeout.duration)
+        Await.result(sender ? App.Message.Open(), timeout.duration)
     }
   }
   /** Remove window pointer with AppWindow value. */
@@ -465,7 +465,7 @@ object WindowSupervisor extends Loggable {
           super.-=(key)
           if (isEmpty && UI.stopEventLoopWithLastWindow) {
             log.info("There are no windows. Shutdown main loop.")
-            WindowSupervisor ! App.Message.Save
+            WindowSupervisor ! App.Message.Save()
             EventLoop.thread.stopEventLoop(EventLoop.Code.Ok)
           }
       }
@@ -475,7 +475,7 @@ object WindowSupervisor extends Loggable {
       super.clear()
       if (UI.stopEventLoopWithLastWindow) {
         log.info("There are no windows. Shutdown main loop.")
-        WindowSupervisor ! App.Message.Save
+        WindowSupervisor ! App.Message.Save()
         EventLoop.thread.stopEventLoop(EventLoop.Code.Ok)
       }
     }

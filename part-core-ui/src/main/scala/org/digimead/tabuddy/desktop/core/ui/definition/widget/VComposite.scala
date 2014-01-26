@@ -81,5 +81,5 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
     })
   }
 
-  override def toString() = s"VComposite {${factory}} [%08X]".format(id.hashCode())
+  override def toString() = s"VComposite {${factory().name}} [%08X]".format(id.hashCode())
 }

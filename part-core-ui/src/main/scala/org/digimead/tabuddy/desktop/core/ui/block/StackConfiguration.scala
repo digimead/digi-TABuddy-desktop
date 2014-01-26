@@ -115,6 +115,12 @@ class StackConfiguration extends Loggable {
         None
     }
   }
+  /** Remove saved configuration. */
+  @log
+  def remove(stackId: UUID) = loadSaveLock.synchronized {
+    val configurationFile = new File(configurationContainer, stackId.toString + "." + StackConfiguration.configurationExtenstion)
+    configurationFile.delete()
+  }
   /** Save views configurations. */
   @log
   def save(stackId: UUID, configuration: Configuration) = loadSaveLock.synchronized {

@@ -120,7 +120,7 @@ object Configuration extends Loggable {
     def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder = f(this)
   }
   case class CEmpty() extends CPlaceHolder {
-    lazy val id: UUID = UUID.randomUUID()
+    lazy val id: UUID = UUID.fromString("d2222c72-e769-4369-acd2-b7bb2f64e940")
 
     /** Dump element hierarchy. */
     def dump(indent: String): Seq[String] = Seq(indent + this.toString)

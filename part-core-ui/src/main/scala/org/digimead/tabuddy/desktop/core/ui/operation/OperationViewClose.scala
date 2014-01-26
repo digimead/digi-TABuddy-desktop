@@ -65,7 +65,7 @@ class OperationViewClose extends api.OperationViewClose with Loggable {
     log.info(s"Close ${vComposite}.")
     implicit val ec = App.system.dispatcher
     implicit val timeout = akka.util.Timeout(Timeout.short)
-    vComposite.asInstanceOf[VComposite].ref ? App.Message.Destroy
+    vComposite.asInstanceOf[VComposite].ref ? App.Message.Destroy()
   }
   /**
    * Create 'Close view' operation.

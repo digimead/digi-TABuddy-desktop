@@ -131,6 +131,10 @@ object App {
      * Argument of type Either is
      *   Left() - before/request
      *   Right() - after/reply
+     *
+     *   def apply() = new N(Left(N), None) is more useful then N:
+     *     there is stack trace for debugging
+     *     there is no null
      */
     /** Attach actor. */
     case class Attach(props: Props, name: String) extends Message {
@@ -143,6 +147,7 @@ object App {
     object Close {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Close(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Close(arg, None)
+      def apply() = new Close(Left(Close), None)
       override def toString = "Message.Close"
     }
     /** Element returns integrity. */
@@ -152,6 +157,7 @@ object App {
     object Consistent {
       def apply[T <: AnyRef](element: T, publisher: ActorRef) = new Consistent(element, Some(publisher))
       def apply[T <: AnyRef](element: T) = new Consistent(element, None)
+      def apply() = new Consistent(Left(Consistent), None)
       override def toString = "Message.Consistent"
     }
     /** Get consistency state. */
@@ -169,6 +175,7 @@ object App {
     object Create {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Create(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Create(arg, None)
+      def apply() = new Create(Left(Create), None)
       override def toString = "Message.Create"
     }
     /** Destroy something. */
@@ -178,6 +185,7 @@ object App {
     object Destroy {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Destroy(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Destroy(arg, None)
+      def apply() = new Destroy(Left(Destroy), None)
       override def toString = "Message.Destroy"
     }
     /** Operation error. */
@@ -187,6 +195,7 @@ object App {
     object Error {
       def apply[T <: AnyRef](arg: T, publisher: ActorRef) = new Error(arg, Some(publisher))
       def apply[T <: AnyRef](arg: T) = new Error(arg, None)
+      def apply() = new Error(Left(Error), None)
       override def toString = "Message.Error"
     }
     /** Get something. */
@@ -203,6 +212,7 @@ object App {
     object Inconsistent {
       def apply[T <: AnyRef](element: T, publisher: ActorRef) = new Inconsistent(element, Some(publisher))
       def apply[T <: AnyRef](element: T) = new Inconsistent(element, None)
+      def apply() = new Inconsistent(Left(Inconsistent), None)
       override def toString = "Message.Inconsistent"
     }
     /** Open something. */
@@ -212,6 +222,7 @@ object App {
     object Open {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Open(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Open(arg, None)
+      def apply() = new Open(Left(Open), None)
       override def toString = "Message.Open"
     }
     /** Restore something. */
@@ -221,6 +232,7 @@ object App {
     object Restore {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Restore(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Restore(arg, None)
+      def apply() = new Restore(Left(Restore), None)
       override def toString = "Message.Restore"
     }
     /** Save something. */
@@ -230,6 +242,7 @@ object App {
     object Save {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Save(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Save(arg, None)
+      def apply() = new Save(Left(Save), None)
       override def toString = "Message.Save"
     }
     /** Set something. */
@@ -247,6 +260,7 @@ object App {
     object Start {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Start(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Start(arg, None)
+      def apply() = new Start(Left(Start), None)
       override def toString = "Message.Start"
     }
     /** Stop something. */
@@ -256,6 +270,7 @@ object App {
     object Stop {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Stop(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Stop(arg, None)
+      def apply() = new Stop(Left(Stop), None)
       override def toString = "Message.Stop"
     }
     /** Update something. */
@@ -265,6 +280,7 @@ object App {
     object Update {
       def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Update(arg, Some(publisher))
       def apply[T <: AnyRef](arg: Either[T, T]) = new Update(arg, None)
+      def apply() = new Update(Left(Update), None)
       override def toString = "Message.Update"
     }
   }

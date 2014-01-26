@@ -71,10 +71,12 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable {
   /** View JFace instance. */
   var view: Option[VComposite] = None
+  /** View actor */
+  var viewActor: Option[ActorRef] = None
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
-  override def postStop() { view.foreach { view ⇒ context.stop(view.contentRef) } }
+  override def postStop() { viewActor.foreach { child ⇒ context.stop(child) } }
 
   def receive = {
     case message @ App.Message.Create(Left(View.<>(viewConfiguration, parentWidget)), None) ⇒ App.traceMessage(message) {
@@ -87,14 +89,17 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy ⇒ App.traceMessage(message) {
-      destroy() match {
-        case Some(viewWidget) ⇒
-          // App.publish(App.Message.Destroy(Right(viewWidget), self)) via VComposite dispose listener
-          App.Message.Destroy(Right(viewWidget))
-        case None ⇒
-          App.Message.Error(s"Unable to destroy ${view}.")
-      }
+    case message @ App.Message.Destroy(_, None) ⇒ App.traceMessage(message) {
+      if (view.isEmpty)
+        App.Message.Error(s"View is already destroyed.")
+      else
+        destroy() match {
+          case Some(viewWidget) ⇒
+            // App.publish(App.Message.Destroy(Right(viewWidget), self)) via VComposite dispose listener
+            App.Message.Destroy(Right(viewWidget))
+          case None ⇒
+            App.Message.Error(s"Unable to destroy ${view}.")
+        }
     } foreach { sender ! _ }
 
     case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
@@ -116,6 +121,7 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
     ViewContentBuilder(viewConfiguration, self, viewContext, parentWidget) match {
       case Some(viewWidgetWithContent) ⇒
         this.view = Some(viewWidgetWithContent)
+        this.viewActor = Some(viewWidgetWithContent.contentRef)
         // Update parent tab title if any.
         App.execAsync {
           parentWidget.getParent() match {
@@ -149,12 +155,13 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
           throw new IllegalArgumentException(s"Illegal body received ${body}")
         log.debug(s"View layer ${view} content is destroyed.")
         App.execNGet { view.dispose() }
+        this.view = None
         Some(view)
       case App.Message.Error(error, None) ⇒
-        log.fatal(s"Unable to destroy content for view layer ${view}: ${error}.")
+        log.fatal(s"Unable to destroy content for ${view}: ${error}")
         None
       case _ ⇒
-        log.fatal(s"Unable to destroy content for view layer ${view}.")
+        log.fatal(s"Unable to destroy content for ${view}.")
         None
     }
   }
@@ -165,14 +172,14 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
       viewContext.activateBranch()
       Await.ready(ask(view.contentRef, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
     case None ⇒
-      log.fatal("Unable to start unexists view.")
+      log.debug("Unable to start unexists view.")
   }
   /** Focus is lost. */
   protected def onStop(widget: Widget) = view match {
     case Some(view) ⇒
       Await.ready(ask(view.contentRef, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
     case None ⇒
-      log.fatal("Unable to stop unexists view.")
+      log.debug("Unable to stop unexists view.")
   }
 }
 
