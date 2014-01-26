@@ -43,46 +43,42 @@
 
 package org.digimead.tabuddy.desktop.core.ui.operation
 
+import akka.pattern.ask
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.View
+import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import scala.concurrent.Await
 
 /** 'Create view' operation. */
 class OperationViewCreate extends api.OperationViewCreate with Loggable {
   /**
    * Create view.
    *
-   * @param containerContext context with UI.windowContextKey that points to parent shell
-   * @param viewFactory new view factory
+   * @param appWindow AppWindow that will holds new view
+   * @param viewConfiguration new view configuration
    */
-  def apply(containerContext: AnyRef, viewFactory: AnyRef) {
-    log.info("Create new view from " + viewFactory)
-    containerContext match {
-      case context: Context ⇒
-        context.get(classOf[AppWindow]) match {
-          case window: AppWindow ⇒
-            window.ref ! App.Message.Create(Left(viewFactory))
-          case unknwon ⇒
-            log.fatal(s"Unable to find active window for ${this}: '${containerContext}', '${viewFactory}'.")
-        }
-    }
+  def apply(appWindow: AnyRef, viewConfiguration: AnyRef) {
+    log.info("Create new view from " + viewConfiguration)
+    implicit val ec = App.system.dispatcher
+    implicit val timeout = akka.util.Timeout(Timeout.short)
+    Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(Left(viewConfiguration)), timeout.duration)
   }
   /**
    * Create 'Create view' operation.
    *
-   * @param containerContext context with UI.windowContextKey that points to parent shell
-   * @param viewFactory new view factory
+   * @param appWindow AppWindow that will holds new view
+   * @param viewConfiguration new view configuration
    * @return 'Create view' operation
    */
-  def operation(activeContext: AnyRef, viewFactory: AnyRef) =
-    new Implemetation(activeContext.asInstanceOf[Context], viewFactory.asInstanceOf[View.Factory])
+  def operation(appWindow: AnyRef, viewConfiguration: AnyRef) =
+    new Implemetation(appWindow.asInstanceOf[AppWindow], viewConfiguration.asInstanceOf[Configuration.CView])
 
   /**
    * Checks that this class can be subclassed.
@@ -100,8 +96,8 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(activeContext: Context, viewFactory: View.Factory)
-    extends OperationViewCreate.Abstract(activeContext, viewFactory) with Loggable {
+  class Implemetation(appWindow: AppWindow, viewConfiguration: Configuration.CView)
+    extends OperationViewCreate.Abstract(appWindow, viewConfiguration) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -109,7 +105,7 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      try Operation.Result.OK(Option(OperationViewCreate.this(activeContext, viewFactory)))
+      try Operation.Result.OK(Option(OperationViewCreate.this(appWindow, viewConfiguration)))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
@@ -125,17 +121,17 @@ object OperationViewCreate extends Loggable {
   /**
    * Build a new 'Create view' operation.
    *
-   * @param containerContext context with UI.windowContextKey that points to parent shell
+   * @param appWindow AppWindow that will holds new view
    * @param viewFactory new view factory
    * @return 'Create view' operation
    */
   @log
-  def apply(activeContext: Context, viewFactory: View.Factory): Option[Abstract] =
-    Some(operation.operation(activeContext, viewFactory))
+  def apply(appWindow: AppWindow, viewConfiguration: Configuration.CView): Option[Abstract] =
+    Some(operation.operation(appWindow, viewConfiguration))
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val activeContext: Context, val viewFactory: View.Factory)
-    extends Operation[Unit](s"Create view with ${viewFactory}.") {
+  abstract class Abstract(val appWindow: AppWindow, val viewConfiguration: Configuration.CView)
+    extends Operation[Unit](s"Create view in ${appWindow} with ${viewConfiguration}.") {
     this: Loggable ⇒
   }
   /**

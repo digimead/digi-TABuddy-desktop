@@ -43,18 +43,30 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block.transform
 
+import akka.pattern.ask
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ StackSupervisor, View }
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import scala.concurrent.{ Await, Future }
 import scala.language.implicitConversions
 
 class TransformReplace extends Loggable {
-  def apply(stackSupervisorIternals: StackSupervisor, window: AppWindow, newView: View.Factory) {
-    log.debug(s"Replace window ${window} content with ${newView}.")
-    App.assertEventThread()
-  }
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(Timeout.short)
+
+  def apply(stackSupervisorIternals: StackSupervisor, window: AppWindow, viewConfiguration: Configuration.CView): Option[VComposite] =
+    stackSupervisorIternals.wComposite.flatMap { wComposite ⇒
+      log.debug(s"Replace window ${window} content with ${viewConfiguration}.")
+      implicit val ec = App.system.dispatcher
+      val futures = stackSupervisorIternals.context.children.map(_ ? App.Message.Destroy)
+      val result = Await.result(Future.sequence(futures), Timeout.short)
+      println("!!!!!!!!!!!!!!!!!!!" + result)
+      ViewContentBuilder(viewConfiguration, wComposite, stackSupervisorIternals.parentContext, stackSupervisorIternals.context)
+    }
 }
 
 object TransformReplace {

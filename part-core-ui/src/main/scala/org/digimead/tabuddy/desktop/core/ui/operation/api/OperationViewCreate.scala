@@ -49,10 +49,10 @@ import org.digimead.tabuddy.desktop.core.definition.api
  * OperationViewCreate base trait.
  */
 /*
- * activeContext and viewFactory must be AnyRef since 'Context' and
- * 'View.Factory' are private classes that are not shared across OSGi boundaries.
+ * appWindow and viewConfiguration must be AnyRef since 'AppWindow' and
+ * 'Configuration.CView' are private classes that are not shared across OSGi boundaries.
  * In other way there will be "java.lang.LinkageError: loader constraint violation
- * in interface itable initialization: when resolving method ..." as expected.
+ * in interface itable initialization: when resolving method ..." messages as expected.
  */
 trait OperationViewCreate {
   checkSubclass()
@@ -60,18 +60,18 @@ trait OperationViewCreate {
   /**
    * Create view.
    *
-   * @param containerContext context with UI.windowContextKey that points to parent shell
-   * @param viewFactory new view factory
+   * @param appWindow AppWindow that will holds new view
+   * @param viewConfiguration new view configuration
    */
-  def apply(containerContext: AnyRef, viewFactory: AnyRef): Unit
+  def apply(appWindow: AnyRef, viewConfiguration: AnyRef): Unit
   /**
    * Create 'Create view' operation.
    *
-   * @param containerContext context with UI.windowContextKey that points to parent shell
-   * @param viewFactory new view factory
+   * @param appWindow AppWindow that will holds new view
+   * @param viewConfiguration new view configuration
    * @return 'Create view' operation
    */
-  def operation(containerContext: AnyRef, viewFactory: AnyRef): api.Operation[Unit]
+  def operation(appWindow: AnyRef, viewConfiguration: AnyRef): api.Operation[Unit]
 
   /**
    * Checks that this class can be subclassed.

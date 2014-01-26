@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.core.ui.block
 import java.util.UUID
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
+import scala.collection.immutable
 
 /**
  * Stack configuration container. It contains:
@@ -55,10 +56,35 @@ import org.digimead.tabuddy.desktop.core.support.App
 case class Configuration(
   /** Stack element configuration. */
   val stack: Configuration.CPlaceHolder) {
+  /** Stack projection that looks like map Id -> (parent Id, configuration). */
+  lazy val asMap = toMap(this)
   val timestamp = System.currentTimeMillis()
 
   /** Dump element hierarchy. */
   def dump(): Seq[String] = this.toString +: stack.dump("")
+
+  /** Create map from configuration. */
+  protected def toMap(configuration: Configuration): immutable.HashMap[UUID, (Option[UUID], Configuration.CPlaceHolder)] = {
+    var entry = Seq[(UUID, (Option[UUID], Configuration.CPlaceHolder))]()
+    def visit(stack: Configuration.CPlaceHolder, parent: Option[UUID]) {
+      entry = entry :+ stack.id -> (parent, stack)
+      stack match {
+        case tab: Configuration.Stack.CTab ⇒
+          tab.children.foreach(visit(_, Some(tab.id)))
+        case hsash: Configuration.Stack.CHSash ⇒
+          visit(hsash.left, Some(hsash.id))
+          visit(hsash.right, Some(hsash.id))
+        case vsash: Configuration.Stack.CVSash ⇒
+          visit(vsash.top, Some(vsash.id))
+          visit(vsash.bottom, Some(vsash.id))
+        case view: Configuration.CView ⇒
+        case empty: Configuration.CEmpty ⇒
+      }
+    }
+    visit(configuration.stack, None)
+    immutable.HashMap[UUID, (Option[UUID], Configuration.CPlaceHolder)](entry: _*)
+  }
+
   override def toString = s"Configuration(timestamp: ${timestamp}, top stack layer: ${stack})"
 }
 
@@ -72,6 +98,7 @@ object Configuration extends Loggable {
         find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(singletonClassName)).get
       singletonClass.getField("MODULE$").get(singletonClass).asInstanceOf[View.Factory]
     }
+
     def apply(): View.Factory = singleton
     /** Validate if this factory is exists. */
     def validate(): Boolean = try {

@@ -209,7 +209,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     implicit val ec = App.system.dispatcher
     val result = supervisorRef.ask(App.Message.Restore(Left(content)))(Timeout.short)
     result.onSuccess {
-      case App.Message.Create(Right(topLevelWidget: SComposite), None) ⇒
+      case App.Message.Create(Right(topWidget), None) if topWidget == null || topWidget.isInstanceOf[SComposite] ⇒
         log.debug(s"Window content created. Show one.")
         App.exec {
           if (!content.isDisposed()) // Yes, it is possible.

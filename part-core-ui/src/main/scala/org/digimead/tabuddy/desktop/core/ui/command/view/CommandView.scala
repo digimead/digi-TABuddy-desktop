@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.command.view
 
+import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
@@ -50,11 +51,14 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.View
-import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
+import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.{ Messages, Resources }
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, View }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.eclipse.core.runtime.jobs.Job
-import scala.concurrent.Future
+import scala.concurrent.{ Await, Future }
 
 /**
  * Create new or select exists view.
@@ -72,25 +76,40 @@ object CommandView extends Loggable {
         case ~(factory: View.Factory, Some(newArg)) ⇒ (factory, true)
         case ~(factory: View.Factory, None) ⇒ (factory, false)
       }
+      implicit val ec = App.system.dispatcher
+      implicit val timeout = akka.util.Timeout(Timeout.short)
       val exchanger = new Exchanger[Operation.Result[Unit]]()
-      OperationViewCreate(activeContext, viewFactory).foreach { operation ⇒
-        operation.getExecuteJob() match {
-          case Some(job) ⇒
-            job.setPriority(Job.LONG)
-            job.onComplete(exchanger.exchange).schedule()
-          case None ⇒
-            log.fatal(s"Unable to create job for ${operation}.")
-        }
+      val appWindow = Option(activeContext.get(classOf[AppWindow])) orElse UI.getActiveWindow() getOrElse {
+        throw new RuntimeException(s"Unable to find active window for ${this}: '${activeContext}'.")
       }
-      exchanger.exchange(null) match {
-        case Operation.Result.OK(result, message) ⇒
-          log.info(s"Operation completed successfully.")
-        case Operation.Result.Cancel(message) ⇒
-          throw new CancellationException(s"Operation canceled, reason: ${message}.")
-        case err: Operation.Result.Error[_] ⇒
-          throw err
-        case other ⇒
-          throw new RuntimeException(s"Unable to complete operation: ${other}.")
+      val stackConfiguration = Await.result((appWindow.supervisorRef ? App.Message.Get(Configuration)).mapTo[Configuration], timeout.duration)
+      val existView = if (createNew) None else stackConfiguration.asMap.find {
+        case (elementId, (parentId, configuration: Configuration.CView)) ⇒ configuration.factory == viewFactory
+        case _ ⇒ false
+      }
+      existView match {
+        case Some(view) ⇒
+          throw new CancellationException(s"Operation canceled, reason: Not implemented.")
+        case None ⇒
+          OperationViewCreate(appWindow, Configuration.CView(viewFactory.configuration)).foreach { operation ⇒
+            operation.getExecuteJob() match {
+              case Some(job) ⇒
+                job.setPriority(Job.LONG)
+                job.onComplete(exchanger.exchange).schedule()
+              case None ⇒
+                log.fatal(s"Unable to create job for ${operation}.")
+            }
+          }
+          exchanger.exchange(null) match {
+            case Operation.Result.OK(result, message) ⇒
+              log.info(s"Operation completed successfully.")
+            case Operation.Result.Cancel(message) ⇒
+              throw new CancellationException(s"Operation canceled, reason: ${message}.")
+            case err: Operation.Result.Error[_] ⇒
+              throw err
+            case other ⇒
+              throw new RuntimeException(s"Unable to complete operation: ${other}.")
+          }
       }
     })
   /** Command parser. */

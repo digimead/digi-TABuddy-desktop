@@ -54,17 +54,16 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.SCompositeTab
 import scala.language.implicitConversions
 
 class TransformAttachView extends Loggable {
-  def apply(ss: StackSupervisor, tabStack: SCompositeTab, newView: View.Factory) {
-    log.debug(s"Create new view from ${newView} and attach it to ${tabStack}.")
+  def apply(ss: StackSupervisor, tabStack: SCompositeTab, viewConfiguration: Configuration.CView) {
+    log.debug(s"Create new view from ${viewConfiguration} and attach it to ${tabStack}.")
     App.assertEventThread(false)
     log.debug("Update stack supervisor configuration.")
-    val viewConfiguration = Configuration.CView(newView.configuration)
     // Prepare tab item.
     val parentWidget = App.execNGet {
       StackTabBuilder.addTabItem(tabStack, (tabItem) ⇒ {
         tabItem.setData(UI.swtId, viewConfiguration.id)
-        tabItem.setToolTipText(newView.shortDescription)
-        newView.image.foreach(tabItem.setImage)
+        tabItem.setToolTipText(viewConfiguration.factory().shortDescription)
+        viewConfiguration.factory().image.foreach(tabItem.setImage)
       })
     }
     ViewContentBuilder(viewConfiguration, parentWidget, ss.parentContext, ss.context)

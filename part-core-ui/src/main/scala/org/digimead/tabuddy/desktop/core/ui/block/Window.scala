@@ -126,9 +126,6 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       onStop(widget)
       App.Message.Stop(Right(widget))
     } foreach { sender ! _ }
-
-    case message @ App.Message.Create(Left(viewFactory: View.Factory), None) ⇒
-      stackSupervisor.forward(message)
   }
   override def postStop() = log.debug(self.path.name + " actor is stopped.")
 
