@@ -73,6 +73,10 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq(windowId, windowContext)), StackSupervisor.id)
   log.debug("Start actor " + self.path)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = log.debug(this + " is stopped.")
+  /** Is called when an Actor is started. */
+  override def preStart() = log.debug(this + " is started.")
   def receive = {
     case message @ App.Message.Close(_, None) ⇒ App.traceMessage(message) {
       close(sender) match {
@@ -127,7 +131,6 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       App.Message.Stop(Right(widget))
     } foreach { sender ! _ }
   }
-  override def postStop() = log.debug(self.path.name + " actor is stopped.")
 
   /** Close window. */
   protected def close(sender: ActorRef): Option[AppWindow] = {
@@ -202,6 +205,8 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
         None
     }
   }
+
+  override lazy val toString = "Window[actor/%08X]".format(windowId.hashCode())
 }
 
 object Window extends Loggable {
@@ -217,9 +222,11 @@ object Window extends Loggable {
   /** Window actor reference configuration object. */
   def props = DI.props
 
-  /** Wrapper for App.Message,Create argument. */
+  override def toString = "Window[Singleton]"
+
+  /** Wrapper for App.Message.Create argument. */
   case class <>(val windowId: UUID, val configuration: WindowConfiguration) {
-    override def toString() = "<>([%08X]=%s, %s)".format(windowId.hashCode(), windowId.toString(), configuration)
+    override lazy val toString = "<>([%08X]=%s, %s)".format(windowId.hashCode(), windowId.toString(), configuration)
   }
   /**
    * Window map consumer.

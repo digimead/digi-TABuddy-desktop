@@ -185,6 +185,8 @@ object StackConfiguration {
   /** StackConfiguration implementation. */
   def inner = DI.implementation
 
+  override def toString = "StackConfiguration[Singleton]"
+
   trait Builder extends Function0[Configuration]
   /**
    * Dependency injection routines

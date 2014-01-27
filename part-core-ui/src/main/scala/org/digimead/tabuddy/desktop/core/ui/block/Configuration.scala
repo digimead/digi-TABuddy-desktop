@@ -85,10 +85,12 @@ case class Configuration(
     immutable.HashMap[UUID, (Option[UUID], Configuration.CPlaceHolder)](entry: _*)
   }
 
-  override def toString = s"Configuration(timestamp: ${timestamp}, top stack layer: ${stack})"
+  override lazy val toString = s"Configuration(timestamp: ${timestamp}, top stack layer: ${stack})"
 }
 
 object Configuration extends Loggable {
+  override def toString = "Configuration[Singleton]"
+
   /** View factory configuration. */
   case class Factory(val bundleSymbolicName: String, val singletonClassName: String) {
     /** Factory singleton instance. */
@@ -107,25 +109,23 @@ object Configuration extends Loggable {
       case e: ClassNotFoundException ⇒ false
       case e: IllegalStateException ⇒ false
     }
-    override def toString() = s"Factory(Symbolic-Name: ${bundleSymbolicName}, Singleton: ${singletonClassName})"
+    override lazy val toString = s"Factory(Symbolic-Name: ${bundleSymbolicName}, Singleton: ${singletonClassName})"
   }
   /** Any element of the configuration. */
   sealed trait CPlaceHolder {
     val id: UUID
-    log.debug(s"Configuration element ${this} with id ${id} is alive.")
 
     /** Dump element hierarchy. */
     def dump(indent: String): Seq[String]
     /** Map stack element to the new one. */
     def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder = f(this)
   }
-  case class CEmpty() extends CPlaceHolder {
-    lazy val id: UUID = UUID.fromString("d2222c72-e769-4369-acd2-b7bb2f64e940")
-
+  /** Empty view element. */
+  case class CEmpty(val id: UUID = UUID.randomUUID()) extends CPlaceHolder {
     /** Dump element hierarchy. */
     def dump(indent: String): Seq[String] = Seq(indent + this.toString)
 
-    override def toString = "CEmpty[%08X]".format(id.hashCode())
+    override lazy val toString = "CEmpty[%08X]".format(id.hashCode())
   }
   /** View element. */
   case class CView(val factory: Factory, val id: UUID = UUID.randomUUID()) extends CPlaceHolder {
@@ -134,7 +134,7 @@ object Configuration extends Loggable {
     /** Dump element hierarchy. */
     def dump(indent: String): Seq[String] =
       Seq(indent + "CView[%08X#%s]".format(id.hashCode(), id) + " with factory " + factory)
-    override def toString = "CView[%08X]".format(id.hashCode())
+    override lazy val toString = "CView[%08X]".format(id.hashCode())
   }
   /** Stack element of the configuration. */
   sealed trait Stack extends CPlaceHolder
@@ -152,7 +152,7 @@ object Configuration extends Loggable {
             throw new IllegalArgumentException("CTab stack could contains only view elements.")
           newElement.asInstanceOf[CView]
         })
-      override def toString = "CTab[%08X]".format(id.hashCode())
+      override lazy val toString = "CTab[%08X]".format(id.hashCode())
     }
     /** Horizontal stack. */
     case class CHSash(left: Stack, right: Stack, val ratio: Double = 0.5, val id: UUID = UUID.randomUUID()) extends Stack {
@@ -172,7 +172,7 @@ object Configuration extends Loggable {
             throw new IllegalArgumentException("CHSash stack could contains only stack elements.")
           newElement.asInstanceOf[Stack]
         })
-      override def toString = "CHSash[%08X]".format(id.hashCode())
+      override lazy val toString = "CHSash[%08X]".format(id.hashCode())
     }
     /** Vertical stack. */
     case class CVSash(top: Stack, bottom: Stack, val ratio: Double = 0.5, val id: UUID = UUID.randomUUID()) extends Stack {
@@ -192,7 +192,7 @@ object Configuration extends Loggable {
             throw new IllegalArgumentException("CVSash stack could contains only stack elements.")
           newElement.asInstanceOf[Stack]
         })
-      override def toString = "CVSash[%08X]".format(id.hashCode())
+      override lazy val toString = "CVSash[%08X]".format(id.hashCode())
     }
   }
 }

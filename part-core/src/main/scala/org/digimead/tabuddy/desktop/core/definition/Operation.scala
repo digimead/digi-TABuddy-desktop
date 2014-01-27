@@ -240,7 +240,8 @@ object Operation extends Loggable {
         log.warn(message)
 
       override def getMessage() = message
-      override def toString() = exception match {
+
+      override lazy val toString = exception match {
         case null ⇒ s"Error(${message})"
         case ex ⇒ s"Error(${message}, ${exception.getMessage()})"
       }

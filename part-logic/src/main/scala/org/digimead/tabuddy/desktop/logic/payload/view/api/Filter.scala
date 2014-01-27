@@ -74,7 +74,7 @@ trait Filter {
 
   def canEqual(other: Any): Boolean
 
-  override def toString() = s"Filter($id, $name)"
+  override lazy val toString = s"Filter[$id, $name]"
 }
 
 object Filter {

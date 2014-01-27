@@ -71,4 +71,6 @@ object WindowToolbar extends Loggable {
         toolBarContributionItem
     }
   }
+
+  override def toString = "WindowToolbar[Singleton]"
 }

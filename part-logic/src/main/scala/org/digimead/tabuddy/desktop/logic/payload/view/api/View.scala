@@ -80,5 +80,5 @@ trait View {
 
   def canEqual(other: Any): Boolean
 
-  override def toString() = s"View($id, $name)"
+  override lazy val toString = s"View[$id, $name]"
 }

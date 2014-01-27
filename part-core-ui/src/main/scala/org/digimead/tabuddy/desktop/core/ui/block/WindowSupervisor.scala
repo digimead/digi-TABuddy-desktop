@@ -114,7 +114,7 @@ class WindowSupervisor extends Actor with Loggable {
         configurationsSave.get.map(future ⇒ Await.result(future, Timeout.short))
     }
     App.watch(this) off ()
-    log.debug(self.path.name + " actor is stopped.")
+    log.debug(this + " is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
@@ -123,7 +123,7 @@ class WindowSupervisor extends Actor with Loggable {
     App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
     App.watch(this) on ()
-    log.debug(self.path.name + " actor is started.")
+    log.debug(this + " is started.")
   }
   def receive = {
     case message @ App.Message.Create(Right(window: AppWindow), Some(publisher)) ⇒ App.traceMessage(message) {
@@ -424,6 +424,8 @@ class WindowSupervisor extends Actor with Loggable {
       }
     }
   }
+
+  override lazy val toString = "WindowSupervisor(actor)"
 }
 
 object WindowSupervisor extends Loggable {
@@ -446,6 +448,8 @@ object WindowSupervisor extends Loggable {
 
   /** WindowSupervisor actor reference configuration object. */
   def props = DI.props
+
+  override def toString = "WindowSupervisor[Singleton]"
 
   /**
    * Configurations map.

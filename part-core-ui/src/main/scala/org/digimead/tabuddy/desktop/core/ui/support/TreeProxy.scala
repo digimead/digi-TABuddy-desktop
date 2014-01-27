@@ -378,7 +378,7 @@ class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], 
 object TreeProxy {
   /** An item that wraps an element and persists hashCode even if the element changed */
   case class Item(hash: Int)(val element: Element) {
-    override def toString() = "%s/%s".format(element, hash)
+    override lazy val toString = "%s/%s".format(element, hash)
   }
   object Item {
     def apply(element: Element) = new Item(System.identityHashCode(element))(element)
@@ -391,6 +391,6 @@ object TreeProxy {
     val index: Int
   }
   object UnknownItem extends Item(0)(null) {
-    override def toString() = "unknown/unknown".format(element, hash)
+    override lazy val toString = "unknown/unknown"
   }
 }

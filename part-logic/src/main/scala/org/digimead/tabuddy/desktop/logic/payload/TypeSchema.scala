@@ -92,7 +92,7 @@ class TypeSchema(
     case _ ⇒ false
   }
   override def hashCode() = id.hashCode
-  override def toString() = "TypeSchema %s \"%s\"".format(id, name)
+  override lazy val toString = "TypeSchema[%s, %s]".format(id, name)
 }
 
 /**

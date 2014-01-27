@@ -62,6 +62,7 @@ import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Widget
 import scala.collection.{ immutable, mutable }
 import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.language.implicitConversions
 
 /**
@@ -88,13 +89,13 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   override def postStop() {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Create[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Destroy[_]])
-    log.debug(self.path.name + " actor is stopped.")
+    log.debug(this + " is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
     App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Destroy[_]])
-    log.debug(self.path.name + " actor is started.")
+    log.debug(this + " is started.")
   }
   def receive = {
     case message @ App.Message.Create(Left(viewConfiguration: Configuration.CView), None) ⇒ App.traceMessage(message) {
@@ -234,7 +235,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   /** Unregister destroyed stack element. */
   @log
   protected def onDestroyed(stack: SComposite) {
-    log.debug(s"Remove destroyed ${stack} to ${this}.")
+    log.debug(s"Remove destroyed ${stack} from ${this}.")
     val stackOpt = Option(stack.id)
     context.children.find(child ⇒ if (child == stack.ref) { context.stop(child); true } else false)
     pointers -= stack.id
@@ -298,10 +299,23 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     if (pointers.nonEmpty && existConfiguration == configuration) {
       Option(pointers(configuration.stack.id).stack.get())
     } else {
-      context.children.foreach(context.stop)
-      wComposite = Some(parent)
-      createStackContent(configuration.stack.id, parent)
-      // TODO activate last
+      implicit val timeout = akka.util.Timeout(Timeout.short)
+      implicit val ec = App.system.dispatcher
+      val futures = context.children.map(_ ? App.Message.Destroy())
+      val result = Await.result(Future.sequence(futures), Timeout.short)
+      val errors = result.filter(_ match {
+        case App.Message.Error(message, _) ⇒ true
+        case _ ⇒ false
+      })
+      if (errors.isEmpty) {
+        context.children.foreach(context.stop)
+        wComposite = Some(parent)
+        createStackContent(configuration.stack.id, parent)
+        // TODO activate last
+      } else {
+        errors.foreach(err ⇒ log.error(s"Unable to : ${err.asInstanceOf[App.Message.Error[_]].arg}"))
+        None
+      }
     }
   }
   /** Set active view. */
@@ -313,6 +327,8 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     case e: Throwable ⇒
       log.error(e.getMessage, e)
   }
+
+  override lazy val toString = "StackSupervisor[actor/%08X]".format(windowId.hashCode())
 }
 
 object StackSupervisor extends Loggable {
@@ -323,6 +339,8 @@ object StackSupervisor extends Loggable {
 
   /** StackSupervisor actor reference configuration object. */
   def props = DI.props
+
+  override def toString = "StackSupervisor[Singleton]"
 
   /**
    * Stack pointers map

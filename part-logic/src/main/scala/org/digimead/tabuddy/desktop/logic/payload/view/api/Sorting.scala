@@ -76,7 +76,7 @@ trait Sorting {
 
   def canEqual(other: Any): Boolean
 
-  override def toString() = s"Sorting($id, $name)"
+  override lazy val toString = s"Sorting[$id, $name]"
 }
 
 object Sorting {

@@ -118,6 +118,6 @@ object TemplateProperty {
       p * (p * (p * (p * (p +
         ptype.typeSymbol.hashCode) + enumeration.hashCode()) + required.hashCode) + id.hashCode) + defaultValue.hashCode
     }
-    override def toString() = "TemplateProperty[%s](%s)".format(ptype.id.name, id.name)
+    override lazy val toString = "TemplateProperty[%s, %s]".format(ptype.id.name, id.name)
   }
 }

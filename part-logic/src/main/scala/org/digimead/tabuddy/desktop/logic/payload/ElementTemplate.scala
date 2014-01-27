@@ -406,7 +406,7 @@ object ElementTemplate extends Loggable {
       val p = 31
       p * (p * (p * (p + availability.hashCode) + name.hashCode) + id.hashCode) + properties.hashCode
     }
-    override def toString() = "ElementTemplate(%s based on %s)".format(element.eId, element.eStash.scope)
+    override lazy val toString = "ElementTemplate[%s based on %s]".format(element.eId, element.eStash.scope)
   }
   /**
    * Dependency injection routines.

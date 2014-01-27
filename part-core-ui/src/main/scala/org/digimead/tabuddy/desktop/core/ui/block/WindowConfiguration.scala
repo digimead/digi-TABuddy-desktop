@@ -79,6 +79,8 @@ object WindowConfiguration extends Loggable {
   /** WindowConfiguration implementation. */
   def inner = DI.implementation
 
+  override def toString = "WindowConfiguration[Singleton]"
+
   class Implementation extends Loggable {
     /** Persistent storage. */
     lazy val configurationContainer = {

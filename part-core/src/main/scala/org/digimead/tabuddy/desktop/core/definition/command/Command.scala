@@ -255,7 +255,7 @@ object Command extends Loggable {
   /** Command descriptor where callback is (active context, parser context, parser result) => Unit */
   case class Descriptor(val parserId: UUID)(val name: String, val shortDescription: String, val longDescription: String, val callback: (Context, Context, Any) ⇒ Future[Any])
     extends api.Command.Descriptor {
-    override def toString() = s"Command.Descriptor(${name}, ${parserId})"
+    override lazy val toString = s"Command.Descriptor(${name}, ${parserId})"
   }
   /** Command parser that wraps base parser combinator with 'phrase' sentence. */
   class CmdParser(val parserId: UUID, base: parser.Parser[Any])
@@ -355,7 +355,7 @@ object Command extends Loggable {
     override def hashCode() = lazyHashCode
     protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](label, description, completions))
 
-    override def toString() = "Command.Hint(" + s"$label, $description, $completions)"
+    override def toString = "Command.Hint(" + s"$label, $description, $completions)"
   }
   object Hint {
     /** Get static Hint instance. */

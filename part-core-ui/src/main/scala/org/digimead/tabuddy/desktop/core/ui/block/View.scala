@@ -76,8 +76,12 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
-  override def postStop() { viewActor.foreach { child ⇒ context.stop(child) } }
-
+  override def postStop() {
+    log.debug(this + " is stopped.")
+    viewActor.foreach { child ⇒ context.stop(child) }
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() = log.debug(this + " is started.")
   def receive = {
     case message @ App.Message.Create(Left(View.<>(viewConfiguration, parentWidget)), None) ⇒ App.traceMessage(message) {
       create(viewConfiguration, parentWidget, sender) match {
@@ -181,6 +185,8 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
     case None ⇒
       log.debug("Unable to stop unexists view.")
   }
+
+  override lazy val toString = "View[actor/%08X]".format(viewId.hashCode())
 }
 
 object View {
@@ -193,6 +199,8 @@ object View {
 
   /** View actor reference configuration object. */
   def props = DI.props
+
+  override def toString = "View[Singleton]"
 
   /** Wrapper for App.Message,Create argument. */
   case class <>(val viewConfiguration: Configuration.CView, val parentWidget: ScrolledComposite)
@@ -236,7 +244,7 @@ object View {
      */
     def viewActor(configuration: Configuration.CView): Option[ActorRef]
 
-    override def toString() = s"""View.Factory("${name}", "${shortDescription}")"""
+    override lazy val toString = s"""View.Factory("${name}", "${shortDescription}")"""
 
     class TitleObservableValue(ref: ActorRef) extends AbstractObservableValue(App.realm) {
       @volatile protected var value: AnyRef = name

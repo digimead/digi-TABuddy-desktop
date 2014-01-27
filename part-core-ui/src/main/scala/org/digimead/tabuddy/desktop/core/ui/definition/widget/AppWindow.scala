@@ -232,7 +232,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     }
   }
 
-  override def toString() = "AppWindow[%08X]".format(id.hashCode())
+  override lazy val toString = "AppWindow[%08X]".format(id.hashCode())
 }
 
 object AppWindow {

@@ -329,7 +329,7 @@ object Watch extends Loggable {
         f
       }), DI.maxProcessDuration)
 
-    override def toString() = s"Watcher(${t.getMessage()})"
+    override lazy val toString = s"Watcher(${t.getMessage()})"
   }
 
   /**

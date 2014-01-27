@@ -61,4 +61,6 @@ object WindowMenu {
         menu
     }
   }
+
+  override def toString = "WindowMenu[Singleton]"
 }

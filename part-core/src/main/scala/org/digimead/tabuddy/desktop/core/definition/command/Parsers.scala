@@ -199,7 +199,7 @@ trait Parsers {
     def get: T = result
 
     /** The toString method of a Success. */
-    override def toString = "[" + next.pos + "] parsed: " + result
+    override lazy val toString = "[" + next.pos + "] parsed: " + result
 
     val successful = true
   }
@@ -244,7 +244,7 @@ trait Parsers {
    */
   class Failure(override val msg: String, override val next: Input) extends NoSuccess(msg, next) {
     /** The toString method of a Failure yields an error message. */
-    override def toString = "[" + next.pos + "] failure: " + msg + "\n\n" + next.pos.longString
+    override lazy val toString = "[" + next.pos + "] failure: " + msg + "\n\n" + next.pos.longString
 
     def append[U >: Nothing](a: ⇒ ParseResult[U]): ParseResult[U] = {
       val alt = a; alt match {
@@ -268,7 +268,7 @@ trait Parsers {
    */
   class Error(override val msg: String, override val next: Input) extends NoSuccess(msg, next) {
     /** The toString method of an Error yields an error message. */
-    override def toString = "[" + next.pos + "] error: " + msg + "\n\n" + next.pos.longString
+    override lazy val toString = "[" + next.pos + "] error: " + msg + "\n\n" + next.pos.longString
     def append[U >: Nothing](a: ⇒ ParseResult[U]): ParseResult[U] = this
   }
   object Error {
@@ -1007,7 +1007,7 @@ trait Parsers {
    *  }}}
    */
   case class ~[+a, +b](_1: a, _2: b) {
-    override def toString = "(" + _1 + "~" + _2 + ")"
+    override lazy val toString = "(" + _1 + "~" + _2 + ")"
   }
 
   /**

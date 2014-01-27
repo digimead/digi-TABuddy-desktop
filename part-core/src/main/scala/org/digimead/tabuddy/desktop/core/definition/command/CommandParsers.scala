@@ -193,7 +193,7 @@ class CommandParsers extends JavaTokenParsers with Loggable {
     override val msg: String,
     override val next: Input) extends Failure(msg, next) {
     /** The toString method of a Failure yields an error message. */
-    override def toString = "[" + next.pos + "] failure: " + msg + "\n\n" + next.pos.longString
+    override lazy val toString = "[" + next.pos + "] failure: " + msg + "\n\n" + next.pos.longString
 
     override def append[U >: Nothing](alt: ⇒ ParseResult[U]): ParseResult[U] = alt match {
       case MissingCompletionOrFailure(newCompletions, _, _) ⇒

@@ -308,7 +308,7 @@ class GraphMarker(
   }
   override def hashCode() = uuid.hashCode()
 
-  override def toString() = s"GraphMarker[${uuid}]"
+  override lazy val toString = s"GraphMarker[${uuid}]"
 }
 
 object GraphMarker extends Loggable {
@@ -615,7 +615,7 @@ object GraphMarker extends Loggable {
     protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](uuid, graphCreated,
       graphModelId, graphOrigin, graphPath, graphStored, Long.box(markerLastAccessed)))
 
-    override def toString() = s"ROGraphMarker[${uuid}]"
+    override lazy val toString = s"ROGraphMarker[${uuid}]"
   }
   /** Temporary marker for in memory graph. */
   class TemporaryGraphMarker(graph: Graph[_ <: Model]) extends GraphMarker(UUID.randomUUID(), false) {
@@ -688,7 +688,7 @@ object GraphMarker extends Loggable {
       case _ ⇒ false
     }
 
-    override def toString() = s"TemporaryGraphMarker[${uuid}]"
+    override lazy val toString = s"TemporaryGraphMarker[${uuid}]"
   }
   object TemporaryGraphMarker {
     /**

@@ -64,12 +64,12 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Create[_]])
-    log.debug(self.path.name + " actor is stopped.")
+    log.debug(this + " is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
     App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
-    log.debug(self.path.name + " actor is started.")
+    log.debug(this + " is started.")
   }
   def receive = {
     case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext, supervisorContext)), None) ⇒ App.traceMessage(message) {
@@ -99,6 +99,8 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
     this.stack = StackBuilder(stackConfiguration, parentWidget, parentContext, supervisor, supervisorContext, self)
     this.stack
   }
+
+  override lazy val toString = "StackLayer[actor/%08X]".format(stackId.hashCode())
 }
 
 object StackLayer extends Loggable {
@@ -109,6 +111,8 @@ object StackLayer extends Loggable {
 
   /** StackLayer actor reference configuration object. */
   def props = DI.props
+
+  override def toString = "StackLayer[Singleton]"
 
   /** Wrapper for App.Message,Create argument. */
   case class <>(val stackConfiguration: Configuration.Stack, val parentWidget: ScrolledComposite, val parentContext: Context, supervisorContext: ActorContext)

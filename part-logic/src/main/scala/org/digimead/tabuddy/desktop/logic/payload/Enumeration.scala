@@ -180,7 +180,7 @@ class Enumeration[T <: AnySRef: Manifest](
     }
   }
 
-  override def toString() = "Enumeration[%s/%s]%s".format(ptype.id, scala.reflect.runtime.universe.typeOf[T], element.eId)
+  override lazy val toString = "Enumeration[%s/%s]%s".format(ptype.id, scala.reflect.runtime.universe.typeOf[T], element.eId)
 }
 
 object Enumeration extends Loggable {
@@ -336,6 +336,6 @@ object Enumeration extends Loggable {
       case _ ⇒ false
     }
     override def hashCode() = element.eReference.hashCode
-    override def toString() = "Enumeration[%s]%s".format(ptype.id, element.eId)
+    override lazy val toString = "Enumeration[%s]%s".format(ptype.id, element.eId)
   }
 }
