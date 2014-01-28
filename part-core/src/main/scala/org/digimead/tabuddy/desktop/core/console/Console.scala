@@ -84,18 +84,18 @@ class Console extends Actor with Loggable {
     Core ! App.Message.Consistent(Console, self)
   }
   def receive = {
-    case message @ App.Message.Close(Left(console: api.Console.Projection), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Close(console: api.Console.Projection, _, _) ⇒ App.traceMessage(message) {
       consoles = consoles - console
     }
 
-    case message @ App.Message.Open(Left(console: api.Console.Projection), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(console: api.Console.Projection, _, _) ⇒ App.traceMessage(message) {
       consoles = consoles + console
       console.start()
       if (promptEnabled)
         console.enablePrompt()
     }
 
-    case message @ App.Message.Start(Left(Console), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start(Console, _, _) ⇒ App.traceMessage(message) {
       consoles.foreach(_.enablePrompt())
       promptEnabled = true
     }

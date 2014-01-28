@@ -115,7 +115,8 @@ object App {
    * Base messages
    */
   trait Message {
-    val publisher: Option[ActorRef] = None
+    val origin: Option[ActorRef]
+    val message: Option[String]
     val source: Throwable = getThrowable()
 
     @elidable(FINE) protected def getThrowable() = {
@@ -126,127 +127,128 @@ object App {
   }
   object Message {
     /*
-     * Publisher argument is significant because messages are suitable for various transports.
-     * Transports like Akka EventBus are lost the origin.
-     * Argument of type Either is
-     *   Left() - before/request
-     *   Right() - after/reply
-     *
-     *   def apply() = new N(Left(N), None) is more useful then N:
-     *     there is stack trace for debugging
-     *     there is no null
+     * Origin argument is significant because messages are suitable for various transports.
+     * Transports like Akka EventBus are lost an original sender.
+     * Message forwarding is lost an original sender too.
      */
     /** Attach actor. */
-    case class Attach(props: Props, name: String) extends Message {
+    case class Attach(val props: Props, val name: String, val message: Option[String] = None) extends Message {
+      val origin: Option[ActorRef] = None
       override def productPrefix = "Message.Attach"
     }
     /** Close something. */
-    case class Close[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Close[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Close"
     }
     object Close {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Close(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Close(arg, None)
-      def apply() = new Close(Left(Close), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Close(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Close(element, Some(origin))
+      def apply() = new Close(None, None)
       override def toString = "Message.Close"
     }
     /** Element returns integrity. */
-    case class Consistent[T <: AnyRef](val element: T, override val publisher: Option[ActorRef]) extends Message {
+    case class Consistent[T <: AnyRef](val element: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Consistent"
     }
     object Consistent {
-      def apply[T <: AnyRef](element: T, publisher: ActorRef) = new Consistent(element, Some(publisher))
-      def apply[T <: AnyRef](element: T) = new Consistent(element, None)
-      def apply() = new Consistent(Left(Consistent), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Consistent(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Consistent(element, Some(origin))
+      def apply() = new Consistent(None, None)
       override def toString = "Message.Consistent"
     }
     /** Get consistency state. */
-    case class Consistency[T <: AnyRef](val current: immutable.Set[AnyRef], override val publisher: Option[ActorRef]) extends Message {
+    case class Consistency[T <: AnyRef](val current: immutable.Set[T], val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Consistency"
     }
     object Consistency {
-      def apply[T <: AnyRef](publisher: ActorRef) = new Consistent(immutable.Set(), Some(publisher))
+      def apply[T <: AnyRef](element: immutable.Set[T], origin: ActorRef, message: String) = new Consistency(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: immutable.Set[T], origin: ActorRef) = new Consistency(element, Some(origin))
+      def apply[T <: AnyRef](origin: ActorRef) = new Consistency(immutable.Set(), Some(origin))
       override def toString = "Message.Consistency"
     }
     /** Create something. */
-    case class Create[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Create[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Create"
     }
     object Create {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Create(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Create(arg, None)
-      def apply() = new Create(Left(Create), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Create(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Create(element, Some(origin))
+      def apply() = new Create(None, None)
       override def toString = "Message.Create"
     }
     /** Destroy something. */
-    case class Destroy[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Destroy[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Destroy"
     }
     object Destroy {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Destroy(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Destroy(arg, None)
-      def apply() = new Destroy(Left(Destroy), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Destroy(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Destroy(element, Some(origin))
+      def apply() = new Destroy(None, None)
       override def toString = "Message.Destroy"
     }
     /** Operation error. */
-    case class Error[T <: AnyRef](val arg: T, override val publisher: Option[ActorRef]) extends Message {
+    case class Error(val message: Option[String], val origin: Option[ActorRef]) extends Message {
       override def productPrefix = "Message.Error"
     }
     object Error {
-      def apply[T <: AnyRef](arg: T, publisher: ActorRef) = new Error(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: T) = new Error(arg, None)
-      def apply() = new Error(Left(Error), None)
+      def apply[T <: AnyRef](message: String, origin: ActorRef) = new Error(Some(message), Some(origin))
+      def apply[T <: AnyRef](message: String, origin: Option[ActorRef]) = new Error(Some(message), origin)
+      def apply() = new Error(None, None)
       override def toString = "Message.Error"
     }
     /** Get something. */
     case class Get[T <: AnyRef](val key: T = null) extends Message {
+      val message: Option[String] = None
+      val origin: Option[ActorRef] = None
       override def productPrefix = "Message.Get"
     }
     object Get {
       override def toString = "Message.Get"
     }
     /** Something lost consistency. */
-    case class Inconsistent[T <: AnyRef](val element: T, override val publisher: Option[ActorRef]) extends Message {
+    case class Inconsistent[T <: AnyRef](val element: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Inconsistent"
     }
     object Inconsistent {
-      def apply[T <: AnyRef](element: T, publisher: ActorRef) = new Inconsistent(element, Some(publisher))
-      def apply[T <: AnyRef](element: T) = new Inconsistent(element, None)
-      def apply() = new Inconsistent(Left(Inconsistent), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Inconsistent(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Inconsistent(element, Some(origin))
+      def apply() = new Inconsistent(None, None)
       override def toString = "Message.Inconsistent"
     }
     /** Open something. */
-    case class Open[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Open[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Open"
     }
     object Open {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Open(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Open(arg, None)
-      def apply() = new Open(Left(Open), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Open(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Open(element, Some(origin))
+      def apply() = new Open(None, None)
       override def toString = "Message.Open"
     }
     /** Restore something. */
-    case class Restore[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Restore[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Restore"
     }
     object Restore {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Restore(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Restore(arg, None)
-      def apply() = new Restore(Left(Restore), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Restore(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Restore(element, Some(origin))
+      def apply() = new Restore(None, None)
       override def toString = "Message.Restore"
     }
     /** Save something. */
-    case class Save[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Save[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Save"
     }
     object Save {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Save(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Save(arg, None)
-      def apply() = new Save(Left(Save), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Save(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Save(element, Some(origin))
+      def apply() = new Save(None, None)
       override def toString = "Message.Save"
     }
     /** Set something. */
     case class Set[T <: AnyRef](val key: AnyRef, val newVal: T) extends Message {
+      val message: Option[String] = None
+      val origin: Option[ActorRef] = None
       override def productPrefix = "Message.Set"
     }
     object Set {
@@ -254,33 +256,33 @@ object App {
       override def toString = "Message.Set"
     }
     /** Start something. */
-    case class Start[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Start[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Start"
     }
     object Start {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Start(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Start(arg, None)
-      def apply() = new Start(Left(Start), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Start(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Start(element, Some(origin))
+      def apply() = new Start(None, None)
       override def toString = "Message.Start"
     }
     /** Stop something. */
-    case class Stop[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Stop[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Stop"
     }
     object Stop {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Stop(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Stop(arg, None)
-      def apply() = new Stop(Left(Stop), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Stop(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Stop(element, Some(origin))
+      def apply() = new Stop(None, None)
       override def toString = "Message.Stop"
     }
     /** Update something. */
-    case class Update[T <: AnyRef](val arg: Either[T, T], override val publisher: Option[ActorRef]) extends Message {
+    case class Update[T <: AnyRef](val arg: T, val origin: Option[ActorRef], val message: Option[String] = None) extends Message {
       override def productPrefix = "Message.Update"
     }
     object Update {
-      def apply[T <: AnyRef](arg: Either[T, T], publisher: ActorRef) = new Update(arg, Some(publisher))
-      def apply[T <: AnyRef](arg: Either[T, T]) = new Update(arg, None)
-      def apply() = new Update(Left(Update), None)
+      def apply[T <: AnyRef](element: T, origin: ActorRef, message: String) = new Update(element, Some(origin), Some(message))
+      def apply[T <: AnyRef](element: T, origin: ActorRef) = new Update(element, Some(origin))
+      def apply() = new Update(None, None)
       override def toString = "Message.Update"
     }
   }

@@ -109,11 +109,11 @@ class Core extends akka.actor.Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Attach(props, name) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Attach(props, name, _) ⇒ App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
 
-    case message @ App.Message.Consistent(element, from) if from != Some(self) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Consistent(element, from, _) if from != Some(self) ⇒ App.traceMessage(message) {
       if (inconsistentSet.nonEmpty) {
         inconsistentSet = inconsistentSet - element
         if (inconsistentSet.isEmpty) {
@@ -124,7 +124,7 @@ class Core extends akka.actor.Actor with Loggable {
         log.debug(s"Skip message ${message}. Core is already consistent.")
     }
 
-    case message @ App.Message.Inconsistent(element, from) if from != Some(self) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Inconsistent(element, from, _) if from != Some(self) ⇒ App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
         context.system.eventStream.publish(App.Message.Inconsistent(Core, self))
@@ -132,12 +132,12 @@ class Core extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet + element
     }
 
-    case message @ App.Message.Consistency(set, from) if set.isEmpty ⇒ App.traceMessage(message) {
+    case message @ App.Message.Consistency(set, from, _) if set.isEmpty ⇒ App.traceMessage(message) {
       from.foreach(_ ! App.Message.Consistency(inconsistentSet, Some(self)))
     }
 
-    case message @ App.Message.Consistent(_, _) ⇒ // skip
-    case message @ App.Message.Inconsistent(_, _) ⇒ // skip
+    case message @ App.Message.Consistent(_, _, _) ⇒ // skip
+    case message @ App.Message.Inconsistent(_, _, _) ⇒ // skip
 
     case message: BundleContext ⇒ App.traceMessage(message) { main(message) }
 
@@ -187,7 +187,7 @@ class Core extends akka.actor.Actor with Loggable {
         log.info("Start application without GUI.")
       command.Commands.configure()
       Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
-      Console ! App.Message.Start(Left(Console))
+      Console ! App.Message.Start(Console, None)
       Console ! Console.Message.Notice("Core component is started.")
       self ! App.Message.Consistent(Core, None)
     }
