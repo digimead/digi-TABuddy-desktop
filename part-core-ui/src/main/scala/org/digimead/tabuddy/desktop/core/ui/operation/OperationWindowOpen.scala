@@ -71,7 +71,7 @@ class OperationWindowOpen extends api.OperationWindowOpen with Loggable {
    */
   def apply(windowId: Option[UUID]): Option[UUID] = {
     log.info(s"Open window with Id ${windowId}.")
-    Await.result(WindowSupervisor.actor ? App.Message.Open(windowId, None), timeout.duration) match {
+    Await.result(WindowSupervisor.actor ? App.Message.Open(windowId.getOrElse(None), None), timeout.duration) match {
       case App.Message.Open(uuid: UUID, _, _) ⇒
         Some(uuid)
       case App.Message.Error(message, _) ⇒

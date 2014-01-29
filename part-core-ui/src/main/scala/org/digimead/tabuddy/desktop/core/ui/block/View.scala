@@ -70,7 +70,7 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Parent stack actor. */
-  lazy val stack = context.parent
+  lazy val container = context.parent
   /** Flag indicating whether the View is alive. */
   var terminated = false
   /** View JFace instance. */
@@ -78,20 +78,17 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
-  override def postStop() {
-    log.debug(this + " is stopped.")
-    view.foreach { view ⇒ context.stop(view.contentRef) }
-  }
+  override def postStop() = log.debug(this + " is stopped.")
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
   def receive = {
-    case message @ App.Message.Create(View.<>(viewConfiguration, parentWidget), Some(this.stack), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(View.<>(viewConfiguration, parentWidget), Some(this.container), _) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
         create(viewConfiguration, parentWidget, sender) match {
           case Some(viewWidget) ⇒
-            context.parent ! App.Message.Create(viewWidget, self)
+            container ! App.Message.Create(viewWidget, self)
             App.Message.Create(viewWidget, self)
           case None ⇒
             App.Message.Error(s"Unable to create ${viewConfiguration}.", self)
@@ -105,12 +102,16 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
       } else {
         destroy() match {
           case Some(viewWidget) ⇒
-            stack ! App.Message.Destroy(viewWidget, self)
+            container ! App.Message.Destroy(viewWidget, self)
             App.Message.Destroy(viewWidget, self)
           case None ⇒
             App.Message.Error(s"Unable to destroy ${view}.", self)
         }
       }
+    } foreach { sender ! _ }
+
+    case message @ App.Message.Get(Actor) ⇒ App.traceMessage(message) {
+      Map(context.children.map { case child ⇒ child -> Map() }.toSeq: _*)
     } foreach { sender ! _ }
 
     case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {

@@ -80,6 +80,7 @@ import org.digimead.tabuddy.desktop.model.editor.ModelEditor
 import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.model.editor.Messages
+import akka.actor.ActorContext
 
 class Editor(val contentId: UUID) extends Actor with Loggable {
   /** Aggregation listener delay */
@@ -279,24 +280,12 @@ object Editor extends View.Factory with Loggable {
 
   /** Returns actor reference that could handle Create/Destroy messages. */
   @log
-  def viewActor(configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
-    implicit val ec = App.system.dispatcher
-    implicit val timeout = akka.util.Timeout(Timeout.short)
+  def viewActor(containerActorContext: ActorContext, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
     val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
-    val future = ModelEditor.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
-    try {
-      val newActorRef = Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration)
-      activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
-      titlePerActor.values.foreach(_.update)
-      Some(newActorRef)
-    } catch {
-      case e: InterruptedException ⇒
-        log.error(e.getMessage, e)
-        None
-      case e: TimeoutException ⇒
-        log.error(e.getMessage, e)
-        None
-    }
+    val newActorRef = containerActorContext.actorOf(props.copy(args = immutable.Seq(configuration.id)), viewName)
+    activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
+    titlePerActor.values.foreach(_.update)
+    Some(newActorRef)
   }
   /** Editor view actor reference configuration object. */
   def props = DI.props

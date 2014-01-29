@@ -118,6 +118,9 @@ trait Generic extends EventLoop.Consumer {
       yield new Status(IStatus.ERROR, bundle.getSymbolicName(), line)
     new MultiStatus(bundle.getSymbolicName(), IStatus.ERROR, statuses.toArray, t.getLocalizedMessage(), t)
   }
+  /** Apply map to tree of maps: type x = Map[A, x]. */
+  def treeMap[A, B](actorTree: Map[A, _])(f: A ⇒ B): Map[B, _] =
+    actorTree match { case m: Map[A, _] ⇒ m.map { case (key, values) ⇒ f(key) -> treeMap(values.asInstanceOf[Map[A, _]])(f) } }
   /** Verify the current environment */
   def verifyApplicationEnvironment() {
     val eventThread = execNGet { Thread.currentThread() }

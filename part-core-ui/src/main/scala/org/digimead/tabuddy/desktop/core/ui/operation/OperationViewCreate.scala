@@ -72,7 +72,11 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    */
   def apply(appWindow: AnyRef, viewConfiguration: AnyRef) {
     log.info(s"Create new ${viewConfiguration}.")
-    Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(Left(viewConfiguration), None), timeout.duration)
+    Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(viewConfiguration, None), timeout.duration) match {
+      case App.Message.Create(view, _, _) ⇒
+      case App.Message.Error(message, _) ⇒
+        log.error(s"Unable to create ${viewConfiguration}: ${message.getOrElse("unknown")}")
+    }
   }
   /**
    * Create 'Create view' operation.

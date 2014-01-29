@@ -134,6 +134,11 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         window ! App.Message.Destroy(self, self)
     }
 
+    case message @ App.Message.Get(Actor) ⇒ App.traceMessage(message) {
+      val tree = context.children.map(child ⇒ child -> child ? App.Message.Get(Actor))
+      Map(tree.map { case (child, map) ⇒ child -> Await.result(map, timeout.duration) }.toSeq: _*)
+    } foreach { sender ! _ }
+
     case message @ App.Message.Get(Configuration) ⇒ sender ! App.execNGet { wComposite.map(w ⇒ StackConfiguration.build(w.getShell)) getOrElse configuration }
 
     case message @ App.Message.Get(Option) ⇒ sender ! lastActiveViewIdForCurrentWindow.get

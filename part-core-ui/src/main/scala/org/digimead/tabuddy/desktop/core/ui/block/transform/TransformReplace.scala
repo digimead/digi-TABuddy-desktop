@@ -50,7 +50,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite, VEmpty }
 import scala.concurrent.{ Await, Future }
 import scala.language.implicitConversions
 
@@ -70,6 +70,18 @@ class TransformReplace extends Loggable {
       })
       if (errors.isEmpty) {
         ss.lastActiveViewIdForCurrentWindow.set(None)
+        val exists = App.execNGet {
+          // There may be only VEmpty child or nothing by design
+          wComposite.getChildren().flatMap {
+            case empty: VEmpty ⇒
+              empty.dispose()
+              None
+            case other ⇒
+              Some(other)
+          }
+        }
+        if (exists.nonEmpty)
+          throw new IllegalStateException(s"Unable to create ${viewConfiguration}. Container already in use by ${exists.mkString(",")}.")
         ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context)
       } else {
         errors.foreach(err ⇒ log.error(s"Unable to TransformReplace ${viewConfiguration}: ${err.asInstanceOf[App.Message.Error].message}"))

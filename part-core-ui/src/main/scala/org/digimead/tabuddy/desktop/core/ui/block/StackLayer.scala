@@ -44,51 +44,78 @@
 package org.digimead.tabuddy.desktop.core.ui.block
 
 import akka.actor.{ Actor, ActorContext, ActorRef, Props, actorRef2Scala }
+import akka.pattern.ask
 import java.util.UUID
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.SComposite
 import org.eclipse.swt.custom.ScrolledComposite
+import scala.concurrent.Await
 
 /**
  * Stack layer implementation that contains lay between window and view.
  */
 class StackLayer(stackId: UUID) extends Actor with Loggable {
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
+  /** Parent stack actor. */
+  lazy val container = context.parent
   /** Stack layer JFace instance. */
   @volatile var stack: Option[SComposite] = None
+  /** Flag indicating whether the StackLayer is alive. */
+  var terminated = false
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
-  override def postStop() = {
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Create[_]])
-    log.debug(this + " is stopped.")
-  }
+  override def postStop() = log.debug(this + " is stopped.")
   /** Is called when an Actor is started. */
-  override def preStart() {
-    App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
-    log.debug(this + " is started.")
-  }
+  override def preStart() = log.debug(this + " is started.")
   def receive = {
-    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext, supervisorContext)), None, _) ⇒ App.traceMessage(message) {
-      create(stackConfiguration, parentWidget, parentContext, sender, supervisorContext) match {
-        case Some(stack) ⇒
-          context.parent ! App.Message.Create(stack, None)
-          //          App.publish(App.Message.Create(stack), self))
-          App.Message.Create(stack, None)
-        case None ⇒
-          App.Message.Error(s"Unable to create ${stackConfiguration}.", None)
+    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext, supervisorContext)), Some(this.container), _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        create(stackConfiguration, parentWidget, parentContext, sender, supervisorContext) match {
+          case Some(stack) ⇒
+            container ! App.Message.Create(stack, self)
+            App.Message.Create(stack, self)
+          case None ⇒
+            App.Message.Error(s"Unable to create ${stackConfiguration}.", self)
+        }
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Create(stack: SComposite, Some(publisher), _) if (publisher == self && this.stack == None) ⇒ App.traceMessage(message) {
-      log.debug(s"Bind ${stack} to ${this}.")
-      this.stack = Option(stack)
-    }
+    /* case message @ App.Message.Create(stack: SComposite, Some(this.self), _) if (this.stack == None) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        log.debug(s"Bind ${stack} to ${this}.")
+        this.stack = Option(stack)
+      }
+    }*/
 
-    case message @ App.Message.Create(_, _, _) ⇒
+    case message @ App.Message.Destroy(_, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        destroy() match {
+          case Some(stackWidget) ⇒
+            container ! App.Message.Destroy(stackWidget, self)
+            App.Message.Destroy(stackWidget, self)
+          case None ⇒
+            App.Message.Error(s"Unable to destroy ${stack}.", self)
+        }
+      }
+    } foreach { sender ! _ }
+
+    case message @ App.Message.Get(Actor) ⇒ App.traceMessage(message) {
+      val tree = context.children.map(child ⇒ child -> child ? App.Message.Get(Actor))
+      Map(tree.map { case (child, map) ⇒ child -> Await.result(map, timeout.duration) }.toSeq: _*)
+    } foreach { sender ! _ }
   }
 
   /** Create stack. */
@@ -100,7 +127,13 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
     this.stack = StackBuilder(stackConfiguration, parentWidget, parentContext, supervisor, supervisorContext, self)
     this.stack
   }
-
+  /** Destroy view. */
+  protected def destroy(): Option[SComposite] = stack.map { stack ⇒
+    App.execNGet { stack.dispose() }
+    context.children.foreach(_ ! App.Message.Destroy())
+    terminated = true
+    stack
+  }
   override lazy val toString = "StackLayer[actor/%08X]".format(stackId.hashCode())
 }
 

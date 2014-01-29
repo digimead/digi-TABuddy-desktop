@@ -75,7 +75,7 @@ class StackConfiguration extends Loggable {
   /** Build configuration for the specific shell. */
   def build(shell: Shell) = {
     App.assertEventThread()
-    shell.getChildren().flatMap(rebuildConfiguration) match {
+    shell.getChildren().flatMap(generateConfiguration) match {
       case Array(topLayerConfigurationElement) ⇒ Configuration(topLayerConfigurationElement)
       case Array() ⇒ Configuration(Configuration.CEmpty())
     }
@@ -134,14 +134,14 @@ class StackConfiguration extends Loggable {
   }
 
   /** Rebuild configuration from the actual widgets hierarchy */
-  protected def rebuildConfiguration(widget: Widget): Option[Configuration.CPlaceHolder] = widget match {
+  protected def generateConfiguration(widget: Widget): Option[Configuration.CPlaceHolder] = widget match {
     case vempty: VEmpty ⇒
       Some(Configuration.CEmpty(vempty.id))
     case vcomposite: VComposite ⇒
       Some(Configuration.CView(vcomposite.factory, vcomposite.id))
     case scomposite: SCompositeTab ⇒
       val children: Array[Configuration.CView] = scomposite.getItems().map { tabItem ⇒
-        rebuildConfiguration(tabItem.getControl()) match {
+        generateConfiguration(tabItem.getControl()) match {
           case Some(view: Configuration.CView) ⇒
             Some(view)
           case Some(unexpected) ⇒
@@ -163,7 +163,7 @@ class StackConfiguration extends Loggable {
       None
     case widget: Composite ⇒
       // pass through via other composite
-      widget.getChildren().map(rebuildConfiguration).flatten match {
+      widget.getChildren().map(generateConfiguration).flatten match {
         case Array() ⇒
           None
         case Array(configuration) ⇒
@@ -202,7 +202,6 @@ object StackConfiguration {
     lazy val default = injectOptional[StackConfiguration.Builder]("Core.UI.StackConfiguration.Default") getOrElse {
       () ⇒ Configuration(Configuration.CView(ViewDefault.configuration))
     }
-    //      StackConfiguration(Stack.Tab(Seq(View(UUID.fromString("00000000-0000-0000-0000-000000000000")))))
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()
     /** Application's configuration file. */

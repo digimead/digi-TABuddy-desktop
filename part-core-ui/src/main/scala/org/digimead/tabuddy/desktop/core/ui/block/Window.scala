@@ -142,8 +142,13 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
         }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Get(_) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Get(AppWindow) ⇒ App.traceMessage(message) {
       window
+    } foreach { sender ! _ }
+
+    case message @ App.Message.Get(Actor) ⇒ App.traceMessage(message) {
+      val tree = context.children.map(child ⇒ child -> child ? App.Message.Get(Actor))
+      Map(self -> Map(tree.map { case (child, map) ⇒ child -> Await.result(map, timeout.duration) }.toSeq: _*))
     } foreach { sender ! _ }
 
     // Asynchronous routine that creates initial window and passes it to AppWindow.showContent.
@@ -161,6 +166,14 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       log.debug(s"Window content created and shown.")
       windowSupervisor ! message
     }
+
+    case message @ App.Message.Restore(_, _, _) ⇒ App.traceMessage(message) {
+      val reply = for {
+        window ← window
+        content ← window.getContent()
+      } yield Await.result(stackSupervisor ? App.Message.Restore(content, self), timeout.duration)
+      reply getOrElse App.Message.Error(s"Unable to restore content for ${this}.", self)
+    } foreach { sender ! _ }
 
     case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
       if (terminated) {

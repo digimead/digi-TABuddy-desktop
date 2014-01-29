@@ -45,7 +45,6 @@ package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
 import akka.actor.ActorRef
 import akka.pattern.ask
-import akka.util.Timeout.durationToTimeout
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import org.digimead.digi.lib.aop.log
@@ -69,33 +68,37 @@ import scala.language.implicitConversions
 /**
  * Instance that represents visible window which is based on JFace framework.
  */
-class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
+class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
+  val ref: ActorRef, val supervisorRef: ActorRef,
   val windowContext: Context.Rich, parentShell: Shell)
   extends ApplicationWindow(parentShell) with Window.WindowMapDisposer with Loggable {
-  @volatile protected var configuration: Option[WindowConfiguration] = None
-  /** Flag indicating whether the window configuration should be saved. */
-  @volatile protected var saveOnClose = true
-  /** Filler composite that visible by default. */
-  @volatile protected var filler: Option[Composite] = None
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
+  /** Window configuration with location and so on. */
+  //  @volatile protected var configuration: Option[WindowConfiguration] = None
   /** Content composite that contains views. */
   @volatile protected var content: Option[WComposite] = None
+  /** Filler composite that visible by default. */
+  @volatile protected var filler: Option[Composite] = None
   /** On active listener flag */
   protected val onActiveFlag = new AtomicBoolean(true)
   /** On active listener */
   protected val onActiveListener = new AppWindow.OnActiveListener(this)
+  /** Flag indicating whether the window configuration should be saved. */
+  @volatile protected var saveOnClose = true
 
   App.assertEventThread()
   initialize()
 
+  /** Build window configuration. */
+  def buildConfiguration(): WindowConfiguration = {
+    val location = getShell.getBounds()
+    WindowConfiguration(getShell.isVisible(), location, Seq())
+  }
   /** Get window content widget. */
   def getContent() = content
-  /** Update window configuration. */
-  def updateConfiguration() {
-    val location = getShell.getBounds()
-    this.configuration = Some(WindowConfiguration(getShell.isVisible(), location, Seq()))
-  }
+  /** Returns the status line manager for this window (if it has one). */
   override def getStatusLineManager() = super.getStatusLineManager()
-
   /** Add window ID to shell. */
   override protected def configureShell(shell: Shell) {
     shell.setData(UI.swtId, id) // order is important
@@ -107,18 +110,16 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
       def widgetDisposed(e: DisposeEvent) {
         windowContext.dispose() // see WComposite dispose listener
         if (saveOnClose) {
-          updateConfiguration()
-          for (configuration ← configuration)
-            WindowSupervisor ! App.Message.Set(id, configuration)
+          WindowSupervisor ! App.Message.Set(id, buildConfiguration())
           StackConfiguration.save(id, StackConfiguration.build(shell))
         }
         App.display.removeFilter(SWT.Paint, onActiveListener)
         windowRemoveFromCommonMap()
-        App.publish(App.Message.Destroy(Right(AppWindow.this), ref))
+        ref ! App.Message.Destroy(AppWindow.this, ref)
       }
     })
     shell.setFocus()
-    configuration.foreach { configuration ⇒
+    initialConfiguration.foreach { configuration ⇒
       val oBounds = shell.getBounds
       val cBounds = configuration.location
       if (cBounds.x < 0 && cBounds.y < 0) {
@@ -146,7 +147,7 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     // Set the common top level widget
     windowContext.set(classOf[Composite], content)
     showContent(content)
-    App.publish(App.Message.Open(Right(this)))
+    //    App.publish(App.Message.Open(this), None))
     container
   }
   /**
@@ -207,10 +208,9 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
     // Bind composite to window context.
     windowContext.set(classOf[Composite], content)
     implicit val ec = App.system.dispatcher
-    val result = supervisorRef.ask(App.Message.Restore(Left(content)))(Timeout.short)
+    val result = supervisorRef ? App.Message.Restore(content, ref)
     result.onSuccess {
-      case App.Message.Create(Right(topWidget), None) if topWidget == null || topWidget.isInstanceOf[SComposite] ⇒
-        log.debug(s"Window content created. Show one.")
+      case App.Message.Create(topWidget: SComposite, Some(origin), _) ⇒
         App.exec {
           if (!content.isDisposed()) // Yes, it is possible.
             this.content.foreach { content ⇒
@@ -219,6 +219,8 @@ class AppWindow(val id: UUID, val ref: ActorRef, val supervisorRef: ActorRef,
               layout.topControl = content
               layout.topControl.setFocus()
               parent.layout()
+              // Window content is restored.
+              ref ! App.Message.Open(this, ref)
             }
         }
       case App.Message.Error(error, None) ⇒
@@ -252,8 +254,6 @@ object AppWindow {
   }
   case class AppWindowAccessor(appWindow: AppWindow) {
     def content = appWindow.content
-    def configuration: Option[WindowConfiguration] = appWindow.configuration
-    def configuration_=(arg: Option[WindowConfiguration]) = appWindow.configuration = arg
     def saveOnClose: Boolean = appWindow.saveOnClose
     def saveOnClose_=(arg: Boolean) = appWindow.saveOnClose = arg
   }
