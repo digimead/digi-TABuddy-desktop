@@ -68,11 +68,11 @@ class UI extends Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Create(Right(window: AppWindow), Some(publisher)) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(Right(window: AppWindow), Some(publisher), _) ⇒ App.traceMessage(message) {
       onCreated(window, publisher)
     }
 
-    case message @ App.Message.Create(_, _) ⇒
+    case message @ App.Message.Create(_, _, _) ⇒
   }
 
   /** Register actions in new window. */

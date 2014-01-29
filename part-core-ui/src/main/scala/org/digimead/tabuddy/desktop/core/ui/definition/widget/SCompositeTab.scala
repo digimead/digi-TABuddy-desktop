@@ -58,7 +58,7 @@ class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, 
   /** Returns the receiver's parent, which must be a ScrolledComposite. */
   override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
 
-  // Add an event listener to write the selected tab to stdout
+  // Add an event listener to pass the selected tab to WindowSupervisor
   addSelectionListener(new SelectionAdapter() {
     override def widgetSelected(event: SelectionEvent) = getSelection().headOption match {
       case Some(selection) ⇒
@@ -69,7 +69,7 @@ class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, 
               // After item will be selected, but will not block UI thread.
               log.debug(s"Start tab item with ${viewLayerComposite}.")
               val windowId = UI.widgetHierarchy(viewLayerComposite).last.asInstanceOf[WComposite].id
-              WindowSupervisor.actor ! App.Message.Start(Left(windowId, viewLayerComposite))
+              WindowSupervisor.actor ! App.Message.Start((windowId, viewLayerComposite), ref)
             }
           case composite: ScrolledComposite if composite.getContent() == null ⇒
             log.debug("Skip selection event for the empty tab.")

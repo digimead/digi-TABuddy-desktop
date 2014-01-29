@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
-import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
+import akka.actor.{ Actor, ActorContext, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
@@ -53,7 +53,6 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, SCompositeTab, VComposite }
@@ -65,56 +64,75 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.{ Composite, Widget }
 import scala.collection.{ immutable, mutable }
 import scala.concurrent.Await
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
 class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable {
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
+  /** Parent stack actor. */
+  lazy val stack = context.parent
+  /** Flag indicating whether the View is alive. */
+  var terminated = false
   /** View JFace instance. */
   var view: Option[VComposite] = None
-  /** View actor */
-  var viewActor: Option[ActorRef] = None
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() {
     log.debug(this + " is stopped.")
-    viewActor.foreach { child ⇒ context.stop(child) }
+    view.foreach { view ⇒ context.stop(view.contentRef) }
   }
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
   def receive = {
-    case message @ App.Message.Create(Left(View.<>(viewConfiguration, parentWidget)), None) ⇒ App.traceMessage(message) {
-      create(viewConfiguration, parentWidget, sender) match {
-        case Some(viewWidget) ⇒
-          App.publish(App.Message.Create(Right(viewWidget), self))
-          App.Message.Create(Right(viewWidget))
-        case None ⇒
-          App.Message.Error(s"Unable to create ${viewConfiguration}.")
+    case message @ App.Message.Create(View.<>(viewConfiguration, parentWidget), Some(this.stack), _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        create(viewConfiguration, parentWidget, sender) match {
+          case Some(viewWidget) ⇒
+            context.parent ! App.Message.Create(viewWidget, self)
+            App.Message.Create(viewWidget, self)
+          case None ⇒
+            App.Message.Error(s"Unable to create ${viewConfiguration}.", self)
+        }
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(_, None) ⇒ App.traceMessage(message) {
-      if (view.isEmpty)
-        App.Message.Error(s"View is already destroyed.")
-      else
+    case message @ App.Message.Destroy(_, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
         destroy() match {
           case Some(viewWidget) ⇒
-            // App.publish(App.Message.Destroy(Right(viewWidget), self)) via VComposite dispose listener
-            App.Message.Destroy(Right(viewWidget))
+            stack ! App.Message.Destroy(viewWidget, self)
+            App.Message.Destroy(viewWidget, self)
           case None ⇒
-            App.Message.Error(s"Unable to destroy ${view}.")
+            App.Message.Error(s"Unable to destroy ${view}.", self)
         }
+      }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      onStart(widget)
-      App.Message.Start(Right(widget))
+    case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        onStart(widget)
+        App.Message.Start(widget, None)
+      }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      onStop(widget)
-      App.Message.Stop(Right(widget))
+    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        onStop(widget)
+        App.Message.Stop(widget, None)
+      }
     } foreach { sender ! _ }
+
+    case App.Message.Error(Some(message), _) if message.endsWith("is terminated.") ⇒
+      log.debug(message)
   }
 
   /** Create view. */
@@ -122,10 +140,9 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertEventThread(false)
-    ViewContentBuilder(viewConfiguration, self, viewContext, parentWidget) match {
+    ViewContentBuilder.content(viewConfiguration, parentWidget, viewContext, context) match {
       case Some(viewWidgetWithContent) ⇒
         this.view = Some(viewWidgetWithContent)
-        this.viewActor = Some(viewWidgetWithContent.contentRef)
         // Update parent tab title if any.
         App.execAsync {
           parentWidget.getParent() match {
@@ -153,19 +170,19 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
   /** Destroy view. */
   protected def destroy(): Option[VComposite] = view.flatMap { view ⇒
     // Ask widget.contentRef to destroy it
-    Await.result(ask(view.contentRef, App.Message.Destroy(Left(view)))(Timeout.short), Timeout.short) match {
-      case App.Message.Destroy(Right(body: Composite), None) ⇒
+    Await.result(view.contentRef ? App.Message.Destroy(view, self), timeout.duration) match {
+      case App.Message.Destroy(body: Composite, _, _) ⇒
         if (body.isInstanceOf[SComposite]) // This must be not a part of stack.
           throw new IllegalArgumentException(s"Illegal body received ${body}")
         log.debug(s"View layer ${view} content is destroyed.")
         App.execNGet { view.dispose() }
-        this.view = None
+        terminated = true
         Some(view)
       case App.Message.Error(error, None) ⇒
-        log.fatal(s"Unable to destroy content for ${view}: ${error}")
+        log.fatal(s"Unable to destroy content for ${view}: ${error.getOrElse("unknown")}")
         None
-      case _ ⇒
-        log.fatal(s"Unable to destroy content for ${view}.")
+      case error ⇒
+        log.fatal(s"Unable to destroy content for ${view}: ${error}.")
         None
     }
   }
@@ -174,14 +191,14 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
     case Some(view) ⇒
       log.debug("View layer started by focus event on " + widget)
       viewContext.activateBranch()
-      Await.ready(ask(view.contentRef, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
+      Await.ready(view.contentRef ? App.Message.Start(widget, self), timeout.duration)
     case None ⇒
       log.debug("Unable to start unexists view.")
   }
   /** Focus is lost. */
   protected def onStop(widget: Widget) = view match {
     case Some(view) ⇒
-      Await.ready(ask(view.contentRef, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
+      Await.ready(view.contentRef ? App.Message.Stop(widget, self), timeout.duration)
     case None ⇒
       log.debug("Unable to stop unexists view.")
   }
@@ -242,7 +259,7 @@ object View {
      * Returns the actor reference that could handle Create/Destroy messages.
      * Add reference to activeActors list.
      */
-    def viewActor(configuration: Configuration.CView): Option[ActorRef]
+    def viewActor(containerActorContext: ActorContext, configuration: Configuration.CView): Option[ActorRef]
 
     override lazy val toString = s"""View.Factory("${name}", "${shortDescription}")"""
 

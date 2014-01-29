@@ -63,42 +63,66 @@ import org.eclipse.swt.layout.FillLayout
 import org.eclipse.swt.widgets.{ Composite, Control, Widget }
 import scala.collection.immutable
 import scala.concurrent.{ Await, Future }
+import org.digimead.tabuddy.desktop.core.ui.UI
+import akka.actor.ActorContext
 
 class ViewDefault(val contentId: UUID) extends Actor with Loggable {
-  /** View parent widget. */
-  @volatile protected var parent: Option[VComposite] = None
   /** View body widget. */
-  @volatile protected var body: Option[Composite] = None
+  @volatile var body: Option[Composite] = None
+  /** View parent widget. */
+  @volatile var parent: Option[VComposite] = None
+  /** Flag indicating whether the ViewDefault is alive. */
+  var terminated = false
+  /** Container view actor. */
+  lazy val view = context.parent
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
-      create(viewLayerWidget) match {
-        case Some(body) ⇒
-          App.publish(App.Message.Create(Right(body), self))
-          App.Message.Create(Right(body))
-        case None ⇒
-          App.Message.Error(s"Unable to create ${this} for ${viewLayerWidget}.")
+    case message @ App.Message.Create(viewLayerWidget: VComposite, Some(this.view), _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        create(viewLayerWidget) match {
+          case Some(body) ⇒
+            App.publish(App.Message.Create(body, self))
+            App.Message.Create(body, self)
+          case None ⇒
+            App.Message.Error(s"Unable to create ${this} for ${viewLayerWidget}.", None)
+        }
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
-      destroy() match {
-        case Some(body) ⇒
-          // App.publish(App.Message.Destroy(Right(body), self)) see body dispose listener
-          App.Message.Destroy(Right(body))
-        case None ⇒
-          App.Message.Error(s"Unable to destroy ${this} for ${viewLayerWidget}.")
+    case message @ App.Message.Destroy(viewLayerWidget: VComposite, Some(this.view), _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        destroy() match {
+          case Some(body) ⇒
+            App.Message.Destroy(body, None)
+          case None ⇒
+            App.Message.Error(s"Unable to destroy ${this} for ${viewLayerWidget}.", None)
+        }
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      App.Message.Start(Right(widget))
+    case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        App.Message.Start(widget, None)
+      }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      App.Message.Stop(Right(widget))
+    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        App.Message.Stop(widget, None)
+      }
     } foreach { sender ! _ }
+
+    case App.Message.Error(Some(message), _) if message.endsWith("is terminated.") ⇒
+      log.debug(message)
   }
 
   /**
@@ -119,7 +143,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
       parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
       parent.layout(Array[Control](button), SWT.ALL)
       body.addDisposeListener(new DisposeListener {
-        def widgetDisposed(e: DisposeEvent) = App.publish(App.Message.Destroy(Right(body), self))
+        def widgetDisposed(e: DisposeEvent) = view ! App.Message.Destroy(body, self)
       })
       this.parent = Option(parent)
       this.body = Option(body)
@@ -130,12 +154,13 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
   @log
   protected def destroy(): Option[Composite] = {
     App.assertEventThread(false)
+    terminated = true
     for {
       parent ← parent
       body ← body
-    } yield App.execNGet {
-      this.parent = None
-      this.body = None
+    } yield {
+      App.execNGet { body.dispose() }
+      App.publish(App.Message.Destroy(body, self))
       body
     }
   }
@@ -155,23 +180,12 @@ object ViewDefault extends View.Factory with Loggable {
 
   /** Returns actor reference that could handle Create/Destroy messages. */
   @log
-  def viewActor(configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
-    implicit val timeout = akka.util.Timeout(Timeout.short)
+  def viewActor(containerActorContext: ActorContext, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
     val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
-    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
-    try {
-      val newActorRef = Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration)
-      activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
-      titlePerActor.values.foreach(_.update)
-      Some(newActorRef)
-    } catch {
-      case e: InterruptedException ⇒
-        log.error(e.getMessage, e)
-        None
-      case e: TimeoutException ⇒
-        log.error(e.getMessage, e)
-        None
-    }
+    val newActorRef = containerActorContext.actorOf(props.copy(args = immutable.Seq(configuration.id)), viewName)
+    activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
+    titlePerActor.values.foreach(_.update)
+    Some(newActorRef)
   }
   /** Default view actor reference configuration object. */
   def props = DI.props

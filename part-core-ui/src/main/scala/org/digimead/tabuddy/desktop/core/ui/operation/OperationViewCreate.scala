@@ -51,6 +51,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
@@ -58,6 +59,11 @@ import scala.concurrent.Await
 
 /** 'Create view' operation. */
 class OperationViewCreate extends api.OperationViewCreate with Loggable {
+  /** Akka execution context. */
+  implicit val ec = App.system.dispatcher
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
+
   /**
    * Create view.
    *
@@ -65,10 +71,8 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    * @param viewConfiguration new view configuration
    */
   def apply(appWindow: AnyRef, viewConfiguration: AnyRef) {
-    log.info("Create new view from " + viewConfiguration)
-    implicit val ec = App.system.dispatcher
-    implicit val timeout = akka.util.Timeout(Timeout.short)
-    Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(Left(viewConfiguration)), timeout.duration)
+    log.info(s"Create new ${viewConfiguration}.")
+    Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(Left(viewConfiguration), None), timeout.duration)
   }
   /**
    * Create 'Create view' operation.
@@ -131,7 +135,7 @@ object OperationViewCreate extends Loggable {
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val appWindow: AppWindow, val viewConfiguration: Configuration.CView)
-    extends Operation[Unit](s"Create view in ${appWindow} with ${viewConfiguration}.") {
+    extends Operation[Unit](s"Create ${viewConfiguration} in ${appWindow}.") {
     this: Loggable ⇒
   }
   /**

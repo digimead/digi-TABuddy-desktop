@@ -51,11 +51,18 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import scala.concurrent.Await
 
 /** 'Close window' operation. */
 class OperationWindowClose extends api.OperationWindowClose with Loggable {
+  /** Akka execution context. */
+  implicit val ec = App.system.dispatcher
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
+
   /**
    * Close window.
    *
@@ -64,12 +71,11 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
    */
   def apply(window: AnyRef, saveOnClose: Boolean) {
     log.info(s"Close ${window}.")
-    implicit val ec = App.system.dispatcher
-    implicit val timeout = akka.util.Timeout(Timeout.short)
-    if (saveOnClose)
+    val future = if (saveOnClose)
       window.asInstanceOf[AppWindow].ref ? App.Message.Close()
     else
       window.asInstanceOf[AppWindow].ref ? App.Message.Destroy()
+    Await.result(future, timeout.duration)
   }
   /**
    * Create 'Close window' operation.

@@ -77,6 +77,8 @@ import scala.language.implicitConversions
  * - shut down application
  */
 class WindowSupervisor extends Actor with Loggable {
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** All known window configurations. */
   val configurations = new WindowSupervisor.ConfigurationMap()
   /** Reference to configurations save process future. */
@@ -89,8 +91,6 @@ class WindowSupervisor extends Actor with Loggable {
   protected var activeFocusEvent: Option[(UUID, Widget)] = None
   /** Last App.Message.Start/Stop event from FocusListener. */
   protected var lastFocusEvent: Either[(UUID, Widget), (UUID, Widget)] = null
-  /** Akka communication timeout. */
-  implicit val timeout = akka.util.Timeout(Timeout.short)
 
   log.debug("Start actor " + self.path)
 
@@ -101,40 +101,32 @@ class WindowSupervisor extends Actor with Loggable {
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() {
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Stop[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Start[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Destroy[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Create[_]])
     val saveFuture = configurationsSave.get
-    saveFuture.map(future ⇒ Await.result(future, Timeout.short))
+    saveFuture.map(future ⇒ Await.result(future, timeout.duration))
     if (configurationsSaveRestart.get) {
       for (i ← 0 to 10 if saveFuture == configurationsSave.get)
         Thread.sleep(100) // User have limited patience - 1 second is enough
       if (saveFuture != configurationsSave.get)
-        configurationsSave.get.map(future ⇒ Await.result(future, Timeout.short))
+        configurationsSave.get.map(future ⇒ Await.result(future, timeout.duration))
     }
     App.watch(this) off ()
     log.debug(this + " is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
-    App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Destroy[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Start[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Stop[_]])
     App.watch(this) on ()
     log.debug(this + " is started.")
   }
   def receive = {
-    case message @ App.Message.Create(Right(window: AppWindow), Some(publisher)) ⇒ App.traceMessage(message) {
-      onCreated(window, publisher)
+    case message @ App.Message.Create(window: AppWindow, Some(origin), _) ⇒ App.traceMessage(message) {
+      onCreated(window, origin)
     }
 
-    case message @ App.Message.Destroy(Right(window: AppWindow), Some(publisher)) ⇒ App.traceMessage(message) {
-      onDestroyed(window, publisher)
+    case message @ App.Message.Destroy(window: AppWindow, Some(origin), _) ⇒ App.traceMessage(message) {
+      onDestroyed(window, origin)
     }
 
-    case message @ App.Message.Get(Some(windowId: UUID)) ⇒ getConfiguration(sender, Some(windowId))
+    case message @ App.Message.Get(windowId: UUID) ⇒ getConfiguration(sender, Some(windowId))
 
     case message @ App.Message.Get(None) ⇒ getConfiguration(sender, None)
 
@@ -142,35 +134,48 @@ class WindowSupervisor extends Actor with Loggable {
 
     case message @ App.Message.Get(WindowSupervisor.PointerMap) ⇒ sender ! pointers.toMap
 
-    case message @ App.Message.Open(Left(Some(id: UUID)), _) ⇒ App.traceMessage(message) {
+    // open specific window
+    case message @ App.Message.Open(id: UUID, _, _) ⇒ App.traceMessage(message) {
       open(Some(id)) match {
         case Some(uuid) ⇒
-          App.Message.Open(Right(uuid))
+          App.Message.Open(uuid, None)
         case None ⇒
-          App.Message.Error(s"Unable to open window ${id}.")
+          App.Message.Error(s"Unable to open window ${id}.", None)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Open(Left(None), _) ⇒ App.traceMessage(message) {
+    // open some new window
+    case message @ App.Message.Open(None, _, _) ⇒ App.traceMessage(message) {
       open(None) match {
         case Some(uuid) ⇒
-          App.Message.Open(Right(uuid))
+          App.Message.Open(uuid, None)
         case None ⇒
-          App.Message.Error("Unable to open new window.")
+          App.Message.Error("Unable to open new window.", None)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Restore(_, None) ⇒ App.traceMessage(message) {
+    // opening in progress
+    case message @ App.Message.Open(appWindow, Some(windowSupervisor), Some("Opening in progress.")) ⇒ App.traceMessage(message) {
+      log.debug(s"${appWindow} is opening.")
+    }
+
+    // window is opened
+    case message @ App.Message.Open(appWindow, Some(windowSupervisor), None) ⇒ App.traceMessage(message) {
+      App.publish(message)
+    }
+
+    case message @ App.Message.Restore(_, _, _) ⇒ App.traceMessage(message) {
       restore()
     }
 
-    case message @ App.Message.Save(_, None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Save(_, _, _) ⇒ App.traceMessage(message) {
       save()
     }
 
-    case message @ App.Message.Set(windowId: UUID, configuration: WindowConfiguration) ⇒ setConfiguration(sender, windowId, configuration)
+    case message @ App.Message.Set(windowId: UUID, configuration: WindowConfiguration) ⇒
+      setConfiguration(sender, windowId, configuration)
 
-    case message @ App.Message.Start(event @ Left((id: UUID, widget: Widget)), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start((id: UUID, widget: Widget), _, _) ⇒ App.traceMessage(message) {
       // Stop previous active widget if any
       activeFocusEvent match {
         case Some((activeId, activeWidget)) if activeId != id || activeWidget != widget ⇒
@@ -181,18 +186,14 @@ class WindowSupervisor extends Actor with Loggable {
       start(id, widget)
     }
 
-    case message @ App.Message.Stop(Left((id: UUID, widget: Widget)), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop((id: UUID, widget: Widget), _, _) ⇒ App.traceMessage(message) {
       stop(id, widget)
     }
-
-    case message @ App.Message.Create(_, _) ⇒
-    case message @ App.Message.Destroy(_, _) ⇒
-    case message @ App.Message.Start(_, _) ⇒
-    case message @ App.Message.Stop(_, _) ⇒
   }
 
   /** Create new window actor and actor contents. */
   protected def create(windowId: UUID) {
+    log.debug(s"Create window ${windowId}.")
     if (pointers.contains(windowId))
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
     App.assertEventThread(false)
@@ -200,8 +201,22 @@ class WindowSupervisor extends Actor with Loggable {
     val windowContext = Core.context.createChild(windowName): Context.Rich
     val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), windowName)
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
-    // Block supervisor until window is created
-    Await.result(window ? App.Message.Create(Left(Window.<>(windowId, configurations.get(windowId) getOrElse WindowConfiguration.default))), timeout.duration)
+    Await.result(window ? App.Message.Create(Window.<>(windowId, configurations.get(windowId).
+      getOrElse(WindowConfiguration.default)), self), timeout.duration) match {
+      case message @ App.Message.Create(window: AppWindow, Some(windowActor), _) ⇒
+        pointers += window.id -> WindowSupervisor.WindowPointer(windowActor)(new WeakReference(window))
+        if (lastActiveWindow.isEmpty) {
+          // if there is no last active window
+          // this is the 1st...
+          if (UI.getActiveShell().isEmpty)
+            Core.context.set("shellList", Seq(window.getShell()))
+          window.windowContext.activateBranch()
+        }
+        App.publish(message)
+        windowActor ! App.Message.Open(None, self)
+      case App.Message.Error(message, _) ⇒
+        log.error(s"Unable to create window ${windowId}: ${message}.")
+    }
   }
   /** Send exists or default window configuration to sender. */
   @log
@@ -231,11 +246,10 @@ class WindowSupervisor extends Actor with Loggable {
     }
   }
   /** Remove window pointer with AppWindow value. */
-  protected def onDestroyed(window: AppWindow, sender: ActorRef) {
-    pointers.get(window.id).foreach { window ⇒
-      context.stop(window.windowActor)
-    }
+  protected def onDestroyed(window: AppWindow, origin: ActorRef) {
     pointers -= window.id
+    App.publish(App.Message.Destroy(window, origin))
+    context.stop(window.ref)
   }
   /** Start global focus listener when GUI is available. */
   @log
@@ -253,7 +267,7 @@ class WindowSupervisor extends Actor with Loggable {
     App.display.removeFilter(SWT.Activate, FocusListener)
     App.display.removeFilter(SWT.Deactivate, FocusListener)
   }
-  /** Open new window or switch to the exists one. */
+  /** Create the new window or open the exists one. */
   protected def open(windowId: Option[UUID]): Option[UUID] = {
     log.debug(s"Open window ${windowId}.")
     windowId.flatMap(pointers.get) match {
@@ -276,6 +290,7 @@ class WindowSupervisor extends Actor with Loggable {
   }
   /** Restore windows from configuration. */
   protected def restore() {
+    log.debug(s"Restore windows configuration.")
     // destroy all current windows
     configurations.clear
     WindowConfiguration.load.foreach(kv ⇒ configurations += kv)
@@ -321,7 +336,7 @@ class WindowSupervisor extends Actor with Loggable {
   def start(id: UUID, widget: Widget) {
     if (Left(id, widget) != lastFocusEvent)
       pointers.get(id).foreach { pointer ⇒
-        Await.ready(ask(pointer.windowActor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
+        Await.ready(pointer.windowActor ? App.Message.Start(widget, None), timeout.duration)
         lastFocusEvent = Left(id, widget)
         activeFocusEvent = Some((id, widget))
       }
@@ -330,7 +345,7 @@ class WindowSupervisor extends Actor with Loggable {
   def stop(id: UUID, widget: Widget) {
     if (Right(id, widget) != lastFocusEvent)
       pointers.get(id).foreach { pointer ⇒
-        Await.ready(ask(pointer.windowActor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
+        Await.ready(pointer.windowActor ? App.Message.Stop(widget, None), timeout.duration)
         lastFocusEvent = Right(id, widget)
         activeFocusEvent = None
       }
@@ -399,28 +414,28 @@ class WindowSupervisor extends Actor with Loggable {
     case class StrictStartFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
         log.debug("Focus gained by window %08X for widget %s.".format(id.hashCode(), widget))
-        self ! App.Message.Start(Left(id, widget))
+        self ! App.Message.Start((id, widget), None)
       }
     }
     /** Start event without explicit focus widget. */
     case class FuzzyStartFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
         log.debug("Window %08X activated.".format(id.hashCode()))
-        self ! App.Message.Start(Left(id, widget))
+        self ! App.Message.Start((id, widget), None)
       }
     }
     /** Stop event by SWT.FocusOut. */
     case class StrictStopFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
         log.debug("Focus lost by window %08X.".format(id.hashCode()))
-        self ! App.Message.Stop(Left(id, widget))
+        self ! App.Message.Stop((id, widget), None)
       }
     }
     /** Stop event without explicit focus widget. */
     case class FuzzyStopFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
         log.debug("Window %08X deactivated.".format(id.hashCode()))
-        self ! App.Message.Stop(Left(id, widget))
+        self ! App.Message.Stop((id, widget), None)
       }
     }
   }

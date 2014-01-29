@@ -91,11 +91,11 @@ class ViewModification extends akka.actor.Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Attach(props, name) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Attach(props, name, _) ⇒ App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
 
-    case message @ App.Message.Consistent(element, from) if from != Some(self) &&
+    case message @ App.Message.Consistent(element, from, _) if from != Some(self) &&
       App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.nonEmpty) {
         inconsistentSet = inconsistentSet - element
@@ -107,7 +107,7 @@ class ViewModification extends akka.actor.Actor with Loggable {
         log.debug(s"Skip message ${message}. ViewModification is already consistent.")
     }
 
-    case message @ App.Message.Inconsistent(element, from) if from != Some(self) &&
+    case message @ App.Message.Inconsistent(element, from, _) if from != Some(self) &&
       App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
@@ -116,8 +116,8 @@ class ViewModification extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet + element
     }
 
-    case message @ App.Message.Inconsistent(element, _) ⇒ // skip
-    case message @ App.Message.Consistent(element, _) ⇒ // skip
+    case message @ App.Message.Inconsistent(element, _, _) ⇒ // skip
+    case message @ App.Message.Consistent(element, _, _) ⇒ // skip
   }
 
   /** This callback is invoked when GUI is valid. */

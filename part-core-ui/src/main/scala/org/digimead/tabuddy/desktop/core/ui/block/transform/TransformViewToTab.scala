@@ -93,8 +93,9 @@ class TransformViewToTab extends Loggable {
             tabParentWidget.setContent(tabComposite)
             tabParentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
             tabParentWidget.layout(true)
-            App.publish(App.Message.Create(Right(tabComposite), stackRef))
-            App.publish(App.Message.Update(Right(view), stackRef))
+            ss.self ! App.Message.Create(tabComposite, None)
+            //App.publish(, stackRef))
+            //App.publish(App.Message.Update(view), stackRef))
             Option(tabComposite)
           }
         }

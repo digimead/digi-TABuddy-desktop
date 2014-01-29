@@ -80,10 +80,10 @@ class Console(parent: VComposite, style: Int, console: MessageConsole)
   /** Initialize console. */
   protected def initialize() {
     addDisposeListener(new DisposeListener { def widgetDisposed(event: DisposeEvent) = deinitialize() })
-    org.digimead.tabuddy.desktop.core.console.Console.actor ! App.Message.Open(Left(this))
+    org.digimead.tabuddy.desktop.core.console.Console.actor ! App.Message.Open(this, None)
   }
   /** Deinitialize console. */
   protected def deinitialize() {
-    org.digimead.tabuddy.desktop.core.console.Console.actor ! App.Message.Close(Left(this))
+    org.digimead.tabuddy.desktop.core.console.Console.actor ! App.Message.Close(this, None)
   }
 }

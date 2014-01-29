@@ -88,7 +88,7 @@ class Action extends Actor with Loggable {
 //      onCreated(window, publisher)
 //    }
 
-    case message @ App.Message.Create(_, _) =>
+    case message @ App.Message.Create(_, _, _) =>
   }
 
 /*  /** Register actions in new window. */

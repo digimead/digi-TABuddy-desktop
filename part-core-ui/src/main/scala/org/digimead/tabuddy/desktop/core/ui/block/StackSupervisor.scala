@@ -57,12 +57,12 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, VComposite, WComposite }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, VComposite, VEmpty, WComposite }
+import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.Widget
+import org.eclipse.swt.widgets.{ Event, Widget }
 import scala.collection.{ immutable, mutable }
-import scala.concurrent.Await
-import scala.concurrent.Future
+import scala.concurrent.{ Await, Future, TimeoutException }
 import scala.language.implicitConversions
 
 /**
@@ -73,48 +73,65 @@ import scala.language.implicitConversions
  * - save all views configuration
  */
 class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) extends Actor with Loggable {
+  /** Akka execution context. */
+  implicit val ec = App.system.dispatcher
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Stack configuration. */
   val configuration = StackConfiguration.load(windowId) getOrElse StackConfiguration.default()
   /** Flag indicating whether the configurations save process restart is required. */
   val configurationsSaveRestart = new AtomicBoolean()
-  /** Top level stack hierarchy container. It is ScrolledComposite of content of AppWindow. */
-  @volatile var wComposite: Option[WComposite] = None
   /** Last active view id for this window. */
   val lastActiveViewIdForCurrentWindow = new AtomicReference[Option[UUID]](None)
   /** List of all window stacks. */
   val pointers = new StackSupervisor.PointerMap(context.parent)
+  /** Flag indicating whether the StackSupervisor is alive. */
+  var terminated = false
+  /** Top level stack hierarchy container. It is ScrolledComposite of content of AppWindow. */
+  var wComposite: Option[WComposite] = None
+  /** Window actor. */
+  lazy val window = context.parent
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
-  override def postStop() {
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Create[_]])
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Destroy[_]])
-    log.debug(this + " is stopped.")
-  }
+  override def postStop() = log.debug(this + " is stopped.")
   /** Is called when an Actor is started. */
-  override def preStart() {
-    App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Destroy[_]])
-    log.debug(this + " is started.")
-  }
+  override def preStart() = log.debug(this + " is started.")
   def receive = {
-    case message @ App.Message.Create(Left(viewConfiguration: Configuration.CView), None) ⇒ App.traceMessage(message) {
-      create(viewConfiguration) match {
-        case Some(windowComposite) ⇒
-          App.Message.Create(Right(windowComposite))
-        case None ⇒
-          App.Message.Error(s"Unable to create ${viewConfiguration}.")
+    case message @ App.Message.Create(viewConfiguration: Configuration.CView, None, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        create(viewConfiguration) match {
+          case Some(windowComposite) ⇒
+            App.Message.Create(windowComposite, None)
+          case None ⇒
+            App.Message.Error(s"Unable to create ${viewConfiguration}.", None)
+        }
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Create(Right(stackLayer: SComposite), Some(publisher)) ⇒ App.traceMessage(message) {
-      if (App.execNGet { wComposite.map(UI.widgetHierarchy(stackLayer).contains).getOrElse(false) })
-        onCreated(stackLayer, publisher)
+    case message @ App.Message.Create(stackLayer: SComposite, Some(origin), _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        if (App.execNGet { wComposite.map(UI.widgetHierarchy(stackLayer).contains).getOrElse(false) })
+          onCreated(stackLayer, origin)
+      }
     }
 
-    case message @ App.Message.Destroy(Right(stackLayer: SComposite), Some(publisher)) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(stackLayer: SComposite, Some(origin), _) ⇒ App.traceMessage(message) {
       if (pointers.isDefinedAt(stackLayer.id))
-        onDestroyed(stackLayer)
+        onDestroyed(stackLayer, origin)
+      if (terminated && pointers.isEmpty)
+        window ! App.Message.Destroy(self, self)
+    }
+
+    case message @ App.Message.Destroy(_: AppWindow, Some(this.window), _) ⇒ App.traceMessage(message) {
+      terminated = true
+      context.children.foreach(_ ! App.Message.Destroy())
+      if (pointers.isEmpty)
+        window ! App.Message.Destroy(self, self)
     }
 
     case message @ App.Message.Get(Configuration) ⇒ sender ! App.execNGet { wComposite.map(w ⇒ StackConfiguration.build(w.getShell)) getOrElse configuration }
@@ -123,34 +140,39 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
 
     case message @ App.Message.Get(Seq) ⇒ sender ! pointers.toSeq
 
-    case message @ App.Message.Restore(Left(content: WComposite), None) ⇒ App.traceMessage(message) {
-      restore(content) match {
-        case Some(windowComposite) ⇒
-          App.Message.Create(Right(windowComposite))
-        case None if configuration.stack.isInstanceOf[Configuration.CEmpty] ⇒
-          App.Message.Create(Right(null))
-        case None ⇒
-          App.Message.Error(s"Unable to restore content for ${content}.")
+    case message @ App.Message.Restore(content: WComposite, Some(this.window), _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        restore(content) match {
+          case Some(windowComposite) ⇒
+            App.Message.Create(windowComposite, self)
+          case None ⇒
+            App.Message.Error(s"Unable to restore content for ${content}.", self)
+        }
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      onStart(widget)
-      App.Message.Start(Right(widget))
+    case message @ App.Message.Start(widget: Widget, Some(this.window), _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        onStart(widget)
+        App.Message.Start(widget, self)
+      }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      onStop(widget)
-      App.Message.Stop(Right(widget))
+    case message @ App.Message.Stop(widget: Widget, Some(this.window), _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        onStop(widget)
+        App.Message.Stop(widget, self)
+      }
     } foreach { sender ! _ }
 
-    /*
-     * Skip
-     */
-    case message @ App.Message.Create(_, _) ⇒
-    case message @ App.Message.Destroy(_, _) ⇒
-    case message @ App.Message.Start(_, _) ⇒
-    case message @ App.Message.Stop(_, _) ⇒
+    case App.Message.Error(Some(message), _) if message.endsWith("is terminated.") ⇒
+      log.debug(message)
   }
 
   /** Create new stack element from configuration. */
@@ -166,13 +188,13 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         val stack = context.actorOf(StackLayer.props.copy(args = immutable.Seq(stackConfiguration.id)), StackLayer.id + "_%08X".format(stackConfiguration.id.hashCode()))
         pointers += stackId -> StackSupervisor.StackPointer(stack)(new WeakReference(null))
         // Block supervisor until stack is created.
-        Await.result(ask(stack, App.Message.Create(Left(StackLayer.<>(stackConfiguration,
-          parentWidget, parentContext, context))))(Timeout.short), Timeout.short) match {
-          case App.Message.Create(Right(stackWidget: SComposite), None) ⇒
+        Await.result(stack ? App.Message.Create(StackLayer.<>(stackConfiguration,
+          parentWidget, parentContext, context), self), timeout.duration) match {
+          case App.Message.Create(stackWidget: SComposite, None, _) ⇒
             log.debug(s"Stack layer ${stackConfiguration} content created.")
             Some(stackWidget)
           case App.Message.Error(error, None) ⇒
-            log.fatal(s"Unable to create content for stack layer ${stackConfiguration}: ${error}.")
+            log.fatal(s"Unable to create content for stack layer ${stackConfiguration}: ${error.getOrElse("unknown")}.")
             None
           case _ ⇒
             log.fatal(s"Unable to create content for stack layer ${stackConfiguration}.")
@@ -181,10 +203,12 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       case (parent, viewConfiguration: Configuration.CView) ⇒
         // There is only a view that is directly attached to the window.
         log.debug(s"Attach ${viewConfiguration} as top level element.")
-        ViewContentBuilder(viewConfiguration, parentWidget, parentContext, context)
+        val view = ViewContentBuilder.container(viewConfiguration, parentWidget, parentContext, context)
+        view.foreach { vComposite ⇒ pointers += vComposite.id -> StackSupervisor.StackPointer(vComposite.ref)(new WeakReference(null)) }
+        view
       case (parent, viewConfiguration: Configuration.CEmpty) ⇒
         // Skip an empty configuration.
-        None
+        Some(App.execNGet { new VEmpty(stackId, parentWidget) })
     }
   }
   /** Create new view within stack hierarchy. */
@@ -192,20 +216,34 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     if (wComposite.isEmpty)
       throw new IllegalStateException(s"Unable to create view from ${viewConfiguration}. Stack container isn't created.")
     App.assertEventThread(false)
-    log.debug("Create new view from %s within StackSupervisor[%08X].".format(viewConfiguration, windowId.hashCode()))
     val neighborViewId = lastActiveViewIdForCurrentWindow.get() orElse {
       pointers.find {
         case (id, pointer) ⇒ Option(pointer.stack.get()).
           map(_.isInstanceOf[VComposite]).getOrElse(false)
       }.map { case (id, pointer) ⇒ id }
     }
+    log.debug("Create new %s within StackSupervisor[%08X]; neighbor %s.".
+      format(viewConfiguration, windowId.hashCode(), neighborViewId.map(id ⇒ "CView[%08X]".format(id.hashCode()))))
     neighborViewId match {
       case Some(id) ⇒
-        // Attach view from viewFactory to neighborViewId.
+        // Attach view from viewFactory to neighbor.
         Option(pointers(id).stack.get) match {
           case Some(view: VComposite) ⇒
             transform.TransformViewToTab(this, view).foreach { tab ⇒
-              transform.TransformAttachView(this, tab, viewConfiguration)
+              transform.TransformAttachView(this, tab, viewConfiguration) match {
+                case Some(attachedView) ⇒
+                  App.exec {
+                    tab.getItems().find(item ⇒ item.getData(UI.swtId) == attachedView.id).foreach { tabItem ⇒
+                      log.debug(s"Select tab with ${attachedView}.")
+                      tab.setSelection(tabItem)
+                      val event = new Event()
+                      event.item = tabItem
+                      tab.notifyListeners(SWT.Selection, event)
+                    }
+                  }
+                case None ⇒
+                  log.fatal(s"Unable to attach ${viewConfiguration} to ${tab}.")
+              }
             }
             Some(view)
           case _ ⇒
@@ -222,7 +260,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   }
   /** Register created stack element. */
   @log
-  protected def onCreated(stack: SComposite, sender: ActorRef) {
+  protected def onCreated(stack: SComposite, origin: ActorRef) {
     log.debug(s"Add created ${stack} to ${this}.")
     pointers += stack.id -> StackSupervisor.StackPointer(sender)(new WeakReference(stack))
     stack match {
@@ -231,16 +269,18 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
           setActiveView(stack.id, vComposite)
       case _ ⇒
     }
+    App.publish(App.Message.Create(stack, origin))
   }
   /** Unregister destroyed stack element. */
   @log
-  protected def onDestroyed(stack: SComposite) {
+  protected def onDestroyed(stack: SComposite, origin: ActorRef) {
     log.debug(s"Remove destroyed ${stack} from ${this}.")
     val stackOpt = Option(stack.id)
     context.children.find(child ⇒ if (child == stack.ref) { context.stop(child); true } else false)
     pointers -= stack.id
     if (lastActiveViewIdForCurrentWindow.get() == stackOpt)
       lastActiveViewIdForCurrentWindow.set(None)
+    App.publish(App.Message.Destroy(stack, origin))
   }
   /** User start interaction with window/stack supervisor. Focus is gained. */
   @log
@@ -289,7 +329,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       val seq = App.execNGet { UI.widgetHierarchy(widget) }
       // Replace event widget with view composite if the original one is unknown (not a child of a view).
       val actualWidget = if (seq.headOption.map(_.isInstanceOf[VComposite]).getOrElse(false)) Some(widget) else Option(viewPointer.stack.get())
-      actualWidget.foreach(actualWidget ⇒ Await.ready(ask(viewPointer.actor, App.Message.Stop(Left(actualWidget)))(Timeout.short), Timeout.short))
+      actualWidget.foreach(actualWidget ⇒ Await.ready(viewPointer.actor ? App.Message.Stop(actualWidget, self), timeout.duration))
     }
   }
   /** Restore stack configuration. */
@@ -299,8 +339,6 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     if (pointers.nonEmpty && existConfiguration == configuration) {
       Option(pointers(configuration.stack.id).stack.get())
     } else {
-      implicit val timeout = akka.util.Timeout(Timeout.short)
-      implicit val ec = App.system.dispatcher
       val futures = context.children.map(_ ? App.Message.Destroy())
       val result = Await.result(Future.sequence(futures), Timeout.short)
       val errors = result.filter(_ match {
@@ -313,7 +351,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         createStackContent(configuration.stack.id, parent)
         // TODO activate last
       } else {
-        errors.foreach(err ⇒ log.error(s"Unable to : ${err.asInstanceOf[App.Message.Error[_]].arg}"))
+        errors.foreach(err ⇒ log.error(s"Unable to : ${err.asInstanceOf[App.Message.Error].message}"))
         None
       }
     }
@@ -322,7 +360,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   protected def setActiveView(id: UUID, widget: Widget): Unit = try {
     if (lastActiveViewIdForCurrentWindow.get() != Some(id))
       lastActiveViewIdForCurrentWindow.set(Option(id))
-    Await.ready(ask(pointers(id).actor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
+    Await.ready(pointers(id).actor ? App.Message.Start(widget, self), timeout.duration)
   } catch {
     case e: Throwable ⇒
       log.error(e.getMessage, e)

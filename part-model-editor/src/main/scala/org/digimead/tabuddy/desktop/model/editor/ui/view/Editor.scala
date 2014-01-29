@@ -149,13 +149,13 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Create(Left(parentWidget: VComposite), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(Left(parentWidget: VComposite), None, _) ⇒ App.traceMessage(message) {
       create(parentWidget) match {
         case Some(contentWidget) ⇒
           App.publish(App.Message.Create(Right(contentWidget), self))
-          App.Message.Create(Right(contentWidget))
+          App.Message.Create(Right(contentWidget), None)
         case None ⇒
-          App.Message.Error(s"Unable to create ${this} for ${parentWidget}.")
+          App.Message.Error(s"Unable to create ${this} for ${parentWidget}.", None)
       }
     } foreach { sender ! _ }
 
@@ -164,14 +164,14 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
       this.view = None
     }
 
-    case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start(Left(widget: Widget), None, _) ⇒ App.traceMessage(message) {
       onStart(widget)
-      App.Message.Start(Right(widget))
+      App.Message.Start(Right(widget), None)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop(Left(widget: Widget), None, _) ⇒ App.traceMessage(message) {
       onStop(widget)
-      App.Message.Stop(Right(widget))
+      App.Message.Stop(Right(widget), None)
     } foreach { sender ! _ }
 
     //    case message @ Event.ChildInclude(element, newElement, _) => App.traceMessage(message) {

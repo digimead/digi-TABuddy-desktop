@@ -58,21 +58,21 @@ class TransformReplace extends Loggable {
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(Timeout.short)
 
-  def apply(stackSupervisorIternals: StackSupervisor, window: AppWindow, viewConfiguration: Configuration.CView): Option[VComposite] =
-    stackSupervisorIternals.wComposite.flatMap { wComposite ⇒
+  def apply(ss: StackSupervisor, window: AppWindow, viewConfiguration: Configuration.CView): Option[VComposite] =
+    ss.wComposite.flatMap { wComposite ⇒
       log.debug(s"Replace window ${window} content with ${viewConfiguration}.")
       implicit val ec = App.system.dispatcher
-      val futures = stackSupervisorIternals.context.children.map(_ ? App.Message.Destroy())
+      val futures = ss.context.children.map(_ ? App.Message.Destroy())
       val result = Await.result(Future.sequence(futures), Timeout.short)
       val errors = result.filter(_ match {
         case App.Message.Error(message, _) ⇒ true
         case _ ⇒ false
       })
       if (errors.isEmpty) {
-        stackSupervisorIternals.lastActiveViewIdForCurrentWindow.set(None)
-        ViewContentBuilder(viewConfiguration, wComposite, stackSupervisorIternals.parentContext, stackSupervisorIternals.context)
+        ss.lastActiveViewIdForCurrentWindow.set(None)
+        ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context)
       } else {
-        errors.foreach(err ⇒ log.error(s"Unable to TransformReplace ${viewConfiguration}: ${err.asInstanceOf[App.Message.Error[_]].arg}"))
+        errors.foreach(err ⇒ log.error(s"Unable to TransformReplace ${viewConfiguration}: ${err.asInstanceOf[App.Message.Error].message}"))
         None
       }
     }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,43 +43,21 @@
 
 package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
-import akka.actor.ActorRef
+import org.eclipse.swt.SWT
 import java.util.UUID
+import org.eclipse.swt.custom.ScrolledComposite
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.Configuration
-import org.digimead.tabuddy.desktop.core.ui.block.View
-import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
+import org.eclipse.swt.widgets.Control
+import org.eclipse.swt.graphics.Point
+import org.eclipse.swt.graphics.GC
+import org.eclipse.swt.widgets.Widget
 import org.eclipse.swt.widgets.Composite
 
 /**
- * View composite that contains additional reference to content actor.
- * Content view actor is bound to root component because of changing parent by Akka is unsupported.
+ * Empty view composite.
  */
-class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val factory: Configuration.Factory,
-  parent: ScrolledComposite, style: Int)
-  extends Composite(parent, style) with View.ViewMapDisposer with SComposite {
-  initialize
-
-  /** Get view context. */
-  def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
-  /** Returns the receiver's parent, which must be a ScrolledComposite. */
-  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
-
-  /** Initialize current view composite. */
-  protected def initialize() {
-    addDisposeListener(new DisposeListener {
-      def widgetDisposed(e: DisposeEvent) {
-        val context = Option(getContext())
-        setData(App.widgetContextKey, null)
-        context.foreach(_.dispose())
-        viewRemoveFromCommonMap()
-        ref ! App.Message.Destroy(VComposite.this, ref)
-      }
-    })
-  }
-
-  override lazy val toString = s"VComposite{${factory().name.name}}[%08X]".format(id.hashCode())
+class VEmpty(id: UUID, parent: ScrolledComposite) extends VComposite(id,
+  App.system.deadLetters, App.system.deadLetters, null, parent, SWT.NONE) {
+  override lazy val toString = s"VEmpty[%08X]".format(id.hashCode())
 }

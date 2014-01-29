@@ -72,22 +72,23 @@ class StackLayer(stackId: UUID) extends Actor with Loggable {
     log.debug(this + " is started.")
   }
   def receive = {
-    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext, supervisorContext)), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(Left(StackLayer.<>(stackConfiguration, parentWidget, parentContext, supervisorContext)), None, _) ⇒ App.traceMessage(message) {
       create(stackConfiguration, parentWidget, parentContext, sender, supervisorContext) match {
         case Some(stack) ⇒
-          App.publish(App.Message.Create(Right(stack), self))
-          App.Message.Create(Right(stack))
+          context.parent ! App.Message.Create(stack, None)
+          //          App.publish(App.Message.Create(stack), self))
+          App.Message.Create(stack, None)
         case None ⇒
-          App.Message.Error(s"Unable to create ${stackConfiguration}.")
+          App.Message.Error(s"Unable to create ${stackConfiguration}.", None)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Create(Right(stack: SComposite), Some(publisher)) if (publisher == self && this.stack == None) ⇒ App.traceMessage(message) {
-      log.debug(s"Update stack ${stack} composite.")
+    case message @ App.Message.Create(stack: SComposite, Some(publisher), _) if (publisher == self && this.stack == None) ⇒ App.traceMessage(message) {
+      log.debug(s"Bind ${stack} to ${this}.")
       this.stack = Option(stack)
     }
 
-    case message @ App.Message.Create(_, _) ⇒
+    case message @ App.Message.Create(_, _, _) ⇒
   }
 
   /** Create stack. */

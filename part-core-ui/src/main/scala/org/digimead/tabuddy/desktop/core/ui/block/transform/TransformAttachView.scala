@@ -47,17 +47,17 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor, View }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackTabBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.SCompositeTab
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
 import scala.language.implicitConversions
 
+/** Attach view to tab stack. */
 class TransformAttachView extends Loggable {
-  def apply(ss: StackSupervisor, tabStack: SCompositeTab, viewConfiguration: Configuration.CView) {
-    log.debug(s"Create new view from ${viewConfiguration} and attach it to ${tabStack}.")
+  def apply(ss: StackSupervisor, tabStack: SCompositeTab, viewConfiguration: Configuration.CView): Option[VComposite] = {
+    log.debug(s"Create new ${viewConfiguration} and attach it to ${tabStack}.")
     App.assertEventThread(false)
-    log.debug("Update stack supervisor configuration.")
     // Prepare tab item.
     val parentWidget = App.execNGet {
       StackTabBuilder.addTabItem(tabStack, (tabItem) ⇒ {
@@ -66,7 +66,7 @@ class TransformAttachView extends Loggable {
         viewConfiguration.factory().image.foreach(tabItem.setImage)
       })
     }
-    ViewContentBuilder(viewConfiguration, parentWidget, ss.parentContext, ss.context)
+    ViewContentBuilder.container(viewConfiguration, parentWidget, ss.parentContext, ss.context)
   }
 }
 

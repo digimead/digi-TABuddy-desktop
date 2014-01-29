@@ -65,5 +65,5 @@ trait SComposite extends Composite {
     // Disable the check that prevents subclassing of SWT components
   }
 
-  override lazy val toString = super.toString + "[%08X]".format(id.hashCode())
+  override lazy val toString = getClass().getSimpleName() + "[%08X]".format(id.hashCode())
 }

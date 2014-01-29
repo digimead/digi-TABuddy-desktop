@@ -69,7 +69,8 @@ class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppW
         val context = Option(getContext())
         setData(App.widgetContextKey, null)
         context.foreach(_.dispose()) // see AppWindow dispose listener
-        App.publish(App.Message.Destroy(Right(WComposite.this), ref))
+        ref ! App.Message.Destroy(WComposite.this, ref)
+        App.publish(App.Message.Destroy(WComposite.this, ref))
       }
     })
   }

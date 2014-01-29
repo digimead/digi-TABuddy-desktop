@@ -54,6 +54,7 @@ import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.block.{ View, Window, WindowSupervisor }
 import org.eclipse.jface.commands.ToggleState
 import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 
 /**
@@ -96,11 +97,11 @@ class UI extends akka.actor.Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Attach(props, name) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Attach(props, name, _) ⇒ App.traceMessage(message) {
       sender ! context.actorOf(props, name)
     }
 
-    case message @ App.Message.Consistent(element, from) if from != Some(self) &&
+    case message @ App.Message.Consistent(element, from, _) if from != Some(self) &&
       App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.nonEmpty) {
         inconsistentSet = inconsistentSet - element
@@ -113,7 +114,7 @@ class UI extends akka.actor.Actor with Loggable {
         log.debug(s"Skip message ${message}. UI is already consistent.")
     }
 
-    case message @ App.Message.Inconsistent(element, from) if from != Some(self) &&
+    case message @ App.Message.Inconsistent(element, from, _) if from != Some(self) &&
       App.bundle(element.getClass()) == thisBundle ⇒ App.traceMessage(message) {
       if (inconsistentSet.isEmpty) {
         log.debug("Lost consistency.")
@@ -122,8 +123,8 @@ class UI extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet + element
     }
 
-    case message @ App.Message.Consistent(_, _) ⇒ // skip
-    case message @ App.Message.Inconsistent(_, _) ⇒ // skip
+    case message @ App.Message.Consistent(_, _, _) ⇒ // skip
+    case message @ App.Message.Inconsistent(_, _, _) ⇒ // skip
   }
 
   /** Invoked on Core started. */
@@ -132,7 +133,7 @@ class UI extends akka.actor.Actor with Loggable {
       App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }
       view.Views.configure()
       command.Commands.configure()
-      WindowSupervisor ! App.Message.Restore()
+      WindowSupervisor ! App.Message.Restore(None, None)
       Console ! Console.Message.Notice("UI component is started.")
       self ! App.Message.Consistent(UI, None)
     }
@@ -180,6 +181,8 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
   Core
   WindowSupervisor
 
+  /** Communication timeout for rapid requests with Akka 'await' or similar pattern. */
+  def communicationTimeout = DI.communicationTimeout
   /** Stop event loop when last window is closed. */
   def stopEventLoopWithLastWindow = DI.stopEventLoopWithLastWindow
   /** Close window when last view is closed. */
@@ -197,11 +200,13 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Stop event loop when last window is closed. */
-    lazy val stopEventLoopWithLastWindow = injectOptional[Boolean]("Core.UI.stopEventLoopWithLastWindow") getOrElse true
-    /** Close window when last view is closed. */
-    lazy val closeWindowWithLastView = injectOptional[Boolean]("Core.UI.closeWindowWithLastView") getOrElse true
     /** UI actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI") getOrElse Props[UI]
+    /** Close window when last view is closed. */
+    lazy val closeWindowWithLastView = injectOptional[Boolean]("Core.UI.closeWindowWithLastView") getOrElse true
+    /** Communication timeout for rapid requests with Akka 'await' or similar pattern. */
+    lazy val communicationTimeout = injectOptional[FiniteDuration]("Core.UI.communicationTimeout") getOrElse Timeout.short
+    /** Stop event loop when last window is closed. */
+    lazy val stopEventLoopWithLastWindow = injectOptional[Boolean]("Core.UI.stopEventLoopWithLastWindow") getOrElse true
   }
 }

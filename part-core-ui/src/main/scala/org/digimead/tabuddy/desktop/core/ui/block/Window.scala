@@ -53,7 +53,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.swt.widgets.Widget
 import scala.collection.{ immutable, mutable }
@@ -67,10 +67,18 @@ import scala.concurrent.Await
  * - close/destroy window
  */
 class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor with AppWindow.Controller with Loggable {
-  /** Window JFace instance. */
-  var window: Option[AppWindow] = None
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Window views supervisor. */
   lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq(windowId, windowContext)), StackSupervisor.id)
+  /** Flag indicating whether the Window is alive. */
+  var stackSupervisorTerminated = false
+  /** Flag indicating whether the Window is alive. */
+  var terminated = false
+  /** Window JFace instance. */
+  var window: Option[AppWindow] = None
+  /** Window supervisor actor. */
+  lazy val windowSupervisor = context.parent
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
@@ -78,57 +86,99 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
   def receive = {
-    case message @ App.Message.Close(_, None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Close(_, _, _) ⇒ App.traceMessage(message) {
       close(sender) match {
         case Some(appWindow) ⇒
-          App.Message.Close(Right(appWindow))
+          App.Message.Close(appWindow, None)
         case None ⇒
-          App.Message.Error(s"Unable to close ${window}.")
+          App.Message.Error(s"Unable to close ${window}.", None)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Create(Left(Window.<>(windowId, configuration)), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(Window.<>(windowId, configuration), Some(this.windowSupervisor), _) ⇒ App.traceMessage(message) {
       assert(windowId == this.windowId)
-      create(configuration, sender) match {
-        case Some(appWindow) ⇒
-          App.publish(App.Message.Create(Right(appWindow), self))
-          App.Message.Create(Right(appWindow))
-        case None ⇒
-          App.Message.Error("Unable to create ${viewConfiguration}.")
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        create(configuration, sender) match {
+          case Some(appWindow) ⇒
+            App.Message.Create(appWindow, self)
+          case None ⇒
+            App.Message.Error(s"Unable to create window with ${configuration}.", self)
+        }
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(_, None) ⇒ App.traceMessage(message) {
-      destroy(sender) match {
-        case Some(appWindow) ⇒
-          // App.publish(App.Message.Destroy(Right(appWindow), self)) via AppWindow dispose listener
-          App.Message.Destroy(Right(appWindow))
-        case None ⇒
-          App.Message.Error(s"Unable to destroy ${window}.")
+    // StackSupervisor is terminated.
+    case message @ App.Message.Destroy(this.stackSupervisor, Some(this.stackSupervisor), _) ⇒ App.traceMessage(message) {
+      stackSupervisorTerminated = true
+      if (terminated)
+        window match {
+          case Some(window) ⇒
+            windowSupervisor ! App.Message.Destroy(window, self)
+          case None ⇒
+            context.stop(self)
+        }
+    }
+
+    // Destroy this window.
+    case message @ App.Message.Destroy(_, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        destroy(sender) match {
+          case Some(appWindow) ⇒
+            App.Message.Destroy(appWindow, None)
+          case None ⇒
+            App.Message.Error(s"Unable to destroy ${window}.", None)
+        }
       }
+      if (stackSupervisorTerminated)
+        window match {
+          case Some(window) ⇒
+            windowSupervisor ! App.Message.Destroy(window, self)
+          case None ⇒
+            context.stop(self)
+        }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Get ⇒ App.traceMessage(message) {
+    case message @ App.Message.Get(_) ⇒ App.traceMessage(message) {
       window
     } foreach { sender ! _ }
 
-    case message @ App.Message.Open(_, None) ⇒ App.traceMessage(message) {
+    // Asynchronous routine that creates initial window and passes it to AppWindow.showContent.
+    case message @ App.Message.Open(_, Some(this.windowSupervisor), _) ⇒ App.traceMessage(message) {
       open(sender) match {
         case Some(appWindow) ⇒
-          App.Message.Open(Right(appWindow))
+          App.Message.Open(appWindow, self, "Opening in progress.")
         case None ⇒
-          App.Message.Error(s"Unable to open ${window}.")
+          App.Message.Error(s"Unable to open ${window}.", None)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      onStart(widget)
-      App.Message.Start(Right(widget))
+    // Reply from AppWindow.showContent on success.
+    case message @ App.Message.Open(window: AppWindow, Some(this.self), _) ⇒ App.traceMessage(message) {
+      log.debug(s"Window content created and shown.")
+      windowSupervisor ! message
+    }
+
+    case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        onStart(widget)
+        App.Message.Start(widget, self)
+      }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      onStop(widget)
-      App.Message.Stop(Right(widget))
+    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        onStop(widget)
+        App.Message.Stop(widget, self)
+      } else {
+        onStart(widget)
+        App.Message.Start(widget, self)
+      }
     } foreach { sender ! _ }
   }
 
@@ -137,10 +187,11 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     log.debug(s"Close window ${windowId}.")
     this.window.flatMap { window ⇒
       val closed = App.execNGet {
-        if (window.getShell() != null && !window.getShell().isDisposed()) window.close() else false
+        if (window.getShell() != null && !window.getShell().isDisposed()) window.close() else true
       }
       if (closed) {
-        this.window = None
+        stackSupervisor ! App.Message.Destroy(window, self)
+        terminated = true
         Some(window)
       } else {
         None
@@ -154,8 +205,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     App.assertEventThread(false)
     log.debug(s"Create window ${windowId}.")
     this.window = App.execNGet {
-      val window = new AppWindow(windowId, self, stackSupervisor, windowContext, null)
-      window.configuration = Some(configuration)
+      val window = new AppWindow(windowId, Some(configuration), self, stackSupervisor, windowContext, null)
       // Add new window to the common map.
       Window.windowMapRWL.writeLock().lock()
       try Window.windowMap += window -> self
@@ -175,7 +225,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   protected def onStart(widget: Widget) = window match {
     case Some(window) ⇒
       windowContext.activateBranch()
-      Await.result(ask(stackSupervisor, App.Message.Start(Left(widget)))(Timeout.short), Timeout.short)
+      Await.result(stackSupervisor ? App.Message.Start(widget, self), timeout.duration)
     case None ⇒
       // Is window deleted while event was delivered?
       log.debug(s"Unable to start unexists window for ${this}.")
@@ -184,7 +234,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   @log
   protected def onStop(widget: Widget) = window match {
     case Some(window) ⇒
-      Await.result(ask(stackSupervisor, App.Message.Stop(Left(widget)))(Timeout.short), Timeout.short)
+      Await.result(stackSupervisor ? App.Message.Stop(widget, self), timeout.duration)
     case None ⇒
       // Is window deleted while event was delivered?
       log.debug(s"Unable to stop unexists window for ${this}.")

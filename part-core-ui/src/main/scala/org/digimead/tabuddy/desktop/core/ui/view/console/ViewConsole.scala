@@ -43,14 +43,12 @@
 
 package org.digimead.tabuddy.desktop.core.ui.view.console
 
-import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
-import akka.pattern.ask
+import akka.actor.{ Actor, ActorContext, ActorRef, Props, actorRef2Scala }
 import java.util.UUID
 import java.util.concurrent.TimeoutException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.Messages
@@ -62,40 +60,41 @@ import org.eclipse.swt.layout.FillLayout
 import org.eclipse.swt.widgets.{ Composite, Widget }
 import org.eclipse.ui.console.MessageConsole
 import scala.collection.immutable
-import scala.concurrent.{ Await, Future }
 
 class ViewConsole(val contentId: UUID) extends Actor with Loggable {
-  /** Parent view widget. */
-  @volatile protected var view: Option[VComposite] = None
+  /** View body widget. */
+  @volatile var body: Option[Composite] = None
+  /** View parent widget. */
+  @volatile var parent: Option[VComposite] = None
+  /** Container view actor. */
+  lazy val view = context.parent
   log.debug("Start actor " + self.path)
 
   def receive = {
-    case message @ App.Message.Create(Left(parentWidget: VComposite), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(parentWidget: VComposite, Some(this.view), _) ⇒ App.traceMessage(message) {
       create(parentWidget) match {
         case Some(contentWidget) ⇒
-          App.publish(App.Message.Create(Right(contentWidget), self))
-          App.Message.Create(Right(contentWidget))
+          App.publish(App.Message.Create(contentWidget, self))
+          App.Message.Create(contentWidget, self)
         case None ⇒
-          App.Message.Error(s"Unable to create ${this} for ${parentWidget}.")
+          App.Message.Error(s"Unable to create ${this} for ${parentWidget}.", None)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(Left(viewLayerWidget: VComposite), None) ⇒ App.traceMessage(message) {
-      this.view.map { viewLayerWidget ⇒
+    case message @ App.Message.Destroy(Left(viewLayerWidget: VComposite), None, _) ⇒ App.traceMessage(message) {
+      this.parent.map { viewLayerWidget ⇒
         App.execNGet { destroy(sender) }
-        this.view = None
-        App.Message.Destroy(Right(viewLayerWidget))
-      } getOrElse App.Message.Error(s"Unable to destroy ${this} in ${viewLayerWidget}.")
+        this.parent = None
+        App.Message.Destroy(viewLayerWidget, None)
+      } getOrElse App.Message.Error(s"Unable to destroy ${this} in ${viewLayerWidget}.", None)
     } foreach { sender ! _ }
 
-
-    case message @ App.Message.Start(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      onStart(widget)
-      App.Message.Start(Right(widget))
+    case message @ App.Message.Start(Left(widget: Widget), None, _) ⇒ App.traceMessage(message) {
+      App.Message.Start(widget, None)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None) ⇒ App.traceMessage(message) {
-      App.Message.Stop(Right(widget))
+    case message @ App.Message.Stop(Left(widget: Widget), None, _) ⇒ App.traceMessage(message) {
+      App.Message.Stop(widget, None)
     } foreach { sender ! _ }
   }
 
@@ -105,10 +104,10 @@ class ViewConsole(val contentId: UUID) extends Actor with Loggable {
    */
   @log
   protected def create(parent: VComposite): Option[Composite] = {
-    if (view.nonEmpty)
+    if (this.parent.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertEventThread(false)
-    view = Option(parent)
+    this.parent = Option(parent)
     App.execNGet {
       parent.setLayout(new FillLayout())
       new Console(parent, SWT.NONE, new MessageConsole("console", null, false))
@@ -119,15 +118,8 @@ class ViewConsole(val contentId: UUID) extends Actor with Loggable {
   }
   /** Destroy created window. */
   @log
-  protected def destroy(sender: ActorRef) = this.view.foreach { view ⇒
+  protected def destroy(sender: ActorRef) = this.parent.foreach { view ⇒
     App.assertEventThread()
-  }
-  /** User start interaction with window/stack supervisor/view/this content. Focus is gained. */
-  protected def onStart(widget: Widget) = view match {
-    case Some(view) ⇒
-      log.debug("View started by focus event on " + widget)
-    case None ⇒
-      log.fatal("Unable to start view without widget.")
   }
 }
 
@@ -145,24 +137,12 @@ object ViewConsole extends View.Factory with Loggable {
 
   /** Returns actor reference that could handle Create/Destroy messages. */
   @log
-  def viewActor(configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
-    implicit val ec = App.system.dispatcher
-    implicit val timeout = akka.util.Timeout(Timeout.short)
+  def viewActor(containerActorContext: ActorContext, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
     val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
-    val future = Core.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
-    try {
-      val newActorRef = Await.result(future.asInstanceOf[Future[ActorRef]], timeout.duration)
-      activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
-      titlePerActor.values.foreach(_.update)
-      Some(newActorRef)
-    } catch {
-      case e: InterruptedException ⇒
-        log.error(e.getMessage, e)
-        None
-      case e: TimeoutException ⇒
-        log.error(e.getMessage, e)
-        None
-    }
+    val newActorRef = containerActorContext.actorOf(View.props.copy(args = immutable.Seq(configuration.id)), viewName)
+    activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
+    titlePerActor.values.foreach(_.update)
+    Some(newActorRef)
   }
   /** Default view actor reference configuration object. */
   def props = DI.props
