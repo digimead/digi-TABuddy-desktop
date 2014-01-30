@@ -60,13 +60,13 @@ import scala.language.implicitConversions
 class StackBuilder extends Loggable {
   /** Creates stack content. */
   @log
-  def apply(stack: Configuration.CPlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, supervisorRef: ActorRef, supervisorContext: ActorContext, stackRef: ActorRef): Option[SComposite] = {
+  def apply(stack: Configuration.CPlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, stackActorContext: ActorContext): Option[SComposite] = {
     stack match {
       case tab: Configuration.Stack.CTab ⇒
-        val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackRef) }
+        val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackActorContext.self) }
         // Attach list of Configuration.View(from tab.children) to ScrolledComposite(from containers)
         val tabs = for { (container, viewConfiguration) ← containers zip tab.children } yield {
-          ViewContentBuilder.container(viewConfiguration, container, parentContext, supervisorContext) match {
+          ViewContentBuilder.container(viewConfiguration, container, parentContext, stackActorContext) match {
             case result @ Some(viewWidget) ⇒
               App.execNGet {
                 // Adjust tab.
@@ -88,26 +88,23 @@ class StackBuilder extends Loggable {
               None
           }
         }
-        if (tabs.nonEmpty && tabs.exists(_.nonEmpty)) {
-          App.execNGet {
-            parentWidget.setContent(tabComposite)
-            parentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-            parentWidget.setExpandHorizontal(true)
-            parentWidget.setExpandVertical(true)
-            parentWidget.layout(true)
-          }
-          Option(tabComposite)
-        } else
-          None
+        App.execNGet {
+          parentWidget.setContent(tabComposite)
+          parentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+          parentWidget.setExpandHorizontal(true)
+          parentWidget.setExpandVertical(true)
+          parentWidget.layout(true)
+        }
+        Option(tabComposite)
 
       case hsash: Configuration.Stack.CHSash ⇒
-        val (sashComposite, left, right) = StackHSashBuilder(hsash, parentWidget, stackRef)
+        val (sashComposite, left, right) = StackHSashBuilder(hsash, parentWidget, stackActorContext.self)
         //buildLevel(hsash.left, left)
         //buildLevel(hsash.right, right)
         Option(sashComposite)
 
       case vsash: Configuration.Stack.CVSash ⇒
-        val (sashComposite, top, bottom) = StackVSashBuilder(vsash, parentWidget, stackRef)
+        val (sashComposite, top, bottom) = StackVSashBuilder(vsash, parentWidget, stackActorContext.self)
         //buildLevel(vsash.top, top)
         //buildLevel(vsash.bottom, bottom)
         Option(sashComposite)

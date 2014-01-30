@@ -135,15 +135,6 @@ object ViewConsole extends View.Factory with Loggable {
   /** View image. */
   lazy val image = DI.image
 
-  /** Returns actor reference that could handle Create/Destroy messages. */
-  @log
-  def viewActor(containerActorContext: ActorContext, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
-    val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
-    val newActorRef = containerActorContext.actorOf(View.props.copy(args = immutable.Seq(configuration.id)), viewName)
-    activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
-    titlePerActor.values.foreach(_.update)
-    Some(newActorRef)
-  }
   /** Default view actor reference configuration object. */
   def props = DI.props
 

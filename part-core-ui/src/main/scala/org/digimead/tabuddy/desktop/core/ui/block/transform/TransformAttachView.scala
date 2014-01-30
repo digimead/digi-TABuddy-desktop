@@ -47,7 +47,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackLayer }
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackTabBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
@@ -55,18 +55,29 @@ import scala.language.implicitConversions
 
 /** Attach view to tab stack. */
 class TransformAttachView extends Loggable {
-  def apply(ss: StackSupervisor, tabStack: SCompositeTab, viewConfiguration: Configuration.CView): Option[VComposite] = {
-    log.debug(s"Create new ${viewConfiguration} and attach it to ${tabStack}.")
+  def apply(sl: StackLayer, tabComposite: SCompositeTab, viewConfiguration: Configuration.CView, vComposite: Option[VComposite]): Option[VComposite] = {
+    vComposite match {
+      case Some(_) ⇒ log.debug(s"Attach exists ${viewConfiguration} to ${tabComposite}.")
+      case None ⇒ log.debug(s"Create new ${viewConfiguration} and attach it to ${tabComposite}.")
+    }
     App.assertEventThread(false)
     // Prepare tab item.
-    val parentWidget = App.execNGet {
-      StackTabBuilder.addTabItem(tabStack, (tabItem) ⇒ {
+    val container = App.execNGet {
+      StackTabBuilder.addTabItem(tabComposite, (tabItem) ⇒ {
         tabItem.setData(UI.swtId, viewConfiguration.id)
         tabItem.setToolTipText(viewConfiguration.factory().shortDescription)
         viewConfiguration.factory().image.foreach(tabItem.setImage)
       })
     }
-    ViewContentBuilder.container(viewConfiguration, parentWidget, ss.parentContext, ss.context)
+    val viewWidget = vComposite match {
+      case result @ Some(vComposite) ⇒
+        val successful = App.execNGet { vComposite.setParent(container) }
+        if (successful) result else None
+      case None ⇒
+        ViewContentBuilder.container(viewConfiguration, container, sl.parentContext, sl.context)
+    }
+    viewWidget.foreach(_ ⇒ StackTabBuilder.adjustTabItem(tabComposite, viewConfiguration))
+    viewWidget
   }
 }
 

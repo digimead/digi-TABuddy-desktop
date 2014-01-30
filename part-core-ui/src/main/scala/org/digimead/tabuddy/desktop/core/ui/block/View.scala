@@ -43,9 +43,10 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
-import akka.actor.{ Actor, ActorContext, ActorRef, Props, actorRef2Scala }
+import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.digimead.digi.lib.api.DependencyInjection
@@ -66,7 +67,7 @@ import scala.collection.{ immutable, mutable }
 import scala.concurrent.Await
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
-class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable {
+class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with Loggable {
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Parent stack actor. */
@@ -78,7 +79,22 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
-  override def postStop() = log.debug(this + " is stopped.")
+  override def postStop() = {
+    log.debug(this + " is stopped.")
+    view.foreach { view ⇒
+      App.execNGet {
+        if (view.isDisposed()) {
+          log.debug(s"Terminate ${view.contentRef.path.name}.")
+          /*
+           * Stop view content actor only if view is disposed.
+           * All UI elements ALWAYS disposed before actor termination by design.
+           * If view content isn't disposed then it maybe moved to different window.
+           */
+          context.stop(view.contentRef)
+        }
+      }
+    }
+  }
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
   def receive = {
@@ -114,6 +130,19 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
       Map(context.children.map { case child ⇒ child -> Map() }.toSeq: _*)
     } foreach { sender ! _ }
 
+    case message @ App.Message.Set(_, viewWidgetWithContent: VComposite) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        bind(viewWidgetWithContent) match {
+          case Some(viewWidget) ⇒
+            App.Message.Set(viewWidget)
+          case None ⇒
+            App.Message.Error(s"Unable to bind ${viewWidgetWithContent}.", self)
+        }
+      }
+    } foreach { sender ! _ }
+
     case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
@@ -136,6 +165,17 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
       log.debug(message)
   }
 
+  /** Bind exists view. */
+  protected def bind(viewWidgetWithContent: VComposite): Option[VComposite] = {
+    if (this.view.nonEmpty)
+      throw new IllegalArgumentException(s"${this} is already in use.")
+    this.view = Some(viewWidgetWithContent)
+    // Add new view to the common map.
+    View.viewMapRWL.writeLock().lock()
+    try View.viewMap += viewWidgetWithContent -> self
+    finally View.viewMapRWL.writeLock().unlock()
+    this.view
+  }
   /** Create view. */
   protected def create(viewConfiguration: Configuration.CView, parentWidget: ScrolledComposite, supervisor: ActorRef): Option[VComposite] = {
     if (view.nonEmpty)
@@ -207,7 +247,11 @@ class View(viewId: UUID, viewContext: Context.Rich) extends Actor with Loggable 
   override lazy val toString = "View[actor/%08X]".format(viewId.hashCode())
 }
 
-object View {
+object View extends Loggable {
+  /** Akka execution context. */
+  implicit protected lazy val ec = App.system.dispatcher
+  /** Akka communication timeout. */
+  implicit protected lazy val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** All application view layers. */
@@ -244,6 +288,8 @@ object View {
     def actors = activeActorRefs.get
     /** Get factory configuration. */
     def configuration = Configuration.Factory(App.bundle(this.getClass()).getSymbolicName(), this.getClass().getName())
+    /** View actor reference configuration object. */
+    def props: Props
     /** Get title for the actor reference. */
     def title(ref: ActorRef): TitleObservableValue = viewActorLock.synchronized {
       if (!activeActorRefs.get.contains(ref))
@@ -260,7 +306,25 @@ object View {
      * Returns the actor reference that could handle Create/Destroy messages.
      * Add reference to activeActors list.
      */
-    def viewActor(containerActorContext: ActorContext, configuration: Configuration.CView): Option[ActorRef]
+    def viewActor(container: ActorRef, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
+      val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
+      log.debug(s"Create actor ${viewName}.")
+      val future = UI.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
+      try {
+        val newActorRef = Await.result(future.mapTo[ActorRef], timeout.duration)
+        newActorRef ! App.Message.Set(container)
+        activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
+        titlePerActor.values.foreach(_.update)
+        Some(newActorRef)
+      } catch {
+        case e: InterruptedException ⇒
+          log.error(e.getMessage, e)
+          None
+        case e: TimeoutException ⇒
+          log.error(e.getMessage, e)
+          None
+      }
+    }
 
     override lazy val toString = s"""View.Factory("${name}", "${shortDescription}")"""
 

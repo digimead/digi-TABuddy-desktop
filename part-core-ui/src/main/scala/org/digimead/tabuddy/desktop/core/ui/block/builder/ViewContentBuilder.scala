@@ -118,7 +118,7 @@ class ViewContentBuilder extends Loggable {
     val viewWidget: Option[VComposite] = App.execNGet {
       if (pWidget.getLayout().isInstanceOf[GridLayout])
         throw new IllegalArgumentException(s"Unexpected parent layout ${pWidget.getLayout().getClass()}.")
-      configuration.factory().viewActor(parentActorContext, configuration) match {
+      configuration.factory().viewActor(parentActorContext.self, configuration) match {
         case Some(actualViewActorRef) ⇒
           val content = new VComposite(configuration.id, parentActorContext.self, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
           content.setData(App.widgetContextKey, context)

@@ -43,20 +43,23 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block.transform
 
+import akka.pattern.ask
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackLayer, StackSupervisor }
-import org.digimead.tabuddy.desktop.core.ui.block.builder.StackTabBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite, WComposite }
-import org.eclipse.jface.databinding.swt.SWTObservables
-import org.eclipse.swt.SWT
 import scala.collection.immutable
+import scala.concurrent.Await
 import scala.language.implicitConversions
 
 /** Wrap view with tab stack. */
 class TransformViewToTab extends Loggable {
+  /** Akka execution context. */
+  implicit val ec = App.system.dispatcher
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   def apply(ss: StackSupervisor, view: VComposite): Option[SCompositeTab] = {
     log.debug(s"Move ${view} to tab stack container.")
     App.assertEventThread(false)
@@ -68,33 +71,28 @@ class TransformViewToTab extends Loggable {
         log.debug(s"View ${view} is already wrapped with tab ${tab}.")
         Option(tab)
       case wComposite: WComposite ⇒
-        App.execNGet {
-          val tabParentWidget = view.getParent
-          val viewConfiguration = ss.configuration.asMap(view.id)._2.asInstanceOf[Configuration.CView]
-          val tabConfiguration = Configuration.Stack.CTab(Seq(viewConfiguration))
-          log.debug(s"Reconfigure stack hierarchy. Bind ${tabConfiguration} to ${wComposite}.")
-          val stackRef = ss.context.actorOf(StackLayer.props.copy(args = immutable.Seq(tabConfiguration.id)), StackLayer.id + "_%08X".format(tabConfiguration.id.hashCode()))
-          val (tabComposite, containers) = StackTabBuilder(tabConfiguration, tabParentWidget, stackRef)
-          val firstTab = containers.head
-          if (!view.setParent(firstTab)) {
-            log.fatal(s"Unable to change parent for ${view}.")
-            tabComposite.dispose()
+        val viewConfiguration = ss.configuration.asMap(view.id)._2.asInstanceOf[Configuration.CView]
+        val tabConfiguration = Configuration.Stack.CTab(Seq())
+        log.debug(s"Reconfigure stack hierarchy. Bind ${tabConfiguration} to ${wComposite}.")
+        val stackLayerRef = ss.context.actorOf(StackLayer.props.copy(args = immutable.Seq(tabConfiguration.id, ss.parentContext)),
+          StackLayer.id + "_%08X".format(tabConfiguration.id.hashCode()))
+        val stackWidgetFuture = stackLayerRef ? App.Message.Create(StackLayer.<>(tabConfiguration, App.execNGet { view.getParent() }), ss.self)
+        val stackWidget = Await.result(stackWidgetFuture, timeout.duration) match {
+          case App.Message.Create(stackWidget: SCompositeTab, Some(stackLayerRef), _) ⇒
+            Some(stackWidget)
+          case App.Message.Error(message, _) ⇒
+            log.fatal(s"Unable to create ${tabConfiguration}: ${message.getOrElse("UNKNOWN")}.")
             None
-          } else {
-            firstTab.setContent(view)
-            firstTab.setMinSize(view.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-            tabComposite.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
-              case Some(tabItem) ⇒
-                App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(view.contentRef))
-                tabItem.setText(viewConfiguration.factory().title(view.contentRef).getValue().asInstanceOf[String])
-              case None ⇒
-                log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")
-            }
-            tabParentWidget.setContent(tabComposite)
-            tabParentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-            tabParentWidget.layout(true)
-            ss.self ! App.Message.Create(tabComposite, wComposite.ref)
-            Option(tabComposite)
+        }
+        stackWidget.flatMap { _ ⇒
+          val viewWidgetFuture = stackLayerRef ? App.Message.Create(StackLayer.<+>(viewConfiguration, Some(view)), ss.self)
+          Await.result(viewWidgetFuture, timeout.duration) match {
+            case App.Message.Create(viewWidget: VComposite, Some(stackLayerRef), _) ⇒
+              ss.context.stop(view.ref)
+              stackWidget
+            case App.Message.Error(message, _) ⇒
+              log.fatal(s"Unable to create ${viewWidgetFuture}: ${message.getOrElse("UNKNOWN")}.")
+              None
           }
         }
       case unexpected ⇒

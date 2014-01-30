@@ -130,7 +130,7 @@ class UI extends akka.actor.Actor with Loggable {
   /** Invoked on Core started. */
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(UI) on {
-      App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }
+      App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }(App.LongRunnable)
       view.Views.configure()
       command.Commands.configure()
       WindowSupervisor ! App.Message.Restore(None, None)

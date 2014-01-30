@@ -74,11 +74,13 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
   /** Flag indicating whether the ViewDefault is alive. */
   var terminated = false
   /** Container view actor. */
-  lazy val view = context.parent
+  var containerRef = Option.empty[ActorRef]
   log.debug("Start actor " + self.path)
 
+  /** Get container actor reference. */
+  def container = containerRef getOrElse { throw new NoSuchElementException(s"${this} container not found.") }
   def receive = {
-    case message @ App.Message.Create(viewLayerWidget: VComposite, Some(this.view), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(viewLayerWidget: VComposite, Some(view), _) if view == container ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -92,7 +94,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(viewLayerWidget: VComposite, Some(this.view), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(viewLayerWidget: VComposite, Some(view), _) if view == container ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -104,6 +106,12 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
         }
       }
     } foreach { sender ! _ }
+
+    case message @ App.Message.Set(_, parentActor: ActorRef) ⇒
+      if (parentActor.path.name != "View_%08X".format(contentId.hashCode()))
+        throw new IllegalArgumentException(s"Illegal container ${parentActor}.")
+      log.debug(s"Bind ${parentActor} to ${this} as parent.")
+      containerRef = Some(parentActor)
 
     case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
       if (terminated) {
@@ -143,7 +151,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
       parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
       parent.layout(Array[Control](button), SWT.ALL)
       body.addDisposeListener(new DisposeListener {
-        def widgetDisposed(e: DisposeEvent) = view ! App.Message.Destroy(body, self)
+        def widgetDisposed(e: DisposeEvent) = container ! App.Message.Destroy(body, self)
       })
       this.parent = Option(parent)
       this.body = Option(body)
@@ -178,15 +186,6 @@ object ViewDefault extends View.Factory with Loggable {
   /** View image. */
   lazy val image = DI.image
 
-  /** Returns actor reference that could handle Create/Destroy messages. */
-  @log
-  def viewActor(containerActorContext: ActorContext, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
-    val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
-    val newActorRef = containerActorContext.actorOf(props.copy(args = immutable.Seq(configuration.id)), viewName)
-    activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
-    titlePerActor.values.foreach(_.update)
-    Some(newActorRef)
-  }
   /** Default view actor reference configuration object. */
   def props = DI.props
 

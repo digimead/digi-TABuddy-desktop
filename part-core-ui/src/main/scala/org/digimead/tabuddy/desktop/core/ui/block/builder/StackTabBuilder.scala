@@ -49,7 +49,8 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.SCompositeTab
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
+import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.layout.{ GridData, GridLayout }
@@ -82,6 +83,31 @@ class StackTabBuilder extends Loggable {
     scroll.setExpandHorizontal(true)
     scroll.setExpandVertical(true)
     scroll
+  }
+  /** Adjust TabItem. */
+  def adjustTabItem(tabComposite: SCompositeTab, viewConfiguration: Configuration.CView) {
+    App.execNGet {
+      // Adjust tab.
+      val result = for {
+        tabItem ← tabComposite.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id }
+        container ← tabComposite.getChildren().headOption
+      } yield container match {
+        case container: ScrolledComposite ⇒
+          container.getChildren().headOption match {
+            case Some(vComposite: VComposite) ⇒
+              App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(vComposite.contentRef))
+              tabItem.setText(viewConfiguration.factory().title(vComposite.contentRef).getValue().asInstanceOf[String])
+              container.setContent(vComposite)
+              container.setMinSize(vComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+              container.layout(true)
+            case unexpected ⇒
+              throw new IllegalStateException(s"Incorrect ScrolledComposite content ${unexpected}.")
+          }
+        case unexpected ⇒
+          throw new IllegalStateException(s"Incorrect SCompositeTab content ${unexpected}.")
+      }
+      result getOrElse { log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.") }
+    }
   }
 }
 
