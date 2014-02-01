@@ -110,7 +110,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
     case message @ App.Message.Set(_, parentActor: ActorRef) ⇒
       if (parentActor.path.name != "View_%08X".format(contentId.hashCode()))
         throw new IllegalArgumentException(s"Illegal container ${parentActor}.")
-      log.debug(s"Bind ${parentActor} to ${this} as parent.")
+      log.debug(s"Bind ${this} to ${parentActor}.")
       containerRef = Some(parentActor)
 
     case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {

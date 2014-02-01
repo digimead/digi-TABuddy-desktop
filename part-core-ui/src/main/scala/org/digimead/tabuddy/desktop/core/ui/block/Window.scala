@@ -79,7 +79,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   var window: Option[AppWindow] = None
   /** Window supervisor actor. */
   lazy val windowSupervisor = context.parent
-  log.debug("Start actor " + self.path)
+  log.debug(s"Start actor ${self.path} ${windowId}")
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = log.debug(this + " is stopped.")
@@ -117,6 +117,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
           case Some(window) ⇒
             windowSupervisor ! App.Message.Destroy(window, self)
           case None ⇒
+            // There is no window. Strange. Is this actor destroyed immediately? Stop it silently.
             context.stop(self)
         }
     }

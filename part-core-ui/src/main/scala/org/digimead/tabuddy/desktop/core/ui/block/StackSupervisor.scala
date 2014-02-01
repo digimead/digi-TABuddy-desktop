@@ -83,15 +83,15 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   val configurationsSaveRestart = new AtomicBoolean()
   /** Last active view id for this window. */
   val lastActiveViewIdForCurrentWindow = new AtomicReference[Option[UUID]](None)
-  /** List of all window stacks. */
-  val pointers = new StackSupervisor.PointerMap(context.parent)
+  /** List of all window layers. */
+  val pointers = mutable.HashMap[UUID, StackSupervisor.StackPointer]()
   /** Flag indicating whether the StackSupervisor is alive. */
   var terminated = false
   /** Top level stack hierarchy container. It is ScrolledComposite of content of AppWindow. */
   var wComposite: Option[WComposite] = None
   /** Window actor. */
   lazy val window = context.parent
-  log.debug("Start actor " + self.path)
+  log.debug(s"Start actor ${self.path} ${windowId}")
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = log.debug(this + " is stopped.")
@@ -104,14 +104,16 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       } else {
         create(viewConfiguration) match {
           case Some(windowComposite) ⇒
-            App.Message.Create(windowComposite, None)
+            App.Message.Create(windowComposite, self)
           case None ⇒
-            App.Message.Error(s"Unable to create ${viewConfiguration}.", None)
+            App.Message.Error(s"Unable to create ${viewConfiguration}.", self)
         }
       }
     } foreach { sender ! _ }
 
+    // Notification.
     case message @ App.Message.Create(stackLayer: SComposite, Some(origin), _) ⇒ App.traceMessage(message) {
+      assert(sender != window)
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -120,7 +122,9 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       }
     }
 
+    // Notification.
     case message @ App.Message.Destroy(stackLayer: SComposite, Some(origin), _) ⇒ App.traceMessage(message) {
+      assert(sender != window)
       if (pointers.isDefinedAt(stackLayer.id))
         onDestroyed(stackLayer, origin)
       if (terminated && pointers.isEmpty)
@@ -129,7 +133,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
 
     case message @ App.Message.Destroy(_: AppWindow, Some(this.window), _) ⇒ App.traceMessage(message) {
       terminated = true
-      context.children.foreach(_ ! App.Message.Destroy())
+      Await.result(Future.sequence(context.children.map(_ ? App.Message.Destroy())), timeout.duration)
       if (pointers.isEmpty)
         window ! App.Message.Destroy(self, self)
     }
@@ -193,7 +197,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         val stack = context.actorOf(StackLayer.props.copy(args = immutable.Seq(stackConfiguration.id)), StackLayer.id + "_%08X".format(stackConfiguration.id.hashCode()))
         pointers += stackId -> StackSupervisor.StackPointer(stack)(new WeakReference(null))
         // Block supervisor until stack is created.
-        Await.result(stack ? App.Message.Create(StackLayer.<>(stackConfiguration,
+        /*Await.result(stack ? App.Message.Create(StackLayer.<>(stackConfiguration,
           parentWidget, parentContext, context), self), timeout.duration) match {
           case App.Message.Create(stackWidget: SComposite, None, _) ⇒
             log.debug(s"Stack layer ${stackConfiguration} content created.")
@@ -204,11 +208,12 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
           case _ ⇒
             log.fatal(s"Unable to create content for stack layer ${stackConfiguration}.")
             None
-        }
+        }*/
+        None
       case (parent, viewConfiguration: Configuration.CView) ⇒
         // There is only a view that is directly attached to the window.
         log.debug(s"Attach ${viewConfiguration} as top level element.")
-        val view = ViewContentBuilder.container(viewConfiguration, parentWidget, parentContext, context)
+        val view = ViewContentBuilder.container(viewConfiguration, parentWidget, parentContext, context, None)
         view.foreach { vComposite ⇒ pointers += vComposite.id -> StackSupervisor.StackPointer(vComposite.ref)(new WeakReference(null)) }
         view
       case (parent, viewConfiguration: Configuration.CEmpty) ⇒
@@ -234,25 +239,17 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         // Attach view from viewFactory to neighbor.
         Option(pointers(id).stack.get) match {
           case Some(view: VComposite) ⇒
-            transform.TransformViewToTab(this, view).foreach { tab ⇒
-              transform.TransformAttachView(this, tab, viewConfiguration) match {
-                case Some(attachedView) ⇒
-                  App.exec {
-                    tab.getItems().find(item ⇒ item.getData(UI.swtId) == attachedView.id).foreach { tabItem ⇒
-                      log.debug(s"Select tab with ${attachedView}.")
-                      tab.setSelection(tabItem)
-                      val event = new Event()
-                      event.item = tabItem
-                      tab.notifyListeners(SWT.Selection, event)
-                    }
-                  }
-                case None ⇒
-                  log.fatal(s"Unable to attach ${viewConfiguration} to ${tab}.")
+            transform.TransformViewToTab(this, view).flatMap { tab ⇒
+              Await.result(tab.ref ? App.Message.Create(StackLayer.<+>(viewConfiguration), self), timeout.duration) match {
+                case App.Message.Create(vComposite: VComposite, Some(tab.ref), _) ⇒
+                  Some(view)
+                case App.Message.Error(message, _) ⇒
+                  log.fatal(s"Unable to attach ${viewConfiguration} to ${tab}: ${message.getOrElse("UNKNOWN")}.")
+                  None
               }
             }
-            Some(view)
           case _ ⇒
-            log.fatal(s"Lost view ${id} composite weak reference.")
+            log.fatal(s"Lost weak reference to ${id} view.")
             None
         }
       case None ⇒
@@ -271,7 +268,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     stack match {
       case vComposite: VComposite ⇒
         if (Core.context.getActiveLeaf().get(classOf[VComposite]) == null)
-          setActiveView(stack.id, vComposite)
+          onStart(vComposite)
       case _ ⇒
     }
     App.publish(App.Message.Create(stack, origin))
@@ -280,51 +277,68 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   @log
   protected def onDestroyed(stack: SComposite, origin: ActorRef) {
     log.debug(s"Remove destroyed ${stack} from ${this}.")
-    val stackOpt = Option(stack.id)
-    context.children.find(child ⇒ if (child == stack.ref) { context.stop(child); true } else false)
+    context.children.find(_ == stack.ref).foreach(context.stop)
+    if (UI.closeWindowWithLastView) {
+      val lastViewUUID = pointers.find { case (uuid, pointer) ⇒ pointer.stack.get().isInstanceOf[VComposite] } map (_._1)
+      if (lastViewUUID == Some(stack.id)) {
+        log.info("There are no views. Close window.")
+        Await.result(context.parent ? App.Message.Close(), timeout.duration)
+      }
+    }
     pointers -= stack.id
-    if (lastActiveViewIdForCurrentWindow.get() == stackOpt)
+    if (lastActiveViewIdForCurrentWindow.get() == Option(stack.id))
       lastActiveViewIdForCurrentWindow.set(None)
     App.publish(App.Message.Destroy(stack, origin))
   }
   /** User start interaction with window/stack supervisor. Focus is gained. */
   @log
   protected def onStart(widget: Widget) {
-    val seq = App.execNGet { UI.widgetHierarchy(widget) }
-    if (seq.headOption.map(_.isInstanceOf[VComposite]).getOrElse(false)) {
-      // 1st element of hierarchy sequence is VComposite
-      log.debug(s"Focus obtained by view widget ${widget}, activate view ${seq.head}.")
-      log.debug("New active view hierarchy: " + seq)
-      seq match {
-        case Seq(view: VComposite, windowContent: WComposite) ⇒
-          // View is directly attached to shell.
-          setActiveView(view.id, widget)
-        case Seq(view: VComposite, stack: SComposite, _*) ⇒
-          // View is attached to stack.
-          setActiveView(view.id, widget)
-        case unexpected ⇒
-          log.fatal("Unexpected GUI hierarchy.")
-      }
+    val actualHierarchy = App.execNGet { UI.widgetHierarchy(widget) }
+    if (actualHierarchy.isEmpty && widget.isInstanceOf[SComposite]) {
+      log.debug(s"Skip onStart event for unbinded ${widget}.")
+      return
+    }
+    val toStart = if (actualHierarchy.headOption.map(_.isInstanceOf[VComposite]).getOrElse(false)) {
+      (Some(widget), actualHierarchy)
     } else {
-      log.debug(s"Focus obtained by non view widget ${widget}, reactivate last view.")
-      lastActiveViewIdForCurrentWindow.get().foreach { view ⇒
-        val lastActiveViewIdForCurrentWindowGUIHierarchy = pointers.get(view).flatMap(pointer ⇒ Option(pointer.stack.get()).map(view ⇒
-          App.execNGet { UI.widgetHierarchy(view) })).getOrElse(Seq[Widget]())
-        log.debug("Last active view hierarchy: " + lastActiveViewIdForCurrentWindowGUIHierarchy)
-        lastActiveViewIdForCurrentWindowGUIHierarchy match {
-          case Seq(view: VComposite, windowContent: WComposite) ⇒
-            // View is directly attached to shell.
-            setActiveView(view.id, view)
-          case Seq(view: VComposite, stack: SComposite, _*) ⇒
-            // View is attached to stack.
-            setActiveView(view.id, view)
-          case Nil ⇒
-            log.warn("Last active view GUI hierarchy was gone.")
-          case unexpected ⇒
-            log.fatal("Unexpected GUI hierarchy.")
-        }
+      lastActiveViewIdForCurrentWindow.get() match {
+        case Some(viewId) ⇒
+          pointers.get(viewId).flatMap(pointer ⇒ Option(pointer.stack.get())) match {
+            case Some(view) ⇒
+              App.execNGet { UI.widgetHierarchy(view) } match {
+                case Nil ⇒
+                  log.debug(s"Last view ${view} is unbound. Skip onStart event.")
+                  (None, Seq[SComposite]())
+                case hierarchy ⇒
+                  (Some(view), hierarchy)
+              }
+            case None ⇒
+              (None, Seq[SComposite]())
+          }
+        case None ⇒
+          (None, Seq[SComposite]())
       }
     }
+    toStart match {
+      case (Some(widget), hierarchy @ Seq(view: VComposite, windowContent: WComposite)) ⇒
+        // View is directly attached to shell.
+        onStart(view.id, widget, hierarchy.dropRight(1))
+      case (Some(widget), hierarchy @ Seq(view: VComposite, stack: SComposite, _*)) ⇒
+        // View is attached to stack.
+        onStart(view.id, widget, hierarchy.dropRight(1))
+      case (Some(widget), unexpected) ⇒
+        log.fatal(s"Unexpected hierarchy ${unexpected} for widget ${widget}.")
+      case (None, Nil) ⇒
+    }
+  }
+  /** Set active view. */
+  protected def onStart(id: UUID, widget: Widget, hierarchyFromWidgetToWindow: Seq[SComposite]): Unit = try {
+    if (lastActiveViewIdForCurrentWindow.get() != Some(id))
+      lastActiveViewIdForCurrentWindow.set(Option(id))
+    Await.ready(pointers(id).actor ? App.Message.Start((widget, hierarchyFromWidgetToWindow), self), timeout.duration)
+  } catch {
+    case e: Throwable ⇒
+      log.error(e.getMessage, e)
   }
   /** Focus is lost. */
   @log
@@ -361,15 +375,6 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       }
     }
   }
-  /** Set active view. */
-  protected def setActiveView(id: UUID, widget: Widget): Unit = try {
-    if (lastActiveViewIdForCurrentWindow.get() != Some(id))
-      lastActiveViewIdForCurrentWindow.set(Option(id))
-    Await.ready(pointers(id).actor ? App.Message.Start(widget, self), timeout.duration)
-  } catch {
-    case e: Throwable ⇒
-      log.error(e.getMessage, e)
-  }
 
   override lazy val toString = "StackSupervisor[actor/%08X]".format(windowId.hashCode())
 }
@@ -385,33 +390,6 @@ object StackSupervisor extends Loggable {
 
   override def toString = "StackSupervisor[Singleton]"
 
-  /**
-   * Stack pointers map
-   * Shut down application on empty.
-   */
-  class PointerMap(val parent: ActorRef) extends mutable.HashMap[UUID, StackPointer] {
-    override def -=(key: UUID): this.type = {
-      get(key) match {
-        case None ⇒
-        case Some(old) ⇒
-          super.-=(key)
-          if (UI.closeWindowWithLastView &&
-            (old.stack.get().isInstanceOf[VComposite] || old.stack.get() == null) &&
-            this.find { case (uuid, pointer) ⇒ pointer.stack.get().isInstanceOf[VComposite] }.isEmpty) {
-            log.info("There are no views. Close window.")
-            parent ! App.Message.Close()
-          }
-      }
-      this
-    }
-    override def clear(): Unit = {
-      super.clear()
-      if (UI.closeWindowWithLastView) {
-        log.info("There are no views. Close window.")
-        parent ! App.Message.Close()
-      }
-    }
-  }
   /** Wrapper that contains stack layer widgets and ActorRef. */
   case class StackPointer(val actor: ActorRef)(val stack: WeakReference[SComposite])
   /**

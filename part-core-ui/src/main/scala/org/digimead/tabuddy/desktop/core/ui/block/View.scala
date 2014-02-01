@@ -76,7 +76,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
   var terminated = false
   /** View JFace instance. */
   var view: Option[VComposite] = None
-  log.debug("Start actor " + self.path)
+  log.debug(s"Start actor ${self.path} ${viewId}")
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -91,18 +91,20 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
            * If view content isn't disposed then it maybe moved to different window.
            */
           context.stop(view.contentRef)
-        }
+        } else
+          view.dispose()
       }
     }
   }
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
   def receive = {
-    case message @ App.Message.Create(View.<>(viewConfiguration, parentWidget), Some(this.container), _) ⇒ App.traceMessage(message) {
+    // Create new content.
+    case message @ App.Message.Create(View.<>(viewConfiguration, parentWidget, content), Some(this.container), _) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        create(viewConfiguration, parentWidget, sender) match {
+        create(viewConfiguration, parentWidget, content) match {
           case Some(viewWidget) ⇒
             container ! App.Message.Create(viewWidget, self)
             App.Message.Create(viewWidget, self)
@@ -130,20 +132,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       Map(context.children.map { case child ⇒ child -> Map() }.toSeq: _*)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Set(_, viewWidgetWithContent: VComposite) ⇒ App.traceMessage(message) {
-      if (terminated) {
-        App.Message.Error(s"${this} is terminated.", self)
-      } else {
-        bind(viewWidgetWithContent) match {
-          case Some(viewWidget) ⇒
-            App.Message.Set(viewWidget)
-          case None ⇒
-            App.Message.Error(s"Unable to bind ${viewWidgetWithContent}.", self)
-        }
-      }
-    } foreach { sender ! _ }
-
-    case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start((widget: Widget, Seq(view)), _, _) if (Some(view) == this.view) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -165,23 +154,20 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       log.debug(message)
   }
 
-  /** Bind exists view. */
-  protected def bind(viewWidgetWithContent: VComposite): Option[VComposite] = {
-    if (this.view.nonEmpty)
-      throw new IllegalArgumentException(s"${this} is already in use.")
-    this.view = Some(viewWidgetWithContent)
-    // Add new view to the common map.
-    View.viewMapRWL.writeLock().lock()
-    try View.viewMap += viewWidgetWithContent -> self
-    finally View.viewMapRWL.writeLock().unlock()
-    this.view
-  }
-  /** Create view. */
-  protected def create(viewConfiguration: Configuration.CView, parentWidget: ScrolledComposite, supervisor: ActorRef): Option[VComposite] = {
+  /**
+   * Create view.
+   *
+   * @param viewConfiguration configuration of this view.
+   * @param parentWidget container of the new VComposite
+   * @param innerContent exists content (from DND source or something like that)
+   * @return VComposite if everything is fine
+   */
+  protected def create(viewConfiguration: Configuration.CView,
+    parentWidget: ScrolledComposite, content: Option[VComposite]): Option[VComposite] = {
     if (view.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertEventThread(false)
-    ViewContentBuilder.content(viewConfiguration, parentWidget, viewContext, context) match {
+    ViewContentBuilder.content(viewConfiguration, parentWidget, viewContext, context, content) match {
       case Some(viewWidgetWithContent) ⇒
         this.view = Some(viewWidgetWithContent)
         // Update parent tab title if any.
@@ -259,13 +245,16 @@ object View extends Loggable {
   /** View layer map lock. */
   protected val viewMapRWL = new ReentrantReadWriteLock
 
+  /** Get view name. */
+  def name(id: UUID) = View.id + "_%08X".format(id.hashCode())
   /** View actor reference configuration object. */
   def props = DI.props
 
   override def toString = "View[Singleton]"
 
   /** Wrapper for App.Message,Create argument. */
-  case class <>(val viewConfiguration: Configuration.CView, val parentWidget: ScrolledComposite)
+  case class <>(val viewConfiguration: Configuration.CView,
+    val parentWidget: ScrolledComposite, val innerContent: Option[VComposite])
   /**
    * User implemented factory, that returns ActorRef, responsible for view creation/destroying.
    */

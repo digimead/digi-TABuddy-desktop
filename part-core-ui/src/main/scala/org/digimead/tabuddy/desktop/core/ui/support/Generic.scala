@@ -158,7 +158,7 @@ trait Generic {
   /** Get active shell (from window or dialog). */
   def getActiveShell(): Option[Shell] = Option(App.getActiveLeaf().get(classOf[Shell]))
   /** Get all GUI components from the current widget to top level parent(shell). */
-  def widgetHierarchy(widget: Widget): Seq[Widget] = {
+  def widgetHierarchy(widget: Widget): Seq[SComposite] = {
     App.assertEventThread()
     Option(widget) match {
       case Some(composite: SComposite) if !composite.isDisposed ⇒
@@ -177,7 +177,7 @@ trait Generic {
 
   /** Get all GUI components. */
   @tailrec
-  private def widgetHierarchy(widget: Widget, acc: Seq[Widget]): Seq[Widget] = {
+  private def widgetHierarchy(widget: Widget, acc: Seq[SComposite]): Seq[SComposite] = {
     findParent(widget) match {
       case Some(parent: WComposite) ⇒
         acc :+ parent

@@ -55,10 +55,10 @@ import scala.language.implicitConversions
 
 /** Attach view to tab stack. */
 class TransformAttachView extends Loggable {
-  def apply(sl: StackLayer, tabComposite: SCompositeTab, viewConfiguration: Configuration.CView, vComposite: Option[VComposite]): Option[VComposite] = {
-    vComposite match {
+  def apply(sl: StackLayer, tabComposite: SCompositeTab, viewConfiguration: Configuration.CView, content: Option[VComposite]): Option[VComposite] = {
+    content match {
       case Some(_) ⇒ log.debug(s"Attach exists ${viewConfiguration} to ${tabComposite}.")
-      case None ⇒ log.debug(s"Create new ${viewConfiguration} and attach it to ${tabComposite}.")
+      case None ⇒ log.debug(s"Attach ${viewConfiguration} to ${tabComposite}.")
     }
     App.assertEventThread(false)
     // Prepare tab item.
@@ -69,15 +69,9 @@ class TransformAttachView extends Loggable {
         viewConfiguration.factory().image.foreach(tabItem.setImage)
       })
     }
-    val viewWidget = vComposite match {
-      case result @ Some(vComposite) ⇒
-        val successful = App.execNGet { vComposite.setParent(container) }
-        if (successful) result else None
-      case None ⇒
-        ViewContentBuilder.container(viewConfiguration, container, sl.parentContext, sl.context)
-    }
-    viewWidget.foreach(_ ⇒ StackTabBuilder.adjustTabItem(tabComposite, viewConfiguration))
-    viewWidget
+    val vCompositeResult = ViewContentBuilder.container(viewConfiguration, container, sl.parentContext, sl.context, content)
+    vCompositeResult.foreach(_ ⇒ StackTabBuilder.adjustTabItem(tabComposite, viewConfiguration))
+    vCompositeResult
   }
 }
 
