@@ -110,7 +110,7 @@ object TransformViewToTab {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** TransformAttachView implementation */
+    /** TransformViewToTab implementation */
     lazy val implementation = injectOptional[TransformViewToTab] getOrElse new TransformViewToTab
   }
 }

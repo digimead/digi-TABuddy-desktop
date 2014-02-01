@@ -82,7 +82,7 @@ class TransformReplace extends Loggable {
         }
         if (exists.nonEmpty)
           throw new IllegalStateException(s"Unable to create ${viewConfiguration}. Container already in use by ${exists.mkString(",")}.")
-        ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context)
+        ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, None)
       } else {
         errors.foreach(err ⇒ log.error(s"Unable to TransformReplace ${viewConfiguration}: ${err.asInstanceOf[App.Message.Error].message}"))
         None
@@ -99,7 +99,7 @@ object TransformReplace {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** TransformAttachView implementation */
+    /** TransformReplace implementation */
     lazy val implementation = injectOptional[TransformReplace] getOrElse new TransformReplace
   }
 }
