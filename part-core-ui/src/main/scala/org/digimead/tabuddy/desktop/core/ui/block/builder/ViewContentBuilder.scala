@@ -151,7 +151,13 @@ class ViewContentBuilder extends Loggable {
           assert(widget.contentRef == existsWidget.contentRef)
           assert(widget != existsWidget)
           log.debug(s"Move ${configuration} from the old ${existsWidget} to the new ${widget}.")
-          if (App.execNGet { existsWidget.getChildren().forall(_.setParent(widget)) }) {
+          val successful = App.execNGet {
+            val successful = existsWidget.getChildren().forall(_.setParent(widget))
+            if (successful)
+              widget.setLayout(existsWidget.getLayout())
+            successful
+          }
+          if (successful) {
             widget.contentRef ! App.Message.Set(widget.ref)
             Some(widget)
           } else {

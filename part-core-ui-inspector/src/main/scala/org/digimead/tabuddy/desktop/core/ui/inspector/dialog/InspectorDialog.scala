@@ -51,18 +51,13 @@ import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, VComposite, WComposite }
 import org.eclipse.e4.core.contexts.IEclipseContext
-import org.eclipse.jface.viewers.{ ITreeContentProvider, LabelProvider, Viewer }
+import org.eclipse.jface.viewers.{ ArrayContentProvider, DoubleClickEvent, IDoubleClickListener, ISelectionChangedListener, IStructuredSelection, ITableLabelProvider, ITreeContentProvider, LabelProvider, SelectionChangedEvent, TreeViewer, Viewer }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StackLayout
 import org.eclipse.swt.events.{ SelectionEvent, SelectionListener }
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.layout.{ FillLayout, FormLayout, GridLayout, RowLayout }
-import org.eclipse.swt.widgets.{ Composite, Control, Shell, Widget }
-import org.eclipse.jface.viewers.IDoubleClickListener
-import org.eclipse.jface.viewers.DoubleClickEvent
-import org.eclipse.jface.viewers.TreeViewer
-import org.eclipse.jface.viewers.IStructuredSelection
-import org.eclipse.swt.widgets.ToolTip
+import org.eclipse.swt.widgets.{ Composite, Control, Shell, ToolTip, Widget }
 
 /**
  * Inspector dialog implementation.
@@ -102,6 +97,27 @@ class InspectorDialog @Inject() (
     val treeViewer = getTreeViewer()
     treeViewer.setLabelProvider(new InspectorDialog.TreeLabelProvider)
     treeViewer.setContentProvider(new InspectorDialog.TreeContentProvider)
+    treeViewer.addSelectionChangedListener(new ISelectionChangedListener() {
+      def selectionChanged(e: SelectionChangedEvent) = e.getSelection() match {
+        case iStructuredSelection: IStructuredSelection ⇒
+          val compositePart = iStructuredSelection.getFirstElement() match {
+            case composite: Composite ⇒ Array[Tuple2[String, Any]](("layout", composite.getLayout()))
+            case _ ⇒ Array[Tuple2[String, Any]]()
+          }
+          val controlPart = iStructuredSelection.getFirstElement() match {
+            case control: Control ⇒ Array[Tuple2[String, Any]](
+              ("visible", control.isVisible()),
+              ("disposed", control.isDisposed()),
+              ("enabled", control.isEnabled()),
+              ("layout data", control.getLayoutData()),
+              ("tooltip", control.getToolTipText()),
+              ("data", control.getData()))
+            case _ ⇒ Array()
+          }
+          InspectorDialog.this.getTableViewer().setInput((compositePart ++ controlPart).sortBy(_._1))
+        case _ ⇒
+      }
+    })
     treeViewer.addDoubleClickListener(new IDoubleClickListener() {
       override def doubleClick(event: DoubleClickEvent) {
         val viewer = event.getViewer().asInstanceOf[TreeViewer]
@@ -110,13 +126,17 @@ class InspectorDialog @Inject() (
         doubleClickTreeElement(selectedNode)
       }
     })
+    val tableViewer = getTableViewer()
+    tableViewer.setContentProvider(ArrayContentProvider.getInstance())
+    tableViewer.setLabelProvider(new InspectorDialog.TableLabelProvider())
+    getTextMargin().setText(InspectorDialog.margin.toString())
     result
   }
   /** Decorate the specific composite. */
   protected def decorateComposite(composite: Composite, colorIndex: Int = 0) {
     var index = colorIndex
     if (composite.getData(InspectorDialog.swtId) == null) {
-      pad(composite, InspectorDialog.margin)
+      pad(composite, getMargin())
       decorateControl(composite, index)
     }
     composite.getChildren().foreach { child ⇒
@@ -148,6 +168,12 @@ class InspectorDialog @Inject() (
       tip.setVisible(true)
     case other ⇒
       log.debug("Skip double click on unknown element.")
+  }
+  /** Get margin value. */
+  def getMargin(): Int = try getTextMargin().getText().toInt catch {
+    case e: Throwable ⇒
+      log.error(s"Unable to convert margin value '${getTextMargin().getText()} to integer: ${e.getMessage()}.")
+      InspectorDialog.margin
   }
   /** Get ToolTip text for control. */
   protected def getToolTipText(control: Control): String = {
@@ -240,6 +266,22 @@ object InspectorDialog {
   /**Get inspector margin. */
   def margin = DI.margin
 
+  /**
+   * InspectorDialog table label provider.
+   */
+  class TableLabelProvider extends LabelProvider with ITableLabelProvider {
+    def getColumnImage(element: AnyRef, columnIndex: Int): Image = null
+    def getColumnText(element: AnyRef, columnIndex: Int): String = element match {
+      case (name, value) if (columnIndex == 0) ⇒
+        String.valueOf(name)
+      case (name, value) if (columnIndex == 1) ⇒
+        String.valueOf(value)
+      case element if (columnIndex == 0) ⇒
+        "???"
+      case element if (columnIndex == 1) ⇒
+        String.valueOf(element)
+    }
+  }
   /**
    * InspectorDialog tree label provider.
    */

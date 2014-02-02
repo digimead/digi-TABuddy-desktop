@@ -49,15 +49,18 @@ import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableColumn;
+import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 
 /**
@@ -70,6 +73,8 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 	private Table table;
 	private Button btnRefresh;
 	private TreeViewer treeViewer;
+	private TableViewer tableViewer;
+	private Text textMargin;
 
 	/**
 	 * Get ResourceBundle from Scala environment.
@@ -95,7 +100,7 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 	 */
 	public InspectorDialogSkel(Shell parentShell) {
 		super(parentShell);
-		setShellStyle(SWT.DIALOG_TRIM);
+		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE);
 	}
 
 	/**
@@ -108,19 +113,29 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 		setMessage(BUNDLE.getString("inspectorDialogDescription_text"));
 		setTitle(BUNDLE.getString("inspectorDialogTitle_text"));
 		Composite area = (Composite) super.createDialogArea(parent);
-		Composite container = new Composite(area, SWT.NONE);
-		container.setLayout(new GridLayout(2, false));
-		container.setLayoutData(new GridData(GridData.FILL_BOTH));
+		SashForm container = new SashForm(area, SWT.VERTICAL);
+		container.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
+		Composite composite = new Composite(container, SWT.NONE);
+		composite.setLayout(new GridLayout(2, false));
 
-		btnRefresh = new Button(container, SWT.NONE);
+		btnRefresh = new Button(composite, SWT.NONE);
+		btnRefresh.setLayoutData(new GridData(SWT.CENTER, SWT.TOP, false, true, 1, 1));
 		btnRefresh.setText("Refresh");
 
-		treeViewer = new TreeViewer(container, SWT.BORDER);
+		treeViewer = new TreeViewer(composite, SWT.BORDER);
 		treeViewer.setUseHashlookup(true);
 		Tree tree = treeViewer.getTree();
-		tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
+		tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 3));
 
-		TableViewer tableViewer = new TableViewer(container, SWT.BORDER | SWT.FULL_SELECTION);
+		Label lblMargin = new Label(composite, SWT.NONE);
+		lblMargin.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1));
+		lblMargin.setText("Margin");
+
+		textMargin = new Text(composite, SWT.BORDER | SWT.CENTER);
+		textMargin.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 1, 1));
+		textMargin.setTextLimit(2);
+
+		tableViewer = new TableViewer(container, SWT.BORDER | SWT.FULL_SELECTION);
 		table = tableViewer.getTable();
 		table.setHeaderVisible(true);
 		table.setLinesVisible(true);
@@ -157,7 +172,16 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 	protected Button getBtnRefresh() {
 		return btnRefresh;
 	}
+
 	protected TreeViewer getTreeViewer() {
 		return treeViewer;
+	}
+
+	protected TableViewer getTableViewer() {
+		return tableViewer;
+	}
+
+	protected Text getTextMargin() {
+		return textMargin;
 	}
 }
