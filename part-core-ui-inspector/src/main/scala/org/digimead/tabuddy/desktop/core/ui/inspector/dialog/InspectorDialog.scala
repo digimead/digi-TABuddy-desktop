@@ -1,0 +1,283 @@
+/**
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Global License version 3
+ * as published by the Free Software Foundation with the addition of the
+ * following permission added to Section 15 as permitted in Section 7(a):
+ * FOR ANY PART OF THE COVERED WORK IN WHICH THE COPYRIGHT IS OWNED
+ * BY Limited Liability Company «MEZHGALAKTICHESKIJ TORGOVYJ ALIANS»,
+ * Limited Liability Company «MEZHGALAKTICHESKIJ TORGOVYJ ALIANS» DISCLAIMS
+ * THE WARRANTY OF NON INFRINGEMENT OF THIRD PARTY RIGHTS.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ * or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Global License for more details.
+ * You should have received a copy of the GNU Affero General Global License
+ * along with this program; if not, see http://www.gnu.org/licenses or write to
+ * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA, 02110-1301 USA, or download the license from the following URL:
+ * http://www.gnu.org/licenses/agpl.html
+ *
+ * The interactive user interfaces in modified source and object code versions
+ * of this program must display Appropriate Legal Notices, as required under
+ * Section 5 of the GNU Affero General Global License.
+ *
+ * In accordance with Section 7(b) of the GNU Affero General Global License,
+ * you must retain the producer line in every report, form or document
+ * that is created or manipulated using TA Buddy.
+ *
+ * You can be released from the requirements of the license by purchasing
+ * a commercial license. Buying such a license is mandatory as soon as you
+ * develop commercial activities involving the TA Buddy software without
+ * disclosing the source code of your own applications.
+ * These activities include: offering paid services to customers,
+ * serving files in a web or/and network application,
+ * shipping TA Buddy with a closed source product.
+ *
+ * For more information, please contact Digimead Team at this
+ * address: ezh@ezh.msk.ru
+ */
+
+package org.digimead.tabuddy.desktop.core.ui.inspector.dialog
+
+import javax.inject.Inject
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, VComposite, WComposite }
+import org.eclipse.e4.core.contexts.IEclipseContext
+import org.eclipse.jface.viewers.{ ITreeContentProvider, LabelProvider, Viewer }
+import org.eclipse.swt.SWT
+import org.eclipse.swt.custom.StackLayout
+import org.eclipse.swt.events.{ SelectionEvent, SelectionListener }
+import org.eclipse.swt.graphics.Image
+import org.eclipse.swt.layout.{ FillLayout, FormLayout, GridLayout, RowLayout }
+import org.eclipse.swt.widgets.{ Composite, Control, Shell, Widget }
+import org.eclipse.jface.viewers.IDoubleClickListener
+import org.eclipse.jface.viewers.DoubleClickEvent
+import org.eclipse.jface.viewers.TreeViewer
+import org.eclipse.jface.viewers.IStructuredSelection
+import org.eclipse.swt.widgets.ToolTip
+
+/**
+ * Inspector dialog implementation.
+ */
+class InspectorDialog @Inject() (
+  /** This dialog context. */
+  val context: IEclipseContext,
+  /** Parent shell. */
+  val parentShell: Shell)
+  extends InspectorDialogSkel(parentShell) with Dialog with Loggable {
+  val colors = Seq(
+    App.display.getSystemColor(SWT.COLOR_RED),
+    App.display.getSystemColor(SWT.COLOR_BLUE),
+    App.display.getSystemColor(SWT.COLOR_YELLOW),
+    App.display.getSystemColor(SWT.COLOR_GREEN),
+    App.display.getSystemColor(SWT.COLOR_CYAN),
+    App.display.getSystemColor(SWT.COLOR_MAGENTA),
+    App.display.getSystemColor(SWT.COLOR_DARK_RED),
+    App.display.getSystemColor(SWT.COLOR_DARK_BLUE),
+    App.display.getSystemColor(SWT.COLOR_DARK_YELLOW),
+    App.display.getSystemColor(SWT.COLOR_DARK_GREEN),
+    App.display.getSystemColor(SWT.COLOR_DARK_CYAN),
+    App.display.getSystemColor(SWT.COLOR_DARK_MAGENTA))
+
+  /**
+   * Create contents of the dialog.
+   *
+   * @param parent parent composite
+   * @return dialog content
+   */
+  override protected def createDialogArea(parent: Composite): Control = {
+    val result = super.createDialogArea(parent)
+    getBtnRefresh().addSelectionListener(new SelectionListener() {
+      def widgetSelected(event: SelectionEvent) = InspectorDialog.this.refresh()
+      def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
+    })
+    val treeViewer = getTreeViewer()
+    treeViewer.setLabelProvider(new InspectorDialog.TreeLabelProvider)
+    treeViewer.setContentProvider(new InspectorDialog.TreeContentProvider)
+    treeViewer.addDoubleClickListener(new IDoubleClickListener() {
+      override def doubleClick(event: DoubleClickEvent) {
+        val viewer = event.getViewer().asInstanceOf[TreeViewer]
+        val thisSelection = event.getSelection().asInstanceOf[IStructuredSelection]
+        val selectedNode = thisSelection.getFirstElement()
+        doubleClickTreeElement(selectedNode)
+      }
+    })
+    result
+  }
+  /** Decorate the specific composite. */
+  protected def decorateComposite(composite: Composite, colorIndex: Int = 0) {
+    var index = colorIndex
+    if (composite.getData(InspectorDialog.swtId) == null) {
+      pad(composite, InspectorDialog.margin)
+      decorateControl(composite, index)
+    }
+    composite.getChildren().foreach { child ⇒
+      index += 1
+      child match {
+        case composite: Composite ⇒ decorateComposite(composite, index)
+        case control: Control ⇒ decorateControl(control, index)
+        case _ ⇒
+      }
+    }
+  }
+  /** Decorate the specific control. */
+  protected def decorateControl(control: Control, colorIndex: Int = 0) {
+    if (!control.isInstanceOf[Composite] && control.getData(InspectorDialog.swtId) != null)
+      return
+    val index = ((colorIndex + 1) % colors.size) - 1
+    control.setData(InspectorDialog.swtId, control.getBackground())
+    control.setBackground(colors(index))
+    control.setToolTipText(getToolTipText(control))
+  }
+  /** Handle double click on tree element. */
+  def doubleClickTreeElement(element: AnyRef) = element match {
+    case control: Control ⇒
+      val bounds = control.getBounds()
+      val tip = new ToolTip(control.getShell(), SWT.BALLOON)
+      tip.setMessage(s"Top left corner of ${control} with ${bounds}.")
+      tip.setLocation(control.toDisplay(0, 0))
+      tip.setAutoHide(true)
+      tip.setVisible(true)
+    case other ⇒
+      log.debug("Skip double click on unknown element.")
+  }
+  /** Get ToolTip text for control. */
+  protected def getToolTipText(control: Control): String = {
+    val common: Seq[String] = Seq(
+      "Class: " + control.getClass().getName(),
+      "Control: " + control.toString(),
+      ToolTip.addLayout(control))
+    val specific: Seq[String] = control match {
+      case wComposite: WComposite ⇒ Seq(
+        s"Window Id: ${wComposite.id} / ${"%08X".format(wComposite.id.hashCode())}",
+        s"Actor: " + wComposite.ref)
+      case vComposite: VComposite ⇒ Seq(
+        s"View Id: ${vComposite.id} / ${"%08X".format(vComposite.id.hashCode())}",
+        s"Actor: " + vComposite.ref)
+      case sComposite: SComposite ⇒ Seq(
+        s"Stack Id: ${sComposite.id} / ${"%08X".format(sComposite.id.hashCode())}",
+        s"Actor: " + sComposite.ref)
+      case control ⇒ Seq()
+    }
+    (common ++ specific).mkString("\n")
+  }
+  /** Pad composite with margin. */
+  def pad(composite: Composite, margin: Int) = {
+    composite.getLayout match {
+      case layout: FillLayout ⇒
+        layout.marginWidth += margin
+        layout.marginHeight += margin
+        layout.spacing += margin
+      case layout: FormLayout ⇒
+        layout.marginWidth += margin
+        layout.marginHeight += margin
+      case layout: GridLayout ⇒
+        layout.marginWidth += margin
+        layout.marginHeight += margin
+      case layout: RowLayout ⇒
+        layout.marginWidth += margin
+        layout.marginHeight += margin
+      case layout: StackLayout ⇒
+        layout.marginWidth += margin
+        layout.marginHeight += margin
+      case layout if layout != null ⇒
+        try {
+          val marginWidthField = layout.getClass.getDeclaredField("marginWidth")
+          val marginHeightField = layout.getClass.getDeclaredField("marginHeight")
+          marginWidthField.set(layout, marginWidthField.get())
+          marginHeightField.set(layout, marginHeightField.get())
+          log.debug(s"Adjust unknown layout ${layout}.")
+        } catch {
+          case e: Throwable ⇒
+            log.warn(s"Unable to adjust unknown layout ${layout}: ${e}.")
+        }
+      case layout ⇒
+    }
+  }
+  /** Refresh inspector state. */
+  def refresh() {
+    log.debug("Refresh inspector.")
+    val shell = getShell()
+    val shells = App.display.getShells().filterNot(_ == shell)
+    shells.foreach(shell ⇒
+      shell.getChildren().foreach(
+        _ match {
+          case composite: Composite ⇒
+            decorateComposite(composite)
+            composite.layout()
+          case control: Control ⇒
+            decorateControl(control)
+          case _ ⇒
+        }))
+    getTreeViewer.setInput(shells)
+  }
+
+  object ToolTip {
+    /** Get information about layout. */
+    def addLayout(control: Control) = {
+      val common = "Bounds: " + control.getBounds()
+      val specific = control match {
+        case view: VComposite ⇒ ""
+        case control ⇒ ""
+      }
+      common + specific
+    }
+  }
+}
+
+object InspectorDialog {
+  /** SWT Data ID key */
+  val swtId = getClass.getName() + "#ID"
+
+  /**Get inspector margin. */
+  def margin = DI.margin
+
+  /**
+   * InspectorDialog tree label provider.
+   */
+  class TreeLabelProvider extends LabelProvider {
+    override def getImage(element: AnyRef): Image = {
+      return super.getImage(element);
+    }
+    override def getText(element: AnyRef): String = {
+      return super.getText(element);
+    }
+  }
+  /**
+   * InspectorDialog tree content provider.
+   */
+  class TreeContentProvider extends ITreeContentProvider {
+    def inputChanged(viewer: Viewer, oldInput: AnyRef, newInput: AnyRef) {}
+    def dispose() {}
+    def getElements(inputElement: AnyRef): Array[AnyRef] = getChildren(inputElement)
+    def getChildren(parentElement: AnyRef): Array[AnyRef] = parentElement match {
+      case elements: Array[_] ⇒ elements.asInstanceOf[Array[AnyRef]].sortBy(_.asInstanceOf[Shell].getText())
+      case element: Composite ⇒ element.getChildren().asInstanceOf[Array[AnyRef]].sortBy(_.toString()).sortBy(!hasChildren(_))
+      case other ⇒ Array()
+    }
+    def getParent(element: AnyRef): AnyRef = element match {
+      case elements: Shell ⇒ null
+      case widget: Widget ⇒ UI.findParent(widget) getOrElse null
+      case other ⇒ null
+    }
+    def hasChildren(element: AnyRef): Boolean = element match {
+      case element: Composite ⇒ element.getChildren().length > 0
+      case other ⇒ false
+    }
+  }
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Inspector margin. */
+    lazy val margin = injectOptional[Int]("Core.UI.Inspector.Margin") getOrElse 10
+  }
+}

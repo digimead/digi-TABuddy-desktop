@@ -176,7 +176,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       reply getOrElse App.Message.Error(s"Unable to restore content for ${this}.", self)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start(widget: Widget, _, _) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -185,7 +185,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ Option {
       if (terminated) {
         onStop(widget)
         App.Message.Stop(widget, self)
@@ -235,7 +235,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     close(sender)
   }
   /** User start interaction with window. Focus is gained. */
-  @log
+  //@log
   protected def onStart(widget: Widget) = window match {
     case Some(window) ⇒
       windowContext.activateBranch()
@@ -245,7 +245,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       log.debug(s"Unable to start unexists window for ${this}.")
   }
   /** Focus is lost. */
-  @log
+  //@log
   protected def onStop(widget: Widget) = window match {
     case Some(window) ⇒
       Await.result(stackSupervisor ? App.Message.Stop(widget, self), timeout.duration)

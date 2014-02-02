@@ -179,13 +179,13 @@ trait Generic {
   @tailrec
   private def widgetHierarchy(widget: Widget, acc: Seq[SComposite]): Seq[SComposite] = {
     findParent(widget) match {
-      case Some(parent: WComposite) ⇒
+      case Some(parent: WComposite) if parent != widget ⇒
         acc :+ parent
-      case Some(parent: SComposite) ⇒
+      case Some(parent: SComposite) if parent != widget ⇒
         widgetHierarchy(parent, acc :+ parent)
       case Some(parent: Shell) ⇒
         acc
-      case Some(parent) ⇒
+      case Some(parent) if parent != null && parent != widget ⇒
         widgetHierarchy(parent, acc)
       case None ⇒
         acc

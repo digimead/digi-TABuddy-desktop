@@ -152,7 +152,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
       Map(tree.map { case (child, map) ⇒ child -> Await.result(map, timeout.duration) }.toSeq: _*)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start((widget: Widget, hierarchy: Seq[_]), _, _) if hierarchy.lastOption == stack ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start((widget: Widget, hierarchy: Seq[_]), _, _) if hierarchy.lastOption == stack ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -161,7 +161,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -233,7 +233,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
     }
   }
   /** User start interaction with stack layer. Focus is gained. */
-  @log
+  //@log
   protected def onStart(widget: Widget, hierarchy: Seq[SComposite]): Unit = this.stack match {
     case Some(tab: SCompositeTab) ⇒
       val viewName = hierarchy.headOption.map(view ⇒ View.name(view.id)) getOrElse {
@@ -246,7 +246,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
       throw new UnsupportedOperationException()
   }
   /** Focus is lost. */
-  @log
+  //@log
   protected def onStop(widget: Widget) {
   }
 

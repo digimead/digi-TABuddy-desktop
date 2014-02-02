@@ -47,6 +47,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.{ Exchanger, TimeUnit, TimeoutException }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.Timeout
 
 trait Thread {
   this: Generic with Loggable ⇒
@@ -117,10 +118,20 @@ trait Thread {
       })
     } else {
       display.asyncExec(new Runnable {
-        def run = try { exchanger.exchange(Right(f)) } catch { case e: Throwable ⇒ exchanger.exchange(Left(e)) }
+        def run = try {
+          if (duration == App.ShortRunnable)
+            exchanger.exchange(Right(f), Timeout.longest.toMillis, TimeUnit.MILLISECONDS)
+          else
+            exchanger.exchange(Right(f))
+        } catch { case e: Throwable ⇒ exchanger.exchange(Left(e)) }
       })
     }
-    exchanger.exchange(null) match {
+    {
+      if (duration == App.ShortRunnable)
+        exchanger.exchange(null, Timeout.longest.toMillis, TimeUnit.MILLISECONDS)
+      else
+        exchanger.exchange(null)
+    } match {
       case Left(e) ⇒
         throw e
       case Right(r) ⇒

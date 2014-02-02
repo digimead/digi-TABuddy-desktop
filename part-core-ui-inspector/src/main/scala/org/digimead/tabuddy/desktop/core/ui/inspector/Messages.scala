@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,67 +41,39 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.command
+package org.digimead.tabuddy.desktop.core.ui.inspector
 
-import java.util.UUID
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
+import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-import org.digimead.tabuddy.desktop.core.definition.command.Command
-import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.core.definition.NLS
 
 /**
- * The configurator is responsible for configure/unconfigure core commands.
+ * Resource bundle implementation.
+ *
+ * This code is directly evaluated in IDE (WindowBuilderPro).
+ * Any runtime references that may prevent creation are prohibited.
  */
-class Commands extends Loggable {
-  @volatile protected var contextParsers = Seq.empty[UUID]
-  private val lock = new Object
-
-  /** Configure component commands. */
-  @log
-  def configure() = lock.synchronized {
-    Command.register(CommandExit.descriptor)
-    val coreExit = Command.addToContext(Core.context, CommandExit.parser)
-    Command.register(CommandHelp.descriptor)
-    val coreHelp = Command.addToContext(Core.context, CommandHelp.parser)
-    Command.register(CommandInfo.descriptor)
-    val coreInfo = Command.addToContext(Core.context, CommandInfo.parser)
-    Command.register(CommandTest.descriptor)
-    //val coreTest = Command.addToContext(Core.context, CommandTest.parser)
-    /*
-     * context
-     */
-    Command.register(context.CommandContextList.descriptor)
-    val coreContextList = Command.addToContext(Core.context, context.CommandContextList.parser)
-    contextParsers = Seq(coreExit, coreHelp, coreInfo, coreContextList).flatten
+class Messages extends ResourceBundle {
+  def getKeys() = new java.util.Enumeration[String] {
+    private val iterator = Messages.T.messages.keys.iterator
+    def hasMoreElements(): Boolean = iterator.hasNext
+    def nextElement(): String = iterator.next()
   }
-  /** Unconfigure component commands. */
-  @log
-  def unconfigure() = lock.synchronized {
-    contextParsers.foreach(Command.removeFromContext(Core.context, _))
-    Command.unregister(CommandTest.descriptor)
-    Command.unregister(CommandInfo.descriptor)
-    Command.unregister(CommandHelp.descriptor)
-    Command.unregister(CommandExit.descriptor)
-    /*
-     * context
-     */
-    Command.unregister(context.CommandContextList.descriptor)
+  protected def handleGetObject(key: String): Object = try {
+    Messages.T.messages.get(key).
+      getOrElse { Messages.log.error(s"'${key}' not found in ${this.getClass()}"); key }
+  } catch {
+    case e: Throwable ⇒
+      key
   }
 }
 
-object Commands {
-  implicit def commands2implementation(c: Commands.type): Commands = c.inner
+object Messages extends NLS with Loggable {
+  val inspectorDescriptionLong_text = ""
+  val inspectorDescriptionShort_text = ""
+  val inspectorDialogDescription_text = ""
+  val inspectorDialogTitle_text = ""
+  val inspector_text = ""
 
-  /** Commands implementation. */
-  def inner(): Commands = DI.implementation
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Commands] getOrElse new Commands
-  }
+  T.ranslate("org.digimead.tabuddy.desktop.core.ui.inspector.messages")
 }

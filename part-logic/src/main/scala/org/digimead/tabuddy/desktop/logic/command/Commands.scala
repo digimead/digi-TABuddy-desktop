@@ -60,7 +60,7 @@ class Commands extends Loggable {
   @volatile protected var contextParsers = Seq.empty[UUID]
   private val lock = new Object
 
-  /** Configure component actions. */
+  /** Configure component commands. */
   @log
   def configure() = lock.synchronized {
     /*
@@ -142,7 +142,7 @@ class Commands extends Loggable {
         foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     }
   }
-  /** Unconfigure component actions. */
+  /** Unconfigure component commands. */
   @log
   def unconfigure() = lock.synchronized {
     contextParsers.foreach(Command.removeFromContext(Core.context, _))
@@ -167,7 +167,7 @@ class Commands extends Loggable {
 }
 
 object Commands {
-  implicit def configurator2implementation(c: Commands.type): Commands = c.inner
+  implicit def commands2implementation(c: Commands.type): Commands = c.inner
 
   /** Commands implementation. */
   def inner: Commands = DI.implementation

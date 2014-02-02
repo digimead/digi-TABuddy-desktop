@@ -175,7 +175,7 @@ class WindowSupervisor extends Actor with Loggable {
     case message @ App.Message.Set(windowId: UUID, configuration: WindowConfiguration) ⇒
       setConfiguration(sender, windowId, configuration)
 
-    case message @ App.Message.Start((id: UUID, widget: Widget), _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start((id: UUID, widget: Widget), _, _) ⇒ {
       // Stop previous active widget if any
       activeFocusEvent match {
         case Some((activeId, activeWidget)) if activeId != id || activeWidget != widget ⇒
@@ -186,7 +186,7 @@ class WindowSupervisor extends Actor with Loggable {
       start(id, widget)
     }
 
-    case message @ App.Message.Stop((id: UUID, widget: Widget), _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop((id: UUID, widget: Widget), _, _) ⇒ {
       stop(id, widget)
     }
   }
@@ -250,6 +250,7 @@ class WindowSupervisor extends Actor with Loggable {
     pointers -= window.id
     App.publish(App.Message.Destroy(window, origin))
     context.stop(window.ref)
+
   }
   /** Start global focus listener when GUI is available. */
   @log

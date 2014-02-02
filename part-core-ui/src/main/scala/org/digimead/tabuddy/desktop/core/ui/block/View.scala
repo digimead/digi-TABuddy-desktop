@@ -82,17 +82,16 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
   override def postStop() = {
     log.debug(this + " is stopped.")
     view.foreach { view ⇒
-      App.execNGet {
-        if (view.isDisposed()) {
-          log.debug(s"Terminate ${view.contentRef.path.name}.")
-          /*
+      // !!!Danger!!! see org.digimead.tabuddy.desktop.core.ui.UI ERR01
+      App.execNGet { if (view.isDisposed()) { true } else { view.dispose(); false } } && {
+        log.debug(s"Terminate ${view.contentRef.path.name}.")
+        /*
            * Stop view content actor only if view is disposed.
            * All UI elements ALWAYS disposed before actor termination by design.
            * If view content isn't disposed then it maybe moved to different window.
            */
-          context.stop(view.contentRef)
-        } else
-          view.dispose()
+        context.stop(view.contentRef)
+        true
       }
     }
   }
@@ -132,7 +131,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       Map(context.children.map { case child ⇒ child -> Map() }.toSeq: _*)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start((widget: Widget, Seq(view)), _, _) if (Some(view) == this.view) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start((widget: Widget, Seq(view)), _, _) if (Some(view) == this.view) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -141,7 +140,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {

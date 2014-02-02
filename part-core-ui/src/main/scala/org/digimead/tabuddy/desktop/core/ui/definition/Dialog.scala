@@ -105,7 +105,7 @@ trait Dialog extends org.eclipse.jface.dialogs.Dialog {
     val result = super.createDialogArea(parent)
     // The onPaintListener solution is not sufficient
     App.display.addFilter(SWT.Paint, onActiveListener)
-    parentShell.addDisposeListener(new DisposeListener {
+    parent.addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) = App.display.removeFilter(SWT.Paint, onActiveListener)
     })
     result
@@ -123,7 +123,7 @@ trait Dialog extends org.eclipse.jface.dialogs.Dialog {
     Dialog.DI.dialogSettingsFactory("settings", this.getClass.getName).asInstanceOf[IDialogSettings]
   /** Return the initial size of the dialog. */
   override protected def getInitialSize(): Point =
-    if (getDialogBoundsSettings().getSection(null) != null)
+    if (parentShell == null || getDialogBoundsSettings().getSection(null) != null)
       // there is already saved settings
       super.getInitialSize()
     else {
@@ -139,7 +139,7 @@ trait Dialog extends org.eclipse.jface.dialogs.Dialog {
     }
   /** Return the initial location to use for the shell. */
   override protected def getInitialLocation(initialSize: Point): Point =
-    if (getDialogBoundsSettings().getSection(null) != null)
+    if (parentShell == null || getDialogBoundsSettings().getSection(null) != null)
       // there is already saved settings
       super.getInitialLocation(initialSize)
     else {

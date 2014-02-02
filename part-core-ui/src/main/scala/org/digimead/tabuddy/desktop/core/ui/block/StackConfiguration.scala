@@ -82,7 +82,7 @@ class StackConfiguration extends Loggable {
   }
   /** Default view configuration. */
   def default() = StackConfiguration.DI.default()
-  /** List all available configurations. */
+  /** List all available stack configurations. */
   def list(): Seq[UUID] = loadSaveLock.synchronized {
     val suffix = "." + StackConfiguration.configurationExtenstion
     configurationContainer.listFiles().flatMap(_.getName() match {

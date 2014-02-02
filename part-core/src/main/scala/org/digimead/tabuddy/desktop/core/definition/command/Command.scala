@@ -91,9 +91,11 @@ class Command extends Loggable {
   def addToContext(context: Context, parser: Command.CmdParser): Option[UUID] = contextCommandsAccessLock.synchronized {
     val commandDescriptor = registry.get(parser.parserId) match {
       case Some(commandDescriptor) ⇒ commandDescriptor
-      case None ⇒ throw new IllegalArgumentException(s"Unable to add parser to context: parser id ${parser.parserId} not found")
+      case None ⇒ throw new IllegalArgumentException(s"Unable to add parser to context: parser id ${parser.parserId} not found.")
     }
     log.debug(s"""Add command "${commandDescriptor.name}"(${commandDescriptor.parserId}) to context '${context}'.""")
+    if (commandDescriptor.name.trim().isEmpty())
+      throw new IllegalArgumentException(s"Unable to add parser to context: command name is absent.")
     val newParserUniqueId = Option(context.get(Command.contextKey)) match {
       case Some(commandsGeneric: immutable.HashMap[_, _]) ⇒
         // there is already registered at least one context parser

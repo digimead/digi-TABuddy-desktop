@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,56 +41,41 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.command
+package org.digimead.tabuddy.desktop.core.ui.inspector.operation.api
 
-import java.util.UUID
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.support.App
-import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.core.definition.api
 
 /**
- * The configurator is responsible for configure/unconfigure core GUI commands.
+ * OperationInspector base trait.
  */
-class Commands extends Loggable {
-  @volatile protected var contextParsers = Seq.empty[UUID]
-  private val lock = new Object
-
-  /** Configure component commands. */
-  @log
-  def configure() = lock.synchronized {
-    Command.register(view.CommandView.descriptor)
-    Command.addToContext(Core.context, view.CommandView.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(view.CommandViewInfo.descriptor)
-    Command.addToContext(Core.context, view.CommandViewInfo.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(view.CommandViewClose.descriptor)
-  }
-  /** Unconfigure component commands. */
-  @log
-  def unconfigure() = lock.synchronized {
-    contextParsers.foreach(Command.removeFromContext(Core.context, _))
-    Command.unregister(view.CommandViewClose.descriptor)
-    Command.unregister(view.CommandViewInfo.descriptor)
-    Command.unregister(view.CommandView.descriptor)
-  }
-}
-
-object Commands {
-  implicit def commands2implementation(c: Commands.type): Commands = c.inner
-
-  /** Commands implementation. */
-  def inner(): Commands = DI.implementation
+trait OperationInspector {
+  checkSubclass()
 
   /**
-   * Dependency injection routines
+   * Show inspector.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Commands] getOrElse new Commands
-  }
+  def apply(): Unit
+  /**
+   * Create 'Show inspector' operation.
+   *
+   * @return 'Show inspector' operation
+   */
+  def operation(): api.Operation[Unit]
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.core.ui.inspector.operation.OperationInspector instead.")
 }

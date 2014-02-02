@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,34 +41,34 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.operation
+package org.digimead.tabuddy.desktop.core.ui.inspector.operation
 
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
-import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.inspector.dialog.InspectorDialog
+import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.swt.widgets.Shell
 
-/** 'Get commands' operation. */
-class OperationCommands extends api.OperationCommands with Loggable {
+/** 'Show inspector' operation. */
+class OperationInspector extends api.OperationInspector with Loggable {
   /**
-   * Get commands.
+   * Show inspector.
    */
-  override def apply(onlyAvailable: Boolean): Seq[Command.Descriptor] = {
-    log.info(s"Get commands.")
-    if (onlyAvailable)
-      Command.binded.filter(_.context == Core.context.getActiveLeaf()).map(info ⇒ Command(info.parserId)).toSeq
-    else
-      Command.registered.toSeq
+  override def apply() = {
+    log.info(s"Show inspector.")
+    dialog()
   }
   /**
-   * Create 'Get commands' operation.
+   * Create 'Show inspector' operation.
    */
-  def operation(onlyAvailable: Boolean) = new Implemetation(onlyAvailable).asInstanceOf[Operation[Seq[Descriptor]]]
+  def operation() = new Implemetation().asInstanceOf[Operation[Unit]]
 
   /**
    * Checks that this class can be subclassed.
@@ -86,42 +86,73 @@ class OperationCommands extends api.OperationCommands with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(onlyAvailable: Boolean) extends OperationCommands.Abstract() with Loggable {
+  protected def dialog(): Operation.Result[Unit] = {
+    App.assertEventThread(false)
+    Core.context.getChildren().find(context ⇒ Context.getName(context) == Some("InspectorDialog")) match {
+      case Some(dialogContext) ⇒
+        App.exec {
+          Option(dialogContext.get(classOf[InspectorDialog])).foreach { dialog ⇒
+            log.debug("Bring inspector window to top.")
+            dialog.getShell().forceFocus()
+            dialog.getShell().setActive()
+            dialog.getShell().forceActive()
+          }
+        }
+      case None ⇒
+        App.exec {
+          val dialogContext = Core.context.createChild("InspectorDialog")
+          dialogContext.set(classOf[Shell], null)
+          val dialog = ContextInjectionFactory.make(classOf[InspectorDialog], dialogContext)
+          dialog.openOrFocus { result ⇒
+            dialogContext.set(classOf[InspectorDialog], dialog)
+            Core.context.removeChild(dialogContext)
+            dialogContext.dispose()
+          }
+        }(App.LongRunnable)
+    }
+    Operation.Result.OK()
+  }
+
+  class Implemetation() extends OperationInspector.Abstract() with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Seq[Command.Descriptor]] =
-      try Operation.Result.OK(Option(OperationCommands.this(onlyAvailable)))
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
+      try dialog()
       catch {
-        case e: CancellationException ⇒ Operation.Result.Cancel()
-        case e: RuntimeException ⇒ Operation.Result.Error(e.getMessage(), e)
+        case e: IllegalArgumentException ⇒
+          Operation.Result.Error(e.getMessage(), e)
+        case e: IllegalStateException ⇒
+          Operation.Result.Error(e.getMessage(), e)
+        case e: CancellationException ⇒
+          Operation.Result.Cancel()
       }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Seq[Command.Descriptor]] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Seq[Command.Descriptor]] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
   }
 }
 
-object OperationCommands {
-  /** Stable identifier with OperationCommands DI */
-  lazy val operation = DI.operation.asInstanceOf[OperationCommands]
+object OperationInspector {
+  /** Stable identifier with OperationInspector DI */
+  lazy val operation = DI.operation.asInstanceOf[OperationInspector]
 
-  /** Build a new 'Get commands' operation */
+  /** Build a new 'Show inspector' operation */
   @log
-  def apply(onlyAvailable: Boolean): Option[Abstract] = Some(operation.operation(onlyAvailable).asInstanceOf[Abstract])
+  def apply(): Option[Abstract] = Some(operation.operation().asInstanceOf[Abstract])
 
-  /** Bridge between abstract api.Operation[Seq[api.Descriptor]] and concrete Operation[Seq[Command.Descriptor]] */
-  abstract class Abstract() extends Operation[Seq[Command.Descriptor]](s"Get commands.") {
+  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  abstract class Abstract() extends Operation[Unit](s"Show inspector.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationCommands] getOrElse new OperationCommands
+    lazy val operation = injectOptional[api.OperationInspector] getOrElse new OperationInspector
   }
 }

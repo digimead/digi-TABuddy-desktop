@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,67 +41,52 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.command
+package org.digimead.tabuddy.desktop.core.ui.inspector.command
 
 import java.util.UUID
+import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.inspector.Messages
+import org.digimead.tabuddy.desktop.core.ui.inspector.operation.OperationInspector
+import org.eclipse.core.runtime.jobs.Job
+import scala.concurrent.Future
 
 /**
- * The configurator is responsible for configure/unconfigure core commands.
+ * Show inspector.
  */
-class Commands extends Loggable {
-  @volatile protected var contextParsers = Seq.empty[UUID]
-  private val lock = new Object
-
-  /** Configure component commands. */
-  @log
-  def configure() = lock.synchronized {
-    Command.register(CommandExit.descriptor)
-    val coreExit = Command.addToContext(Core.context, CommandExit.parser)
-    Command.register(CommandHelp.descriptor)
-    val coreHelp = Command.addToContext(Core.context, CommandHelp.parser)
-    Command.register(CommandInfo.descriptor)
-    val coreInfo = Command.addToContext(Core.context, CommandInfo.parser)
-    Command.register(CommandTest.descriptor)
-    //val coreTest = Command.addToContext(Core.context, CommandTest.parser)
-    /*
-     * context
-     */
-    Command.register(context.CommandContextList.descriptor)
-    val coreContextList = Command.addToContext(Core.context, context.CommandContextList.parser)
-    contextParsers = Seq(coreExit, coreHelp, coreInfo, coreContextList).flatten
-  }
-  /** Unconfigure component commands. */
-  @log
-  def unconfigure() = lock.synchronized {
-    contextParsers.foreach(Command.removeFromContext(Core.context, _))
-    Command.unregister(CommandTest.descriptor)
-    Command.unregister(CommandInfo.descriptor)
-    Command.unregister(CommandHelp.descriptor)
-    Command.unregister(CommandExit.descriptor)
-    /*
-     * context
-     */
-    Command.unregister(context.CommandContextList.descriptor)
-  }
-}
-
-object Commands {
-  implicit def commands2implementation(c: Commands.type): Commands = c.inner
-
-  /** Commands implementation. */
-  def inner(): Commands = DI.implementation
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Commands] getOrElse new Commands
-  }
+object CommandInspector extends Loggable {
+  import Command.parser._
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Command description. */
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.inspector_text,
+    Messages.inspectorDescriptionShort_text, Messages.inspectorDescriptionLong_text,
+    (activeContext, parserContext, parserResult) ⇒ Future {
+      val exchanger = new Exchanger[Operation.Result[Unit]]()
+      OperationInspector().foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.LONG)
+            job.onComplete(exchanger.exchange).schedule()
+          case None ⇒
+            throw new RuntimeException(s"Unable to create job for ${operation}.")
+        }
+      }
+      exchanger.exchange(null) match {
+        case Operation.Result.OK(result, message) ⇒
+          log.info(s"Operation completed successfully.")
+        case Operation.Result.Cancel(message) ⇒
+          throw new CancellationException(s"Operation canceled, reason: ${message}.")
+        case err: Operation.Result.Error[_] ⇒
+          throw err
+        case other ⇒
+          throw new RuntimeException(s"Unable to complete operation: ${other}.")
+      }
+    })
+  /** Command parser. */
+  lazy val parser = Command.CmdParser(descriptor.name)
 }

@@ -74,6 +74,8 @@ case class WindowConfiguration(
 object WindowConfiguration extends Loggable {
   implicit def windowConfiguration2implementation(c: WindowConfiguration.type): Implementation = c.inner
 
+  /** Window configuration file extension. */
+  def configurationExtenstion = DI.configurationExtenstion
   /** Default window configuration. */
   def default = DI.default
   /** WindowConfiguration implementation. */
@@ -93,9 +95,27 @@ object WindowConfiguration extends Loggable {
       container
     }
     /** Regular expression for saved configuration file. */
-    lazy val configurationFileNameRegexp = ("""([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\.""" + DI.configurationExtenstion + ")").r
+    lazy val configurationFileNameRegexp = ("""([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\.""" +
+      WindowConfiguration.configurationExtenstion + ")").r
     private val loadSaveLock = new Object
 
+    /** List all available window configurations. */
+    def list(): Seq[UUID] = loadSaveLock.synchronized {
+      val suffix = "." + WindowConfiguration.configurationExtenstion
+      configurationContainer.listFiles(new FilenameFilter() {
+        override def accept(parent: File, name: String) =
+          name match {
+            case configurationFileNameRegexp(_) ⇒ true
+            case _ ⇒ false
+          }
+      }).flatMap(_.getName() match {
+        case name if name endsWith suffix ⇒
+          try Some(UUID.fromString(name.dropRight(suffix.length())))
+          catch { case e: Throwable ⇒ None }
+        case _ ⇒
+          None
+      })
+    }
     /** Load window configurations. */
     @log
     def load(): immutable.HashMap[UUID, WindowConfiguration] = loadSaveLock.synchronized {
@@ -135,7 +155,7 @@ object WindowConfiguration extends Loggable {
       log.debug("Save windows configuration to " + configurationContainer)
       log.trace("Save windows:\n" + configurations.toSeq.sortBy(_._1).mkString("\n"))
       for ((id, configuration) ← configurations) {
-        val configurationFile = new File(configurationContainer, id.toString + "." + DI.configurationExtenstion)
+        val configurationFile = new File(configurationContainer, id.toString + "." + WindowConfiguration.configurationExtenstion)
         log.debug("Save configuration to " + configurationFile.getName)
         val fos = new FileOutputStream(configurationFile)
         val out = new ObjectOutputStream(fos)

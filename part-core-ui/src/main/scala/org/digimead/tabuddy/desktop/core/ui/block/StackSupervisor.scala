@@ -162,7 +162,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start(widget: Widget, Some(this.window), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start(widget: Widget, Some(this.window), _) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -171,7 +171,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, Some(this.window), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop(widget: Widget, Some(this.window), _) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -291,7 +291,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     App.publish(App.Message.Destroy(stack, origin))
   }
   /** User start interaction with window/stack supervisor. Focus is gained. */
-  @log
+  //@log
   protected def onStart(widget: Widget) {
     val actualHierarchy = App.execNGet { UI.widgetHierarchy(widget) }
     if (actualHierarchy.isEmpty && widget.isInstanceOf[SComposite]) {
@@ -341,7 +341,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       log.error(e.getMessage, e)
   }
   /** Focus is lost. */
-  @log
+  //@log
   protected def onStop(widget: Widget) {
     lastActiveViewIdForCurrentWindow.get.foreach { viewId ⇒
       val viewPointer = pointers(viewId)

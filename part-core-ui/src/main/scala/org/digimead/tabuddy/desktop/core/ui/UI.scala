@@ -57,6 +57,24 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 
+/*
+ * ERR 01
+ *
+ * !!!Danger!!! Native deadlock under GTK with 100% CPU usage
+ * "Application event loop" daemon prio=10 tid=0x00007f26284d6000 nid=0x2e1d runnable [0x00007f267e69a000]
+ * java.lang.Thread.State: RUNNABLE
+ *      at org.eclipse.swt.internal.gtk.OS._gtk_main_do_event(Native Method)
+ *      at org.eclipse.swt.internal.gtk.OS.gtk_main_do_event(OS.java:8742)
+ *      at org.eclipse.swt.widgets.Display.eventProc(Display.java:1243)
+ *      at org.eclipse.swt.internal.gtk.OS._g_main_context_iteration(Native Method)
+ *      at org.eclipse.swt.internal.gtk.OS.g_main_context_iteration(OS.java:2288)
+ *      at org.eclipse.swt.widgets.Display.readAndDispatch(Display.java:3361)
+ *      at org.digimead.tabuddy.desktop.core.EventLoop.loop(EventLoop.scala:172)
+ *      at org.digimead.tabuddy.desktop.core.EventLoop$$anon$1.run(EventLoop.scala:104)
+ *      at org.eclipse.core.databinding.observable.Realm.runWithDefault(Realm.java:332)
+ *      at org.digimead.tabuddy.desktop.core.EventLoop.run(EventLoop.scala:104)
+ */
+
 /**
  * Root actor of the UI component.
  */
