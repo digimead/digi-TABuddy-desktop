@@ -76,7 +76,7 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
         setData(App.widgetContextKey, null)
         context.foreach(_.dispose())
         viewRemoveFromCommonMap()
-        ref ! App.Message.Destroy(VComposite.this, ref)
+        ref ! App.Message.Destroy(None, ref)
       }
     })
   }

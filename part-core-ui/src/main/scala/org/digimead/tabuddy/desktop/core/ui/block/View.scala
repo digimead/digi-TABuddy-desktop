@@ -61,6 +61,7 @@ import org.eclipse.core.databinding.observable.Diffs
 import org.eclipse.core.databinding.observable.value.AbstractObservableValue
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.{ Composite, Widget }
 import scala.collection.{ immutable, mutable }
@@ -86,10 +87,10 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       App.execNGet { if (view.isDisposed()) { true } else { view.dispose(); false } } && {
         log.debug(s"Terminate ${view.contentRef.path.name}.")
         /*
-           * Stop view content actor only if view is disposed.
-           * All UI elements ALWAYS disposed before actor termination by design.
-           * If view content isn't disposed then it maybe moved to different window.
-           */
+         * Stop view content actor only if view is disposed.
+         * All UI elements ALWAYS disposed before actor termination by design.
+         * If view content isn't disposed then it maybe moved to different location.
+         */
         context.stop(view.contentRef)
         true
       }
@@ -113,7 +114,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(_, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(None, _, _) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -175,8 +176,11 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
             case tab: SCompositeTab ⇒
               tab.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
                 case Some(tabItem) ⇒
-                  App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(viewWidgetWithContent.contentRef))
-                  tabItem.setText(viewConfiguration.factory().title(viewWidgetWithContent.contentRef).getValue().asInstanceOf[String])
+                  val binding = App.bindingContext.bindValue(SWTObservables.observeText(tabItem),
+                      viewConfiguration.factory().titleObservable(viewWidgetWithContent.contentRef))
+                  tabItem.addDisposeListener(new DisposeListener {
+                    def widgetDisposed(e: DisposeEvent) = binding.dispose()
+                  })
                 case None ⇒
                   log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
               }
@@ -279,7 +283,7 @@ object View extends Loggable {
     /** View actor reference configuration object. */
     def props: Props
     /** Get title for the actor reference. */
-    def title(ref: ActorRef): TitleObservableValue = viewActorLock.synchronized {
+    def titleObservable(ref: ActorRef): TitleObservableValue = viewActorLock.synchronized {
       if (!activeActorRefs.get.contains(ref))
         throw new IllegalStateException("Actor reference ${ref} in unknown in factory ${this}.")
       titlePerActor.get(ref) match {
@@ -297,12 +301,10 @@ object View extends Loggable {
     def viewActor(container: ActorRef, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
       val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
       log.debug(s"Create actor ${viewName}.")
-      val future = UI.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id)), viewName)
+      val future = UI.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id, Factory.this)), viewName)
       try {
         val newActorRef = Await.result(future.mapTo[ActorRef], timeout.duration)
         newActorRef ! App.Message.Set(container)
-        activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
-        titlePerActor.values.foreach(_.update)
         Some(newActorRef)
       } catch {
         case e: InterruptedException ⇒
@@ -313,20 +315,30 @@ object View extends Loggable {
           None
       }
     }
+    /** Register view as active in activeActorRefs. */
+    def register(activeView: ActorRef) {
+      activeActorRefs.set(activeActorRefs.get() :+ activeView)
+      App.execNGet { titlePerActor.values.foreach(_.update) }
+    }
+    /** Register view as active in activeActorRefs. */
+    def unregister(inactiveView: ActorRef) {
+      activeActorRefs.set(activeActorRefs.get().filterNot(_ == inactiveView))
+      App.execNGet { titlePerActor.values.foreach(_.update) }
+    }
 
     override lazy val toString = s"""View.Factory("${name}", "${shortDescription}")"""
 
     class TitleObservableValue(ref: ActorRef) extends AbstractObservableValue(App.realm) {
-      @volatile protected var value: AnyRef = name
+      @volatile protected var value: AnyRef = name.name
       update()
 
       /** The value type of this observable value. */
       def getValueType(): AnyRef = classOf[String]
 
       def update() = viewActorLock.synchronized {
-        val n = activeActorRefs.get.indexOf(ref)
-        value = s"${name} (${n})"
-        fireValueChange(Diffs.createValueDiff(name, this.value))
+        val n = activeActorRefs.get.indexOf(ref) + 1
+        value = if (n < 2) s"${name.name}" else s"${name.name} (${n})"
+        fireValueChange(Diffs.createValueDiff(name.name, this.value))
       }
       /** Get actual value. */
       protected def doGetValue(): AnyRef = value

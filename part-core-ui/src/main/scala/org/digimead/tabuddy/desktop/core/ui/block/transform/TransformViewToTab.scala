@@ -71,11 +71,11 @@ class TransformViewToTab extends Loggable {
         log.debug(s"View ${view} is already wrapped with tab ${tab}.")
         Option(tab)
       case wComposite: WComposite ⇒
-        val viewConfiguration = ss.configuration.asMap(view.id)._2.asInstanceOf[Configuration.CView]
+        val viewConfiguration = ss.buildConfiguration().asMap(view.id)._2.asInstanceOf[Configuration.CView]
         val tabConfiguration = Configuration.Stack.CTab(Seq())
         log.debug(s"Reconfigure stack hierarchy. Bind ${tabConfiguration} to ${wComposite}.")
-        val stackLayerRef = ss.context.actorOf(StackLayer.props.copy(args = immutable.Seq(tabConfiguration.id, ss.parentContext)),
-          StackLayer.id + "_%08X".format(tabConfiguration.id.hashCode()))
+        val stackLayerRef = ss.context.actorOf(StackLayer.props.copy(args =
+          immutable.Seq(tabConfiguration.id, ss.parentContext)), StackLayer.name(tabConfiguration.id))
         val stackWidgetFuture = stackLayerRef ? App.Message.Create(StackLayer.<>(tabConfiguration, App.execNGet { view.getParent() }), ss.self)
         val stackWidget = Await.result(stackWidgetFuture, timeout.duration) match {
           case App.Message.Create(stackWidget: SCompositeTab, Some(stackLayerRef), _) ⇒

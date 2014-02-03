@@ -95,8 +95,6 @@ class StackTabBuilder extends Loggable {
         case container: ScrolledComposite ⇒
           container.getChildren().headOption match {
             case Some(vComposite: VComposite) ⇒
-              App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(vComposite.contentRef))
-              tabItem.setText(viewConfiguration.factory().title(vComposite.contentRef).getValue().asInstanceOf[String])
               container.setContent(vComposite)
               container.setMinSize(vComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
               container.layout(true)

@@ -186,7 +186,7 @@ class WindowSupervisor extends Actor with Loggable {
       start(id, widget)
     }
 
-    case message @ App.Message.Stop((id: UUID, widget: Widget), _, _) ⇒ {
+    case message @ App.Message.Stop((id: UUID, widget: Widget), _, _) ⇒ App.traceMessage(message) {
       stop(id, widget)
     }
   }

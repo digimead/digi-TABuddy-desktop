@@ -210,7 +210,7 @@ class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
     implicit val ec = App.system.dispatcher
     val result = supervisorRef ? App.Message.Restore(content, ref)
     result.onSuccess {
-      case App.Message.Create(topWidget: SComposite, Some(origin), _) ⇒
+      case App.Message.Restore(Some(topWidget: SComposite), Some(origin), _) ⇒
         App.exec {
           if (!content.isDisposed()) // Yes, it is possible.
             this.content.foreach { content ⇒
@@ -225,8 +225,8 @@ class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
         }
       case App.Message.Error(error, None) ⇒
         log.fatal(s"Unable to create top level content for window ${this}: ${error}.")
-      case _ ⇒
-        log.fatal(s"Unable to create top level content for window ${this}.")
+      case error ⇒
+        log.fatal(s"Unable to create top level content for window ${this}: ${error}.")
     }
     result.onFailure {
       case failure ⇒

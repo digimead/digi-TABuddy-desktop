@@ -75,8 +75,6 @@ class StackBuilder extends Loggable {
                     container.setContent(viewWidget)
                     container.setMinSize(viewWidget.computeSize(SWT.DEFAULT, SWT.DEFAULT))
                     container.layout(true)
-                    App.bindingContext.bindValue(SWTObservables.observeText(tabItem), viewConfiguration.factory().title(viewWidget.contentRef))
-                    tabItem.setText(viewConfiguration.factory().title(viewWidget.contentRef).getValue().asInstanceOf[String])
                     Some(viewWidget)
                   case None ⇒
                     log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")

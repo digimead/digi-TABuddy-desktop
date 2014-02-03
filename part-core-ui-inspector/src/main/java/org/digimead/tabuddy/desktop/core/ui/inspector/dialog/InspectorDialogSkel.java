@@ -75,6 +75,7 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 	private TreeViewer treeViewer;
 	private TableViewer tableViewer;
 	private Text textMargin;
+	private Button btnReset;
 
 	/**
 	 * Get ResourceBundle from Scala environment.
@@ -119,13 +120,17 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 		composite.setLayout(new GridLayout(2, false));
 
 		btnRefresh = new Button(composite, SWT.NONE);
-		btnRefresh.setLayoutData(new GridData(SWT.CENTER, SWT.TOP, false, true, 1, 1));
+		btnRefresh.setLayoutData(new GridData(SWT.CENTER, SWT.TOP, false, false, 1, 1));
 		btnRefresh.setText("Refresh");
 
 		treeViewer = new TreeViewer(composite, SWT.BORDER);
 		treeViewer.setUseHashlookup(true);
 		Tree tree = treeViewer.getTree();
-		tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 3));
+		tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 4));
+
+		btnReset = new Button(composite, SWT.NONE);
+		btnReset.setLayoutData(new GridData(SWT.CENTER, SWT.TOP, false, true, 1, 1));
+		btnReset.setText("Reset");
 
 		Label lblMargin = new Label(composite, SWT.NONE);
 		lblMargin.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1));
@@ -183,5 +188,8 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 
 	protected Text getTextMargin() {
 		return textMargin;
+	}
+	protected Button getBtnReset() {
+		return btnReset;
 	}
 }

@@ -163,6 +163,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     }
     Core.context.cleanup()
     Core.context.dispose()
+    App.watchResetList()
     setTranslationServiceTracker(None)
     translationServiceTracker.foreach(_.close())
     translationServiceTracker = None

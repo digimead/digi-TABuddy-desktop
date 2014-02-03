@@ -66,7 +66,7 @@ import scala.concurrent.{ Await, Future }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import akka.actor.ActorContext
 
-class ViewDefault(val contentId: UUID) extends Actor with Loggable {
+class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor with Loggable {
   /** View body widget. */
   @volatile var body: Option[Composite] = None
   /** View parent widget. */
@@ -77,6 +77,16 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
   var containerRef = Option.empty[ActorRef]
   log.debug("Start actor " + self.path)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    log.debug(this + " is stopped.")
+    factory.unregister(self)
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() = {
+    log.debug(this + " is started.")
+    factory.register(self)
+  }
   /** Get container actor reference. */
   def container = containerRef getOrElse { throw new NoSuchElementException(s"${this} container not found.") }
   def receive = {
@@ -151,7 +161,7 @@ class ViewDefault(val contentId: UUID) extends Actor with Loggable {
       parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
       parent.layout(Array[Control](button), SWT.ALL)
       body.addDisposeListener(new DisposeListener {
-        def widgetDisposed(e: DisposeEvent) = container ! App.Message.Destroy(body, self)
+        def widgetDisposed(e: DisposeEvent) = container ! App.Message.Destroy(None, self)
       })
       this.parent = Option(parent)
       this.body = Option(body)
@@ -209,6 +219,8 @@ object ViewDefault extends View.Factory with Loggable {
     /** Default view actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.View.Default") getOrElse Props(classOf[ViewDefault],
       // content id == view layer id
-      UUID.fromString("00000000-0000-0000-0000-000000000000"))
+      UUID.fromString("00000000-0000-0000-0000-000000000000"),
+      // stub factory
+      null.asInstanceOf[View.Factory])
   }
 }

@@ -54,8 +54,8 @@ import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.viewers.{ ArrayContentProvider, DoubleClickEvent, IDoubleClickListener, ISelectionChangedListener, IStructuredSelection, ITableLabelProvider, ITreeContentProvider, LabelProvider, SelectionChangedEvent, TreeViewer, Viewer }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StackLayout
-import org.eclipse.swt.events.{ SelectionEvent, SelectionListener }
-import org.eclipse.swt.graphics.Image
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionEvent, SelectionListener }
+import org.eclipse.swt.graphics.{ Color, Image }
 import org.eclipse.swt.layout.{ FillLayout, FormLayout, GridLayout, RowLayout }
 import org.eclipse.swt.widgets.{ Composite, Control, Shell, ToolTip, Widget }
 
@@ -94,6 +94,10 @@ class InspectorDialog @Inject() (
       def widgetSelected(event: SelectionEvent) = InspectorDialog.this.refresh()
       def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
     })
+    getBtnReset().addSelectionListener(new SelectionListener() {
+      def widgetSelected(event: SelectionEvent) = InspectorDialog.this.reset()
+      def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
+    })
     val treeViewer = getTreeViewer()
     treeViewer.setLabelProvider(new InspectorDialog.TreeLabelProvider)
     treeViewer.setContentProvider(new InspectorDialog.TreeContentProvider)
@@ -130,15 +134,16 @@ class InspectorDialog @Inject() (
     tableViewer.setContentProvider(ArrayContentProvider.getInstance())
     tableViewer.setLabelProvider(new InspectorDialog.TableLabelProvider())
     getTextMargin().setText(InspectorDialog.margin.toString())
+    getShell().addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) = InspectorDialog.this.reset()
+    })
     result
   }
   /** Decorate the specific composite. */
   protected def decorateComposite(composite: Composite, colorIndex: Int = 0) {
     var index = colorIndex
-    if (composite.getData(InspectorDialog.swtId) == null) {
-      pad(composite, getMargin())
-      decorateControl(composite, index)
-    }
+    pad(composite, getMargin())
+    decorateControl(composite, index)
     composite.getChildren().foreach { child ⇒
       index += 1
       child match {
@@ -150,11 +155,12 @@ class InspectorDialog @Inject() (
   }
   /** Decorate the specific control. */
   protected def decorateControl(control: Control, colorIndex: Int = 0) {
-    if (!control.isInstanceOf[Composite] && control.getData(InspectorDialog.swtId) != null)
+    if (control.getData(InspectorDialog.swtBackgroundId) != null)
       return
     val index = ((colorIndex + 1) % colors.size) - 1
-    control.setData(InspectorDialog.swtId, control.getBackground())
+    control.setData(InspectorDialog.swtBackgroundId, control.getBackground())
     control.setBackground(colors(index))
+    control.setData(InspectorDialog.swtToolTipId, control.getToolTipText())
     control.setToolTipText(getToolTipText(control))
   }
   /** Handle double click on tree element. */
@@ -199,36 +205,71 @@ class InspectorDialog @Inject() (
   def pad(composite: Composite, margin: Int) = {
     composite.getLayout match {
       case layout: FillLayout ⇒
-        layout.marginWidth += margin
-        layout.marginHeight += margin
-        layout.spacing += margin
-      case layout: FormLayout ⇒
-        layout.marginWidth += margin
-        layout.marginHeight += margin
-      case layout: GridLayout ⇒
-        layout.marginWidth += margin
-        layout.marginHeight += margin
-      case layout: RowLayout ⇒
-        layout.marginWidth += margin
-        layout.marginHeight += margin
-      case layout: StackLayout ⇒
-        layout.marginWidth += margin
-        layout.marginHeight += margin
-      case layout if layout != null ⇒
-        try {
-          val marginWidthField = layout.getClass.getDeclaredField("marginWidth")
-          val marginHeightField = layout.getClass.getDeclaredField("marginHeight")
-          marginWidthField.set(layout, marginWidthField.get())
-          marginHeightField.set(layout, marginHeightField.get())
-          log.debug(s"Adjust unknown layout ${layout}.")
-        } catch {
-          case e: Throwable ⇒
-            log.warn(s"Unable to adjust unknown layout ${layout}: ${e}.")
+        composite.getData(InspectorDialog.swtMarginId) match {
+          case (marginWidth: Int, marginHeight: Int) ⇒
+            if (layout.marginWidth != (marginWidth + margin)) {
+              layout.marginWidth = marginWidth + margin
+              layout.marginHeight = marginHeight + margin
+            }
+          case _ ⇒
+            composite.setData(InspectorDialog.swtMarginId, (layout.marginWidth, layout.marginHeight))
+            layout.marginWidth += margin
+            layout.marginHeight += margin
         }
+      case layout: FormLayout ⇒
+        composite.getData(InspectorDialog.swtMarginId) match {
+          case (marginWidth: Int, marginHeight: Int) ⇒
+            if (layout.marginWidth != (marginWidth + margin)) {
+              layout.marginWidth = marginWidth + margin
+              layout.marginHeight = marginHeight + margin
+            }
+          case _ ⇒
+            composite.setData(InspectorDialog.swtMarginId, (layout.marginWidth, layout.marginHeight))
+            layout.marginWidth += margin
+            layout.marginHeight += margin
+        }
+      case layout: GridLayout ⇒
+        composite.getData(InspectorDialog.swtMarginId) match {
+          case (marginWidth: Int, marginHeight: Int) ⇒
+            if (layout.marginWidth != (marginWidth + margin)) {
+              layout.marginWidth = marginWidth + margin
+              layout.marginHeight = marginHeight + margin
+            }
+          case _ ⇒
+            composite.setData(InspectorDialog.swtMarginId, (layout.marginWidth, layout.marginHeight))
+            layout.marginWidth += margin
+            layout.marginHeight += margin
+        }
+      case layout: RowLayout ⇒
+        composite.getData(InspectorDialog.swtMarginId) match {
+          case (marginWidth: Int, marginHeight: Int) ⇒
+            if (layout.marginWidth != (marginWidth + margin)) {
+              layout.marginWidth = marginWidth + margin
+              layout.marginHeight = marginHeight + margin
+            }
+          case _ ⇒
+            composite.setData(InspectorDialog.swtMarginId, (layout.marginWidth, layout.marginHeight))
+            layout.marginWidth += margin
+            layout.marginHeight += margin
+        }
+      case layout: StackLayout ⇒
+        composite.getData(InspectorDialog.swtMarginId) match {
+          case (marginWidth: Int, marginHeight: Int) ⇒
+            if (layout.marginWidth != (marginWidth + margin)) {
+              layout.marginWidth = marginWidth + margin
+              layout.marginHeight = marginHeight + margin
+            }
+          case _ ⇒
+            composite.setData(InspectorDialog.swtMarginId, (layout.marginWidth, layout.marginHeight))
+            layout.marginWidth += margin
+            layout.marginHeight += margin
+        }
+      case layout if layout != null ⇒
+        log.warn(s"Unable to adjust unknown layout ${layout}.")
       case layout ⇒
     }
   }
-  /** Refresh inspector state. */
+  /** Refresh the inspector state. */
   def refresh() {
     log.debug("Refresh inspector.")
     val shell = getShell()
@@ -245,6 +286,45 @@ class InspectorDialog @Inject() (
         }))
     getTreeViewer.setInput(shells)
   }
+  /** Reset the inspector state. */
+  def reset() {
+    log.debug("Reset inspector.")
+    val shell = getShell()
+    val shells = App.display.getShells().filterNot(_ == shell)
+    shells.foreach(shell ⇒
+      shell.getChildren().foreach(
+        _ match {
+          case composite: Composite ⇒
+            resetComposite(composite)
+            composite.layout()
+          case control: Control ⇒
+            resetControl(control)
+          case _ ⇒
+        }))
+    getTreeViewer.setInput(shells)
+  }
+  /** Reset decoration of the specific composite. */
+  protected def resetComposite(composite: Composite) {
+    pad(composite, 0)
+    composite.setData(InspectorDialog.swtMarginId, null)
+    resetControl(composite)
+    composite.getChildren().foreach { child ⇒
+      child match {
+        case composite: Composite ⇒ resetComposite(composite)
+        case control: Control ⇒ resetControl(control)
+        case _ ⇒
+      }
+    }
+  }
+  /** Reset decoration of the specific control. */
+  protected def resetControl(control: Control) {
+    if (control.getData(InspectorDialog.swtBackgroundId) == null)
+      return
+    control.setBackground(control.getData(InspectorDialog.swtBackgroundId).asInstanceOf[Color])
+    control.setData(InspectorDialog.swtBackgroundId, null)
+    control.setToolTipText(control.getData(InspectorDialog.swtToolTipId).asInstanceOf[String])
+    control.setData(InspectorDialog.swtToolTipId, null)
+  }
 
   object ToolTip {
     /** Get information about layout. */
@@ -260,8 +340,12 @@ class InspectorDialog @Inject() (
 }
 
 object InspectorDialog {
-  /** SWT Data ID key */
-  val swtId = getClass.getName() + "#ID"
+  /** SWT Data ID key for background color. */
+  val swtBackgroundId = getClass.getName() + "#Background"
+  /** SWT Data ID key for margin. */
+  val swtMarginId = getClass.getName() + "#Margin"
+  /** SWT Data ID key for tooltip. */
+  val swtToolTipId = getClass.getName() + "#Tooltip"
 
   /**Get inspector margin. */
   def margin = DI.margin
@@ -320,6 +404,6 @@ object InspectorDialog {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Inspector margin. */
-    lazy val margin = injectOptional[Int]("Core.UI.Inspector.Margin") getOrElse 10
+    lazy val margin = injectOptional[Int]("Core.UI.Inspector.Margin") getOrElse 3
   }
 }
