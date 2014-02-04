@@ -118,12 +118,14 @@ class WindowSupervisor extends Actor with Loggable {
     log.debug(this + " is started.")
   }
   def receive = {
-    case message @ App.Message.Create(window: AppWindow, Some(origin), _) ⇒ App.traceMessage(message) {
-      onCreated(window, origin)
+    case message @ App.Message.Create(window: AppWindow, Some(origin), None) ⇒ App.traceMessage(message) {
+      if (!pointers.isDefinedAt(window.id))
+        onCreated(window, origin)
     }
 
-    case message @ App.Message.Destroy(window: AppWindow, Some(origin), _) ⇒ App.traceMessage(message) {
-      onDestroyed(window, origin)
+    case message @ App.Message.Destroy(window: AppWindow, Some(origin), None) ⇒ App.traceMessage(message) {
+      if (pointers.isDefinedAt(window.id))
+        onDestroyed(window, origin)
     }
 
     case message @ App.Message.Get(windowId: UUID) ⇒ getConfiguration(sender, Some(windowId))
@@ -135,7 +137,7 @@ class WindowSupervisor extends Actor with Loggable {
     case message @ App.Message.Get(WindowSupervisor.PointerMap) ⇒ sender ! pointers.toMap
 
     // open specific window
-    case message @ App.Message.Open(id: UUID, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(id: UUID, _, None) ⇒ App.traceMessage(message) {
       open(Some(id)) match {
         case Some(uuid) ⇒
           App.Message.Open(uuid, None)
@@ -145,7 +147,7 @@ class WindowSupervisor extends Actor with Loggable {
     } foreach { sender ! _ }
 
     // open some new window
-    case message @ App.Message.Open(None, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(None, _, None) ⇒ App.traceMessage(message) {
       open(None) match {
         case Some(uuid) ⇒
           App.Message.Open(uuid, None)
@@ -164,18 +166,18 @@ class WindowSupervisor extends Actor with Loggable {
       App.publish(message)
     }
 
-    case message @ App.Message.Restore(_, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Restore(_, _, None) ⇒ App.traceMessage(message) {
       restore()
     }
 
-    case message @ App.Message.Save(_, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Save(_, _, None) ⇒ App.traceMessage(message) {
       save()
     }
 
     case message @ App.Message.Set(windowId: UUID, configuration: WindowConfiguration) ⇒
       setConfiguration(sender, windowId, configuration)
 
-    case message @ App.Message.Start((id: UUID, widget: Widget), _, _) ⇒ {
+    case message @ App.Message.Start((id: UUID, widget: Widget), _, None) ⇒ App.traceMessage(message) {
       // Stop previous active widget if any
       activeFocusEvent match {
         case Some((activeId, activeWidget)) if activeId != id || activeWidget != widget ⇒
@@ -186,7 +188,7 @@ class WindowSupervisor extends Actor with Loggable {
       start(id, widget)
     }
 
-    case message @ App.Message.Stop((id: UUID, widget: Widget), _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop((id: UUID, widget: Widget), _, None) ⇒ App.traceMessage(message) {
       stop(id, widget)
     }
   }
@@ -250,7 +252,6 @@ class WindowSupervisor extends Actor with Loggable {
     pointers -= window.id
     App.publish(App.Message.Destroy(window, origin))
     context.stop(window.ref)
-
   }
   /** Start global focus listener when GUI is available. */
   @log
@@ -334,6 +335,7 @@ class WindowSupervisor extends Actor with Loggable {
     }))) configurationsSaveRestart.set(true)
   }
   /** Start window. */
+  @log
   def start(id: UUID, widget: Widget) {
     if (Left(id, widget) != lastFocusEvent)
       pointers.get(id).foreach { pointer ⇒
@@ -343,6 +345,7 @@ class WindowSupervisor extends Actor with Loggable {
       }
   }
   /** Stop window. */
+  @log
   def stop(id: UUID, widget: Widget) {
     if (Right(id, widget) != lastFocusEvent)
       pointers.get(id).foreach { pointer ⇒

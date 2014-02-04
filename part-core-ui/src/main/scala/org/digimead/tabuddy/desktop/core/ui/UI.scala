@@ -60,7 +60,7 @@ import scala.language.implicitConversions
 /*
  * ERR 01
  *
- * !!!Danger!!! Native deadlock under GTK with 100% CPU usage
+ * !Danger! Native deadlock under GTK with 100% CPU usage
  * "Application event loop" daemon prio=10 tid=0x00007f26284d6000 nid=0x2e1d runnable [0x00007f267e69a000]
  * java.lang.Thread.State: RUNNABLE
  *      at org.eclipse.swt.internal.gtk.OS._gtk_main_do_event(Native Method)

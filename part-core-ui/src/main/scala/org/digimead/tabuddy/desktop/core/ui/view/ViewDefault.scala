@@ -90,7 +90,7 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
   /** Get container actor reference. */
   def container = containerRef getOrElse { throw new NoSuchElementException(s"${this} container not found.") }
   def receive = {
-    case message @ App.Message.Create(viewLayerWidget: VComposite, Some(view), _) if view == container ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(viewLayerWidget: VComposite, Some(view), None) if view == container ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -104,7 +104,7 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(viewLayerWidget: VComposite, Some(view), _) if view == container ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(viewLayerWidget: VComposite, Some(view), None) if view == container ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -123,7 +123,7 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
       log.debug(s"Bind ${this} to ${parentActor}.")
       containerRef = Some(parentActor)
 
-    case message @ App.Message.Start(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start(widget: Widget, _, None) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -131,7 +131,7 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop(widget: Widget, _, None) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {

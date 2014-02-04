@@ -84,7 +84,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
   override def preStart() = log.debug(this + " is started.")
   def receive = {
     // Create this stack layer JFace implementation.
-    case message @ App.Message.Create(StackLayer.<>(stackConfiguration, parentWidget), Some(this.container), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(StackLayer.<>(stackConfiguration, parentWidget), Some(this.container), None) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -99,7 +99,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
     } foreach { sender ! _ }
 
     // Create a view with a new or exists widget.
-    case message @ App.Message.Create(StackLayer.<+>(viewConfiguration, content), anySender, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(StackLayer.<+>(viewConfiguration, content), anySender, None) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -113,7 +113,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
     } foreach { sender ! _ }
 
     // Notification.
-    case message @ App.Message.Create(stackLayer: SComposite, Some(origin), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(stackLayer: SComposite, Some(origin), None) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -124,8 +124,9 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
     }
 
     // Destroy this layer.
-    case message @ App.Message.Destroy(None, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(None, _, None) ⇒ App.traceMessage(message) {
       if (terminated) {
+        stack.foreach(stackWidget ⇒ container ! App.Message.Destroy(stackWidget, self))
         App.Message.Error(s"${this} is terminated.", self)
       } else {
         destroy() match {
@@ -140,7 +141,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
     } foreach { sender ! _ }
 
     // Notification.
-    case message @ App.Message.Destroy(stackLayer: SComposite, Some(origin), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(stackLayer: SComposite, Some(origin), None) ⇒ App.traceMessage(message) {
       container ! message
       // ^ order is important v
       if (children(stackLayer.id))
@@ -152,20 +153,20 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
       Map(tree.map { case (child, map) ⇒ child -> Await.result(map, timeout.duration) }.toSeq: _*)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start((widget: Widget, hierarchy: Seq[_]), _, _) if hierarchy.lastOption == stack ⇒ Option {
+    case message @ App.Message.Start((widget: Widget, Seq(stack: SComposite, hierarchyFromWindowToWidget @ _*)), _, None) if Some(stack) == this.stack ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStart(widget, hierarchy.asInstanceOf[Seq[SComposite]])
+        onStart(widget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]])
         App.Message.Start(widget, self)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ Option {
+    case message @ App.Message.Stop((widget: Widget, Seq(stack: SComposite, hierarchyFromWindowToWidget @ _*)), _, None) if Some(stack) == this.stack ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStop(widget)
+        onStop(widget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]])
         App.Message.Stop(widget, self)
       }
     } foreach { sender ! _ }
@@ -222,8 +223,38 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
   @log
   protected def onDestroyed(child: SComposite, origin: ActorRef) {
     if (children.nonEmpty) {
-      log.debug(s"Remove destroyed ${child} from ${this} and keep ${children.size} element(s).")
+      log.debug(s"Remove destroyed ${child} from ${this} and keep ${children.size - 1} element(s).")
       children -= child.id
+      this.stack match {
+        case Some(tab: SCompositeTab) ⇒
+          val numberOfTabs = App.execNGet {
+            if (!tab.isDisposed()) {
+              val items = tab.getItems()
+              items.find(item ⇒ item.getData(UI.swtId) == child.id) match {
+                case Some(tabItem) ⇒
+                  log.debug(s"Remove tab with ${child}.")
+                  tab.getChildren().foreach {
+                    case scrolledComposite: ScrolledComposite ⇒
+                      if (scrolledComposite.getChildren().isEmpty)
+                        scrolledComposite.dispose()
+                      else if (scrolledComposite.getChildren().headOption == Some(child))
+                        scrolledComposite.dispose()
+                  }
+                  tabItem.dispose()
+                  items.size - 1
+                case None ⇒
+                  log.debug(s"There is no tab for ${child}.")
+                  items.size
+              }
+            } else
+              0
+          }
+          if (numberOfTabs == 1) {
+            terminated = true
+            container ! App.Message.Destroy(tab, self, "toTab")
+          }
+        case _ ⇒
+      }
       stack.foreach { stack ⇒
         if (children.isEmpty) {
           log.debug(s"There are no children. Destroy ${this}.")
@@ -234,20 +265,33 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
   }
   /** User start interaction with stack layer. Focus is gained. */
   //@log
-  protected def onStart(widget: Widget, hierarchy: Seq[SComposite]): Unit = this.stack match {
-    case Some(tab: SCompositeTab) ⇒
-      val viewName = hierarchy.headOption.map(view ⇒ View.name(view.id)) getOrElse {
-        throw new IllegalStateException("Unable to find view name for hierarchy " + hierarchy)
-      }
-      context.children.find(_.path.name == viewName).foreach { viewActor ⇒
-        Await.ready(viewActor ? App.Message.Start((widget, hierarchy.dropRight(1)), self), timeout.duration)
-      }
-    case _ ⇒
-      throw new UnsupportedOperationException()
+  protected def onStart(widget: Widget, hierarchyFromWindowToWidget: Seq[SComposite]): Unit = {
+    val nextActor = hierarchyFromWindowToWidget.headOption match {
+      case Some(nextView: VComposite) ⇒
+        context.children.find(_.path.name == View.name(nextView.id))
+      case Some(nextStack) ⇒
+        context.children.find(_.path.name == StackLayer.name(nextStack.id))
+      case None ⇒
+        log.fatal(s"Start ${this} but unable to find next level for ${widget}.")
+        None
+    }
+    nextActor.foreach(actor ⇒
+      Await.ready(actor ? App.Message.Start((widget, hierarchyFromWindowToWidget), self), timeout.duration))
   }
   /** Focus is lost. */
   //@log
-  protected def onStop(widget: Widget) {
+  protected def onStop(widget: Widget, hierarchyFromWindowToWidget: Seq[SComposite]) {
+    val nextActor = hierarchyFromWindowToWidget.headOption match {
+      case Some(nextView: VComposite) ⇒
+        context.children.find(_.path.name == View.name(nextView.id))
+      case Some(nextStack) ⇒
+        context.children.find(_.path.name == StackLayer.name(nextStack.id))
+      case None ⇒
+        log.fatal(s"Start ${this} but unable to find next level for ${widget}.")
+        None
+    }
+    nextActor.foreach(actor ⇒
+      Await.ready(actor ? App.Message.Stop((widget, hierarchyFromWindowToWidget), self), timeout.duration))
   }
 
   override lazy val toString = "StackLayer[actor/%08X]".format(stackId.hashCode())

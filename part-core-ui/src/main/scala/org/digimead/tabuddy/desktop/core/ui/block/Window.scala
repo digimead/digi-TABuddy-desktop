@@ -86,7 +86,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
   def receive = {
-    case message @ App.Message.Close(_, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Close(_, _, None) ⇒ App.traceMessage(message) {
       close(sender) match {
         case Some(appWindow) ⇒
           App.Message.Close(appWindow, None)
@@ -95,7 +95,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Create(Window.<>(windowId, configuration), Some(this.windowSupervisor), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(Window.<>(windowId, configuration), Some(this.windowSupervisor), None) ⇒ App.traceMessage(message) {
       assert(windowId == this.windowId)
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
@@ -110,7 +110,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     } foreach { sender ! _ }
 
     // StackSupervisor is terminated.
-    case message @ App.Message.Destroy(this.stackSupervisor, Some(this.stackSupervisor), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(this.stackSupervisor, Some(this.stackSupervisor), None) ⇒ App.traceMessage(message) {
       stackSupervisorTerminated = true
       if (terminated)
         window match {
@@ -123,7 +123,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     }
 
     // Destroy this window.
-    case message @ App.Message.Destroy(_, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(_, _, None) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -153,7 +153,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     } foreach { sender ! _ }
 
     // Asynchronous routine that creates initial window and passes it to AppWindow.showContent.
-    case message @ App.Message.Open(_, Some(this.windowSupervisor), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(_, Some(this.windowSupervisor), None) ⇒ App.traceMessage(message) {
       open(sender) match {
         case Some(appWindow) ⇒
           App.Message.Open(appWindow, self, "Opening in progress.")
@@ -163,12 +163,12 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     } foreach { sender ! _ }
 
     // Reply from AppWindow.showContent on success.
-    case message @ App.Message.Open(window: AppWindow, Some(this.self), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(window: AppWindow, Some(this.self), None) ⇒ App.traceMessage(message) {
       log.debug(s"Window content created and shown.")
       windowSupervisor ! message
     }
 
-    case message @ App.Message.Restore(_, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Restore(_, _, None) ⇒ App.traceMessage(message) {
       val reply = for {
         window ← window
         content ← window.getContent()
@@ -176,7 +176,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       reply getOrElse App.Message.Error(s"Unable to restore content for ${this}.", self)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start(widget: Widget, _, _) ⇒ Option {
+    case message @ App.Message.Start(widget: Widget, _, None) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -185,13 +185,12 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ Option {
+    case message @ App.Message.Stop(widget: Widget, _, None) ⇒ App.traceMessage(message) {
       if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
         onStop(widget)
         App.Message.Stop(widget, self)
-      } else {
-        onStart(widget)
-        App.Message.Start(widget, self)
       }
     } foreach { sender ! _ }
   }

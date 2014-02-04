@@ -83,7 +83,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
   override def postStop() = {
     log.debug(this + " is stopped.")
     view.foreach { view ⇒
-      // !!!Danger!!! see org.digimead.tabuddy.desktop.core.ui.UI ERR01
+      // !Danger! see org.digimead.tabuddy.desktop.core.ui.UI ERR01
       App.execNGet { if (view.isDisposed()) { true } else { view.dispose(); false } } && {
         log.debug(s"Terminate ${view.contentRef.path.name}.")
         /*
@@ -100,7 +100,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
   override def preStart() = log.debug(this + " is started.")
   def receive = {
     // Create new content.
-    case message @ App.Message.Create(View.<>(viewConfiguration, parentWidget, content), Some(this.container), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(View.<>(viewConfiguration, parentWidget, content), Some(this.container), None) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -114,8 +114,9 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(None, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(None, _, None) ⇒ App.traceMessage(message) {
       if (terminated) {
+        view.foreach(view ⇒ container ! App.Message.Destroy(view, self))
         App.Message.Error(s"${this} is terminated.", self)
       } else {
         destroy() match {
@@ -132,7 +133,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       Map(context.children.map { case child ⇒ child -> Map() }.toSeq: _*)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start((widget: Widget, Seq(view)), _, _) if (Some(view) == this.view) ⇒ Option {
+    case message @ App.Message.Start((widget: Widget, Seq(view: VComposite)), _, None) if (Some(view) == this.view) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -141,7 +142,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, _, _) ⇒ Option {
+    case message @ App.Message.Stop((widget: Widget, Seq(view: VComposite)), _, None) if (Some(view) == this.view) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -177,7 +178,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
               tab.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
                 case Some(tabItem) ⇒
                   val binding = App.bindingContext.bindValue(SWTObservables.observeText(tabItem),
-                      viewConfiguration.factory().titleObservable(viewWidgetWithContent.contentRef))
+                    viewConfiguration.factory().titleObservable(viewWidgetWithContent.contentRef))
                   tabItem.addDisposeListener(new DisposeListener {
                     def widgetDisposed(e: DisposeEvent) = binding.dispose()
                   })
@@ -228,6 +229,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
   /** Focus is lost. */
   protected def onStop(widget: Widget) = view match {
     case Some(view) ⇒
+      log.debug(s"View layer $this lost focus.")
       Await.ready(view.contentRef ? App.Message.Stop(widget, self), timeout.duration)
     case None ⇒
       log.debug("Unable to stop unexists view.")
@@ -317,11 +319,13 @@ object View extends Loggable {
     }
     /** Register view as active in activeActorRefs. */
     def register(activeView: ActorRef) {
+      log.debug(s"Register ${activeView.path.name} in ${this}.")
       activeActorRefs.set(activeActorRefs.get() :+ activeView)
       App.execNGet { titlePerActor.values.foreach(_.update) }
     }
     /** Register view as active in activeActorRefs. */
     def unregister(inactiveView: ActorRef) {
+      log.debug(s"Unregister ${inactiveView.path.name} in ${this}.")
       activeActorRefs.set(activeActorRefs.get().filterNot(_ == inactiveView))
       App.execNGet { titlePerActor.values.foreach(_.update) }
     }
@@ -337,8 +341,9 @@ object View extends Loggable {
 
       def update() = viewActorLock.synchronized {
         val n = activeActorRefs.get.indexOf(ref) + 1
+        val before = value
         value = if (n < 2) s"${name.name}" else s"${name.name} (${n})"
-        fireValueChange(Diffs.createValueDiff(name.name, this.value))
+        fireValueChange(Diffs.createValueDiff(before, this.value))
       }
       /** Get actual value. */
       protected def doGetValue(): AnyRef = value

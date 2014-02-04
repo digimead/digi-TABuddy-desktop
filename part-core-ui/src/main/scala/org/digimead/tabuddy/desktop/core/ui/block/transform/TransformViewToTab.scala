@@ -60,8 +60,9 @@ class TransformViewToTab extends Loggable {
   implicit val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
+
   def apply(ss: StackSupervisor, view: VComposite): Option[SCompositeTab] = {
-    log.debug(s"Move ${view} to tab stack container.")
+    log.debug(s"Push ${view} to tab stack container.")
     App.assertEventThread(false)
     val hierarchy = App.execNGet { UI.widgetHierarchy(view) }
     if (hierarchy.headOption != Some(view) || hierarchy.size < 2)

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,52 +41,50 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.definition.widget
+package org.digimead.tabuddy.desktop.core.ui.block.transform
 
-import akka.actor.{ ActorRef, actorRef2Scala }
-import java.util.UUID
+import java.util.concurrent.ExecutionException
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
 import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
-import org.eclipse.swt.widgets.TabFolder
+import scala.language.implicitConversions
 
-class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
-  extends TabFolder(parent, style) with SComposite with Loggable {
-  initialize
+/** Unwrap view from tab stack. */
+class TransformTabToView extends Loggable {
+  def apply(ss: StackSupervisor, tab: SCompositeTab): Option[VComposite] = ss.wComposite flatMap { wComposite ⇒
+    // Throw runtime error if something wrong.
+    val view = try App.execNGet {
+      val Array(scrolledComposite) = tab.getChildren()
+      val Array(view) = scrolledComposite.asInstanceOf[ScrolledComposite].getChildren()
+      view.asInstanceOf[VComposite]
+    } catch {
+      case e: ExecutionException if e.getCause() != null ⇒ throw e.getCause()
+    }
+    val viewConfiguration = ss.buildConfiguration().asMap(view.id)._2.asInstanceOf[Configuration.CView]
+    log.debug(s"Attach ${viewConfiguration} as top level element.")
+    val result = ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, Some(view))
+    result.foreach { _ ⇒
+      ss.context.stop(view.ref)
+      App.execNGet { tab.dispose() }
+    }
+    result
+  }
+}
 
-  /** Returns the receiver's parent, which must be a ScrolledComposite. */
-  override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
-  /** Initialize current tab composite. */
-  protected def initialize() {
-    // Add an event listener to pass the selected tab to WindowSupervisor
-    addSelectionListener(new SelectionAdapter() {
-      override def widgetSelected(event: SelectionEvent) = getSelection().headOption match {
-        case Some(selection) ⇒
-          selection.getControl() match {
-            case composite: ScrolledComposite if composite.getContent().isInstanceOf[VComposite] ⇒
-              val viewLayerComposite = composite.getContent()
-              App.execAsync {
-                // After item will be selected, but will not block UI thread.
-                log.debug(s"Start tab item with ${viewLayerComposite}.")
-                val windowId = UI.widgetHierarchy(viewLayerComposite).last.asInstanceOf[WComposite].id
-                WindowSupervisor.actor ! App.Message.Start((windowId, viewLayerComposite), ref)
-              }
-            case composite: ScrolledComposite if composite.getContent() == null ⇒
-              log.debug("Skip selection event for the empty tab.")
-            case unexpected ⇒
-              log.fatal(s"Tab item contains unexpected JFace element: ${unexpected}.")
-          }
-        case None ⇒
-          log.debug(s"Skip empty selection.")
-      }
-    })
-    addDisposeListener(new DisposeListener {
-      def widgetDisposed(e: DisposeEvent) {
-        ref ! App.Message.Destroy(None, ref)
-      }
-    })
+object TransformTabToView {
+  implicit def transform2implementation(t: TransformTabToView.type): TransformTabToView = inner
+
+  def inner(): TransformTabToView = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** TransformTabToView implementation */
+    lazy val implementation = injectOptional[TransformTabToView] getOrElse new TransformTabToView
   }
 }

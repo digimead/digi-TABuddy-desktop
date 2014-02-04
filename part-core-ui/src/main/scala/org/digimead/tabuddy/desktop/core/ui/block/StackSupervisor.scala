@@ -57,7 +57,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, VComposite, VEmpty, WComposite }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, SCompositeTab, VComposite, VEmpty, WComposite }
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Widget
 import scala.collection.{ immutable, mutable }
@@ -99,7 +99,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
   def receive = {
-    case message @ App.Message.Create(viewConfiguration: Configuration.CView, None, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(viewConfiguration: Configuration.CView, None, None) ⇒ App.traceMessage(message) {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -113,7 +113,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     } foreach { sender ! _ }
 
     // Notification.
-    case message @ App.Message.Create(stackLayer: SComposite, Some(origin), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Create(stackLayer: SComposite, Some(origin), None) ⇒ App.traceMessage(message) {
       assert(sender != window)
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
@@ -124,7 +124,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     }
 
     // Notification.
-    case message @ App.Message.Destroy(stackLayer: SComposite, Some(origin), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(stackLayer: SComposite, Some(origin), None) ⇒ App.traceMessage(message) {
       assert(sender != window)
       if (pointers.isDefinedAt(stackLayer.id))
         onDestroyed(stackLayer, origin)
@@ -132,7 +132,12 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         window ! App.Message.Destroy(self, self)
     }
 
-    case message @ App.Message.Destroy(_: AppWindow, Some(this.window), _) ⇒ App.traceMessage(message) {
+    // Notification.
+    case message @ App.Message.Destroy(tab: SCompositeTab, Some(origin), Some("toTab")) ⇒ App.traceMessage(message) {
+      transform.TransformTabToView(this, tab)
+    }
+
+    case message @ App.Message.Destroy(_: AppWindow, Some(this.window), None) ⇒ App.traceMessage(message) {
       terminated = true
       restoreCallback = None
       try Await.result(Future.sequence(context.children.map(_ ? App.Message.Destroy())), timeout.duration)
@@ -155,7 +160,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
 
     case message @ App.Message.Get(Seq) ⇒ sender ! pointers.toSeq
 
-    case message @ App.Message.Restore(content: WComposite, Some(this.window), _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Restore(content: WComposite, Some(this.window), None) ⇒ App.traceMessage(message) {
       if (terminated) {
         sender ! App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -164,7 +169,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       }
     }
 
-    case message @ App.Message.Start(widget: Widget, Some(this.window), _) ⇒ Option {
+    case message @ App.Message.Start(widget: Widget, Some(this.window), None) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -173,7 +178,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, Some(this.window), _) ⇒ Option {
+    case message @ App.Message.Stop(widget: Widget, Some(this.window), None) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
@@ -288,14 +293,17 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   /** Unregister destroyed stack element. */
   @log
   protected def onDestroyed(stack: SComposite, origin: ActorRef) {
-    log.debug(s"Remove destroyed ${stack} from ${this}.")
+    log.debug(s"Remove destroyed ${stack} from ${this}, keep ${pointers.size - 1} element(s).")
     // 1. find last view id if closeWindowWithLastView enabled
     val lastViewUUID = if (UI.closeWindowWithLastView)
       pointers.find { case (uuid, pointer) ⇒ pointer.stack.get().isInstanceOf[VComposite] } map (_._1)
     else
       None
     // 2. commit delete
-    context.children.find(_ == stack.ref).foreach(context.stop)
+    // stop all children
+    context.stop(stack.ref)
+    // stop only direct children
+    //context.children.find(_ == stack.ref).foreach(context.stop)
     pointers -= stack.id
     if (lastActiveViewIdForCurrentWindow.get() == Option(stack.id))
       lastActiveViewIdForCurrentWindow.set(None)
@@ -350,33 +358,39 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     toStart match {
       case (Some(widget), hierarchy @ Seq(view: VComposite, windowContent: WComposite)) ⇒
         // View is directly attached to shell.
-        onStart(view.id, widget, hierarchy.dropRight(1))
+        onStart(view.id, widget, hierarchy.reverse.tail)
       case (Some(widget), hierarchy @ Seq(view: VComposite, stack: SComposite, _*)) ⇒
         // View is attached to stack.
-        onStart(view.id, widget, hierarchy.dropRight(1))
+        onStart(view.id, widget, hierarchy.reverse.tail)
       case (Some(widget), unexpected) ⇒
         log.fatal(s"Unexpected hierarchy ${unexpected} for widget ${widget}.")
       case (None, Nil) ⇒
     }
   }
   /** Set active view. */
-  protected def onStart(id: UUID, widget: Widget, hierarchyFromWidgetToWindow: Seq[SComposite]): Unit = try {
+  protected def onStart(id: UUID, widget: Widget, hierarchyFromWindowToWidget: Seq[SComposite]): Unit = try {
     if (lastActiveViewIdForCurrentWindow.get() != Some(id))
       lastActiveViewIdForCurrentWindow.set(Option(id))
-    Await.ready(pointers(id).actor ? App.Message.Start((widget, hierarchyFromWidgetToWindow), self), timeout.duration)
+    Await.ready(pointers(id).actor ? App.Message.Start((widget, hierarchyFromWindowToWidget), self), timeout.duration)
   } catch {
     case e: Throwable ⇒
       log.error(e.getMessage, e)
   }
   /** Focus is lost. */
-  //@log
   protected def onStop(widget: Widget) {
     lastActiveViewIdForCurrentWindow.get.foreach { viewId ⇒
       val viewPointer = pointers(viewId)
-      val seq = App.execNGet { UI.widgetHierarchy(widget) }
+      val hierarchy = App.execNGet { UI.widgetHierarchy(widget) }
       // Replace event widget with view composite if the original one is unknown (not a child of a view).
-      val actualWidget = if (seq.headOption.map(_.isInstanceOf[VComposite]).getOrElse(false)) Some(widget) else Option(viewPointer.stack.get())
-      actualWidget.foreach(actualWidget ⇒ Await.ready(viewPointer.actor ? App.Message.Stop(actualWidget, self), timeout.duration))
+      val (widgetToStop, hierarchyToStop) = hierarchy.headOption match {
+        case Some(view: VComposite) ⇒
+          (widget, hierarchy)
+        case _ ⇒
+          val view = viewPointer.stack.get()
+          (view, App.execNGet { UI.widgetHierarchy(view) })
+      }
+      // hierarchyToStop is a hierarchy from the widget to the window without the window WComposite.
+      Await.ready(viewPointer.actor ? App.Message.Stop((widgetToStop, hierarchyToStop.reverse.tail), self), timeout.duration)
     }
   }
   /** Restore stack configuration. */
