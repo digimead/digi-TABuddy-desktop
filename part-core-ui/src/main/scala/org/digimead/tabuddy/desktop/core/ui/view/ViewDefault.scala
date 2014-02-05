@@ -184,25 +184,32 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
   }
 }
 
-object ViewDefault extends View.Factory with Loggable {
+object ViewDefault extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** View name. */
-  lazy val name = DI.name
-  /** Short view description (one line). */
-  lazy val shortDescription = DI.shortDescription
-  /** Long view description. */
-  lazy val longDescription = DI.longDescription
-  /** View image. */
-  lazy val image = DI.image
 
-  /** Default view actor reference configuration object. */
-  def props = DI.props
+  /** Default view factory. */
+  def factory = DI.factory
 
+  class Factory extends View.Factory {
+    /** View name. */
+    lazy val name = ViewDefault.DI.name
+    /** Short view description (one line). */
+    lazy val shortDescription = ViewDefault.DI.shortDescription
+    /** Long view description. */
+    lazy val longDescription = ViewDefault.DI.longDescription
+    /** View image. */
+    lazy val image = ViewDefault.DI.image
+
+    /** Default view actor reference configuration object. */
+    def props = ViewDefault.DI.props
+  }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** Default view factory. */
+    lazy val factory = injectOptional[Factory] getOrElse new Factory
     /** View name. */
     lazy val name = injectOptional[Symbol]("Core.View.Default.Name") getOrElse Symbol({
       val name = Messages.default_text

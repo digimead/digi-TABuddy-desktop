@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,44 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.view
+package org.digimead.tabuddy.desktop.core.ui
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.ui.Resources
-import scala.language.implicitConversions
+import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
 
-/**
- * Configurator responsible for configure/unconfigure application views.
- */
-class Views extends Loggable {
-  private val lock = new Object
-  /** Configure component views. */
-  @log
-  def configure() = lock.synchronized {
-    Resources.registerViewFactory(ViewDefault.factory, true)
-    Resources.registerViewFactory(console.ViewConsole, true)
-  }
-  /** Unconfigure component views. */
-  @log
-  def unconfigure() = lock.synchronized {
-    Resources.unregisterViewFactory(console.ViewConsole)
-    Resources.unregisterViewFactory(ViewDefault.factory)
-  }
-}
-
-object Views {
-  implicit def configurator2implementation(c: Views.type): Views = c.inner
-
-  /** Views implementation. */
-  def inner(): Views = DI.implementation
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Views implementation. */
-    lazy val implementation = injectOptional[Views] getOrElse new Views
-  }
+package object view {
+  lazy val default = new NewBindingModule(module ⇒ {})
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.view.ViewDefault$DI$")
 }

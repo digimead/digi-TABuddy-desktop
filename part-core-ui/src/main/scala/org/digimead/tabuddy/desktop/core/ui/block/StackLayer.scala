@@ -126,7 +126,8 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
     // Destroy this layer.
     case message @ App.Message.Destroy(None, _, None) ⇒ App.traceMessage(message) {
       if (terminated) {
-        stack.foreach(stackWidget ⇒ container ! App.Message.Destroy(stackWidget, self))
+        if (children.isEmpty)
+          stack.foreach(stackWidget ⇒ container ! App.Message.Destroy(stackWidget, self))
         App.Message.Error(s"${this} is terminated.", self)
       } else {
         destroy() match {
@@ -152,6 +153,8 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
       val tree = context.children.map(child ⇒ child -> child ? App.Message.Get(Actor))
       Map(tree.map { case (child, map) ⇒ child -> Await.result(map, timeout.duration) }.toSeq: _*)
     } foreach { sender ! _ }
+
+    case message @ App.Message.Get(Set) ⇒ sender ! children.toSet
 
     case message @ App.Message.Start((widget: Widget, Seq(stack: SComposite, hierarchyFromWindowToWidget @ _*)), _, None) if Some(stack) == this.stack ⇒ Option {
       if (terminated) {
@@ -198,7 +201,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
   /** Register created stack element. */
   @log
   protected def onCreated(child: SComposite, origin: ActorRef) {
-    log.debug(s"Add created ${stack} to ${this}.")
+    log.debug(s"Add created ${child} to ${this}.")
     children += child.id
     stack match {
       case Some(tab: SCompositeTab) ⇒
@@ -251,6 +254,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
           }
           if (numberOfTabs == 1) {
             terminated = true
+            children.clear() // everything(last view) will be deleted
             container ! App.Message.Destroy(tab, self, "toTab")
           }
         case _ ⇒

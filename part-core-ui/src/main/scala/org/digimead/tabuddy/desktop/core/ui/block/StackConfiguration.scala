@@ -200,7 +200,7 @@ object StackConfiguration {
     lazy val configurationExtenstion = injectOptional[String]("Core.UI.StackConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
     lazy val default = injectOptional[StackConfiguration.Builder]("Core.UI.StackConfiguration.Default") getOrElse {
-      () ⇒ Configuration(Configuration.CView(ViewDefault.configuration))
+      () ⇒ Configuration(Configuration.CView(ViewDefault.factory.configuration))
     }
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()

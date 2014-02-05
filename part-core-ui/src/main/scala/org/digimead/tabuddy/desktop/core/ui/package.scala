@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,5 +47,5 @@ package org.digimead.tabuddy.desktop.core
  * This is the core UI bundle of the TA Buddy desktop application.
  */
 package object ui {
-  lazy val default = operation.default
+  lazy val default = operation.default ~ view.default
 }

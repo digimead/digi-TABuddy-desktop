@@ -250,6 +250,8 @@ object View extends Loggable {
   /** View layer map lock. */
   protected val viewMapRWL = new ReentrantReadWriteLock
 
+  /** Get content name. */
+  def contentName(id: UUID) = "Content_" + name(id)
   /** Get view name. */
   def name(id: UUID) = View.id + "_%08X".format(id.hashCode())
   /** View actor reference configuration object. */
@@ -287,7 +289,7 @@ object View extends Loggable {
     /** Get title for the actor reference. */
     def titleObservable(ref: ActorRef): TitleObservableValue = viewActorLock.synchronized {
       if (!activeActorRefs.get.contains(ref))
-        throw new IllegalStateException("Actor reference ${ref} in unknown in factory ${this}.")
+        throw new IllegalStateException(s"Actor reference ${ref} in unknown in factory ${this}.")
       titlePerActor.get(ref) match {
         case Some(observable) ⇒ observable
         case None ⇒
@@ -301,7 +303,7 @@ object View extends Loggable {
      * Add reference to activeActors list.
      */
     def viewActor(container: ActorRef, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
-      val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
+      val viewName = contentName(configuration.id)
       log.debug(s"Create actor ${viewName}.")
       val future = UI.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id, Factory.this)), viewName)
       try {
@@ -318,16 +320,16 @@ object View extends Loggable {
       }
     }
     /** Register view as active in activeActorRefs. */
-    def register(activeView: ActorRef) {
+    def register(activeView: ActorRef) = {
       log.debug(s"Register ${activeView.path.name} in ${this}.")
       activeActorRefs.set(activeActorRefs.get() :+ activeView)
-      App.execNGet { titlePerActor.values.foreach(_.update) }
+      App.exec { titlePerActor.values.foreach(_.update) }
     }
     /** Register view as active in activeActorRefs. */
-    def unregister(inactiveView: ActorRef) {
+    def unregister(inactiveView: ActorRef) = {
       log.debug(s"Unregister ${inactiveView.path.name} in ${this}.")
       activeActorRefs.set(activeActorRefs.get().filterNot(_ == inactiveView))
-      App.execNGet { titlePerActor.values.foreach(_.update) }
+      App.exec { titlePerActor.values.foreach(_.update) }
     }
 
     override lazy val toString = s"""View.Factory("${name}", "${shortDescription}")"""

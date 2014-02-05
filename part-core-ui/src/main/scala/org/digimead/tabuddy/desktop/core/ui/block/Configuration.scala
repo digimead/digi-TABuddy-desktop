@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.core.ui.block
 import java.util.UUID
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.Resources
 import scala.collection.immutable
 
 /**
@@ -92,24 +93,24 @@ object Configuration extends Loggable {
   override def toString = "Configuration[Singleton]"
 
   /** View factory configuration. */
-  case class Factory(val bundleSymbolicName: String, val singletonClassName: String) {
+  case class Factory(val bundleSymbolicName: String, val factoryClassName: String) {
     /** Factory singleton instance. */
     @transient
-    protected lazy val singleton = {
-      val singletonClass = App.bundle(getClass).getBundleContext().getBundles().
-        find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(singletonClassName)).get
-      singletonClass.getField("MODULE$").get(singletonClass).asInstanceOf[View.Factory]
+    protected lazy val instance = {
+      val fClass = App.bundle(getClass).getBundleContext().getBundles().
+        find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(factoryClassName)).get
+      Resources.factory(factoryClassName).get
     }
 
-    def apply(): View.Factory = singleton
+    def apply(): View.Factory = instance
     /** Validate if this factory is exists. */
     def validate(): Boolean = try {
-      App.bundle(getClass).getBundleContext().getBundles().find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(singletonClassName)).nonEmpty
+      App.bundle(getClass).getBundleContext().getBundles().find(_.getSymbolicName() == bundleSymbolicName).map(_.loadClass(factoryClassName)).nonEmpty
     } catch {
       case e: ClassNotFoundException ⇒ false
       case e: IllegalStateException ⇒ false
     }
-    override lazy val toString = s"Factory(Symbolic-Name: ${bundleSymbolicName}, Singleton: ${singletonClassName})"
+    override lazy val toString = s"Factory(${factoryClassName})"
   }
   /** Any element of the configuration. */
   sealed trait CPlaceHolder {
