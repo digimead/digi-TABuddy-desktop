@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.operation.api
 
+import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api
 
 /**
@@ -62,8 +63,9 @@ trait OperationViewCreate {
    *
    * @param appWindow AppWindow that will holds new view
    * @param viewConfiguration new view configuration
+   * @param new view id
    */
-  def apply(appWindow: AnyRef, viewConfiguration: AnyRef): Unit
+  def apply(appWindow: AnyRef, viewConfiguration: AnyRef): Option[UUID]
   /**
    * Create 'Create view' operation.
    *
@@ -71,7 +73,7 @@ trait OperationViewCreate {
    * @param viewConfiguration new view configuration
    * @return 'Create view' operation
    */
-  def operation(appWindow: AnyRef, viewConfiguration: AnyRef): api.Operation[Unit]
+  def operation(appWindow: AnyRef, viewConfiguration: AnyRef): api.Operation[UUID]
 
   /**
    * Checks that this class can be subclassed.

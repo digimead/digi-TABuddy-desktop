@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -58,20 +58,29 @@ class TransformTabToView extends Loggable {
   def apply(ss: StackSupervisor, tab: SCompositeTab): Option[VComposite] = ss.wComposite flatMap { wComposite ⇒
     // Throw runtime error if something wrong.
     val view = try App.execNGet {
-      val Array(scrolledComposite) = tab.getChildren()
-      val Array(view) = scrolledComposite.asInstanceOf[ScrolledComposite].getChildren()
-      view.asInstanceOf[VComposite]
+      val children = if (tab.isDisposed()) Array() else tab.getChildren()
+      if (children.size > 0) {
+        val Array(scrolledComposite) = tab.getChildren()
+        val Array(view) = scrolledComposite.asInstanceOf[ScrolledComposite].getChildren()
+        Some(view.asInstanceOf[VComposite])
+      } else {
+        // last view was disposed
+        tab.dispose()
+        None
+      }
     } catch {
       case e: ExecutionException if e.getCause() != null ⇒ throw e.getCause()
     }
-    val viewConfiguration = ss.buildConfiguration().asMap(view.id)._2.asInstanceOf[Configuration.CView]
-    log.debug(s"Attach ${viewConfiguration} as top level element.")
-    val result = ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, Some(view))
-    result.foreach { _ ⇒
-      ss.context.stop(view.ref)
-      App.execNGet { tab.dispose() }
+    view.flatMap { view ⇒
+      val viewConfiguration = ss.buildConfiguration().asMap(view.id)._2.asInstanceOf[Configuration.CView]
+      log.debug(s"Attach ${viewConfiguration} as top level element.")
+      val result = ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, Some(view))
+      result.foreach { _ ⇒
+        ss.context.stop(view.ref)
+        App.execNGet { tab.dispose() }
+      }
+      result
     }
-    result
   }
 }
 

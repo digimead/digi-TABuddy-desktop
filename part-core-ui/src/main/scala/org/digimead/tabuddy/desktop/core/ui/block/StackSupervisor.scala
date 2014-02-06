@@ -259,7 +259,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
             transform.TransformViewToTab(this, view).flatMap { tab ⇒
               Await.result(tab.ref ? App.Message.Create(StackLayer.<+>(viewConfiguration), self), timeout.duration) match {
                 case App.Message.Create(vComposite: VComposite, Some(tab.ref), _) ⇒
-                  Some(view)
+                  Some(vComposite)
                 case App.Message.Error(message, _) ⇒
                   log.fatal(s"Unable to attach ${viewConfiguration} to ${tab}: ${message.getOrElse("UNKNOWN")}.")
                   None
@@ -294,12 +294,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   @log
   protected def onDestroyed(stack: SComposite, origin: ActorRef) {
     log.debug(s"Remove destroyed ${stack} from ${this}, keep ${pointers.size - 1} element(s).")
-    // 1. find last view id if closeWindowWithLastView enabled
-    val lastViewUUID = if (UI.closeWindowWithLastView)
-      pointers.find { case (uuid, pointer) ⇒ pointer.stack.get().isInstanceOf[VComposite] } map (_._1)
-    else
-      None
-    // 2. commit delete
+    // 1. commit delete
     // stop all children
     context.stop(stack.ref)
     // stop only direct children
@@ -308,7 +303,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     if (lastActiveViewIdForCurrentWindow.get() == Option(stack.id))
       lastActiveViewIdForCurrentWindow.set(None)
     App.publish(App.Message.Destroy(stack, origin))
-    // 3. run restoreCallback or close window
+    // 2. run restoreCallback or close window
     restoreCallback match {
       case Some(callback) ⇒
         if (pointers.isEmpty)
@@ -320,9 +315,10 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
               seq.foreach(context.watch) // still waiting for children
           }
       case None ⇒
-        if (UI.closeWindowWithLastView && lastViewUUID == Some(stack.id)) {
+        if (UI.closeWindowWithLastView &&
+          !pointers.exists { case (uuid, pointer) ⇒ pointer.stack.get().isInstanceOf[VComposite] }) {
           log.info("There are no views. Close window.")
-          Await.result(context.parent ? App.Message.Close(), timeout.duration)
+          Await.result(window ? App.Message.Close(), timeout.duration)
         }
     }
   }
@@ -371,26 +367,46 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   protected def onStart(id: UUID, widget: Widget, hierarchyFromWindowToWidget: Seq[SComposite]): Unit = try {
     if (lastActiveViewIdForCurrentWindow.get() != Some(id))
       lastActiveViewIdForCurrentWindow.set(Option(id))
-    Await.ready(pointers(id).actor ? App.Message.Start((widget, hierarchyFromWindowToWidget), self), timeout.duration)
+    val pointer = pointers(id)
+    val disposed = App.execNGet {
+      val sComposite = pointer.stack.get()
+      sComposite == null || sComposite.isDisposed()
+    }
+    if (disposed)
+      return
+    try Await.ready(pointers(id).actor ? App.Message.Start((widget, hierarchyFromWindowToWidget), self), UI.focusTimeout)
+    catch {
+      case e: TimeoutException ⇒ log.debug(s"${pointers(id).actor} is unreachable for App.Message.Start.")
+    }
   } catch {
     case e: Throwable ⇒
       log.error(e.getMessage, e)
   }
   /** Focus is lost. */
   protected def onStop(widget: Widget) {
-    lastActiveViewIdForCurrentWindow.get.foreach { viewId ⇒
-      val viewPointer = pointers(viewId)
-      val hierarchy = App.execNGet { UI.widgetHierarchy(widget) }
+    lastActiveViewIdForCurrentWindow.get.foreach { id ⇒
+      val pointer = pointers(id)
+      val (hierarchy, disposed) = App.execNGet {
+        val sComposite = pointer.stack.get()
+        (UI.widgetHierarchy(widget), sComposite == null || sComposite.isDisposed())
+      }
+      if (disposed)
+        return
       // Replace event widget with view composite if the original one is unknown (not a child of a view).
       val (widgetToStop, hierarchyToStop) = hierarchy.headOption match {
         case Some(view: VComposite) ⇒
           (widget, hierarchy)
         case _ ⇒
-          val view = viewPointer.stack.get()
+          val view = pointer.stack.get()
           (view, App.execNGet { UI.widgetHierarchy(view) })
       }
-      // hierarchyToStop is a hierarchy from the widget to the window without the window WComposite.
-      Await.ready(viewPointer.actor ? App.Message.Stop((widgetToStop, hierarchyToStop.reverse.tail), self), timeout.duration)
+      if (hierarchyToStop.nonEmpty) {
+        // hierarchyToStop is a hierarchy from the widget to the window without the window WComposite.
+        try Await.ready(pointer.actor ? App.Message.Stop((widgetToStop, hierarchyToStop.reverse.tail), self), UI.focusTimeout)
+        catch {
+          case e: TimeoutException ⇒ log.debug(s"${pointer.actor} is unreachable for App.Message.Stop.")
+        }
+      }
     }
   }
   /** Restore stack configuration. */

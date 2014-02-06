@@ -78,7 +78,7 @@ object CommandView extends Loggable {
       }
       implicit val ec = App.system.dispatcher
       implicit val timeout = akka.util.Timeout(Timeout.short)
-      val exchanger = new Exchanger[Operation.Result[Unit]]()
+      val exchanger = new Exchanger[Operation.Result[UUID]]()
       val appWindow = Option(activeContext.get(classOf[AppWindow])) orElse UI.getActiveWindow() getOrElse {
         throw new RuntimeException(s"Unable to find active window for ${this}: '${activeContext}'.")
       }
@@ -103,6 +103,7 @@ object CommandView extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
+              result.flatMap(id ⇒ UI.viewMap.find(_._1.id == id))
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case err: Operation.Result.Error[_] ⇒

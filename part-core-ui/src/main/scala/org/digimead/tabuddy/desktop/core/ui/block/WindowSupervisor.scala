@@ -47,16 +47,17 @@ import akka.actor.{ Actor, ActorRef, Props, ScalaActorRef, actorRef2Scala }
 import akka.pattern.ask
 import java.lang.ref.WeakReference
 import java.util.UUID
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.{ Core, EventLoop }
 import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.support.{ Timeout, WritableValue }
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.{ Timeout, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, WComposite }
+import org.digimead.tabuddy.desktop.core.{ Core, EventLoop }
 import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.{ IValueChangeListener, ValueChangeEvent }
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
@@ -339,7 +340,10 @@ class WindowSupervisor extends Actor with Loggable {
   def start(id: UUID, widget: Widget) {
     if (Left(id, widget) != lastFocusEvent)
       pointers.get(id).foreach { pointer ⇒
-        Await.ready(pointer.windowActor ? App.Message.Start(widget, None), timeout.duration)
+        try Await.ready(pointer.windowActor ? App.Message.Start(widget, None), UI.focusTimeout)
+        catch {
+          case e: TimeoutException ⇒ log.debug(s"${pointer.windowActor} is unreachable for App.Message.Start.")
+        }
         lastFocusEvent = Left(id, widget)
         activeFocusEvent = Some((id, widget))
       }
@@ -349,7 +353,10 @@ class WindowSupervisor extends Actor with Loggable {
   def stop(id: UUID, widget: Widget) {
     if (Right(id, widget) != lastFocusEvent)
       pointers.get(id).foreach { pointer ⇒
-        Await.ready(pointer.windowActor ? App.Message.Stop(widget, None), timeout.duration)
+        try Await.ready(pointer.windowActor ? App.Message.Stop(widget, None), UI.focusTimeout)
+        catch {
+          case e: TimeoutException ⇒ log.debug(s"${pointer.windowActor} is unreachable for App.Message.Stop.")
+        }
         lastFocusEvent = Right(id, widget)
         activeFocusEvent = None
       }

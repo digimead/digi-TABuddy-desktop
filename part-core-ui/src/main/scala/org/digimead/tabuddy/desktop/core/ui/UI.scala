@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
+import java.util.concurrent.TimeUnit
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -54,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.block.{ View, Window, WindowSupervisor }
 import org.eclipse.jface.commands.ToggleState
 import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{ Duration, FiniteDuration }
 import scala.language.implicitConversions
 
 /*
@@ -199,12 +200,14 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
   Core
   WindowSupervisor
 
-  /** Communication timeout for rapid requests with Akka 'await' or similar pattern. */
-  def communicationTimeout = DI.communicationTimeout
-  /** Stop event loop when last window is closed. */
-  def stopEventLoopWithLastWindow = DI.stopEventLoopWithLastWindow
   /** Close window when last view is closed. */
   def closeWindowWithLastView = DI.closeWindowWithLastView
+  /** Communication timeout for rapid requests with Akka 'await' or similar pattern. */
+  def communicationTimeout = DI.communicationTimeout
+  /** UI focus timeout for start/stop event. */
+  def focusTimeout = DI.focusTimeout
+  /** Stop event loop when last window is closed. */
+  def stopEventLoopWithLastWindow = DI.stopEventLoopWithLastWindow
 
   override def toString = "UI[Singleton]"
 
@@ -218,12 +221,14 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** UI actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.UI") getOrElse Props[UI]
     /** Close window when last view is closed. */
     lazy val closeWindowWithLastView = injectOptional[Boolean]("Core.UI.closeWindowWithLastView") getOrElse true
     /** Communication timeout for rapid requests with Akka 'await' or similar pattern. */
     lazy val communicationTimeout = injectOptional[FiniteDuration]("Core.UI.communicationTimeout") getOrElse Timeout.short
+    /** UI focus timeout for start/stop event. */
+    lazy val focusTimeout = injectOptional[FiniteDuration]("Core.UI.focusTimeout") getOrElse Duration(200, TimeUnit.MILLISECONDS)
+    /** UI actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Core.UI") getOrElse Props[UI]
     /** Stop event loop when last window is closed. */
     lazy val stopEventLoopWithLastWindow = injectOptional[Boolean]("Core.UI.stopEventLoopWithLastWindow") getOrElse true
   }

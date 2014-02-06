@@ -76,6 +76,7 @@ class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, 
               }
             case composite: ScrolledComposite if composite.getContent() == null ⇒
               log.debug("Skip selection event for the empty tab.")
+            case null ⇒ // sometimes we try to select the deleted tab
             case unexpected ⇒
               log.fatal(s"Tab item contains unexpected JFace element: ${unexpected}.")
           }

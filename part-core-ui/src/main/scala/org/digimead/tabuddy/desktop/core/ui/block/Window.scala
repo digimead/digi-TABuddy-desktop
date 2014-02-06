@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.core.ui.block
 import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
@@ -238,7 +238,10 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   protected def onStart(widget: Widget) = window match {
     case Some(window) ⇒
       windowContext.activateBranch()
-      Await.result(stackSupervisor ? App.Message.Start(widget, self), timeout.duration)
+      try Await.result(stackSupervisor ? App.Message.Start(widget, self), UI.focusTimeout)
+      catch {
+        case e: TimeoutException ⇒ log.debug(s"${stackSupervisor} is unreachable for App.Message.Start.")
+      }
     case None ⇒
       // Is window deleted while event was delivered?
       log.debug(s"Unable to start unexists window for ${this}.")
@@ -247,7 +250,10 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   //@log
   protected def onStop(widget: Widget) = window match {
     case Some(window) ⇒
-      Await.result(stackSupervisor ? App.Message.Stop(widget, self), timeout.duration)
+      try Await.result(stackSupervisor ? App.Message.Stop(widget, self), UI.focusTimeout)
+      catch {
+        case e: TimeoutException ⇒ log.debug(s"${stackSupervisor} is unreachable for App.Message.Stop.")
+      }
     case None ⇒
       // Is window deleted while event was delivered?
       log.debug(s"Unable to stop unexists window for ${this}.")

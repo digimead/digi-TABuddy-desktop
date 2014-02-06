@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui.operation
 
 import akka.pattern.ask
+import java.util.UUID
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
@@ -54,6 +55,7 @@ import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
@@ -69,13 +71,16 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    *
    * @param appWindow AppWindow that will holds new view
    * @param viewConfiguration new view configuration
+   * @param new view id
    */
-  def apply(appWindow: AnyRef, viewConfiguration: AnyRef) {
+  def apply(appWindow: AnyRef, viewConfiguration: AnyRef): Option[UUID] = {
     log.info(s"Create new ${viewConfiguration}.")
     Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(viewConfiguration, None), timeout.duration) match {
-      case App.Message.Create(view, _, _) ⇒
+      case App.Message.Create(view: VComposite, _, _) ⇒
+        Some(view.id)
       case App.Message.Error(message, _) ⇒
         log.error(s"Unable to create ${viewConfiguration}: ${message.getOrElse("unknown")}")
+        None
     }
   }
   /**
@@ -112,12 +117,12 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      try Operation.Result.OK(Option(OperationViewCreate.this(appWindow, viewConfiguration)))
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
+      try Operation.Result.OK(OperationViewCreate.this(appWindow, viewConfiguration))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
       throw new UnsupportedOperationException
   }
 }
@@ -137,9 +142,9 @@ object OperationViewCreate extends Loggable {
   def apply(appWindow: AppWindow, viewConfiguration: Configuration.CView): Option[Abstract] =
     Some(operation.operation(appWindow, viewConfiguration))
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
   abstract class Abstract(val appWindow: AppWindow, val viewConfiguration: Configuration.CView)
-    extends Operation[Unit](s"Create ${viewConfiguration} in ${appWindow}.") {
+    extends Operation[UUID](s"Create ${viewConfiguration} in ${appWindow}.") {
     this: Loggable ⇒
   }
   /**
