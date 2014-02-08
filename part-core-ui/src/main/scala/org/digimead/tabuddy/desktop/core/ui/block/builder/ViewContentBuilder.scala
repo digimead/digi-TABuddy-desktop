@@ -117,7 +117,7 @@ class ViewContentBuilder extends Loggable {
   def content(configuration: Configuration.CView, pWidget: ScrolledComposite, context: Context,
     parentActorContext: ActorContext, content: Option[VComposite]): Option[VComposite] = {
     log.debug(s"Build content for ${configuration}.")
-    val actualViewActorRef = content.map(_.contentRef) orElse App.execNGet { configuration.factory().viewActor(parentActorContext.self, configuration) }
+    val actualViewActorRef = content.map(_.contentRef) orElse configuration.factory().viewActor(parentActorContext.self, configuration)
     App.assertEventThread(false)
     // Create view widget.
     val viewWidget: Option[VComposite] = App.execNGet {

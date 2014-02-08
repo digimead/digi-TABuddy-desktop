@@ -200,7 +200,7 @@ class WindowSupervisor extends Actor with Loggable {
     if (pointers.contains(windowId))
       throw new IllegalArgumentException(s"Window with id ${windowId} is already exists.")
     App.assertEventThread(false)
-    val windowName = Window.id + "_%08X".format(windowId.hashCode())
+    val windowName = Window.name(windowId)
     val windowContext = Core.context.createChild(windowName): Context.Rich
     val window = context.actorOf(Window.props.copy(args = immutable.Seq(windowId, windowContext)), windowName)
     pointers += windowId -> WindowSupervisor.WindowPointer(window)(new WeakReference(null))
@@ -284,9 +284,9 @@ class WindowSupervisor extends Actor with Loggable {
         val saved = configurations.keySet -- pointers.keySet
         val id = windowId orElse saved.headOption getOrElse UUID.randomUUID()
         if (configurations.isDefinedAt(id))
-          log.debug(s"Restore window ${id}.")
+          log.debug(s"Configuration found. Restore window ${id}.")
         else
-          log.debug(s"Create window ${id}.")
+          log.debug(s"Configuration not found. Create new window ${id}.")
         create(id)
         Some(id)
     }
@@ -512,11 +512,7 @@ object WindowSupervisor extends Loggable {
   }
   object PointerMap
   /** Wrapper that contains window and ActorRef. */
-  case class WindowPointer(val windowActor: ActorRef)(val appWindowRef: WeakReference[AppWindow]) {
-    def stackSupervisorActor: ActorRef = App.getActorRef(windowActor.path / StackSupervisor.id) getOrElse {
-      throw new IllegalStateException(s"Unable to get StackSupervisor for ${windowActor}.")
-    }
-  }
+  case class WindowPointer(val windowActor: ActorRef)(val appWindowRef: WeakReference[AppWindow])
   /**
    * Dependency injection routines.
    */

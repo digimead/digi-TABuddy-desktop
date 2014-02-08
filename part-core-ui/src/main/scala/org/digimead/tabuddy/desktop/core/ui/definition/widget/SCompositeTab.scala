@@ -68,11 +68,15 @@ class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, 
           selection.getControl() match {
             case composite: ScrolledComposite if composite.getContent().isInstanceOf[VComposite] ⇒
               val viewLayerComposite = composite.getContent()
-              App.execAsync {
+              App.exec {
                 // After item will be selected, but will not block UI thread.
-                log.debug(s"Start tab item with ${viewLayerComposite}.")
-                val windowId = UI.widgetHierarchy(viewLayerComposite).last.asInstanceOf[WComposite].id
-                WindowSupervisor.actor ! App.Message.Start((windowId, viewLayerComposite), ref)
+                UI.widgetHierarchy(viewLayerComposite).lastOption match {
+                  case Some(wComposite) ⇒
+                    log.debug(s"Start tab item with ${viewLayerComposite}.")
+                    WindowSupervisor.actor ! App.Message.Start((wComposite.id, viewLayerComposite), ref)
+                  case None ⇒
+                    log.debug("Skip tab item with ${viewLayerComposite}: layer is destroyed.")
+                }
               }
             case composite: ScrolledComposite if composite.getContent() == null ⇒
               log.debug("Skip selection event for the empty tab.")

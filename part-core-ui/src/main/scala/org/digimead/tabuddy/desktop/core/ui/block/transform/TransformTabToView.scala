@@ -47,10 +47,11 @@ import java.util.concurrent.ExecutionException
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.widgets.Control
 import scala.language.implicitConversions
 
 /** Unwrap view from tab stack. */
@@ -58,7 +59,7 @@ class TransformTabToView extends Loggable {
   def apply(ss: StackSupervisor, tab: SCompositeTab): Option[VComposite] = ss.wComposite flatMap { wComposite ⇒
     // Throw runtime error if something wrong.
     val view = try App.execNGet {
-      val children = if (tab.isDisposed()) Array() else tab.getChildren()
+      val children = if (tab.isDisposed()) Array[Control]() else tab.getChildren()
       if (children.size > 0) {
         val Array(scrolledComposite) = tab.getChildren()
         val Array(view) = scrolledComposite.asInstanceOf[ScrolledComposite].getChildren()

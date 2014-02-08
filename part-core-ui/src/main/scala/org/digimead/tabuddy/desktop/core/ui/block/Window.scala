@@ -70,7 +70,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Window views supervisor. */
-  lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq(windowId, windowContext)), StackSupervisor.id)
+  lazy val stackSupervisor = context.actorOf(StackSupervisor.props.copy(args = immutable.Seq(windowId, windowContext)), StackSupervisor.name(windowId))
   /** Flag indicating whether the Window is alive. */
   var stackSupervisorTerminated = false
   /** Flag indicating whether the Window is alive. */
@@ -288,8 +288,15 @@ object Window extends Loggable {
   // Initialize descendant actor singletons
   StackSupervisor
 
+  /** Get window name. */
+  def name(id: UUID) = Window.id + "_%08X".format(id.hashCode())
   /** Window actor reference configuration object. */
   def props = DI.props
+  /** Get stack supervisor actor. */
+  def getStackSupervisor(windowActor: ActorRef): ActorRef =
+    App.getActorRef(windowActor.path / windowActor.path.name.replaceAll(Window.id, StackSupervisor.id)) getOrElse {
+      throw new IllegalStateException(s"Unable to get StackSupervisor for ${windowActor}.")
+    }
 
   override def toString = "Window[Singleton]"
 

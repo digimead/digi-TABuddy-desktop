@@ -53,22 +53,21 @@ trait Thread {
   this: Generic with Loggable ⇒
   /** Execute runnable in the event thread. */
   def exec[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): Unit =
-    if (duration == App.ShortRunnable && debug) {
-      val t = new Throwable("Entry point.")
-      if (isEventLoop) {
+    if (isEventLoop) {
+      try if (debug) {
+        val t = new Throwable(s"Entry point from ${java.lang.Thread.currentThread.getName()}.")
         val ts = System.currentTimeMillis()
         f
         val duration = System.currentTimeMillis() - ts
         if (duration > 500)
           log.error(s"Too heavy operation: ${duration}ms.", t)
-      } else execAsync({ f })
-    } else {
-      if (isEventLoop) { f } else execAsync({ f })
-    }
+      } else f
+      catch { case e: Throwable ⇒ log.error("Event thread exception: " + e, e) }
+    } else execAsync({ f })
   /** Asynchronously execute runnable in the event thread. */
   def execAsync[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): Unit =
     if (duration == App.ShortRunnable && debug) {
-      val t = new Throwable("Entry point.")
+      val t = new Throwable(s"Entry point from ${java.lang.Thread.currentThread.getName()}.")
       display.asyncExec(new Runnable {
         def run = try {
           val ts = System.currentTimeMillis()
@@ -85,19 +84,17 @@ trait Thread {
     }
   /** Execute runnable in event thread and return result or exception. */
   def execNGet[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): T = try {
-    if (duration == App.ShortRunnable && debug) {
-      val t = new Throwable("Entry point.")
-      if (isEventLoop) {
+    if (isEventLoop) {
+      if (debug) {
+        val t = new Throwable(s"Entry point from ${java.lang.Thread.currentThread.getName()}.")
         val ts = System.currentTimeMillis()
         val result = f
         val duration = System.currentTimeMillis() - ts
         if (duration > 500)
           log.error(s"Too heavy operation: ${duration}ms.", t)
         result
-      } else execNGetAsync({ f })
-    } else {
-      if (isEventLoop) { f } else execNGetAsync({ f })
-    }
+      } else f
+    } else execNGetAsync({ f })
   } catch {
     case e: Throwable ⇒
       throw new ExecutionException(e)
@@ -106,11 +103,12 @@ trait Thread {
   def execNGetAsync[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): T = {
     val exchanger = new Exchanger[Either[Throwable, T]]()
     if (duration == App.ShortRunnable && debug) {
-      val t = new Throwable("Entry point.")
+      val t = new Throwable(s"Entry point from ${java.lang.Thread.currentThread.getName()}.")
       display.asyncExec(new Runnable {
         def run = {
           val ts = System.currentTimeMillis()
-          try { exchanger.exchange(Right(f)) } catch { case e: Throwable ⇒ exchanger.exchange(Left(e)) }
+          try exchanger.exchange(Right(f), 100, TimeUnit.MILLISECONDS)
+          catch { case e: Throwable ⇒ exchanger.exchange(Left(e), 100, TimeUnit.MILLISECONDS) }
           val duration = System.currentTimeMillis() - ts
           if (duration > 500)
             log.error(s"Too heavy operation: ${duration}ms.", t)
@@ -118,17 +116,13 @@ trait Thread {
       })
     } else {
       display.asyncExec(new Runnable {
-        def run = try {
-          if (duration == App.ShortRunnable)
-            exchanger.exchange(Right(f), Timeout.longest.toMillis, TimeUnit.MILLISECONDS)
-          else
-            exchanger.exchange(Right(f))
-        } catch { case e: Throwable ⇒ exchanger.exchange(Left(e)) }
+        def run = try exchanger.exchange(Right(f), 100, TimeUnit.MILLISECONDS)
+        catch { case e: Throwable ⇒ exchanger.exchange(Left(e), 100, TimeUnit.MILLISECONDS) }
       })
     }
     {
       if (duration == App.ShortRunnable)
-        exchanger.exchange(null, Timeout.longest.toMillis, TimeUnit.MILLISECONDS)
+        exchanger.exchange(null, Timeout.short.toMillis, TimeUnit.MILLISECONDS)
       else
         exchanger.exchange(null)
     } match {
@@ -148,7 +142,8 @@ trait Thread {
       throw new IllegalStateException("Unable to spawn execNGetAsync runnable with timeout within event thread.")
     val exchanger = new Exchanger[Either[Throwable, T]]()
     display.asyncExec(new Runnable {
-      def run = try { exchanger.exchange(Right(f)) } catch { case e: Throwable ⇒ exchanger.exchange(Left(e)) }
+      def run = try exchanger.exchange(Right(f), 100, TimeUnit.MILLISECONDS)
+      catch { case e: Throwable ⇒ exchanger.exchange(Left(e), 100, TimeUnit.MILLISECONDS) }
     })
     exchanger.exchange(null, timeout, unit) match {
       case Left(e) ⇒

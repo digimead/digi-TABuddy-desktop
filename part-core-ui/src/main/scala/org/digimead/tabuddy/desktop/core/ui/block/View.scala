@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui.block
 
 import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
-import akka.pattern.ask
+import akka.pattern.{ AskTimeoutException, ask }
 import java.util.UUID
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicReference
@@ -53,9 +53,12 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, SCompositeTab, VComposite }
 import org.eclipse.core.databinding.observable.Diffs
 import org.eclipse.core.databinding.observable.value.AbstractObservableValue
@@ -200,21 +203,30 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
   }
   /** Destroy view. */
   protected def destroy(): Option[VComposite] = view.flatMap { view ⇒
-    // Ask widget.contentRef to destroy it
-    Await.result(view.contentRef ? App.Message.Destroy(view, self), timeout.duration) match {
-      case App.Message.Destroy(body: Composite, _, _) ⇒
-        if (body.isInstanceOf[SComposite]) // This must be not a part of stack.
-          throw new IllegalArgumentException(s"Illegal body received ${body}")
+    try {
+      // Ask widget.contentRef to destroy it
+      Await.result(view.contentRef ? App.Message.Destroy(view, self), timeout.duration) match {
+        case App.Message.Destroy(body: Composite, _, _) ⇒
+          if (body.isInstanceOf[SComposite]) // This must be not a part of stack.
+            throw new IllegalArgumentException(s"Illegal body received ${body}")
+          log.debug(s"View layer ${view} content is destroyed.")
+          App.execNGet { view.dispose() }
+          terminated = true
+          Some(view)
+        case App.Message.Error(error, None) ⇒
+          log.fatal(s"Unable to destroy content for ${view}: ${error.getOrElse("unknown")}")
+          None
+        case error ⇒
+          log.fatal(s"Unable to destroy content for ${view}: ${error}.")
+          None
+      }
+    } catch {
+      case e: AskTimeoutException ⇒
+        // Content may had already been terminated.
         log.debug(s"View layer ${view} content is destroyed.")
         App.execNGet { view.dispose() }
         terminated = true
         Some(view)
-      case App.Message.Error(error, None) ⇒
-        log.fatal(s"Unable to destroy content for ${view}: ${error.getOrElse("unknown")}")
-        None
-      case error ⇒
-        log.fatal(s"Unable to destroy content for ${view}: ${error}.")
-        None
     }
   }
   /** User start interaction with window/stack supervisor/view. Focus is gained. */
@@ -332,7 +344,7 @@ object View extends Loggable {
       App.exec { titlePerActor.values.foreach(_.update) }
     }
 
-    override lazy val toString = s"""View.Factory("${name}", "${shortDescription}")"""
+    override lazy val toString = s"""View.Factory("${name.name}", "${shortDescription}")"""
 
     class TitleObservableValue(ref: ActorRef) extends AbstractObservableValue(App.realm) {
       @volatile protected var value: AnyRef = name.name

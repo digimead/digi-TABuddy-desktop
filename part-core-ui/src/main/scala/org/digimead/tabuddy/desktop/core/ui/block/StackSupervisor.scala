@@ -456,6 +456,8 @@ object StackSupervisor extends Loggable {
   // Initialize descendant actor singletons
   StackLayer
 
+  /** Get stack supervisor name. */
+  def name(id: UUID) = StackSupervisor.id + "_%08X".format(id.hashCode())
   /** StackSupervisor actor reference configuration object. */
   def props = DI.props
 
