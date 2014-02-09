@@ -114,11 +114,11 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
 
     // Notification.
     case message @ App.Message.Create(stackLayer: SComposite, Some(origin), None) ⇒ App.traceMessage(message) {
-      assert(sender != window)
+      assert(context.children.exists(_ == sender))
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        if (App.execNGet { wComposite.map(UI.widgetHierarchy(stackLayer).contains).getOrElse(false) })
+        if (App.execNGet { wComposite.map(UI.widgetHierarchy(stackLayer).contains).getOrElse(false) && !stackLayer.isDisposed() })
           onCreated(stackLayer, origin)
       }
     }
@@ -134,19 +134,43 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
 
     // Notification.
     case message @ App.Message.Destroy(tab: SCompositeTab, Some(origin), Some("toTab")) ⇒ App.traceMessage(message) {
-      transform.TransformTabToView(this, tab)
+      transform.TransformTabToView(this, tab) match {
+        case Right(vComposite) ⇒
+          log.debug(s"Transform ${tab} to ${vComposite}.")
+        case Left(Some(vComposite)) ⇒
+          log.debug(s"Unable to transform ${tab} to ${vComposite}.")
+          // view was disposed while message delivery
+          if (pointers.isDefinedAt(vComposite.id))
+            onDestroyed(vComposite, origin)
+        case Left(None) ⇒
+          log.error(s"Unable to transform ${tab} to view.")
+      }
     }
 
-    case message @ App.Message.Destroy(_: AppWindow, Some(this.window), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Destroy(windowToDestroy: AppWindow, Some(this.window), None) ⇒ App.traceMessage(message) {
+      log.debug(s"Initiate destroy sequence for ${windowToDestroy}.")
       terminated = true
       restoreCallback = None
-      try Await.result(Future.sequence(context.children.map(_ ? App.Message.Destroy())), timeout.duration)
-      catch {
-        case e: TimeoutException ⇒
-          log.error(s"Unable to stop ${context.children}.", e)
+      val children = context.children
+      // Get only pointers that have valid nextLevelActor.
+      pointers.values.filter(p ⇒ children.exists(_.path == p.nextLevelActor.path)).flatMap(p ⇒ Option(p.block.get().ref)) match {
+        case Nil ⇒
+          if (pointers.nonEmpty)
+            log.debug(s"Drop unreachable pointers: ${pointers.values.flatMap(p ⇒ Option(p.block.get)).mkString(", ")}.")
+          pointers.clear()
+          window ! App.Message.Destroy(self, self)
+        case children ⇒
+          try Await.result(Future.sequence(children.map(_ ? App.Message.Destroy())), timeout.duration)
+          catch {
+            case e: TimeoutException ⇒
+              log.error(s"Unable to stop ${children}.", e)
+          }
+          // There are maybe children that is terminated manually (TransformTabToView)
+          // The usual way for child termination is onDestroy handler.
+          // But any another child may follow a different behavior.
+          log.debug(s"Delay ${windowToDestroy} destroy sequence. Pending: (${children.map(_.path.name).mkString(", ")}).")
+          children.foreach(context.watch)
       }
-      if (pointers.isEmpty)
-        window ! App.Message.Destroy(self, self)
     }
 
     case message @ App.Message.Get(Actor) ⇒ App.traceMessage(message) {
@@ -191,17 +215,33 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       log.debug(message)
 
     case Terminated(actor) ⇒
-      restoreCallback.foreach { callback ⇒
-        if (context.children.isEmpty) {
-          // Hooray! Everything is stopped. Restore.
-          restoreCallback = None
-          callback.run()
-        }
+      restoreCallback match {
+        case Some(callback) ⇒
+          if (context.children.isEmpty) {
+            // Hooray! Everything is stopped. Restore.
+            restoreCallback = None
+            callback.run()
+          }
+        case None ⇒
+          pointers.find { case (id, pointer) ⇒ Option(pointer.block.get()).map(_.ref.path) == Some(actor.path) }.foreach {
+            case (id, pointer) ⇒
+              Option(pointer.block.get()) match {
+                case Some(stack) ⇒ onDestroyed(stack, self)
+                case None ⇒ pointers -= id
+              }
+              if (terminated && pointers.isEmpty)
+                window ! App.Message.Destroy(self, self)
+          }
       }
   }
 
   /** Build view configuration. */
-  def buildConfiguration() = App.execNGet { wComposite.map(w ⇒ StackConfiguration.build(w.getShell)) getOrElse initialConfiguration }
+  def buildConfiguration() = App.execNGet {
+    wComposite.map {
+      case w if w.isDisposed() ⇒ initialConfiguration
+      case w ⇒ StackConfiguration.build(w.getShell)
+    } getOrElse initialConfiguration
+  }
   /** Create new stack element from configuration. */
   protected def createStackContent(stackId: UUID, parentWidget: ScrolledComposite, configuration: Configuration): Option[SComposite] = {
     if (pointers.contains(stackId))
@@ -245,7 +285,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     App.assertEventThread(false)
     val neighborViewId = lastActiveViewIdForCurrentWindow.get() orElse {
       pointers.find {
-        case (id, pointer) ⇒ Option(pointer.stack.get()).
+        case (id, pointer) ⇒ Option(pointer.block.get()).
           map(_.isInstanceOf[VComposite]).getOrElse(false)
       }.map { case (id, pointer) ⇒ id }
     }
@@ -254,7 +294,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     neighborViewId match {
       case Some(id) ⇒
         // Attach view from viewFactory to neighbor.
-        Option(pointers(id).stack.get) match {
+        Option(pointers(id).block.get()) match {
           case Some(view: VComposite) ⇒
             transform.TransformViewToTab(this, view).flatMap { tab ⇒
               Await.result(tab.ref ? App.Message.Create(StackLayer.<+>(viewConfiguration), self), timeout.duration) match {
@@ -295,7 +335,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   protected def onDestroyed(stack: SComposite, origin: ActorRef) {
     log.debug(s"Remove destroyed ${stack} from ${this}, keep ${pointers.size - 1} element(s).")
     // 1. commit delete
-    // stop all children
+    // stop any child
     context.stop(stack.ref)
     // stop only direct children
     //context.children.find(_ == stack.ref).foreach(context.stop)
@@ -316,7 +356,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
           }
       case None ⇒
         if (UI.closeWindowWithLastView &&
-          !pointers.exists { case (uuid, pointer) ⇒ pointer.stack.get().isInstanceOf[VComposite] }) {
+          !pointers.exists { case (uuid, pointer) ⇒ pointer.block.get().isInstanceOf[VComposite] }) {
           log.info("There are no views. Close window.")
           Await.result(window ? App.Message.Close(), timeout.duration)
         }
@@ -335,7 +375,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     } else {
       lastActiveViewIdForCurrentWindow.get() match {
         case Some(viewId) ⇒
-          pointers.get(viewId).flatMap(pointer ⇒ Option(pointer.stack.get())) match {
+          pointers.get(viewId).flatMap(pointer ⇒ Option(pointer.block.get())) match {
             case Some(view) ⇒
               App.execNGet { UI.widgetHierarchy(view) } match {
                 case Nil ⇒
@@ -369,14 +409,14 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       lastActiveViewIdForCurrentWindow.set(Option(id))
     val pointer = pointers(id)
     val disposed = App.execNGet {
-      val sComposite = pointer.stack.get()
+      val sComposite = pointer.block.get()
       sComposite == null || sComposite.isDisposed()
     }
     if (disposed)
       return
-    try Await.ready(pointers(id).actor ? App.Message.Start((widget, hierarchyFromWindowToWidget), self), UI.focusTimeout)
+    try Await.ready(pointers(id).nextLevelActor ? App.Message.Start((widget, hierarchyFromWindowToWidget), self), UI.focusTimeout)
     catch {
-      case e: TimeoutException ⇒ log.debug(s"${pointers(id).actor} is unreachable for App.Message.Start.")
+      case e: TimeoutException ⇒ log.debug(s"${pointers(id).nextLevelActor} is unreachable for App.Message.Start.")
     }
   } catch {
     case e: Throwable ⇒
@@ -387,7 +427,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     lastActiveViewIdForCurrentWindow.get.foreach { id ⇒
       val pointer = pointers(id)
       val (hierarchy, disposed) = App.execNGet {
-        val sComposite = pointer.stack.get()
+        val sComposite = pointer.block.get()
         (UI.widgetHierarchy(widget), sComposite == null || sComposite.isDisposed())
       }
       if (disposed)
@@ -397,14 +437,14 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         case Some(view: VComposite) ⇒
           (widget, hierarchy)
         case _ ⇒
-          val view = pointer.stack.get()
-          (view, App.execNGet { UI.widgetHierarchy(view) })
+          val view = pointer.block.get()
+          (view, App.execNGet { UI.widgetHierarchy(view) }) // if view is null then hierarchyToStop is empty
       }
       if (hierarchyToStop.nonEmpty) {
         // hierarchyToStop is a hierarchy from the widget to the window without the window WComposite.
-        try Await.ready(pointer.actor ? App.Message.Stop((widgetToStop, hierarchyToStop.reverse.tail), self), UI.focusTimeout)
+        try Await.ready(pointer.nextLevelActor ? App.Message.Stop((widgetToStop, hierarchyToStop.reverse.tail), self), UI.focusTimeout)
         catch {
-          case e: TimeoutException ⇒ log.debug(s"${pointer.actor} is unreachable for App.Message.Stop.")
+          case e: TimeoutException ⇒ log.debug(s"${pointer.nextLevelActor} is unreachable for App.Message.Stop.")
         }
       }
     }
@@ -414,7 +454,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     if (restoreCallback.isEmpty) {
       log.debug(s"Restore stack for ${parent}.")
       if (pointers.nonEmpty && buildConfiguration() == initialConfiguration) {
-        sender ! App.Message.Restore(Option(pointers(initialConfiguration.stack.id).stack.get()), self)
+        sender ! App.Message.Restore(Option(pointers(initialConfiguration.stack.id).block.get()), self)
       } else {
         val futures = context.children.map(_ ? App.Message.Destroy())
         val result = Await.result(Future.sequence(futures), Timeout.short)
@@ -463,8 +503,13 @@ object StackSupervisor extends Loggable {
 
   override def toString = "StackSupervisor[Singleton]"
 
-  /** Wrapper that contains stack layer widgets and ActorRef. */
-  case class StackPointer(val actor: ActorRef)(val stack: WeakReference[SComposite])
+  /**
+   * Wrapper that contains UI block and ActorRef to the next level after stack supervisor.
+   *
+   * @param nextLevelActor direct stack supervisor child
+   * @param block UI block
+   */
+  case class StackPointer(val nextLevelActor: ActorRef)(val block: WeakReference[SComposite])
   /**
    * Dependency injection routines.
    */

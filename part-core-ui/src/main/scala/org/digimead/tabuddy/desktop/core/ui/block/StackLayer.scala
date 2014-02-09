@@ -253,17 +253,15 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
               0
           }
           if (numberOfTabs == 1) {
+            log.debug(s"Transform ${this} to view with id ${children.head}")
             terminated = true
             children.clear() // everything(last view) will be deleted
             container ! App.Message.Destroy(tab, self, "toTab")
+          } else if (children.isEmpty) {
+            log.debug(s"There are no children. Destroy ${this}.")
+            container ! App.Message.Destroy(stack, self)
           }
         case _ ⇒
-      }
-      stack.foreach { stack ⇒
-        if (children.isEmpty) {
-          log.debug(s"There are no children. Destroy ${this}.")
-          container ! App.Message.Destroy(stack, self)
-        }
       }
     }
   }

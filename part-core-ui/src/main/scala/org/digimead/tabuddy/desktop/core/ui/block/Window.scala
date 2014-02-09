@@ -164,7 +164,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
 
     // Reply from AppWindow.showContent on success.
     case message @ App.Message.Open(window: AppWindow, Some(this.self), None) ⇒ App.traceMessage(message) {
-      log.debug(s"Window content created and shown.")
+      log.debug(s"${window} content created and shown.")
       windowSupervisor ! message
     }
 

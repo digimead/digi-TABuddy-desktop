@@ -99,7 +99,13 @@ class ViewContentBuilder extends Loggable {
         log.fatal(s"Unable to create ${configuration}: ${error.getOrElse("unknown")}.")
         None
       case error ⇒
-        log.fatal(s"Unable to create ${configuration}: ${error}.")
+        App.exec {
+          if (pWidget.isDisposed())
+            log.debug(s"Unable to create ${configuration}: ${error}.")
+          else
+            log.fatal(s"Unable to create ${configuration}: ${error}.")
+        }
+        parentActorContext.stop(view)
         None
     }
   }
@@ -121,28 +127,31 @@ class ViewContentBuilder extends Loggable {
     App.assertEventThread(false)
     // Create view widget.
     val viewWidget: Option[VComposite] = App.execNGet {
-      if (pWidget.getLayout().isInstanceOf[GridLayout])
+      if (pWidget.isDisposed())
+        None // container was disposed immediately
+      else if (pWidget.getLayout().isInstanceOf[GridLayout])
         throw new IllegalArgumentException(s"Unexpected parent layout ${pWidget.getLayout().getClass()}.")
-      actualViewActorRef match {
-        case Some(actualViewActorRef) ⇒
-          val content = new VComposite(configuration.id, parentActorContext.self, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
-          content.setData(App.widgetContextKey, context)
-          // Set the specific widget
-          context.set(classOf[VComposite], content)
-          // Set the common top level widget
-          context.set(classOf[Composite], content)
-          //          content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
-          pWidget.setContent(content)
-          pWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-          pWidget.setExpandHorizontal(true)
-          pWidget.setExpandVertical(true)
-          pWidget.layout(Array[Control](content), SWT.ALL)
-          Some(content)
-        case None ⇒
-          // TODO destroy
-          log.fatal("Unable to locate actual view actor.")
-          None
-      }
+      else
+        actualViewActorRef match {
+          case Some(actualViewActorRef) ⇒
+            val content = new VComposite(configuration.id, parentActorContext.self, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
+            content.setData(App.widgetContextKey, context)
+            // Set the specific widget
+            context.set(classOf[VComposite], content)
+            // Set the common top level widget
+            context.set(classOf[Composite], content)
+            //          content.setBackground(App.display.getSystemColor(SWT.COLOR_CYAN))
+            pWidget.setContent(content)
+            pWidget.setMinSize(content.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+            pWidget.setExpandHorizontal(true)
+            pWidget.setExpandVertical(true)
+            pWidget.layout(Array[Control](content), SWT.ALL)
+            Some(content)
+          case None ⇒
+            // TODO destroy
+            log.fatal("Unable to locate actual view actor.")
+            None
+        }
     }
     // Create widget content
     viewWidget.flatMap { widget ⇒
@@ -152,7 +161,7 @@ class ViewContentBuilder extends Loggable {
           assert(widget != existsWidget)
           log.debug(s"Move ${configuration} from the old ${existsWidget} to the new ${widget}.")
           val successful = App.execNGet {
-            val successful = existsWidget.getChildren().forall(_.setParent(widget))
+            val successful = !existsWidget.isDisposed() && existsWidget.getChildren().forall(_.setParent(widget))
             if (successful)
               widget.setLayout(existsWidget.getLayout())
             successful

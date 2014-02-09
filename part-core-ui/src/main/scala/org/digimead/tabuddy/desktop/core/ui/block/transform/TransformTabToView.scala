@@ -56,32 +56,52 @@ import scala.language.implicitConversions
 
 /** Unwrap view from tab stack. */
 class TransformTabToView extends Loggable {
-  def apply(ss: StackSupervisor, tab: SCompositeTab): Option[VComposite] = ss.wComposite flatMap { wComposite ⇒
-    // Throw runtime error if something wrong.
-    val view = try App.execNGet {
-      val children = if (tab.isDisposed()) Array[Control]() else tab.getChildren()
-      if (children.size > 0) {
-        val Array(scrolledComposite) = tab.getChildren()
-        val Array(view) = scrolledComposite.asInstanceOf[ScrolledComposite].getChildren()
-        Some(view.asInstanceOf[VComposite])
-      } else {
-        // last view was disposed
-        tab.dispose()
-        None
+  /**
+   * Unwrap view from tab stack.
+   *
+   * @return Right(new VComposite) or if fail Left(Option(old VComposite))
+   */
+  def apply(ss: StackSupervisor, tab: SCompositeTab): Either[Option[VComposite], VComposite] = {
+    ss.wComposite map { wComposite ⇒
+      // Throw runtime error if something wrong.
+      val view = try App.execNGet {
+        val children = if (tab.isDisposed()) Array[Control]() else tab.getChildren()
+        if (children.size > 0) {
+          val Array(scrolledComposite) = tab.getChildren()
+          val Array(view) = scrolledComposite.asInstanceOf[ScrolledComposite].getChildren()
+          Some(view.asInstanceOf[VComposite])
+        } else {
+          // last view was disposed
+          tab.dispose()
+          None
+        }
+      } catch {
+        case e: ExecutionException if e.getCause() != null ⇒ throw e.getCause()
       }
-    } catch {
-      case e: ExecutionException if e.getCause() != null ⇒ throw e.getCause()
-    }
-    view.flatMap { view ⇒
-      val viewConfiguration = ss.buildConfiguration().asMap(view.id)._2.asInstanceOf[Configuration.CView]
-      log.debug(s"Attach ${viewConfiguration} as top level element.")
-      val result = ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, Some(view))
-      result.foreach { _ ⇒
-        ss.context.stop(view.ref)
-        App.execNGet { tab.dispose() }
+      val result: Option[Either[Option[VComposite], VComposite]] = view.map { view ⇒
+        ss.buildConfiguration().asMap.get(view.id) match {
+          case Some((parentId, viewConfiguration: Configuration.CView)) ⇒
+            log.debug(s"Attach ${viewConfiguration} as top level element.")
+            val result = ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, Some(view))
+            result.foreach { _ ⇒
+              ss.context.stop(view.ref)
+              App.execNGet { tab.dispose() }
+            }
+            result.toRight(Some(view))
+          case Some((parent, configuration)) ⇒
+            throw new IllegalStateException(s"Unexpected configuration ${configuration}.")
+          case None ⇒
+            log.debug(s"${view} is deleted.")
+            ss.context.stop(view.ref)
+            App.execNGet {
+              view.dispose()
+              tab.dispose()
+            }
+            Left[Option[VComposite], VComposite](Some(view))
+        }
       }
-      result
-    }
+      result getOrElse Left(view)
+    } getOrElse Left(None)
   }
 }
 

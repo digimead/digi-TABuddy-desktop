@@ -69,9 +69,12 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.{ Composite, Widget }
 import scala.collection.{ immutable, mutable }
 import scala.concurrent.Await
+import scala.concurrent.Future
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
 class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with Loggable {
+  /** Akka execution context. */
+  implicit val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Parent stack actor. */
@@ -175,20 +178,23 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
       case Some(viewWidgetWithContent) ⇒
         this.view = Some(viewWidgetWithContent)
         // Update parent tab title if any.
-        App.execAsync {
-          parentWidget.getParent() match {
-            case tab: SCompositeTab ⇒
-              tab.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
-                case Some(tabItem) ⇒
-                  val binding = App.bindingContext.bindValue(SWTObservables.observeText(tabItem),
-                    viewConfiguration.factory().titleObservable(viewWidgetWithContent.contentRef))
-                  tabItem.addDisposeListener(new DisposeListener {
-                    def widgetDisposed(e: DisposeEvent) = binding.dispose()
-                  })
-                case None ⇒
-                  log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
-              }
-            case other ⇒
+        // Yes. This is MUCH faster then simple App.exec.
+        Future {
+          val titleObservable = viewConfiguration.factory().titleObservable(viewWidgetWithContent.contentRef)
+          App.execAsync {
+            parentWidget.getParent() match {
+              case tab: SCompositeTab ⇒
+                tab.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
+                  case Some(tabItem) ⇒
+                    val binding = App.bindingContext.bindValue(SWTObservables.observeText(tabItem), titleObservable)
+                    tabItem.addDisposeListener(new DisposeListener {
+                      def widgetDisposed(e: DisposeEvent) = binding.dispose()
+                    })
+                  case None ⇒
+                    log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
+                }
+              case other ⇒
+            }
           }
         }
         // Add new view to the common map.
@@ -197,7 +203,10 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
         finally View.viewMapRWL.writeLock().unlock()
         this.view
       case None ⇒
-        log.fatal(s"Unable to build view ${viewConfiguration}.")
+        App.exec {
+          if (!parentWidget.isDisposed())
+            log.fatal(s"Unable to build view ${viewConfiguration}.")
+        }
         None
     }
   }
@@ -287,7 +296,7 @@ object View extends Loggable {
     /** View image. */
     val image: Option[Image]
     /** View title with regards of number of views. */
-    protected val titlePerActor = new mutable.WeakHashMap[ActorRef, TitleObservableValue]() with mutable.SynchronizedMap[ActorRef, TitleObservableValue]
+    protected val titlePerActor = new mutable.WeakHashMap[ActorRef, TitleObservableValue]()
     /** All currently active actors. */
     protected val activeActorRefs = new AtomicReference[List[ActorRef]](List())
     protected val viewActorLock = new Object
@@ -299,7 +308,7 @@ object View extends Loggable {
     /** View actor reference configuration object. */
     def props: Props
     /** Get title for the actor reference. */
-    def titleObservable(ref: ActorRef): TitleObservableValue = viewActorLock.synchronized {
+    def titleObservable(ref: ActorRef): TitleObservableValue = titlePerActor.synchronized {
       if (!activeActorRefs.get.contains(ref))
         throw new IllegalStateException(s"Actor reference ${ref} in unknown in factory ${this}.")
       titlePerActor.get(ref) match {
@@ -332,23 +341,22 @@ object View extends Loggable {
       }
     }
     /** Register view as active in activeActorRefs. */
-    def register(activeView: ActorRef) = {
+    def register(activeView: ActorRef) = titlePerActor.synchronized {
       log.debug(s"Register ${activeView.path.name} in ${this}.")
       activeActorRefs.set(activeActorRefs.get() :+ activeView)
-      App.exec { titlePerActor.values.foreach(_.update) }
+      Future { titlePerActor.values.par.foreach(_.update) }
     }
     /** Register view as active in activeActorRefs. */
-    def unregister(inactiveView: ActorRef) = {
+    def unregister(inactiveView: ActorRef) = titlePerActor.synchronized {
       log.debug(s"Unregister ${inactiveView.path.name} in ${this}.")
       activeActorRefs.set(activeActorRefs.get().filterNot(_ == inactiveView))
-      App.exec { titlePerActor.values.foreach(_.update) }
+      Future { titlePerActor.values.par.foreach(_.update) }
     }
 
     override lazy val toString = s"""View.Factory("${name.name}", "${shortDescription}")"""
 
     class TitleObservableValue(ref: ActorRef) extends AbstractObservableValue(App.realm) {
       @volatile protected var value: AnyRef = name.name
-      update()
 
       /** The value type of this observable value. */
       def getValueType(): AnyRef = classOf[String]
@@ -357,7 +365,7 @@ object View extends Loggable {
         val n = activeActorRefs.get.indexOf(ref) + 1
         val before = value
         value = if (n < 2) s"${name.name}" else s"${name.name} (${n})"
-        fireValueChange(Diffs.createValueDiff(before, this.value))
+        App.exec { fireValueChange(Diffs.createValueDiff(before, this.value)) }
       }
       /** Get actual value. */
       protected def doGetValue(): AnyRef = value
