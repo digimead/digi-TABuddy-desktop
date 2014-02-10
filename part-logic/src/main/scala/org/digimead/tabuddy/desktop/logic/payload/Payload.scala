@@ -47,8 +47,9 @@ import java.util.UUID
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.support.{ WritableMap, WritableValue }
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.{ WritableMap, WritableValue }
+import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.model.serialization.Serialization
@@ -122,23 +123,23 @@ class Payload(val marker: GraphMarker) extends Loggable {
   /** Get selected view definitions. */
   def getSelectedViewDefinition(context: Context, local: Boolean = false): Option[view.api.View] = {
     if (local)
-      Option(context.getLocal(Payload.Id.selectedView).asInstanceOf[UUID])
+      Option(context.getLocal(Logic.Id.selectedView).asInstanceOf[UUID])
     else
-      Option(context.get(Payload.Id.selectedView).asInstanceOf[UUID])
+      Option(context.get(Logic.Id.selectedView).asInstanceOf[UUID])
   } flatMap (viewDefinitions.get)
   /** Get selected view filter. */
   def getSelectedViewFilter(context: Context, local: Boolean = false): Option[view.api.Filter] = {
     if (local)
-      Option(context.getLocal(Payload.Id.selectedFilter).asInstanceOf[UUID])
+      Option(context.getLocal(Logic.Id.selectedFilter).asInstanceOf[UUID])
     else
-      Option(context.get(Payload.Id.selectedFilter).asInstanceOf[UUID])
+      Option(context.get(Logic.Id.selectedFilter).asInstanceOf[UUID])
   } flatMap (viewFilters.get)
   /** Get selected view sorting. */
   def getSelectedViewSorting(context: Context, local: Boolean = false): Option[view.api.Sorting] = {
     if (local)
-      Option(context.getLocal(Payload.Id.selectedSorting).asInstanceOf[UUID])
+      Option(context.getLocal(Logic.Id.selectedSorting).asInstanceOf[UUID])
     else
-      Option(context.get(Payload.Id.selectedSorting).asInstanceOf[UUID])
+      Option(context.get(Logic.Id.selectedSorting).asInstanceOf[UUID])
   } flatMap (viewSortings.get)
   /** Generate new name/id/... */
   def generateNew(base: String, suffix: String, exists: (String) ⇒ Boolean): String = {
@@ -170,20 +171,6 @@ object Payload extends Loggable {
   /** File extension for the graph descriptor. */
   def extensionGraph = DI.extensionGraph
 
-  object Id {
-    /** Value of the various UI elements with model id [String] value. */
-    final val modelIdUserInput = "org.digimead.tabuddy.desktop.logic.Data/modelIdUserInput"
-    /** Value of the selected model element [Element]. */
-    final val selectedElement = "org.digimead.tabuddy.desktop.logic.Data/selectedElement"
-    /** Value of the selected view ID [UUID]. */
-    final val selectedView = "org.digimead.tabuddy.desktop.logic.Data/selectedView"
-    /** Value of the selected sorting ID [UUID]. */
-    final val selectedSorting = "org.digimead.tabuddy.desktop.logic.Data/selectedSorting"
-    /** Value of the selected filter ID [UUID]. */
-    final val selectedFilter = "org.digimead.tabuddy.desktop.logic.Data/selectedFilter"
-    /** Flag indicating whether this view is using 'view definitions/filters/sortings' [java.lang.Boolean]. */
-    final val usingViewDefinition = "org.digimead.tabuddy.desktop.logic.Data/usingViewDefinition"
-  }
   trait YAMLProcessor[T] {
     /** Convert YAML to object */
     def from(yaml: String): Option[T]

@@ -238,6 +238,20 @@ object Logic {
    */
   private def explicitToggleState: ToggleState = ???
 
+  object Id {
+    /** Value of the various UI elements with model id [String] value. */
+    final val modelIdUserInput = "org.digimead.tabuddy.desktop.logic/modelIdUserInput"
+    /** Value of the selected model element [Element]. */
+    final val selectedElement = "org.digimead.tabuddy.desktop.logic/selectedElement"
+    /** Value of the selected view ID [UUID]. */
+    final val selectedView = "org.digimead.tabuddy.desktop.logic/selectedView"
+    /** Value of the selected sorting ID [UUID]. */
+    final val selectedSorting = "org.digimead.tabuddy.desktop.logic/selectedSorting"
+    /** Value of the selected filter ID [UUID]. */
+    final val selectedFilter = "org.digimead.tabuddy.desktop.logic/selectedFilter"
+    /** Flag indicating whether this view is using 'view definitions/filters/sortings' [java.lang.Boolean]. */
+    final val usingViewDefinition = "org.digimead.tabuddy.desktop.logic/usingViewDefinition"
+  }
   /**
    * Dependency injection routines
    */

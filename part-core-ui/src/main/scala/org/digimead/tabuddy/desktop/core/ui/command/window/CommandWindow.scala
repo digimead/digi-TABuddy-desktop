@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.command.view
+package org.digimead.tabuddy.desktop.core.ui.command.window
 
 import akka.pattern.ask
 import java.util.UUID
@@ -61,23 +61,24 @@ import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.{ Await, Future }
 
 /**
- * Create new or select exists view by name.
+ * Create new or select exists window by name.
  */
-object CommandView extends Loggable {
+object CommandWindow extends Loggable {
   import Command.parser._
   private val newArg = "-new"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
-  /** Akka communication timeout. */
-  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.view_text,
-    Messages.viewDescriptionShort_text, Messages.viewDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.window_text,
+    Messages.windowDescriptionShort_text, Messages.windowDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
-      val (viewFactory, createNew) = parserResult match {
+      log.___glance("w")
+      /*      val (viewFactory, createNew) = parserResult match {
         case ~(factory: View.Factory, Some(newArg)) ⇒ (factory, true)
         case ~(factory: View.Factory, None) ⇒ (factory, false)
       }
+      implicit val ec = App.system.dispatcher
+      implicit val timeout = akka.util.Timeout(Timeout.short)
       val exchanger = new Exchanger[Operation.Result[UUID]]()
       val appWindow = Option(activeContext.get(classOf[AppWindow])) orElse UI.getActiveWindow() getOrElse {
         throw new RuntimeException(s"Unable to find active window for ${this}: '${activeContext}'.")
@@ -111,21 +112,21 @@ object CommandView extends Loggable {
             case other ⇒
               throw new RuntimeException(s"Unable to complete operation: ${other}.")
           }
-      }
+      }*/
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> (viewParser ^^ {
+  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> (windowParser ^^ {
     result ⇒
-      Resources.factories().find { case (factory, available) ⇒ available && factory.name.name == result }.map(_._1).getOrElse {
+    /*      Resources.factories().find { case (factory, available) ⇒ available && factory.name.name == result }.map(_._1).getOrElse {
         throw Command.ParseException(s"View with name '$result' not found.")
-      }
+      }*/
   }) ~ opt(sp ~> (newArg, Command.Hint(newArg, Some("force to create new view")))))
 
-  def viewParser: Command.parser.Parser[Any] =
-    commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r, ViewHintContainer)
+  def windowParser: Command.parser.Parser[Any] =
+    commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r, WindowHintContainer)
 
-  /** Hint container for view name. */
-  object ViewHintContainer extends Command.Hint.Container {
+  /** Hint container for window name. */
+  object WindowHintContainer extends Command.Hint.Container {
     /** Get parser hints for user provided path. */
     def apply(arg: String): Seq[Command.Hint] = {
       val viewFactories = Resources.factories().filter(_._2 == true).keys.toSeq

@@ -43,12 +43,12 @@
 
 package org.digimead.tabuddy.desktop.core.console.local
 
-import java.io.{ IOException, PrintWriter }
+import java.io.{ IOException, OutputStream, PrintStream, PrintWriter }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.{ Console, Projection, Reader ⇒ CReader, Writer ⇒ CWriter }
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.seqAsJavaListConverter
 import scala.tools.jline.console.ConsoleReader
 import scala.tools.jline.console.completer.CandidateListCompletionHandler
 import scala.tools.nsc.interpreter.{ Completion, ConsoleReaderHelper, JLineReader, NoCompletion }
@@ -72,6 +72,10 @@ class Local extends Projection with Loggable {
     log.debug(s"Start local console.")
     in = Option(new Local.Reader)
     out = Option(new Local.Writer(in.get.asInstanceOf[Local.Reader].consoleReader))
+    // Reduce garbage from scala.tools.jline
+    scala.tools.jline.internal.Log.setOutput(new PrintStream(new OutputStream {
+      override def write(b: Int) {}
+    }))
     val thread = new Thread(new Runnable {
       def run = try loop catch {
         case e: IOException ⇒

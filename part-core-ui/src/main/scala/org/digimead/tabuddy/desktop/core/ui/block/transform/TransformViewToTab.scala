@@ -57,7 +57,7 @@ import scala.language.implicitConversions
 /** Wrap view with tab stack. */
 class TransformViewToTab extends Loggable {
   /** Akka execution context. */
-  implicit val ec = App.system.dispatcher
+  implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
 

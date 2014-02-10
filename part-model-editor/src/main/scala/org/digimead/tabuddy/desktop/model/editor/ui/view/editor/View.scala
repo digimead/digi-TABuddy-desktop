@@ -78,6 +78,7 @@ import org.eclipse.swt.widgets.Listener
 import org.eclipse.swt.widgets.Event
 import org.eclipse.swt.graphics.Point
 import org.digimead.tabuddy.desktop.model.editor.Messages
+import org.digimead.tabuddy.desktop.logic.Logic
 
 class View(parent: VComposite, style: Int)
   extends TableViewSkel(parent, style) with ViewActions with Loggable {
@@ -109,17 +110,17 @@ class View(parent: VComposite, style: Int)
   /** Returns the view's parent, which must be a VComposite. */
   override def getParent(): VComposite = parent
   /** Get selected element for current context. */
-  def getSelectedElement() = Option(parent.getContext.get(Payload.Id.selectedElement).asInstanceOf[Element])
+  def getSelectedElement() = Option(parent.getContext.get(Logic.Id.selectedElement).asInstanceOf[Element])
   /** Invoked at every modification of Payload.Id.selectedElement. */
   @Inject @Optional // @log
-  def onSelectedElementChanged(@Named(Payload.Id.selectedElement) element: Element) =
+  def onSelectedElementChanged(@Named(Logic.Id.selectedElement) element: Element) =
     App.exec { updateActiveElement(element) }
   /**
    * Invoked at every modification of Payload.Id.selectedElement on active context.
    * This is allow to capture active element from neighbors.
    */
   @Inject @Optional // @log
-  def onActiveSelectedElementChanged(@Active @Named(Payload.Id.selectedElement) element: Element) =
+  def onActiveSelectedElementChanged(@Active @Named(Logic.Id.selectedElement) element: Element) =
     if (false) App.exec { updateActiveElement(element) }
   /** onStart callback */
   def onStart(widget: Widget) = {}
@@ -288,7 +289,7 @@ class View(parent: VComposite, style: Int)
 //    }
   }
   /** Set selected element for current context. */
-  def setSelectedElement(element: Element) = parent.getContext.set(Payload.Id.selectedElement, element)
+  def setSelectedElement(element: Element) = parent.getContext.set(Logic.Id.selectedElement, element)
   /**
    * Updates the given elements' presentation when one or more of their properties change.
    * Only the given elements are updated.

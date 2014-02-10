@@ -217,6 +217,16 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
    */
   private def explicitToggleState: ToggleState = ???
 
+  object Id {
+    /** Value with view title [String]. */
+    final val contentTitle = "org.digimead.tabuddy.desktop.core.ui/contentTitle"
+    /** Value of the available shell list [Seq[Shell]. */
+    final val shellList = "org.digimead.tabuddy.desktop.core.ui/shellList"
+    /** Value with view title [String]. */
+    final val viewTitle = "org.digimead.tabuddy.desktop.core.ui/viewTitle"
+    /** Value with window title [String]. */
+    final val windowTitle = "org.digimead.tabuddy.desktop.core.ui/windowTitle"
+  }
   /**
    * Dependency injection routines
    */

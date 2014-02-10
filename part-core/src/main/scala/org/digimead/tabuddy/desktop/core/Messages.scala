@@ -69,6 +69,7 @@ class Messages extends ResourceBundle {
 }
 
 object Messages extends NLS with Loggable {
+  val TABuddyDesktop = ""
   val acquire_text = ""
   val activate_text = ""
   val activeElement_text = ""

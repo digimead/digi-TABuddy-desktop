@@ -43,20 +43,23 @@
 
 package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
-import akka.actor.ActorRef
+import akka.actor.{ ActorRef, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.inject.{ Inject, Named }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.{ Window, WindowConfiguration, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.block.StackConfiguration
 import org.digimead.tabuddy.desktop.core.ui.block.builder.WindowContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
+import org.eclipse.e4.core.contexts.{ Active, IEclipseContext }
+import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.{ CoolBarManager, StatusLineManager }
 import org.eclipse.jface.window.ApplicationWindow
 import org.eclipse.swt.SWT
@@ -68,14 +71,19 @@ import scala.language.implicitConversions
 /**
  * Instance that represents visible window which is based on JFace framework.
  */
-class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
-  val ref: ActorRef, val supervisorRef: ActorRef,
-  val windowContext: Context.Rich, parentShell: Shell)
+class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: WindowConfiguration, val ref: ActorRef,
+  @Named("StackSupervisorActorRef") val supervisorRef: ActorRef, argWindowContext: IEclipseContext, @Optional parentShell: Shell)
   extends ApplicationWindow(parentShell) with Window.WindowMapDisposer with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
-  /** Window configuration with location and so on. */
-  //  @volatile protected var configuration: Option[WindowConfiguration] = None
+  /** Window initial configuration. */
+  val initialConfiguration = Option(argInitialConfiguration)
+  /** Creation timestamp which allow to understand which window is older. */
+  val timestamp = System.nanoTime()
+  /** Window context. */
+  val windowContext = argWindowContext.asInstanceOf[Context]
   /** Content composite that contains views. */
   @volatile protected var content: Option[WComposite] = None
   /** Filler composite that visible by default. */
@@ -83,7 +91,7 @@ class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
   /** On active listener flag */
   protected val onActiveFlag = new AtomicBoolean(true)
   /** On active listener */
-  protected val onActiveListener = new AppWindow.OnActiveListener(this)
+  protected lazy val onActiveListener = new AppWindow.OnActiveListener(this)
   /** Flag indicating whether the window configuration should be saved. */
   @volatile protected var saveOnClose = true
 
@@ -104,6 +112,7 @@ class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
     shell.setData(UI.swtId, id) // order is important
     windowContext.set(classOf[Shell], shell)
     super.configureShell(shell)
+    shell.setText(getTitle())
     // The onPaintListener solution is not sufficient
     App.display.addFilter(SWT.Paint, onActiveListener)
     shell.addDisposeListener(new DisposeListener {
@@ -188,6 +197,17 @@ class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
     status.StatusLineContributor(manager)
     manager
   }
+  /** Get window title. */
+  protected def getTitle(): String = {
+    // Get rich context instance of the active leaf
+    val richContext = (windowContext: Context.Rich).getActiveLeaf(): Context.Rich
+    getTitle(richContext.get(UI.Id.windowTitle).getOrElse(Messages.TABuddyDesktop),
+      richContext.get(UI.Id.viewTitle), richContext.get(UI.Id.contentTitle))
+  }
+  /** Get window title. */
+  protected def getTitle(window: String, view: Option[String], content: Option[String]): String = {
+    window
+  }
   /** Initialize current window. */
   protected def initialize() {
     addStatusLine()
@@ -199,15 +219,13 @@ class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
   }
   /** On window active. */
   protected def onActive() = {}
-
   /** Show content. */
   protected def showContent(content: WComposite) {
     log.debug(s"Show content of ${this}.")
     // Bind window context to composite.
-    content.setData(App.widgetContextKey, windowContext: Context)
+    content.setData(App.widgetContextKey, windowContext)
     // Bind composite to window context.
     windowContext.set(classOf[Composite], content)
-    implicit val ec = App.system.dispatcher
     val result = supervisorRef ? App.Message.Restore(content, ref)
     result.onSuccess {
       case App.Message.Restore(Some(topWidget: SComposite), Some(origin), _) ⇒
@@ -233,6 +251,12 @@ class AppWindow(val id: UUID, initialConfiguration: Option[WindowConfiguration],
         log.fatal(s"Unable to create top level content for window ${this}: ${failure}.")
     }
   }
+  /** Update window title. */
+  @Inject @Optional @Active
+  protected def updateTitle(context: IEclipseContext, @Named(UI.Id.windowTitle) window: String,
+    @Optional @Named(UI.Id.viewTitle) view: String, @Optional @Named(UI.Id.contentTitle) content: String) =
+    if (context == windowContext)
+      App.exec { Option(getShell).foreach(shell ⇒ if (!shell.isDisposed()) shell.setText(getTitle(window, Option(view), Option(content)))) }
 
   override lazy val toString = "AppWindow[%08X]".format(id.hashCode())
 }

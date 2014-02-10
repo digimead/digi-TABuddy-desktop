@@ -55,13 +55,14 @@ import scala.concurrent.{ Await, Future }
 import scala.language.implicitConversions
 
 class TransformReplace extends Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(Timeout.short)
 
   def apply(ss: StackSupervisor, window: AppWindow, viewConfiguration: Configuration.CView): Option[VComposite] =
     ss.wComposite.flatMap { wComposite ⇒
       log.debug(s"Replace window ${window} content with ${viewConfiguration}.")
-      implicit val ec = App.system.dispatcher
       val futures = ss.context.children.map(_ ? App.Message.Destroy())
       val result = Await.result(Future.sequence(futures), Timeout.short)
       val errors = result.filter(_ match {

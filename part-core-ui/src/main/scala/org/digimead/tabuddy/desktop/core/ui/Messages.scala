@@ -63,6 +63,9 @@ object Messages extends NLS with Loggable {
   val viewInfoDescriptionShort_text = ""
   val viewInfo_text = ""
   val view_text = ""
+  val windowDescriptionLong_text = ""
+  val windowDescriptionShort_text = ""
+  val window_text = ""
 
   T.ranslate("org.digimead.tabuddy.desktop.core.ui.messages")
 }

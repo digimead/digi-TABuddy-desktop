@@ -74,7 +74,7 @@ import scala.concurrent.Future
 /** View actor binded to SComposite that contains an actual view from a view factory. */
 class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with Loggable {
   /** Akka execution context. */
-  implicit val ec = App.system.dispatcher
+  implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Parent stack actor. */
@@ -182,19 +182,20 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
         Future {
           val titleObservable = viewConfiguration.factory().titleObservable(viewWidgetWithContent.contentRef)
           App.execAsync {
-            parentWidget.getParent() match {
-              case tab: SCompositeTab ⇒
-                tab.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
-                  case Some(tabItem) ⇒
-                    val binding = App.bindingContext.bindValue(SWTObservables.observeText(tabItem), titleObservable)
-                    tabItem.addDisposeListener(new DisposeListener {
-                      def widgetDisposed(e: DisposeEvent) = binding.dispose()
-                    })
-                  case None ⇒
-                    log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
-                }
-              case other ⇒
-            }
+            if (!parentWidget.isDisposed())
+              parentWidget.getParent() match {
+                case tab: SCompositeTab ⇒
+                  tab.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
+                    case Some(tabItem) ⇒
+                      val binding = App.bindingContext.bindValue(SWTObservables.observeText(tabItem), titleObservable)
+                      tabItem.addDisposeListener(new DisposeListener {
+                        def widgetDisposed(e: DisposeEvent) = binding.dispose()
+                      })
+                    case None ⇒
+                      log.fatal(s"TabItem for ${viewConfiguration} in ${tab} not found.")
+                  }
+                case other ⇒
+              }
           }
         }
         // Add new view to the common map.
@@ -298,32 +299,40 @@ object View extends Loggable {
     /** View title with regards of number of views. */
     protected val titlePerActor = new mutable.WeakHashMap[ActorRef, TitleObservableValue]()
     /** All currently active actors. */
-    protected val activeActorRefs = new AtomicReference[List[ActorRef]](List())
-    protected val viewActorLock = new Object
+    protected var activeActorRefs = List.empty[ActorRef]
+    /** Factory lock. */
+    protected val factoryRWL = new ReentrantReadWriteLock()
 
     /** Get active actors list. */
-    def actors = activeActorRefs.get
+    def actors = {
+      factoryRWL.readLock().lock()
+      try activeActorRefs
+      finally factoryRWL.readLock().unlock()
+    }
     /** Get factory configuration. */
     def configuration = Configuration.Factory(App.bundle(this.getClass()).getSymbolicName(), this.getClass().getName())
     /** View actor reference configuration object. */
     def props: Props
     /** Get title for the actor reference. */
-    def titleObservable(ref: ActorRef): TitleObservableValue = titlePerActor.synchronized {
-      if (!activeActorRefs.get.contains(ref))
-        throw new IllegalStateException(s"Actor reference ${ref} in unknown in factory ${this}.")
-      titlePerActor.get(ref) match {
-        case Some(observable) ⇒ observable
-        case None ⇒
-          val observable = new TitleObservableValue(ref)
-          titlePerActor(ref) = observable
-          observable
-      }
+    def titleObservable(ref: ActorRef): TitleObservableValue = {
+      factoryRWL.readLock().lock()
+      try {
+        if (!activeActorRefs.contains(ref))
+          throw new IllegalStateException(s"Actor reference ${ref} in unknown in factory ${this}.")
+        titlePerActor.get(ref) match {
+          case Some(observable) ⇒ observable
+          case None ⇒
+            val observable = new TitleObservableValue(ref)
+            titlePerActor(ref) = observable
+            observable
+        }
+      } finally factoryRWL.readLock().unlock()
     }
     /**
      * Returns the actor reference that could handle Create/Destroy messages.
      * Add reference to activeActors list.
      */
-    def viewActor(container: ActorRef, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
+    def viewActor(container: ActorRef, configuration: Configuration.CView): Option[ActorRef] = {
       val viewName = contentName(configuration.id)
       log.debug(s"Create actor ${viewName}.")
       val future = UI.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id, Factory.this)), viewName)
@@ -341,31 +350,43 @@ object View extends Loggable {
       }
     }
     /** Register view as active in activeActorRefs. */
-    def register(activeView: ActorRef) = titlePerActor.synchronized {
-      log.debug(s"Register ${activeView.path.name} in ${this}.")
-      activeActorRefs.set(activeActorRefs.get() :+ activeView)
-      Future { titlePerActor.values.par.foreach(_.update) }
+    def register(activeView: ActorRef) = {
+      factoryRWL.writeLock().lock()
+      try {
+        log.debug(s"Register ${activeView.path.name} in ${this}.")
+        activeActorRefs = activeActorRefs :+ activeView
+        val titles = titlePerActor.values
+        Future { titles.par.foreach(_.update) }
+      } finally factoryRWL.writeLock().unlock()
     }
     /** Register view as active in activeActorRefs. */
-    def unregister(inactiveView: ActorRef) = titlePerActor.synchronized {
-      log.debug(s"Unregister ${inactiveView.path.name} in ${this}.")
-      activeActorRefs.set(activeActorRefs.get().filterNot(_ == inactiveView))
-      Future { titlePerActor.values.par.foreach(_.update) }
+    def unregister(inactiveView: ActorRef) = {
+      factoryRWL.writeLock().lock()
+      try {
+        log.debug(s"Unregister ${inactiveView.path.name} in ${this}.")
+        activeActorRefs = activeActorRefs.filterNot(_ == inactiveView)
+        val titles = titlePerActor.values
+        Future { titles.par.foreach(_.update) }
+      } finally factoryRWL.writeLock().unlock()
     }
 
     override lazy val toString = s"""View.Factory("${name.name}", "${shortDescription}")"""
 
     class TitleObservableValue(ref: ActorRef) extends AbstractObservableValue(App.realm) {
       @volatile protected var value: AnyRef = name.name
+      Future { update }
 
       /** The value type of this observable value. */
       def getValueType(): AnyRef = classOf[String]
-
-      def update() = viewActorLock.synchronized {
-        val n = activeActorRefs.get.indexOf(ref) + 1
-        val before = value
-        value = if (n < 2) s"${name.name}" else s"${name.name} (${n})"
-        App.exec { fireValueChange(Diffs.createValueDiff(before, this.value)) }
+      /** Update title text. */
+      def update() = {
+        factoryRWL.readLock().lock()
+        try {
+          val n = activeActorRefs.indexOf(ref) + 1
+          val before = value
+          value = if (n < 2) s"${name.name}" else s"${name.name} (${n})"
+          App.exec { fireValueChange(Diffs.createValueDiff(before, this.value)) }
+        } finally factoryRWL.readLock().unlock()
       }
       /** Get actual value. */
       protected def doGetValue(): AnyRef = value

@@ -51,11 +51,17 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Close view' operation. */
 class OperationViewClose extends api.OperationViewClose with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Akka communication timeout. */
+  implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
+
   /**
    * Close view.
    *
@@ -63,8 +69,6 @@ class OperationViewClose extends api.OperationViewClose with Loggable {
    */
   def apply(vComposite: AnyRef) {
     log.info(s"Close ${vComposite}.")
-    implicit val ec = App.system.dispatcher
-    implicit val timeout = akka.util.Timeout(Timeout.short)
     vComposite.asInstanceOf[VComposite].ref ? App.Message.Destroy()
   }
   /**

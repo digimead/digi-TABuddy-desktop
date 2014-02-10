@@ -59,7 +59,7 @@ import scala.concurrent.Await
 /** 'Close window' operation. */
 class OperationWindowClose extends api.OperationWindowClose with Loggable {
   /** Akka execution context. */
-  implicit val ec = App.system.dispatcher
+  implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
 

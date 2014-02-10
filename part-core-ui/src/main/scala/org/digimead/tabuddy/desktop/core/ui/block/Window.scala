@@ -47,17 +47,19 @@ import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.{ Core, Messages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Widget
 import scala.collection.{ immutable, mutable }
-import scala.concurrent.Await
+import scala.concurrent.{ Await, Future }
 
 /**
  * Actor that represents application window, responsible for:
@@ -218,13 +220,20 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
     App.assertEventThread(false)
     log.debug(s"Create window ${windowId}.")
     this.window = App.execNGet {
-      val window = new AppWindow(windowId, Some(configuration), self, stackSupervisor, windowContext, null)
+      windowContext.set("StackSupervisorActorRef", stackSupervisor)
+      windowContext.set(UI.Id.windowTitle, Messages.TABuddyDesktop)
+      windowContext.set(classOf[ActorRef], self)
+      windowContext.set(classOf[UUID], windowId)
+      windowContext.set(classOf[WindowConfiguration], configuration)
+      val window = ContextInjectionFactory.make(classOf[AppWindow], windowContext)
       // Add new window to the common map.
       Window.windowMapRWL.writeLock().lock()
-      try Window.windowMap += window -> self
-      finally Window.windowMapRWL.writeLock().unlock()
+      try {
+        Window.windowMap += window -> self
+        Window.titleSynchronizer.update(Window.windowMap.keys.toSeq.sortBy(_.timestamp))
+      } finally Window.windowMapRWL.writeLock().unlock()
       Option(window)
-    }
+    }(App.LongRunnable) // sometimes it may be longer than 1000ms
     this.window
   }
   /** Destroy created window. */
@@ -279,6 +288,8 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
 }
 
 object Window extends Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** All application windows. */
@@ -288,21 +299,59 @@ object Window extends Loggable {
   // Initialize descendant actor singletons
   StackSupervisor
 
-  /** Get window name. */
-  def name(id: UUID) = Window.id + "_%08X".format(id.hashCode())
-  /** Window actor reference configuration object. */
-  def props = DI.props
   /** Get stack supervisor actor. */
   def getStackSupervisor(windowActor: ActorRef): ActorRef =
     App.getActorRef(windowActor.path / windowActor.path.name.replaceAll(Window.id, StackSupervisor.id)) getOrElse {
       throw new IllegalStateException(s"Unable to get StackSupervisor for ${windowActor}.")
     }
+  /** Get window name. */
+  def name(id: UUID) = Window.id + "_%08X".format(id.hashCode())
+  /** Window actor reference configuration object. */
+  def props = DI.props
+  /** Application windows title synchronizer. */
+  def titleSynchronizer = DI.titleSynchronizer
 
   override def toString = "Window[Singleton]"
 
   /** Wrapper for App.Message.Create argument. */
   case class <>(val windowId: UUID, val configuration: WindowConfiguration) {
     override lazy val toString = "<>([%08X]=%s, %s)".format(windowId.hashCode(), windowId.toString(), configuration)
+  }
+  /** Windows title synchronizer. */
+  class TitleSynchronizer {
+    /** Pending routine. */
+    protected val pending = new AtomicReference[Synchronizer]()
+    /** Active routine. */
+    protected val active = new AtomicReference[Synchronizer]()
+
+    /** Update windows title. */
+    def update(windows: Seq[AppWindow]) {
+      pending.set(new Synchronizer(windows))
+      Option(pending.getAndSet(null)).foreach(_.run())
+    }
+
+    /** Synchronizer runnable. */
+    class Synchronizer(var windows: Seq[AppWindow]) extends Runnable {
+      def run() = Future {
+        if (active.compareAndSet(null, this) || active.get() == this)
+          update()
+        Option(pending.getAndSet(null)).foreach { f ⇒
+          active.set(f)
+          f.run()
+        }
+      }
+      /** Update windows title. */
+      protected def update() {
+        var n = 0
+        windows.foreach { window ⇒
+          n += 1
+          if (n > 1)
+            window.windowContext.set(UI.Id.windowTitle, s"${Messages.TABuddyDesktop} (${n})")
+          else
+            window.windowContext.set(UI.Id.windowTitle, Messages.TABuddyDesktop)
+        }
+      }
+    }
   }
   /**
    * Window map consumer.
@@ -316,7 +365,7 @@ object Window extends Loggable {
     }
   }
   /**
-   * Window map consumer.
+   * Window map disposer.
    */
   trait WindowMapDisposer {
     this: AppWindow ⇒
@@ -324,8 +373,10 @@ object Window extends Loggable {
     def windowRemoveFromCommonMap() {
       // Remove window from the common map.
       Window.windowMapRWL.writeLock().lock()
-      try Window.windowMap -= this
-      finally Window.windowMapRWL.writeLock().unlock()
+      try {
+        Window.windowMap -= this
+        Window.titleSynchronizer.update(Window.windowMap.keys.toSeq.sortBy(_.timestamp))
+      } finally Window.windowMapRWL.writeLock().unlock()
     }
   }
   /**
@@ -338,5 +389,7 @@ object Window extends Loggable {
       UUID.fromString("00000000-0000-0000-0000-000000000000"),
       // parent context
       Core.context)
+    /** Application windows title synchronizer. */
+    lazy val titleSynchronizer = injectOptional[TitleSynchronizer] getOrElse new TitleSynchronizer
   }
 }

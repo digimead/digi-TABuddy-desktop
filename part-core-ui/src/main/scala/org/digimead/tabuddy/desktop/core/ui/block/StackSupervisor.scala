@@ -73,7 +73,7 @@ import scala.language.implicitConversions
  */
 class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) extends Actor with Loggable {
   /** Akka execution context. */
-  implicit val ec = App.system.dispatcher
+  implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Stack configuration. */
@@ -143,7 +143,8 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
           if (pointers.isDefinedAt(vComposite.id))
             onDestroyed(vComposite, origin)
         case Left(None) ⇒
-          log.error(s"Unable to transform ${tab} to view.")
+          // view was disposed before message delivery
+          log.debug(s"Unable to transform ${tab} to VComposite: there are no children.")
       }
     }
 

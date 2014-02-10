@@ -62,6 +62,9 @@ class Commands extends Loggable {
   /** Configure component commands. */
   @log
   def configure() = lock.synchronized {
+    /*
+     * view
+     */
     Command.register(view.CommandView.descriptor)
     Command.addToContext(Core.context, view.CommandView.parser).
       foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
@@ -69,11 +72,24 @@ class Commands extends Loggable {
     Command.addToContext(Core.context, view.CommandViewInfo.parser).
       foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(view.CommandViewClose.descriptor)
+    /*
+     * window
+     */
+    Command.register(window.CommandWindow.descriptor)
+    Command.addToContext(Core.context, window.CommandWindow.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
   }
   /** Unconfigure component commands. */
   @log
   def unconfigure() = lock.synchronized {
     contextParsers.foreach(Command.removeFromContext(Core.context, _))
+    /*
+     * window
+     */
+    Command.unregister(window.CommandWindow.descriptor)
+    /*
+     * view
+     */
     Command.unregister(view.CommandViewClose.descriptor)
     Command.unregister(view.CommandViewInfo.descriptor)
     Command.unregister(view.CommandView.descriptor)

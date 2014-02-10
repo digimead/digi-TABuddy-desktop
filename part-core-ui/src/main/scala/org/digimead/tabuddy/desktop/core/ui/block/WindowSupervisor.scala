@@ -78,6 +78,8 @@ import scala.language.implicitConversions
  * - shut down application
  */
 class WindowSupervisor extends Actor with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** All known window configurations. */
@@ -157,13 +159,23 @@ class WindowSupervisor extends Actor with Loggable {
       }
     } foreach { sender ! _ }
 
+    // open specific exists or new window
+    case message @ App.Message.Open(Some(id: UUID), _, None) ⇒ App.traceMessage(message) {
+      open(Some(id)) match {
+        case Some(uuid) ⇒
+          App.Message.Open(uuid, None)
+        case None ⇒
+          App.Message.Error(s"Unable to open ${id} window.", None)
+      }
+    } foreach { sender ! _ }
+
     // opening in progress
-    case message @ App.Message.Open(appWindow, Some(windowSupervisor), Some("Opening in progress.")) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(appWindow: AppWindow, Some(windowSupervisor), Some("Opening in progress.")) ⇒ App.traceMessage(message) {
       log.debug(s"${appWindow} is opening.")
     }
 
     // window is opened
-    case message @ App.Message.Open(appWindow, Some(windowSupervisor), None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(appWindow: AppWindow, Some(windowSupervisor), None) ⇒ App.traceMessage(message) {
       App.publish(message)
     }
 
@@ -212,7 +224,7 @@ class WindowSupervisor extends Actor with Loggable {
           // if there is no last active window
           // this is the 1st...
           if (UI.getActiveShell().isEmpty)
-            Core.context.set("shellList", Seq(window.getShell()))
+            Core.context.set(UI.Id.shellList, Seq(window.getShell()))
           window.windowContext.activateBranch()
         }
         App.publish(message)
@@ -242,7 +254,7 @@ class WindowSupervisor extends Actor with Loggable {
           // if there is no last active window
           // this is the 1st...
           if (UI.getActiveShell().isEmpty)
-            Core.context.set("shellList", Seq(window.getShell()))
+            Core.context.set(UI.Id.shellList, Seq(window.getShell()))
           window.windowContext.activateBranch()
         }
         Await.result(sender ? App.Message.Open(), timeout.duration)
@@ -323,7 +335,6 @@ class WindowSupervisor extends Actor with Loggable {
   }
   /** Save windows configuration. */
   protected def save() {
-    implicit val ec = App.system.dispatcher
     if (!configurationsSave.compareAndSet(None, Some({
       val future = Future {
         WindowConfiguration.save(immutable.HashMap(configurations.toSeq: _*))
@@ -390,7 +401,7 @@ class WindowSupervisor extends Actor with Loggable {
         //head is last active shell
         val (active, disposed) = shellMap.toSeq.sortBy(-_._2).map(_._1).partition(!_.isDisposed)
         shellMap --= disposed
-        Core.context.set("shellList", active)
+        Core.context.set(UI.Id.shellList, active)
       }
       UI.findShell(event.widget).foreach { shell ⇒
         Option(shell.getData(UI.swtId).asInstanceOf[UUID]).foreach { id ⇒

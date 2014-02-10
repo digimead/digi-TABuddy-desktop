@@ -170,7 +170,12 @@ class ViewContentBuilder extends Loggable {
             widget.contentRef ! App.Message.Set(widget.ref)
             Some(widget)
           } else {
-            log.fatal(s"Unable to change parent widget for ${App.execNGet { existsWidget.getChildren().mkString(", ") }} ")
+            App.exec {
+              if (existsWidget.isDisposed())
+                log.debug(s"Unable to change parent widget for - in " + existsWidget)
+              else
+                log.fatal(s"Unable to change parent widget for ${existsWidget.getChildren().mkString(", ")}")
+            }
             None
           }
         case None ⇒

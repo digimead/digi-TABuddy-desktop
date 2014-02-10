@@ -266,34 +266,32 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
   }
 }
 
-object Editor extends View.Factory with Loggable {
+object Editor extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** View name. */
-  lazy val name = DI.name
-  /** Short view description (one line). */
-  lazy val shortDescription = DI.shortDescription
-  /** Long view description. */
-  lazy val longDescription = DI.longDescription
-  /** View image. */
-  lazy val image = DI.image
 
-  /** Returns actor reference that could handle Create/Destroy messages. */
-  @log
-  def viewActor(containerActorContext: ActorContext, configuration: Configuration.CView): Option[ActorRef] = viewActorLock.synchronized {
-    val viewName = "Content_" + id + "_%08X".format(configuration.id.hashCode())
-    val newActorRef = containerActorContext.actorOf(props.copy(args = immutable.Seq(configuration.id)), viewName)
-    activeActorRefs.set(activeActorRefs.get() :+ newActorRef)
-    titlePerActor.values.foreach(_.update)
-    Some(newActorRef)
+  /** Default view factory. */
+  def factory = DI.factory
+
+  class Factory extends View.Factory {
+    /** View name. */
+    lazy val name = DI.name
+    /** Short view description (one line). */
+    lazy val shortDescription = DI.shortDescription
+    /** Long view description. */
+    lazy val longDescription = DI.longDescription
+    /** View image. */
+    lazy val image = DI.image
+
+    /** Editor view actor reference configuration object. */
+    def props = DI.props
   }
-  /** Editor view actor reference configuration object. */
-  def props = DI.props
-
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** View factory. */
+    lazy val factory = injectOptional[Factory] getOrElse new Factory
     /** View name. */
     lazy val name = injectOptional[Symbol]("Editor.View.Editor.Name") getOrElse Symbol({
       val name = Messages.tableView_text

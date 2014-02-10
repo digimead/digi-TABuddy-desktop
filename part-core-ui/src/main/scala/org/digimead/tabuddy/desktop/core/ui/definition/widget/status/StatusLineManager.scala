@@ -63,6 +63,8 @@ import scala.concurrent.future
  * Composite status manager for AppWindow
  */
 class StatusLineManager extends JStatusLineManager with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The status line control; <code>null</code> before creation and after disposal. */
   protected var statusLineContainer: Composite = null
   /** The command line control; <code>null</code> before creation and after disposal. */
@@ -121,7 +123,6 @@ class StatusLineManager extends JStatusLineManager with Loggable {
                     case Some(commandDescriptor) ⇒
                       val activeContext = Core.context.getActiveLeaf()
                       textField.setText("")
-                      implicit val ec = App.system.dispatcher
                       future {
                         log.info(s"Execute command '${commandDescriptor.name}' within context '${info.context}' with argument: " + result)
                         commandDescriptor.callback(activeContext, info.context, result)
