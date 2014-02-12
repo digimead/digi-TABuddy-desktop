@@ -84,10 +84,12 @@ class Resources extends BundleActivator with Loggable {
   private val lock = new Object
 
   /** Get factory by singleton class name. */
-  def factory(singletonClassName: String): Option[View.Factory] =
-    viewFactoriesMap.find(_._1.getClass().getName() == singletonClassName).map(_._1)
+  def factory(className: String): Option[View.Factory] =
+    viewFactoriesMap.find(_._1.getClass().getName() == className).map(_._1)
   /** Get map of factories. */
   def factories() = viewFactoriesMap.toMap
+  /** Returns the image stored in the image registry under the given symbolic name. */
+  def getImage(symbolicName: String) = JFaceResources.getImageRegistry().get(symbolicName)
   /** Get image at the specific path and scale to k. */
   def getImage(path: String, k: Double) = {
     val image = ResourceManager.getImage(getClass, path)

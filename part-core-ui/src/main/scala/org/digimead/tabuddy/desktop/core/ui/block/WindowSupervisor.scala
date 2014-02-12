@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
-import akka.actor.{ Actor, ActorRef, Props, ScalaActorRef, actorRef2Scala }
+import akka.actor.{ Actor, ActorRef, PoisonPill, Props, ScalaActorRef, actorRef2Scala }
 import akka.pattern.ask
 import java.lang.ref.WeakReference
 import java.util.UUID
@@ -52,12 +52,12 @@ import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.{ Core, EventLoop }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.{ Timeout, WritableValue }
+import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, WComposite }
-import org.digimead.tabuddy.desktop.core.{ Core, EventLoop }
 import org.eclipse.core.databinding.observable.Observables
 import org.eclipse.core.databinding.observable.value.{ IValueChangeListener, ValueChangeEvent }
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
@@ -264,7 +264,7 @@ class WindowSupervisor extends Actor with Loggable {
   protected def onDestroyed(window: AppWindow, origin: ActorRef) {
     pointers -= window.id
     App.publish(App.Message.Destroy(window, origin))
-    context.stop(window.ref)
+    window.ref ! PoisonPill
   }
   /** Start global focus listener when GUI is available. */
   @log
@@ -407,19 +407,19 @@ class WindowSupervisor extends Actor with Loggable {
         Option(shell.getData(UI.swtId).asInstanceOf[UUID]).foreach { id ⇒
           event.`type` match {
             case SWT.FocusIn ⇒
-              log.debug("Generate StrictStartFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
+              log.trace("Receive StrictStartFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
               focusEvent.value = StrictStartFocusEvent(id, event.widget)
             case SWT.FocusOut ⇒
-              log.debug("Generate StrictStopFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
+              log.trace("Receive StrictStopFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
               focusEvent.value = StrictStopFocusEvent(id, event.widget)
             case SWT.Activate ⇒
-              log.debug("Generate FuzzyStartFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
+              log.trace("Receive FuzzyStartFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
               focusEvent.value match {
                 case StrictStartFocusEvent(sid, swidget) if sid == id ⇒ // Skip. Fuzzy couldn't override strict.
                 case _ ⇒ focusEvent.value = FuzzyStartFocusEvent(id, event.widget)
               }
             case SWT.Deactivate ⇒
-              log.debug("Generate StrictStopFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
+              log.trace("Receive StrictStopFocusEvent for AppWindow[%08X] and %s.".format(id.hashCode(), event.widget))
               focusEvent.value match {
                 case StrictStopFocusEvent(sid, swidget) if sid == id ⇒ // Skip. Fuzzy couldn't override strict.
                 case _ ⇒ focusEvent.value = FuzzyStopFocusEvent(id, event.widget)

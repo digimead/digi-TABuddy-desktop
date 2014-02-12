@@ -47,10 +47,11 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackLayer }
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackTabBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackLayer }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
+import org.eclipse.swt.SWT
 import scala.language.implicitConversions
 
 /** Attach view to tab stack. */
@@ -63,14 +64,14 @@ class TransformAttachView extends Loggable {
     App.assertEventThread(false)
     // Prepare tab item.
     val container = App.execNGet {
-      StackTabBuilder.addTabItem(tabComposite, (tabItem) ⇒ {
+      StackTabBuilder.addCTabItem(tabComposite, SWT.CLOSE, (tabItem) ⇒ {
         tabItem.setData(UI.swtId, viewConfiguration.id)
         tabItem.setToolTipText(viewConfiguration.factory().shortDescription)
         viewConfiguration.factory().image.foreach(tabItem.setImage)
       })
     }
     val vCompositeResult = ViewContentBuilder.container(viewConfiguration, container, sl.parentContext, sl.context, content)
-    vCompositeResult.foreach(_ ⇒ StackTabBuilder.adjustTabItem(tabComposite, viewConfiguration))
+    vCompositeResult.foreach(_ ⇒ StackTabBuilder.adjustCTabItem(tabComposite, viewConfiguration))
     vCompositeResult
   }
 }

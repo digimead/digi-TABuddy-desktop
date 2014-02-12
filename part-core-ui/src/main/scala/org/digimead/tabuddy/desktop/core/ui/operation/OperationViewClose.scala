@@ -44,16 +44,16 @@
 package org.digimead.tabuddy.desktop.core.ui.operation
 
 import akka.pattern.ask
-import java.util.concurrent.CancellationException
+import java.util.concurrent.{ CancellationException, ExecutionException }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import scala.concurrent.Await
 
 /** 'Close view' operation. */
 class OperationViewClose extends api.OperationViewClose with Loggable {
@@ -69,7 +69,9 @@ class OperationViewClose extends api.OperationViewClose with Loggable {
    */
   def apply(vComposite: AnyRef) {
     log.info(s"Close ${vComposite}.")
-    vComposite.asInstanceOf[VComposite].ref ? App.Message.Destroy()
+    val future = vComposite.asInstanceOf[VComposite].ref ? App.Message.Destroy()
+    try Await.result(future, timeout.duration)
+    catch { case e: Throwable ⇒ throw new ExecutionException(s"Unable to close ${vComposite}: " + e.getMessage(), e) }
   }
   /**
    * Create 'Close view' operation.

@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.core.ui
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import java.util.concurrent.TimeUnit
-import org.digimead.digi.lib.aop.log
+import javax.swing.UIManager
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.block.{ View, Window, WindowSupervisor }
+import org.eclipse.core.runtime.Platform
 import org.eclipse.jface.commands.ToggleState
 import scala.concurrent.Future
 import scala.concurrent.duration.{ Duration, FiniteDuration }
@@ -149,6 +150,14 @@ class UI extends akka.actor.Actor with Loggable {
   /** Invoked on Core started. */
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(UI) on {
+      // Start event in separated thread since watcher is synchronous
+      // and watcher hook may depends on event loop
+      // Eclipse Bug 341799 workaround
+      try if (Platform.WS_GTK.equals(Platform.getWS()))
+        UIManager.setLookAndFeel("javax.swing.plaf.metal.MetalLookAndFeel")
+      else
+        UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
+      catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }(App.LongRunnable)
       view.Views.configure()
       command.Commands.configure()
@@ -208,6 +217,8 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
   def focusTimeout = DI.focusTimeout
   /** Stop event loop when last window is closed. */
   def stopEventLoopWithLastWindow = DI.stopEventLoopWithLastWindow
+  /** Sets the shape that the CTabFolder will use to render itself. */
+  def tabFolderSimple = DI.tabFolderSimple
 
   override def toString = "UI[Singleton]"
 
@@ -241,5 +252,7 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
     lazy val props = injectOptional[Props]("Core.UI") getOrElse Props[UI]
     /** Stop event loop when last window is closed. */
     lazy val stopEventLoopWithLastWindow = injectOptional[Boolean]("Core.UI.stopEventLoopWithLastWindow") getOrElse true
+    /** Sets the shape that the CTabFolder will use to render itself. */
+    lazy val tabFolderSimple = injectOptional[Boolean]("Core.UI.tabFolderSimple") getOrElse false
   }
 }

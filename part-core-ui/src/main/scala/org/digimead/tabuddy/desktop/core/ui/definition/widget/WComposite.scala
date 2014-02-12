@@ -43,13 +43,14 @@
 
 package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
-import akka.actor.ActorRef
+import akka.actor.{ ActorRef, actorRef2Scala }
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.widgets.Composite
+import scala.collection.mutable
 import scala.ref.WeakReference
 
 /** Window actual content container. */
@@ -58,7 +59,7 @@ class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppW
   initialize
 
   /** Get window context. */
-  def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
+  def getContext(): Context = WComposite.contextMap(this)
   /** Get AppWindow. */
   def getAppWindow() = window.get
 
@@ -67,7 +68,7 @@ class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppW
     addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         val context = Option(getContext())
-        setData(App.widgetContextKey, null)
+        WComposite.contextMap.remove(WComposite.this)
         context.foreach(_.dispose())
         ref ! App.Message.Destroy(WComposite.this, ref)
       }
@@ -75,3 +76,11 @@ class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppW
   }
 }
 
+object WComposite {
+  protected val contextMap = new mutable.WeakHashMap[WComposite, Context]() with mutable.SynchronizedMap[WComposite, Context]
+
+  /** Set context for WComposite. */
+  trait ContextSetter {
+    def setWCompositeContext(wComposite: WComposite, context: Context) = contextMap(wComposite) = context
+  }
+}

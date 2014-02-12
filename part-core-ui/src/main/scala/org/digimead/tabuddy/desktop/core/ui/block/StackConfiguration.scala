@@ -135,11 +135,11 @@ class StackConfiguration extends Loggable {
 
   /** Rebuild configuration from the actual widgets hierarchy */
   protected def generateConfiguration(widget: Widget): Option[Configuration.CPlaceHolder] = widget match {
-    case vempty: VEmpty ⇒
+    case vempty: VEmpty if !vempty.isDisposed ⇒
       Some(Configuration.CEmpty(vempty.id))
-    case vcomposite: VComposite ⇒
+    case vcomposite: VComposite if !vcomposite.isDisposed ⇒
       Some(Configuration.CView(vcomposite.factory, vcomposite.id))
-    case scomposite: SCompositeTab ⇒
+    case scomposite: SCompositeTab if !scomposite.isDisposed ⇒
       val children: Array[Configuration.CView] = scomposite.getItems().map { tabItem ⇒
         generateConfiguration(tabItem.getControl()) match {
           case Some(view: Configuration.CView) ⇒
@@ -155,13 +155,13 @@ class StackConfiguration extends Loggable {
         Some(Configuration.Stack.CTab(children, scomposite.id))
       else
         None
-    case scomposite: SCompositeHSash ⇒
+    case scomposite: SCompositeHSash if !scomposite.isDisposed() ⇒
       // TODO
       None
-    case scomposite: SCompositeVSash ⇒
+    case scomposite: SCompositeVSash if !scomposite.isDisposed() ⇒
       // TODO
       None
-    case widget: Composite ⇒
+    case widget: Composite if !widget.isDisposed() ⇒
       // pass through via other composite
       widget.getChildren().map(generateConfiguration).flatten match {
         case Array() ⇒
@@ -172,7 +172,7 @@ class StackConfiguration extends Loggable {
           log.fatal(s"Unexpected configuration: ${unexpected.mkString(", ")}")
           None
       }
-    case unknownWidget ⇒
+    case unknownOrDisposedWidget ⇒
       None
   }
 }

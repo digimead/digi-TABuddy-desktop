@@ -75,11 +75,15 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    */
   def apply(appWindow: AnyRef, viewConfiguration: AnyRef): Option[UUID] = {
     log.info(s"Create new ${viewConfiguration}.")
-    Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(viewConfiguration, None), timeout.duration) match {
+    try Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(viewConfiguration, None), timeout.duration) match {
       case App.Message.Create(view: VComposite, _, _) ⇒
         Some(view.id)
       case App.Message.Error(message, _) ⇒
         log.error(s"Unable to create ${viewConfiguration}: ${message.getOrElse("unknown")}")
+        None
+    } catch {
+      case e: Throwable ⇒
+        log.error(s"Unable to open view ${viewConfiguration} in ${appWindow}: " + e.getMessage(), e)
         None
     }
   }

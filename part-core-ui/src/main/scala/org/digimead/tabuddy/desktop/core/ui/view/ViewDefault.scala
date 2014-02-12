@@ -44,27 +44,20 @@
 package org.digimead.tabuddy.desktop.core.ui.view
 
 import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
-import akka.pattern.ask
 import java.util.UUID
-import java.util.concurrent.TimeoutException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.Messages
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, View }
+import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.layout.FillLayout
 import org.eclipse.swt.widgets.{ Composite, Control, Widget }
-import scala.collection.immutable
-import scala.concurrent.{ Await, Future }
-import org.digimead.tabuddy.desktop.core.ui.UI
-import akka.actor.ActorContext
 
 class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor with Loggable {
   /** View body widget. */
@@ -75,17 +68,19 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
   var terminated = false
   /** Container view actor. */
   var containerRef = Option.empty[ActorRef]
+  /** View context. */
+  lazy val viewContext = Context(self.path.name)
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
     log.debug(this + " is stopped.")
-    factory.unregister(self)
+    factory.unregister(self.path.name)
   }
   /** Is called when an Actor is started. */
   override def preStart() = {
     log.debug(this + " is started.")
-    factory.register(self)
+    factory.register(self.path.name, viewContext)
   }
   /** Get container actor reference. */
   def container = containerRef getOrElse { throw new NoSuchElementException(s"${this} container not found.") }
@@ -117,11 +112,13 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Set(_, parentActor: ActorRef) ⇒
-      if (parentActor.path.name != "View_%08X".format(contentId.hashCode()))
-        throw new IllegalArgumentException(s"Illegal container ${parentActor}.")
-      log.debug(s"Bind ${this} to ${parentActor}.")
-      containerRef = Some(parentActor)
+    case message @ App.Message.Set(_, parentWidget: VComposite) ⇒ App.traceMessage(message) {
+      if (parentWidget.ref.path.name != "View_%08X".format(contentId.hashCode()))
+        throw new IllegalArgumentException(s"Illegal container ${parentWidget}.")
+      log.debug(s"Bind ${this} to ${parentWidget}.")
+      containerRef = Some(parentWidget.ref)
+      viewContext.setParent(parentWidget.getContext())
+    }
 
     case message @ App.Message.Start(widget: Widget, _, None) ⇒ App.traceMessage(message) {
       if (terminated) {
@@ -139,7 +136,7 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
       }
     } foreach { sender ! _ }
 
-    case App.Message.Error(Some(message), _) if message.endsWith("is terminated.") ⇒
+    case App.Message.Error(Some(message), _) ⇒
       log.debug(message)
   }
 

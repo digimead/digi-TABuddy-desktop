@@ -49,12 +49,11 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
-import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.custom.{ CTabFolder, ScrolledComposite }
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
-import org.eclipse.swt.widgets.TabFolder
 
 class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
-  extends TabFolder(parent, style) with SComposite with Loggable {
+  extends CTabFolder(parent, style) with SComposite with Loggable {
   initialize
 
   /** Returns the receiver's parent, which must be a ScrolledComposite. */
@@ -63,29 +62,24 @@ class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, 
   protected def initialize() {
     // Add an event listener to pass the selected tab to WindowSupervisor
     addSelectionListener(new SelectionAdapter() {
-      override def widgetSelected(event: SelectionEvent) = getSelection().headOption match {
-        case Some(selection) ⇒
-          selection.getControl() match {
-            case composite: ScrolledComposite if composite.getContent().isInstanceOf[VComposite] ⇒
-              val viewLayerComposite = composite.getContent()
-              App.exec {
-                // After item will be selected, but will not block UI thread.
-                UI.widgetHierarchy(viewLayerComposite).lastOption match {
-                  case Some(wComposite) ⇒
-                    log.debug(s"Start tab item with ${viewLayerComposite}.")
-                    WindowSupervisor.actor ! App.Message.Start((wComposite.id, viewLayerComposite), ref)
-                  case None ⇒
-                    log.debug("Skip tab item with ${viewLayerComposite}: layer is destroyed.")
-                }
-              }
-            case composite: ScrolledComposite if composite.getContent() == null ⇒
-              log.debug("Skip selection event for the empty tab.")
-            case null ⇒ // sometimes we try to select the deleted tab
-            case unexpected ⇒
-              log.fatal(s"Tab item contains unexpected JFace element: ${unexpected}.")
+      override def widgetSelected(event: SelectionEvent) = getSelection().getControl() match {
+        case composite: ScrolledComposite if composite.getContent().isInstanceOf[VComposite] ⇒
+          val viewLayerComposite = composite.getContent()
+          App.exec {
+            // After item will be selected, but will not block UI thread.
+            UI.widgetHierarchy(viewLayerComposite).lastOption match {
+              case Some(wComposite) ⇒
+                log.debug(s"Start tab item with ${viewLayerComposite}.")
+                WindowSupervisor.actor ! App.Message.Start((wComposite.id, viewLayerComposite), ref)
+              case None ⇒
+                log.debug("Skip tab item with ${viewLayerComposite}: layer is destroyed.")
+            }
           }
-        case None ⇒
-          log.debug(s"Skip empty selection.")
+        case composite: ScrolledComposite if composite.getContent() == null ⇒
+          log.debug("Skip selection event for the empty tab.")
+        case null ⇒ // sometimes we try to select the deleted tab
+        case unexpected ⇒
+          log.fatal(s"Tab item contains unexpected JFace element: ${unexpected}.")
       }
     })
     addDisposeListener(new DisposeListener {

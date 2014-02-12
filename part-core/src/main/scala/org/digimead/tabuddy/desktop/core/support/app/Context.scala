@@ -52,8 +52,6 @@ import scala.collection.JavaConversions.{ asJavaCollection, asScalaSet, mapAsSca
 
 trait Context {
   this: Loggable with Generic ⇒
-  /** Name of the key of SWT widget. */
-  val widgetContextKey = classOf[Context].getName()
 
   /** Dump context hierarchy acquired from Core context. */
   def contextDumpHierarchy(filter: String ⇒ Boolean = (key) ⇒ true, brief: Boolean = true): String =

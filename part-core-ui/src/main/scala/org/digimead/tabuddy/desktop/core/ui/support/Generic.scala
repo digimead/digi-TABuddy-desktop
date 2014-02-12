@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.support
 
-import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, VComposite, WComposite }
 import org.eclipse.jface.viewers.TableViewerColumn
@@ -51,12 +51,15 @@ import org.eclipse.swt.custom.{ CTabItem, TableTreeItem }
 import org.eclipse.swt.dnd.{ DragSource, DropTarget }
 import org.eclipse.swt.widgets.{ Caret, Composite, Control, CoolItem, ExpandItem, Menu, MenuItem, ScrollBar, Shell, TabItem, TableColumn, TableItem, TaskBar, TaskItem, ToolItem, ToolTip, TreeColumn, TreeItem, Widget }
 import scala.annotation.tailrec
+import scala.concurrent.Future
+import scala.ref.WeakReference
 
 /**
  * Trait with support functions for org.digimead.tabuddy.desktop.core.ui.UI
  */
 trait Generic {
   this: org.digimead.tabuddy.desktop.core.ui.UI.type ⇒
+
   /** Adjust table viewer column width. */
   def adjustTableViewerColumnWidth(viewerColumn: TableViewerColumn, padding: Int, n: Int = 3) {
     val bounds = viewerColumn.getViewer.getControl.getBounds()
@@ -167,7 +170,7 @@ trait Generic {
         findWindowComposite(shell).toSeq
       case Some(widget) if !widget.isDisposed ⇒
         findParent(widget) match {
-          case Some(parent) if !parent.isDisposed() ⇒ widgetHierarchy(parent, Seq())
+          case Some(parent) ⇒ widgetHierarchy(parent, Seq())
           case _ ⇒ Seq()
         }
       case _ ⇒ // None or disposed element
@@ -189,6 +192,58 @@ trait Generic {
         widgetHierarchy(parent, acc)
       case None ⇒
         acc
+    }
+  }
+}
+
+object Generic extends Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+
+  /** N title synchronizer. */
+  abstract class TitleSynchronizer[T] {
+    /** TitleSynchronizer routine. */
+    protected var pending = Option.empty[Synchronizer]
+    /** Active routine. */
+    protected var active = Option.empty[Synchronizer]
+    /** TitleSynchronizer lock. */
+    protected val lock = new Object
+
+    /** Update element title. */
+    def notify(elements: Seq[T]): Unit = lock.synchronized {
+      active match {
+        case Some(active) ⇒
+          pending = Some(new Synchronizer(elements, WeakReference(this)))
+        case None ⇒
+          var f = new Synchronizer(elements, WeakReference(this))
+          pending = None
+          active = Some(f)
+          f.run()
+      }
+    }
+    /** Update elements. */
+    protected def synchronize(elements: Seq[T])
+
+    /** Synchronizer runnable. */
+    class Synchronizer(elements: Seq[T], parent: WeakReference[TitleSynchronizer[T]]) extends Runnable {
+      def run() = Future { update() } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+      /** Update elements title. */
+      protected def update() {
+        parent.get.foreach { parent ⇒
+          log.trace("Synchronize " + elements)
+          parent.synchronize(elements)
+          lock.synchronized {
+            parent.pending match {
+              case p @ Some(pending) ⇒
+                parent.pending = None
+                parent.active = p
+                pending.run()
+              case None ⇒
+                parent.active = None
+            }
+          }
+        }
+      }
     }
   }
 }

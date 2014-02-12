@@ -50,11 +50,12 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
-import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.SWT
-import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.custom.{ CTabItem, ScrolledComposite }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.layout.{ GridData, GridLayout }
-import org.eclipse.swt.widgets.TabItem
+import org.eclipse.ui.ISharedImages
+import org.eclipse.ui.internal.WorkbenchImages
 import scala.language.implicitConversions
 
 /** Build tab layer and allocate N tab items for views. */
@@ -64,33 +65,42 @@ class StackTabBuilder extends Loggable {
     App.assertEventThread()
     if (parentWidget.getLayout().isInstanceOf[GridLayout])
       throw new IllegalArgumentException(s"Unexpected parent layout ${parentWidget.getLayout().getClass()}.")
-    val content = new SCompositeTab(configuration.id, stackRef, parentWidget, SWT.NONE)
+    val content = new SCompositeTab(configuration.id, stackRef, parentWidget, SWT.BORDER)
+    content.setUnselectedCloseVisible(false)
+    content.setMaximizeVisible(false)
+    content.setMinimizeVisible(false)
+    content.setSimple(UI.tabFolderSimple)
     content.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-    val containers = for (child ← configuration.children) yield addTabItem(content, (tabItem) ⇒ {
+    val containers = for (child ← configuration.children) yield addCTabItem(content, SWT.CLOSE, (tabItem) ⇒ {
       tabItem.setData(UI.swtId, child.id)
       tabItem.setToolTipText(child.factory().shortDescription)
       child.factory().image.foreach(tabItem.setImage)
     })
     (content, containers)
   }
-  /** Add new TabItem with ScrolledComposite to SCompositeTab. */
-  def addTabItem[T](tab: SCompositeTab, adjust: TabItem ⇒ T): ScrolledComposite = {
-    val container = new TabItem(tab, SWT.NULL)
+  /** Add new CTabItem with ScrolledComposite to SCompositeTab. */
+  def addCTabItem[T](tab: SCompositeTab, style: Int, adjust: CTabItem ⇒ T): ScrolledComposite = {
+    val container = new CTabItem(tab, style)
+    // Set the default image. Consumer may overwrite if needed.
+    container.setImage(WorkbenchImages.getImage(ISharedImages.IMG_OBJ_FILE))
     adjust(container)
     val scroll = new ScrolledComposite(tab, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
     container.setControl(scroll)
+    container.addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) = scroll.dispose()
+    })
     scroll.setLayout(new GridLayout)
     scroll.setExpandHorizontal(true)
     scroll.setExpandVertical(true)
     scroll
   }
-  /** Adjust TabItem. */
-  def adjustTabItem(tabComposite: SCompositeTab, viewConfiguration: Configuration.CView) {
+  /** Adjust CTabItem. */
+  def adjustCTabItem(tabComposite: SCompositeTab, viewConfiguration: Configuration.CView) {
     App.execNGet {
       // Adjust tab.
       val result = for {
         tabItem ← tabComposite.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id }
-        container ← tabComposite.getChildren().headOption
+        container ← tabComposite.getChildren().lastOption
       } yield container match {
         case container: ScrolledComposite ⇒
           container.getChildren().headOption match {
@@ -104,7 +114,7 @@ class StackTabBuilder extends Loggable {
         case unexpected ⇒
           throw new IllegalStateException(s"Incorrect SCompositeTab content ${unexpected}.")
       }
-      result getOrElse { log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.") }
+      result getOrElse { log.fatal(s"CTabItem for ${viewConfiguration} in ${tabComposite} not found.") }
     }
   }
 }

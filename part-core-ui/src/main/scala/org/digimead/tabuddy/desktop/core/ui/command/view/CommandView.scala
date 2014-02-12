@@ -103,7 +103,7 @@ object CommandView extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
-              result.flatMap(id ⇒ UI.viewMap.find(_._1.id == id))
+              result.flatMap(UI.viewMap.get)
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case err: Operation.Result.Error[_] ⇒

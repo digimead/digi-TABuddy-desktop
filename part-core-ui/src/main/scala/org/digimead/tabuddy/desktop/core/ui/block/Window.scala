@@ -43,11 +43,10 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
-import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
+import akka.actor.{ Actor, ActorRef, PoisonPill, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -56,6 +55,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.support.Generic
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Widget
 import scala.collection.{ immutable, mutable }
@@ -69,6 +69,8 @@ import scala.concurrent.{ Await, Future }
  * - close/destroy window
  */
 class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor with AppWindow.Controller with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Window views supervisor. */
@@ -120,7 +122,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
             windowSupervisor ! App.Message.Destroy(window, self)
           case None ⇒
             // There is no window. Strange. Is this actor destroyed immediately? Stop it silently.
-            context.stop(self)
+            self ! PoisonPill
         }
     }
 
@@ -141,7 +143,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
           case Some(window) ⇒
             windowSupervisor ! App.Message.Destroy(window, self)
           case None ⇒
-            context.stop(self)
+            self ! PoisonPill
         }
     } foreach { sender ! _ }
 
@@ -229,8 +231,11 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       // Add new window to the common map.
       Window.windowMapRWL.writeLock().lock()
       try {
-        Window.windowMap += window -> self
-        Window.titleSynchronizer.update(Window.windowMap.keys.toSeq.sortBy(_.timestamp))
+        Window.instanceCounter += 1
+        Window.windowMap(window) = (Window.instanceCounter, self)
+        val windows = Window.windowMap.toSeq
+        Future { Window.titleSynchronizer.notify(windows.sortBy(_._2._1).map(_._1)) }. // sort by instanceCounter
+          onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       } finally Window.windowMapRWL.writeLock().unlock()
       Option(window)
     }(App.LongRunnable) // sometimes it may be longer than 1000ms
@@ -292,8 +297,11 @@ object Window extends Loggable {
   implicit lazy val ec = App.system.dispatcher
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
+  /** Window instance counter. */
+  // There are only 4^64 - 1 windows. Please restart this software before the limit will be reached. ;-)
+  protected var instanceCounter = Long.MinValue
   /** All application windows. */
-  protected val windowMap = mutable.WeakHashMap[AppWindow, ActorRef]()
+  protected val windowMap = mutable.WeakHashMap[AppWindow, (Long, ActorRef)]()
   /** Window map lock. */
   protected val windowMapRWL = new ReentrantReadWriteLock
   // Initialize descendant actor singletons
@@ -313,43 +321,25 @@ object Window extends Loggable {
 
   override def toString = "Window[Singleton]"
 
-  /** Wrapper for App.Message.Create argument. */
+  /**
+   * Wrapper for App.Message.Create argument.
+   */
   case class <>(val windowId: UUID, val configuration: WindowConfiguration) {
     override lazy val toString = "<>([%08X]=%s, %s)".format(windowId.hashCode(), windowId.toString(), configuration)
   }
-  /** Windows title synchronizer. */
-  class TitleSynchronizer {
-    /** Pending routine. */
-    protected val pending = new AtomicReference[Synchronizer]()
-    /** Active routine. */
-    protected val active = new AtomicReference[Synchronizer]()
-
-    /** Update windows title. */
-    def update(windows: Seq[AppWindow]) {
-      pending.set(new Synchronizer(windows))
-      Option(pending.getAndSet(null)).foreach(_.run())
-    }
-
-    /** Synchronizer runnable. */
-    class Synchronizer(var windows: Seq[AppWindow]) extends Runnable {
-      def run() = Future {
-        if (active.compareAndSet(null, this) || active.get() == this)
-          update()
-        Option(pending.getAndSet(null)).foreach { f ⇒
-          active.set(f)
-          f.run()
-        }
-      }
-      /** Update windows title. */
-      protected def update() {
-        var n = 0
-        windows.foreach { window ⇒
-          n += 1
-          if (n > 1)
-            window.windowContext.set(UI.Id.windowTitle, s"${Messages.TABuddyDesktop} (${n})")
-          else
-            window.windowContext.set(UI.Id.windowTitle, Messages.TABuddyDesktop)
-        }
+  /**
+   * Window's context title synchronizer.
+   */
+  class TitleSynchronizer extends Generic.TitleSynchronizer[AppWindow] {
+    /** Update window's contexts. */
+    protected def synchronize(windows: Seq[AppWindow]) {
+      var n = 0
+      windows.foreach { window ⇒
+        n += 1
+        if (n > 1)
+          window.windowContext.set(UI.Id.windowTitle, s"${Messages.TABuddyDesktop}(${n})")
+        else
+          window.windowContext.set(UI.Id.windowTitle, Messages.TABuddyDesktop)
       }
     }
   }
@@ -359,6 +349,12 @@ object Window extends Loggable {
   trait WindowMapConsumer {
     /** Get map with all application windows. */
     def windowMap: immutable.Map[AppWindow, ActorRef] = {
+      Window.windowMapRWL.readLock().lock()
+      try Map(Window.windowMap.map { case (appWindow, (n, ref)) ⇒ (appWindow, ref) }.toSeq: _*)
+      finally Window.windowMapRWL.readLock().unlock()
+    }
+    /** Get map with all application windows with instance counter. */
+    def windowMapExt: immutable.Map[AppWindow, (Long, ActorRef)] = {
       Window.windowMapRWL.readLock().lock()
       try Window.windowMap.toMap
       finally Window.windowMapRWL.readLock().unlock()
@@ -375,7 +371,9 @@ object Window extends Loggable {
       Window.windowMapRWL.writeLock().lock()
       try {
         Window.windowMap -= this
-        Window.titleSynchronizer.update(Window.windowMap.keys.toSeq.sortBy(_.timestamp))
+        val windows = Window.windowMap.toSeq
+        Future { Window.titleSynchronizer.notify(windows.sortBy(_._2._1).map(_._1)) }. // sort by instanceCounter
+          onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       } finally Window.windowMapRWL.writeLock().unlock()
     }
   }

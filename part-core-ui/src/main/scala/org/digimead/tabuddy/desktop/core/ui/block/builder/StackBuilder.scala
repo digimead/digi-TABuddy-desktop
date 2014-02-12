@@ -77,7 +77,7 @@ class StackBuilder extends Loggable {
                     container.layout(true)
                     Some(viewWidget)
                   case None ⇒
-                    log.fatal(s"TabItem for ${viewConfiguration} in ${tabComposite} not found.")
+                    log.fatal(s"CTabItem for ${viewConfiguration} in ${tabComposite} not found.")
                     None
                 }
               }

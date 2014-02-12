@@ -94,6 +94,9 @@ object App {
   implicit def app2implementation(l: App.type): App = inner
 
   def inner(): App = DI.implementation
+  /** Event thread delay in ms. */
+  def eventThreadDelay = DI.eventThreadDelay
+
   /** An empty actor implementation. */
   trait ContainerActor extends Actor {
     this: Loggable ⇒
@@ -290,6 +293,8 @@ object App {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** Event thread delay in ms. */
+    lazy val eventThreadDelay = injectOptional[Int]("Core.eventThreadDelay") getOrElse 0
     /** App implementation. */
     lazy val implementation = injectOptional[App] getOrElse new App
   }

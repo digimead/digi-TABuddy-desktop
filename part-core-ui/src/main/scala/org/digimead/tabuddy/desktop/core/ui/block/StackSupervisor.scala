@@ -43,8 +43,8 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
-import akka.actor.{ Actor, ActorRef, Props, Terminated, actorRef2Scala }
-import akka.pattern.ask
+import akka.actor.{ Actor, ActorRef, PoisonPill, Props, Terminated, actorRef2Scala }
+import akka.pattern.{ AskTimeoutException, ask }
 import java.lang.ref.WeakReference
 import java.util.UUID
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
@@ -163,6 +163,8 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         case children ⇒
           try Await.result(Future.sequence(children.map(_ ? App.Message.Destroy())), timeout.duration)
           catch {
+            case e: AskTimeoutException if e.getMessage().endsWith("had already been terminated.") ⇒
+              log.debug("AskTimeoutException: " + e.getMessage())
             case e: TimeoutException ⇒
               log.error(s"Unable to stop ${children}.", e)
           }
@@ -337,10 +339,15 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     log.debug(s"Remove destroyed ${stack} from ${this}, keep ${pointers.size - 1} element(s).")
     // 1. commit delete
     // stop any child
-    context.stop(stack.ref)
-    // stop only direct children
-    //context.children.find(_ == stack.ref).foreach(context.stop)
+    stack.ref ! PoisonPill
     pointers -= stack.id
+    // remove dependent (unreachable) elements
+    val dependentPointers = pointers.filter { case (id, pointer) ⇒ pointer.nextLevelActor == stack.ref && id != stack.id }.map(_._1).toSeq
+    if (dependentPointers.nonEmpty) {
+      val strPointers = dependentPointers.map(id ⇒ "%08X".format(id.hashCode())).mkString(",")
+      log.debug(s"Remove sub element(s) ${strPointers}, keep ${pointers.size - dependentPointers.size} element(s).")
+      pointers --= dependentPointers
+    }
     if (lastActiveViewIdForCurrentWindow.get() == Option(stack.id))
       lastActiveViewIdForCurrentWindow.set(None)
     App.publish(App.Message.Destroy(stack, origin))

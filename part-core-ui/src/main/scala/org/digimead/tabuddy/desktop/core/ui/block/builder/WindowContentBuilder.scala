@@ -75,13 +75,6 @@ class WindowContentBuilder extends Loggable {
     val content = new WComposite(window.id, window.ref, WeakReference(window), container, SWT.BORDER | SWT.H_SCROLL | SWT.V_SCROLL)
     content.setLayout(new GridLayout)
     // content.setBackground(App.display.getSystemColor(SWT.COLOR_RED))
-    content.addDisposeListener(new DisposeListener {
-      def widgetDisposed(event: DisposeEvent) = Option(content.getData(App.widgetContextKey)).foreach {
-        case context: Context ⇒
-          context.remove(classOf[Composite])
-          content.setData(App.widgetContextKey, null)
-      }
-    })
     layout.topControl = filler
     (container, filler, content)
   }

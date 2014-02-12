@@ -44,13 +44,12 @@
 package org.digimead.tabuddy.desktop.core.ui.operation
 
 import akka.pattern.ask
-import java.util.concurrent.CancellationException
+import java.util.concurrent.{ CancellationException, ExecutionException }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
@@ -75,7 +74,8 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
       window.asInstanceOf[AppWindow].ref ? App.Message.Close()
     else
       window.asInstanceOf[AppWindow].ref ? App.Message.Destroy()
-    Await.result(future, timeout.duration)
+    try Await.result(future, timeout.duration)
+    catch { case e: Throwable ⇒ throw new ExecutionException(s"Unable to close ${window}: " + e.getMessage(), e) }
   }
   /**
    * Create 'Close window' operation.

@@ -51,7 +51,6 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
@@ -71,11 +70,15 @@ class OperationWindowOpen extends api.OperationWindowOpen with Loggable {
    */
   def apply(windowId: Option[UUID]): Option[UUID] = {
     log.info(s"Open window with Id ${windowId}.")
-    Await.result(WindowSupervisor.actor ? App.Message.Open(windowId.getOrElse(None), None), timeout.duration) match {
+    try Await.result(WindowSupervisor.actor ? App.Message.Open(windowId.getOrElse(None), None), timeout.duration) match {
       case App.Message.Open(uuid: UUID, _, _) ⇒
         Some(uuid)
       case App.Message.Error(message, _) ⇒
         log.error(s"Unable to open window ${windowId}: ${message.getOrElse("unknown")}")
+        None
+    } catch {
+      case e: Throwable ⇒
+        log.error(s"Unable to open window ${windowId}: " + e.getMessage(), e)
         None
     }
   }

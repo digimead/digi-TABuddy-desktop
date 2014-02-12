@@ -69,7 +69,7 @@ import scala.language.implicitConversions
 /**
  * Create initial view content.
  */
-class ViewContentBuilder extends Loggable {
+class ViewContentBuilder extends VComposite.ContextSetter with Loggable {
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
 
@@ -135,7 +135,7 @@ class ViewContentBuilder extends Loggable {
         actualViewActorRef match {
           case Some(actualViewActorRef) ⇒
             val content = new VComposite(configuration.id, parentActorContext.self, actualViewActorRef, configuration.factory, pWidget, SWT.NONE)
-            content.setData(App.widgetContextKey, context)
+            setVCompositeContext(content, context)
             // Set the specific widget
             context.set(classOf[VComposite], content)
             // Set the common top level widget
@@ -157,6 +157,7 @@ class ViewContentBuilder extends Loggable {
     viewWidget.flatMap { widget ⇒
       content match {
         case Some(existsWidget) ⇒
+          // Move exists content from existsWidget to widget.
           assert(widget.contentRef == existsWidget.contentRef)
           assert(widget != existsWidget)
           log.debug(s"Move ${configuration} from the old ${existsWidget} to the new ${widget}.")
@@ -167,7 +168,7 @@ class ViewContentBuilder extends Loggable {
             successful
           }
           if (successful) {
-            widget.contentRef ! App.Message.Set(widget.ref)
+            widget.contentRef ! App.Message.Set(widget)
             Some(widget)
           } else {
             App.exec {
@@ -179,6 +180,8 @@ class ViewContentBuilder extends Loggable {
             None
           }
         case None ⇒
+          // Create new content.
+          widget.contentRef ! App.Message.Set(widget)
           // Ask widget.contentRef to create it
           Await.result(widget.contentRef ? App.Message.Create(widget, parentActorContext.self), timeout.duration) match {
             case App.Message.Create(contentContainerWidget, Some(widget.contentRef), _) ⇒

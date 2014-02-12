@@ -43,33 +43,30 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
-import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
+import akka.actor.{ Actor, ActorRef, PoisonPill, Props, actorRef2Scala }
 import akka.pattern.{ AskTimeoutException, ask }
 import java.util.UUID
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
-import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder.builder2implementation
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, SCompositeTab, VComposite }
-import org.eclipse.core.databinding.observable.Diffs
-import org.eclipse.core.databinding.observable.value.AbstractObservableValue
+import org.digimead.tabuddy.desktop.core.ui.support.Generic
+import org.eclipse.core.databinding.observable.value.WritableValue
+import org.eclipse.e4.core.contexts.{ IEclipseContext, RunAndTrack }
 import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.widgets.{ Composite, Widget }
 import scala.collection.{ immutable, mutable }
-import scala.concurrent.Await
-import scala.concurrent.Future
+import scala.concurrent.{ Await, Future }
+import scala.ref.WeakReference
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
 class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with Loggable {
@@ -97,7 +94,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
          * All UI elements ALWAYS disposed before actor termination by design.
          * If view content isn't disposed then it maybe moved to different location.
          */
-        context.stop(view.contentRef)
+        view.contentRef ! PoisonPill
         true
       }
     }
@@ -180,14 +177,14 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
         // Update parent tab title if any.
         // Yes. This is MUCH faster then simple App.exec.
         Future {
-          val titleObservable = viewConfiguration.factory().titleObservable(viewWidgetWithContent.contentRef)
+          val factory = viewConfiguration.factory()
           App.execAsync {
             if (!parentWidget.isDisposed())
               parentWidget.getParent() match {
                 case tab: SCompositeTab ⇒
                   tab.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
                     case Some(tabItem) ⇒
-                      val binding = App.bindingContext.bindValue(SWTObservables.observeText(tabItem), titleObservable)
+                      val binding = App.bindingContext.bindValue(SWTObservables.observeText(tabItem), factory.titleObservable(viewWidgetWithContent.contentRef.path.name))
                       tabItem.addDisposeListener(new DisposeListener {
                         def widgetDisposed(e: DisposeEvent) = binding.dispose()
                       })
@@ -197,10 +194,10 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
                 case other ⇒
               }
           }
-        }
+        } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         // Add new view to the common map.
         View.viewMapRWL.writeLock().lock()
-        try View.viewMap += viewWidgetWithContent -> self
+        try View.viewMap += viewWidgetWithContent.id -> viewWidgetWithContent
         finally View.viewMapRWL.writeLock().unlock()
         this.view
       case None ⇒
@@ -243,7 +240,13 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
   protected def onStart(widget: Widget) = view match {
     case Some(view) ⇒
       log.debug("View layer started by focus event on " + widget)
-      viewContext.activateBranch()
+      viewContext.getChildren().find(ctx ⇒ Context.getName(ctx).map(_.endsWith(self.path.name)) getOrElse false) match {
+        case Some(contentContext) ⇒
+          contentContext.activateBranch()
+        case None ⇒
+          log.debug(s"Unable to find content context. Activate ${viewContext} branch.")
+          viewContext.activateBranch()
+      }
       Await.ready(view.contentRef ? App.Message.Start(widget, self), timeout.duration)
     case None ⇒
       log.debug("Unable to start unexists view.")
@@ -268,7 +271,7 @@ object View extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** All application view layers. */
-  protected val viewMap = mutable.WeakHashMap[VComposite, ActorRef]()
+  protected val viewMap = mutable.WeakHashMap[UUID, VComposite]()
   /** View layer map lock. */
   protected val viewMapRWL = new ReentrantReadWriteLock
 
@@ -296,35 +299,51 @@ object View extends Loggable {
     val longDescription: String
     /** View image. */
     val image: Option[Image]
-    /** View title with regards of number of views. */
-    protected val titlePerActor = new mutable.WeakHashMap[ActorRef, TitleObservableValue]()
-    /** All currently active actors. */
-    protected var activeActorRefs = List.empty[ActorRef]
+    /** Factory view title synchronizer. */
+    val titleSynchronizer = new TitleSynchronizer
+    /** All available content contexts for this factory Actor name -> (counter, content context). */
+    protected val contentContexts = mutable.HashMap[String, (Long, Context)]()
     /** Factory lock. */
     protected val factoryRWL = new ReentrantReadWriteLock()
+    /** View instance counter. */
+    // There are only 4^64 - 1 views. Please restart this software before the limit will be reached. ;-)
+    protected var instanceCounter = Long.MinValue
 
-    /** Get active actors list. */
-    def actors = {
+    /** Get contexts map. */
+    def contexts: Map[String, (Long, Context)] = {
       factoryRWL.readLock().lock()
-      try activeActorRefs
+      try contentContexts.toMap
       finally factoryRWL.readLock().unlock()
     }
     /** Get factory configuration. */
     def configuration = Configuration.Factory(App.bundle(this.getClass()).getSymbolicName(), this.getClass().getName())
+    /** Get a title of the view. */
+    def getTitle(actorName: String): Option[String] = {
+      factoryRWL.readLock().lock()
+      try {
+        contentContexts.get(actorName).flatMap {
+          case (_, viewContext) ⇒ Option(viewContext.get(UI.Id.viewTitle).asInstanceOf[String])
+        }
+      } finally factoryRWL.readLock().unlock()
+    }
     /** View actor reference configuration object. */
     def props: Props
     /** Get title for the actor reference. */
-    def titleObservable(ref: ActorRef): TitleObservableValue = {
+    def titleObservable(actorName: String): WritableValue = {
+      App.assertEventThread()
       factoryRWL.readLock().lock()
       try {
-        if (!activeActorRefs.contains(ref))
-          throw new IllegalStateException(s"Actor reference ${ref} in unknown in factory ${this}.")
-        titlePerActor.get(ref) match {
-          case Some(observable) ⇒ observable
-          case None ⇒
-            val observable = new TitleObservableValue(ref)
-            titlePerActor(ref) = observable
+        contentContexts.get(actorName) match {
+          case Some((instanceNumber, contentContext)) ⇒
+            val initialValue = Option(contentContext.get(UI.Id.viewTitle)) getOrElse {
+              contentContext.set(UI.Id.viewTitle, name.name)
+              name.name
+            }
+            val observable = new WritableValue(App.realm, initialValue)
+            contentContext.runAndTrack(new ViewTitleRunAndTrack(WeakReference(observable)))
             observable
+          case None ⇒
+            throw new IllegalStateException(s"Actor with name ${actorName} in unknown in factory ${this}.")
         }
       } finally factoryRWL.readLock().unlock()
     }
@@ -337,9 +356,7 @@ object View extends Loggable {
       log.debug(s"Create actor ${viewName}.")
       val future = UI.actor ? App.Message.Attach(props.copy(args = immutable.Seq(configuration.id, Factory.this)), viewName)
       try {
-        val newActorRef = Await.result(future.mapTo[ActorRef], timeout.duration)
-        newActorRef ! App.Message.Set(container)
-        Some(newActorRef)
+        Some(Await.result(future.mapTo[ActorRef], timeout.duration))
       } catch {
         case e: InterruptedException ⇒
           log.error(e.getMessage, e)
@@ -350,46 +367,62 @@ object View extends Loggable {
       }
     }
     /** Register view as active in activeActorRefs. */
-    def register(activeView: ActorRef) = {
+    def register(actorName: String, context: Context) {
+      if (Context.getName(context) != Some(actorName))
+        throw new IllegalArgumentException(s"Content actor name ${actorName} is different than ${context} name.")
       factoryRWL.writeLock().lock()
       try {
-        log.debug(s"Register ${activeView.path.name} in ${this}.")
-        activeActorRefs = activeActorRefs :+ activeView
-        val titles = titlePerActor.values
-        Future { titles.par.foreach(_.update) }
+        log.debug(s"Register ${actorName} in ${this}.")
+        if (contentContexts.isDefinedAt(actorName))
+          throw new IllegalArgumentException(s"Content actor name ${actorName} is already registered.")
+        instanceCounter += 1
+        contentContexts(actorName) = (instanceCounter, context)
+        val views = contentContexts.values.toSeq
+        Future { titleSynchronizer.notify(views.sortBy(_._1).map(_._2)) }.
+          onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       } finally factoryRWL.writeLock().unlock()
     }
     /** Register view as active in activeActorRefs. */
-    def unregister(inactiveView: ActorRef) = {
+    def unregister(actorName: String) {
       factoryRWL.writeLock().lock()
       try {
-        log.debug(s"Unregister ${inactiveView.path.name} in ${this}.")
-        activeActorRefs = activeActorRefs.filterNot(_ == inactiveView)
-        val titles = titlePerActor.values
-        Future { titles.par.foreach(_.update) }
+        log.debug(s"Unregister ${actorName} in ${this}.")
+        if (!contentContexts.isDefinedAt(actorName))
+          throw new IllegalArgumentException(s"Content actor name ${actorName} is not registered.")
+        contentContexts.remove(actorName)
+        val views = contentContexts.values.toSeq
+        Future { titleSynchronizer.notify(views.sortBy(_._1).map(_._2)) }.
+          onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       } finally factoryRWL.writeLock().unlock()
     }
 
     override lazy val toString = s"""View.Factory("${name.name}", "${shortDescription}")"""
 
-    class TitleObservableValue(ref: ActorRef) extends AbstractObservableValue(App.realm) {
-      @volatile protected var value: AnyRef = name.name
-      Future { update }
-
-      /** The value type of this observable value. */
-      def getValueType(): AnyRef = classOf[String]
-      /** Update title text. */
-      def update() = {
-        factoryRWL.readLock().lock()
-        try {
-          val n = activeActorRefs.indexOf(ref) + 1
-          val before = value
-          value = if (n < 2) s"${name.name}" else s"${name.name} (${n})"
-          App.exec { fireValueChange(Diffs.createValueDiff(before, this.value)) }
-        } finally factoryRWL.readLock().unlock()
+    /**
+     * View's context title synchronizer.
+     */
+    class TitleSynchronizer extends Generic.TitleSynchronizer[Context] {
+      /** Update view's contexts. */
+      protected def synchronize(viewContexts: Seq[Context]) {
+        var n = 0
+        viewContexts.foreach { viewContext ⇒
+          n += 1
+          if (n > 1)
+            viewContext.set(UI.Id.viewTitle, s"${Factory.this.name.name}(${n})")
+          else
+            viewContext.set(UI.Id.viewTitle, Factory.this.name.name)
+        }
       }
-      /** Get actual value. */
-      protected def doGetValue(): AnyRef = value
+    }
+    /**
+     * View title runAndTrack
+     */
+    class ViewTitleRunAndTrack(observable: WeakReference[WritableValue]) extends RunAndTrack {
+      override def changed(context: IEclipseContext): Boolean = {
+        val newValue = context.get(UI.Id.viewTitle)
+        observable.get.foreach(observable ⇒ App.exec { observable.setValue(newValue) })
+        false
+      }
     }
   }
   /**
@@ -397,7 +430,7 @@ object View extends Loggable {
    */
   trait ViewMapConsumer {
     /** Get map with all application view layers. */
-    def viewMap: immutable.Map[VComposite, ActorRef] = {
+    def viewMap: immutable.Map[UUID, VComposite] = {
       View.viewMapRWL.readLock().lock()
       try View.viewMap.toMap
       finally View.viewMapRWL.readLock().unlock()
@@ -412,8 +445,13 @@ object View extends Loggable {
     def viewRemoveFromCommonMap() {
       // Remove view from the common map.
       View.viewMapRWL.writeLock().lock()
-      try View.viewMap -= this
-      finally View.viewMapRWL.writeLock().unlock()
+      try {
+        View.viewMap.get(id) match {
+          // This is false if we replaced vComposite with one's copy.
+          case Some(vComposite) if vComposite == this ⇒ View.viewMap -= this.id
+          case _ ⇒
+        }
+      } finally View.viewMapRWL.writeLock().unlock()
     }
   }
   /**

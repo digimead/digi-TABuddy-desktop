@@ -66,12 +66,23 @@ class TransformTabToView extends Loggable {
       // Throw runtime error if something wrong.
       val view = try App.execNGet {
         val children = if (tab.isDisposed()) Array[Control]() else tab.getChildren()
-        if (children.size > 0) {
-          val Array(scrolledComposite) = tab.getChildren()
-          val Array(view) = scrolledComposite.asInstanceOf[ScrolledComposite].getChildren()
-          Some(view.asInstanceOf[VComposite])
+        if (children.size > 1) {
+          val Some(scrolledComposite) = tab.getChildren().lastOption
+          scrolledComposite.asInstanceOf[ScrolledComposite].getChildren() match {
+            case Array(view: VComposite) ⇒
+              Some(view.asInstanceOf[VComposite])
+            case Array() ⇒
+              // dispose vComposite
+              log.debug("ScrolledComposite is empty. Dispose container.")
+              scrolledComposite.getParent().dispose()
+              None
+            case unexpected ⇒
+              log.fatal("Unexpected structure: " + unexpected.mkString(", "))
+              None
+          }
         } else {
           // last view was disposed
+          // there is only tab with ToolBar
           tab.dispose()
           None
         }

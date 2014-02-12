@@ -58,6 +58,7 @@ import org.digimead.tabuddy.desktop.core.ui.block.transform.TransformAttachView
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, SCompositeTab, VComposite }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
+import org.eclipse.swt.widgets.ToolBar
 import org.eclipse.swt.widgets.{ Event, Widget }
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -208,13 +209,16 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
         child match {
           case vComposite: VComposite ⇒
             App.execNGet {
-              tab.getItems().find(item ⇒ item.getData(UI.swtId) == vComposite.id).foreach { tabItem ⇒
-                log.debug(s"Select tab with ${vComposite}.")
-                tab.setSelection(tabItem)
-                val event = new Event()
-                event.item = tabItem
-                tab.notifyListeners(SWT.Selection, event)
-              }
+              if (!tab.isDisposed() && !vComposite.isDisposed())
+                tab.getItems().find(item ⇒ item.getData(UI.swtId) == vComposite.id).foreach { tabItem ⇒
+                  if (!tabItem.isDisposed()) {
+                    log.debug(s"Select tab with ${vComposite}.")
+                    tab.setSelection(tabItem)
+                    val event = new Event()
+                    event.item = tabItem
+                    tab.notifyListeners(SWT.Selection, event)
+                  }
+                }
             }
           case _ ⇒
         }
@@ -242,6 +246,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
                         scrolledComposite.dispose()
                       else if (scrolledComposite.getChildren().headOption == Some(child))
                         scrolledComposite.dispose()
+                    case toolbar: ToolBar ⇒
                   }
                   tabItem.dispose()
                   items.size - 1

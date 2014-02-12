@@ -53,6 +53,7 @@ import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.events.DisposeEvent
 import org.eclipse.swt.events.DisposeListener
 import org.eclipse.swt.widgets.Composite
+import scala.collection.mutable
 
 /**
  * View composite that contains additional reference to content actor.
@@ -64,7 +65,7 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
   initialize
 
   /** Get view context. */
-  def getContext(): Context = getData(App.widgetContextKey).asInstanceOf[Context]
+  def getContext(): Context = VComposite.contextMap(this)
   /** Returns the receiver's parent, which must be a ScrolledComposite. */
   override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
 
@@ -73,7 +74,7 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
     addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         val context = Option(getContext())
-        setData(App.widgetContextKey, null)
+        VComposite.contextMap.remove(VComposite.this)
         context.foreach(_.dispose())
         viewRemoveFromCommonMap()
         ref ! App.Message.Destroy(None, ref)
@@ -82,4 +83,13 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
   }
 
   override lazy val toString = s"VComposite{${factory().name.name}}[%08X]".format(id.hashCode())
+}
+
+object VComposite {
+  protected val contextMap = new mutable.WeakHashMap[VComposite, Context]() with mutable.SynchronizedMap[VComposite, Context]
+
+  /** Set context for VComposite. */
+  trait ContextSetter {
+    def setVCompositeContext(vComposite: VComposite, context: Context) = contextMap(vComposite) = context
+  }
 }
