@@ -56,6 +56,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, SCompositeTab, VComposite, VEmpty, WComposite }
 import org.eclipse.swt.custom.ScrolledComposite
@@ -279,6 +280,9 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       case (parent, viewConfiguration: Configuration.CEmpty) ⇒
         // Skip an empty configuration.
         Some(App.execNGet { new VEmpty(stackId, parentWidget) })
+      case (parent, unexpected: CPlaceHolder) ⇒
+        log.fatal("Unexpected configuration: " + unexpected)
+        None
     }
   }
   /** Create new view within stack hierarchy. */

@@ -68,7 +68,7 @@ object CommandViewInfo extends Loggable {
   implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.viewInfo_text,
     Messages.viewInfoDescriptionShort_text, Messages.viewInfoDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
-      Resources.factories()
+      Resources.factories
     })
   /** Command parser. */
   lazy val parser = Command.CmdParser(descriptor.name)

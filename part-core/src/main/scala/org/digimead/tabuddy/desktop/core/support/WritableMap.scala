@@ -43,9 +43,9 @@
 
 package org.digimead.tabuddy.desktop.core.support
 
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener, Realm }
 import org.eclipse.core.databinding.observable.map.{ WritableMap ⇒ OriginalWritableMap }
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.language.implicitConversions
 
@@ -130,6 +130,15 @@ class WritableMap[A, B](val underlying: OriginalWritableMap) extends mutable.Map
   }
   /** HashCode from underlying. */
   override def hashCode() = this.underlying.hashCode()
+
+  override def toString() = if (App.isEventLoop())
+    s"WritableMap {${
+      (for (entry ← underlying.entrySet())
+        yield entry.asInstanceOf[java.util.Map.Entry[_, _]].getKey() + "->" +
+        entry.asInstanceOf[java.util.Map.Entry[_, _]].getValue()).mkString(",")
+    }}"
+  else
+    "WritableMap {*Wrong Thread*}"
 }
 
 object WritableMap {

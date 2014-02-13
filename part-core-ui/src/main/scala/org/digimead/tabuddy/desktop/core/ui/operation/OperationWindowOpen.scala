@@ -69,16 +69,29 @@ class OperationWindowOpen extends api.OperationWindowOpen with Loggable {
    * @param windowId Specific window Id or None
    */
   def apply(windowId: Option[UUID]): Option[UUID] = {
-    log.info(s"Open window with Id ${windowId}.")
+    windowId match {
+      case Some(windowId) ⇒ log.info("Open AppWindow[%08X] id %s.".format(windowId.hashCode(), windowId))
+      case None ⇒ log.info("Open AppWindow[NEW].")
+    }
     try Await.result(WindowSupervisor.actor ? App.Message.Open(windowId.getOrElse(None), None), timeout.duration) match {
       case App.Message.Open(uuid: UUID, _, _) ⇒
         Some(uuid)
       case App.Message.Error(message, _) ⇒
-        log.error(s"Unable to open window ${windowId}: ${message.getOrElse("unknown")}")
+        windowId match {
+          case Some(windowId) ⇒
+            log.error("Unable to open AppWindow[%08X]: %s".format(windowId.hashCode(), message.getOrElse("unknown")))
+          case None ⇒
+            log.error("Unable to open AppWindow[NEW]: %s".format(windowId.hashCode(), message.getOrElse("unknown")))
+        }
         None
     } catch {
       case e: Throwable ⇒
-        log.error(s"Unable to open window ${windowId}: " + e.getMessage(), e)
+        windowId match {
+          case Some(windowId) ⇒
+            log.error("Unable to open AppWindow[%08X]: %s".format(windowId.hashCode(), e.getMessage()), e)
+          case None ⇒
+            log.error("Unable to open AppWindow[NEW]: %s".format(windowId.hashCode(), e.getMessage()), e)
+        }
         None
     }
   }
@@ -115,12 +128,12 @@ class OperationWindowOpen extends api.OperationWindowOpen with Loggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Option[UUID]] =
-      try Operation.Result.OK(Option(OperationWindowOpen.this(windowId)))
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
+      try Operation.Result.OK(OperationWindowOpen.this(windowId))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Option[UUID]] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Option[UUID]] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
       throw new UnsupportedOperationException
   }
 }
@@ -139,10 +152,10 @@ object OperationWindowOpen extends Loggable {
   def apply(windowId: Option[UUID]): Option[Abstract] =
     Some(operation.operation(windowId))
 
-  /** Bridge between abstract api.Operation[Option[UUID]] and concrete Operation[Option[UUID]] */
-  abstract class Abstract(val windowId: Option[UUID]) extends Operation[Option[UUID]](windowId match {
-    case Some(windowId) ⇒ s"Open specific window with Id ${windowId}."
-    case None ⇒ s"Open window."
+  /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
+  abstract class Abstract(val windowId: Option[UUID]) extends Operation[UUID](windowId match {
+    case Some(windowId) ⇒ s"Open specific AppWindow[%08X] with id %s".format(windowId.hashCode(), windowId)
+    case None ⇒ s"Open new window."
   }) {
     this: Loggable ⇒
   }

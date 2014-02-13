@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui.operation
 
 import akka.pattern.ask
+import java.util.UUID
 import java.util.concurrent.{ CancellationException, ExecutionException }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
@@ -65,27 +66,31 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
   /**
    * Close window.
    *
-   * @param window AppWindow instance
+   * @param windowId Specific window Id
    * @param saveOnClose Flag indicating whether the window configuration should be saved
    */
-  def apply(window: AnyRef, saveOnClose: Boolean) {
-    log.info(s"Close ${window}.")
+  def apply(windowId: UUID, saveOnClose: Boolean) = {
+    log.info("Close AppWindow[%08X].".format(windowId.hashCode()))
+    val (_, window) = UI.windowMapExt(windowId)
     val future = if (saveOnClose)
-      window.asInstanceOf[AppWindow].ref ? App.Message.Close()
+      window.ref ? App.Message.Close()
     else
-      window.asInstanceOf[AppWindow].ref ? App.Message.Destroy()
+      window.ref ? App.Message.Destroy()
     try Await.result(future, timeout.duration)
-    catch { case e: Throwable ⇒ throw new ExecutionException(s"Unable to close ${window}: " + e.getMessage(), e) }
+    catch {
+      case e: Throwable ⇒
+        throw new ExecutionException("Unable to close AppWindow[%08X]: ".format(windowId.hashCode()) + e.getMessage(), e)
+    }
   }
   /**
    * Create 'Close window' operation.
    *
-   * @param window AppWindow instance
+   * @param windowId Specific window Id
    * @param saveOnClose Flag indicating whether the window configuration should be saved
    * @return 'Close window' operation
    */
-  def operation(window: AnyRef, saveOnClose: Boolean) =
-    new Implemetation(window.asInstanceOf[AppWindow], saveOnClose)
+  def operation(windowId: UUID, saveOnClose: Boolean) =
+    new Implemetation(windowId, saveOnClose)
 
   /**
    * Checks that this class can be subclassed.
@@ -103,8 +108,8 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(window: AppWindow, saveOnClose: Boolean)
-    extends OperationWindowClose.Abstract(window, saveOnClose) with Loggable {
+  class Implemetation(windowId: UUID, saveOnClose: Boolean)
+    extends OperationWindowClose.Abstract(windowId, saveOnClose) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -112,7 +117,7 @@ class OperationWindowClose extends api.OperationWindowClose with Loggable {
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      try Operation.Result.OK(Option(OperationWindowClose.this(window, saveOnClose)))
+      try Operation.Result.OK(Option(OperationWindowClose.this(windowId, saveOnClose)))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
@@ -128,21 +133,21 @@ object OperationWindowClose extends Loggable {
   /**
    * Build a new 'Close window' operation.
    *
-   * @param window AppWindow instance
+   * @param windowId Specific window Id
    * @param saveOnClose Flag indicating whether the window configuration should be saved
    * @return 'Close window' operation
    */
   @log
-  def apply(window: AppWindow, saveOnClose: Boolean): Option[Abstract] =
-    Some(operation.operation(window, saveOnClose))
+  def apply(windowId: UUID, saveOnClose: Boolean): Option[Abstract] =
+    Some(operation.operation(windowId, saveOnClose))
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val window: AppWindow, val saveOnClose: Boolean)
+  abstract class Abstract(val windowId: UUID, val saveOnClose: Boolean)
     extends Operation[Unit]({
       if (saveOnClose)
-        s"Close ${window} and save configuration."
+        "Close AppWindow[%08X] and save configuration.".format(windowId.hashCode())
       else
-        s"Close ${window} without saving configuration."
+        "Close AppWindow[%08X] without saving configuration.".format(windowId.hashCode())
     }) {
     this: Loggable ⇒
   }

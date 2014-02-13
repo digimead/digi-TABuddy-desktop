@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.operation.api
 
+import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api
 
 /**
@@ -54,18 +55,18 @@ trait OperationWindowClose {
   /**
    * Close window.
    *
-   * @param window AppWindow instance
+   * @param windowId Specific window Id
    * @param saveOnClose Flag indicating whether the window configuration should be saved
    */
-  def apply(window: AnyRef, saveOnClose: Boolean): Unit
+  def apply(windowId: UUID, saveOnClose: Boolean): Unit
   /**
    * Create 'Close window' operation.
    *
-   * @param window AppWindow instance
+   * @param windowId Specific window Id
    * @param saveOnClose Flag indicating whether the window configuration should be saved
    * @return 'Close window' operation
    */
-  def operation(window: AnyRef, saveOnClose: Boolean): api.Operation[Unit]
+  def operation(windowId: UUID, saveOnClose: Boolean): api.Operation[Unit]
 
   /**
    * Checks that this class can be subclassed.

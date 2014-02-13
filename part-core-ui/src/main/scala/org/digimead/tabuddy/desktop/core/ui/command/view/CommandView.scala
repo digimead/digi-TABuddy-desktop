@@ -43,29 +43,26 @@
 
 package org.digimead.tabuddy.desktop.core.ui.command.view
 
-import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.{ Messages, Resources }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, View }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.eclipse.core.runtime.jobs.Job
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.Future
+import scala.util.DynamicVariable
 
 /**
  * Create new or select exists view by name.
  */
 object CommandView extends Loggable {
   import Command.parser._
-  private val newArg = "-new"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -74,24 +71,39 @@ object CommandView extends Loggable {
   implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.view_text,
     Messages.viewDescriptionShort_text, Messages.viewDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
-      val (viewFactory, createNew) = parserResult match {
-        case ~(factory: View.Factory, Some(newArg)) ⇒ (factory, true)
-        case ~(factory: View.Factory, None) ⇒ (factory, false)
+      val (viewFactory, viewName) = parserResult match {
+        case ~(factory: View.Factory, name @ Some(_: String)) ⇒ (factory, name)
+        case ~(factory: View.Factory, None) ⇒ (factory, None)
       }
       val exchanger = new Exchanger[Operation.Result[UUID]]()
       val appWindow = Option(activeContext.get(classOf[AppWindow])) orElse UI.getActiveWindow() getOrElse {
         throw new RuntimeException(s"Unable to find active window for ${this}: '${activeContext}'.")
       }
-      val stackConfiguration = Await.result((appWindow.supervisorRef ? App.Message.Get(Configuration)).mapTo[Configuration], timeout.duration)
-      val existView = if (createNew) None else stackConfiguration.asMap.find {
-        case (elementId, (parentId, configuration: Configuration.CView)) ⇒ configuration.factory == viewFactory
-        case _ ⇒ false
-      }
-      existView match {
-        case Some(view) ⇒
-          throw new CancellationException(s"Operation canceled, reason: Not implemented.")
+      viewName match {
+        case Some(name) ⇒
+          // Open exists.
+          val (contentActorName, _) = viewFactory.contexts.find {
+            case (_, (_, context)) ⇒ context.get(UI.Id.viewTitle) == name
+          } getOrElse {
+            throw new RuntimeException(s"Unable to find view with name: ${name}.")
+          }
+          val (_, vComposite) = UI.viewMap.find {
+            case (_, vComposite) ⇒ vComposite.contentRef.path.name == contentActorName
+          } getOrElse {
+            throw new RuntimeException(s"Unable to find view actor for name: ${name}.")
+          }
+          App.exec {
+            if (!vComposite.isDisposed()) {
+              vComposite.getShell().setMinimized(false)
+              vComposite.getShell().setActive()
+              vComposite.getShell().forceActive()
+              vComposite.forceFocus()
+            }
+          }
+          "Open exists " + vComposite
         case None ⇒
-          OperationViewCreate(appWindow, Configuration.CView(viewFactory.configuration)).foreach { operation ⇒
+          // Create new.
+          OperationViewCreate(appWindow.id, Configuration.CView(viewFactory.configuration)).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -114,24 +126,50 @@ object CommandView extends Loggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> (viewParser ^^ {
-    result ⇒
-      Resources.factories().find { case (factory, available) ⇒ available && factory.name.name == result }.map(_._1).getOrElse {
-        throw Command.ParseException(s"View with name '$result' not found.")
-      }
-  }) ~ opt(sp ~> (newArg, Command.Hint(newArg, Some("force to create new view")))))
+  lazy val parser = Command.CmdParser(((descriptor.name ^^ { _ ⇒ localFactory.value = None }) ~>
+    (sp ~> viewFactoryParser) ~ opt(sp ~> viewNameParser)) ^^ { result ⇒ localFactory.value = None; result })
+  /** Thread local cache with selected factory. */
+  protected val localFactory = new DynamicVariable[Option[View.Factory]](None)
 
-  def viewParser: Command.parser.Parser[Any] =
-    commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r, ViewHintContainer)
+  /** Parser with view factory. */
+  def viewFactoryParser: Command.parser.Parser[Any] =
+    commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r, ViewFactoryHintContainer) ^^ {
+      case name ⇒
+        val (factory, _) = Resources.factories.find { case (factory, available) ⇒ available && factory.name.name == name } getOrElse {
+          localFactory.value = None
+          throw Command.ParseException(s"View factory with name '$name' not found.")
+        }
+        // save result for further parsers
+        localFactory.value = Some(factory)
+        factory
+    }
+  /** Parser with view name. */
+  def viewNameParser: Command.parser.Parser[Any] =
+    commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_()")}*".r, ViewNameHintContainer)
 
-  /** Hint container for view name. */
-  object ViewHintContainer extends Command.Hint.Container {
+  /** Hint container for factory name. */
+  object ViewFactoryHintContainer extends Command.Hint.Container {
     /** Get parser hints for user provided path. */
     def apply(arg: String): Seq[Command.Hint] = {
-      val viewFactories = Resources.factories().filter(_._2 == true).keys.toSeq
+      val viewFactories = Resources.factories.filter(_._2 == true).keys.toSeq
       viewFactories.filter(_.name.name.startsWith(arg)).map(proposal ⇒
-        Command.Hint("view name", Some(Messages.open_text + " " + proposal.shortDescription), Seq(proposal.name.name.drop(arg.length)))).
+        Command.Hint(proposal.name.name, Some(Messages.create_text + " or " +
+          Messages.open_text + " " + proposal.shortDescription), Seq(proposal.name.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
+    }
+  }
+  /** Hint container for view name. */
+  object ViewNameHintContainer extends Command.Hint.Container {
+    /** Get parser hints for user provided path. */
+    def apply(arg: String): Seq[Command.Hint] = localFactory.value match {
+      case Some(factory) ⇒
+        factory.contexts.flatMap {
+          case (_, (_, context)) ⇒ Option(context.get(UI.Id.viewTitle).toString())
+        }.map(proposal ⇒
+          Command.Hint(proposal, Some(s"${Messages.open_text} view with name '${proposal}'"), Seq(proposal.drop(arg.length)))).
+          filter(_.completions.head.nonEmpty).toSeq
+      case None ⇒
+        Seq()
     }
   }
 }

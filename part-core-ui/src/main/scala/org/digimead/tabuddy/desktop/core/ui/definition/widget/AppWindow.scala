@@ -86,6 +86,8 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
   @volatile protected var content: Option[WComposite] = None
   /** Filler composite that visible by default. */
   @volatile protected var filler: Option[Composite] = None
+  /** Last window title. */
+  @volatile protected var lastWindowTitle = ""
   /** On active listener flag */
   protected val onActiveFlag = new AtomicBoolean(true)
   /** On active listener */
@@ -109,6 +111,9 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
   def getTitle(context: Context.Rich = (windowContext: Context.Rich).getActiveLeaf()): String =
     getTitle(context.get(UI.Id.windowTitle).getOrElse(Messages.TABuddyDesktop),
       context.get(UI.Id.viewTitle), context.get(UI.Id.contentTitle))
+  /** Get window title. */
+  def getTitle(window: String, view: Option[String], content: Option[String]): String =
+    window + view.map(v ⇒ " : " + v).getOrElse("") + content.map(c ⇒ " - " + c).getOrElse("")
 
   /** Add window ID to shell. */
   override protected def configureShell(shell: Shell) {
@@ -200,9 +205,6 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
     status.StatusLineContributor(manager)
     manager
   }
-  /** Get window title. */
-  protected def getTitle(window: String, view: Option[String], content: Option[String]): String =
-    window + view.map(v ⇒ " : " + v).getOrElse("") + content.map(c ⇒ " - " + c).getOrElse("")
   /** Initialize current window. */
   protected def initialize() {
     addStatusLine()
@@ -248,27 +250,31 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
   }
   /** Update window title. */
   @Inject @Optional
-  protected def updateTitle(@Active context: IEclipseContext, @Active @Optional @Named(UI.Id.contentTitle) content: String) = {
+  protected def updateTitle(@Active context: IEclipseContext, @Active @Optional @Named(UI.Id.windowTitle) window: String,
+    @Active @Optional @Named(UI.Id.viewTitle) view: String, @Active @Optional @Named(UI.Id.contentTitle) content: String) = {
     val shell = getShell
-    if (shell != null && !shell.isDisposed() && App.contextParents(context).contains(windowContext)) App.exec {
-      try {
-        val oldTitle = shell.getText()
-        val newTitle = getTitle()
-        if (oldTitle != newTitle)
-          shell.setText(newTitle)
-      } catch {
-        case e: SWTException if e.getMessage == "Widget is disposed" ⇒
-          // Yes, there is.
-          /*
-           * at org.eclipse.swt.SWT.error(SWT.java:4283)
-	       * at org.eclipse.swt.widgets.Widget.error(Widget.java:481)
-	       * at org.eclipse.swt.widgets.Widget.checkWidget(Widget.java:418)
-	       * at org.eclipse.swt.widgets.Decorations.getText(Decorations.java:434)
-           * Shell is valid, but decoration is not.
-           */
-          "WTF? LOL?"
-      }
-    }
+    if (shell != null && !shell.isDisposed())
+      if (App.contextParents(context).contains(windowContext) || window != lastWindowTitle)
+        App.exec {
+          lastWindowTitle = window
+          try {
+            val oldTitle = shell.getText()
+            val newTitle = getTitle()
+            if (oldTitle != newTitle)
+              shell.setText(newTitle)
+          } catch {
+            case e: SWTException if e.getMessage == "Widget is disposed" ⇒
+              // Yes, there is.
+              /*
+               * at org.eclipse.swt.SWT.error(SWT.java:4283)
+	           * at org.eclipse.swt.widgets.Widget.error(Widget.java:481)
+	           * at org.eclipse.swt.widgets.Widget.checkWidget(Widget.java:418)
+               * at org.eclipse.swt.widgets.Decorations.getText(Decorations.java:434)
+               * Shell is valid, but decoration is not.
+               */
+              "WTF? LOL?"
+          }
+        }
   }
 
   override lazy val toString = "AppWindow[%08X]".format(id.hashCode())

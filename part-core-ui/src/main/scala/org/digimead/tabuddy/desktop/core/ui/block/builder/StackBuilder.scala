@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block.builder
 
-import akka.actor.{ ActorContext, ActorRef }
+import akka.actor.ActorContext
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -51,8 +51,8 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
+import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.SComposite
-import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import scala.language.implicitConversions
@@ -60,7 +60,7 @@ import scala.language.implicitConversions
 class StackBuilder extends Loggable {
   /** Creates stack content. */
   @log
-  def apply(stack: Configuration.CPlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, stackActorContext: ActorContext): Option[SComposite] = {
+  def apply(stack: CPlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, stackActorContext: ActorContext): Option[SComposite] = {
     stack match {
       case tab: Configuration.Stack.CTab ⇒
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackActorContext.self) }

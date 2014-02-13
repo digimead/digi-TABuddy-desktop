@@ -47,6 +47,7 @@ import java.util.UUID
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.Resources
+import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
 import scala.collection.immutable
 
 /**
@@ -56,7 +57,7 @@ import scala.collection.immutable
  */
 case class Configuration(
   /** Stack element configuration. */
-  val stack: Configuration.CPlaceHolder) {
+  val stack: CPlaceHolder) {
   /** Stack projection that looks like map Id -> (parent Id, configuration). */
   lazy val asMap = toMap(this)
   val timestamp = System.currentTimeMillis()
@@ -65,9 +66,9 @@ case class Configuration(
   def dump(): Seq[String] = this.toString +: stack.dump("")
 
   /** Create map from configuration. */
-  protected def toMap(configuration: Configuration): immutable.HashMap[UUID, (Option[UUID], Configuration.CPlaceHolder)] = {
-    var entry = Seq[(UUID, (Option[UUID], Configuration.CPlaceHolder))]()
-    def visit(stack: Configuration.CPlaceHolder, parent: Option[UUID]) {
+  protected def toMap(configuration: Configuration): immutable.HashMap[UUID, (Option[UUID], CPlaceHolder)] = {
+    var entry = Seq[(UUID, (Option[UUID], CPlaceHolder))]()
+    def visit(stack: CPlaceHolder, parent: Option[UUID]) {
       entry = entry :+ stack.id -> (parent, stack)
       stack match {
         case tab: Configuration.Stack.CTab ⇒
@@ -83,7 +84,7 @@ case class Configuration(
       }
     }
     visit(configuration.stack, None)
-    immutable.HashMap[UUID, (Option[UUID], Configuration.CPlaceHolder)](entry: _*)
+    immutable.HashMap[UUID, (Option[UUID], CPlaceHolder)](entry: _*)
   }
 
   override lazy val toString = s"Configuration(timestamp: ${timestamp}, top stack layer: ${stack})"
@@ -112,15 +113,6 @@ object Configuration extends Loggable {
     }
     override lazy val toString = s"Factory(${factoryClassName})"
   }
-  /** Any element of the configuration. */
-  sealed trait CPlaceHolder {
-    val id: UUID
-
-    /** Dump element hierarchy. */
-    def dump(indent: String): Seq[String]
-    /** Map stack element to the new one. */
-    def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder = f(this)
-  }
   /** Empty view element. */
   case class CEmpty(val id: UUID = UUID.randomUUID()) extends CPlaceHolder {
     /** Dump element hierarchy. */
@@ -146,7 +138,7 @@ object Configuration extends Loggable {
       def dump(indent: String): Seq[String] =
         Seq(indent + "CTab[%08X#%s]".format(id.hashCode(), id) + " with views: ") ++ children.map(_.dump("  " + indent)).flatten
       /** Map stack element to the new one. */
-      override def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder =
+      override def map(f: CPlaceHolder ⇒ CPlaceHolder) =
         this.copy(children = this.children.map { child ⇒
           val newElement = child.map(f)
           if (!newElement.isInstanceOf[CView])
@@ -161,7 +153,7 @@ object Configuration extends Loggable {
       def dump(indent: String): Seq[String] =
         Seq(indent + "CHSash[%08X#%s]".format(id.hashCode(), id) + " with parts: ") ++ left.dump("  " + indent) ++ right.dump("  " + indent)
       /** Map stack element to the new one. */
-      override def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder =
+      override def map(f: CPlaceHolder ⇒ CPlaceHolder) =
         this.copy(left = {
           val newElement = left.map(f)
           if (!newElement.isInstanceOf[Stack])
@@ -181,7 +173,7 @@ object Configuration extends Loggable {
       def dump(indent: String): Seq[String] =
         Seq(indent + "CVSash[%08X#%s]".format(id.hashCode(), id) + " with parts: ") ++ top.dump("  " + indent) ++ bottom.dump("  " + indent)
       /** Map stack element to the new one. */
-      override def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder =
+      override def map(f: CPlaceHolder ⇒ CPlaceHolder) =
         this.copy(top = {
           val newElement = top.map(f)
           if (!newElement.isInstanceOf[Stack])

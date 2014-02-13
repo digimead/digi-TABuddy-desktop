@@ -87,7 +87,7 @@ class Resources extends BundleActivator with Loggable {
   def factory(className: String): Option[View.Factory] =
     viewFactoriesMap.find(_._1.getClass().getName() == className).map(_._1)
   /** Get map of factories. */
-  def factories() = viewFactoriesMap.toMap
+  def factories: Map[View.Factory, Boolean] = viewFactoriesMap.toMap
   /** Returns the image stored in the image registry under the given symbolic name. */
   def getImage(symbolicName: String) = JFaceResources.getImageRegistry().get(symbolicName)
   /** Get image at the specific path and scale to k. */

@@ -53,13 +53,13 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.transform.TransformAttachView
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, SCompositeTab, VComposite }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.widgets.ToolBar
-import org.eclipse.swt.widgets.{ Event, Widget }
+import org.eclipse.swt.widgets.{ Event, ToolBar, Widget }
 import scala.collection.mutable
 import scala.concurrent.Await
 
@@ -180,7 +180,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
   }
 
   /** Create stack. */
-  protected def create(stackConfiguration: Configuration.CPlaceHolder, parentWidget: ScrolledComposite): Option[SComposite] = {
+  protected def create(stackConfiguration: CPlaceHolder, parentWidget: ScrolledComposite): Option[SComposite] = {
     if (stack.nonEmpty)
       throw new IllegalStateException("Unable to create stack. It is already created.")
     this.stack = StackBuilder(stackConfiguration, parentWidget, parentContext, context)

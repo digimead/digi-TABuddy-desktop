@@ -44,10 +44,9 @@
 package org.digimead.tabuddy.desktop.core.support
 
 import java.util.ArrayList
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener, Realm }
 import org.eclipse.core.databinding.observable.list.{ WritableList ⇒ OriginalWritableList }
-import scala.collection.JavaConversions.{ asScalaIterator, seqAsJavaList }
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.language.implicitConversions
 
@@ -125,6 +124,11 @@ class WritableList[A](val underlying: OriginalWritableList) extends mutable.Buff
   }
   /** HashCode from underlying. */
   override def hashCode() = this.underlying.hashCode()
+
+  override def toString() = if (App.isEventLoop())
+    s"WritableList {${underlying.iterator.mkString(",")}}"
+  else
+    "WritableList {*Wrong Thread*}"
 }
 
 object WritableList {

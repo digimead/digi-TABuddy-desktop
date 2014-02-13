@@ -232,9 +232,9 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       Window.windowMapRWL.writeLock().lock()
       try {
         Window.instanceCounter += 1
-        Window.windowMap(window) = (Window.instanceCounter, self)
+        Window.windowMap(window.id) = (Window.instanceCounter, window)
         val windows = Window.windowMap.toSeq
-        Future { Window.titleSynchronizer.notify(windows.sortBy(_._2._1).map(_._1)) }. // sort by instanceCounter
+        Future { Window.titleSynchronizer.notify(windows.sortBy(_._2._1).map(_._2._2)) }. // sort by instanceCounter
           onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       } finally Window.windowMapRWL.writeLock().unlock()
       Option(window)
@@ -301,7 +301,7 @@ object Window extends Loggable {
   // There are only 4^64 - 1 windows. Please restart this software before the limit will be reached. ;-)
   protected var instanceCounter = Long.MinValue
   /** All application windows. */
-  protected val windowMap = mutable.WeakHashMap[AppWindow, (Long, ActorRef)]()
+  protected val windowMap = mutable.HashMap[UUID, (Long, AppWindow)]()
   /** Window map lock. */
   protected val windowMapRWL = new ReentrantReadWriteLock
   // Initialize descendant actor singletons
@@ -348,13 +348,13 @@ object Window extends Loggable {
    */
   trait WindowMapConsumer {
     /** Get map with all application windows. */
-    def windowMap: immutable.Map[AppWindow, ActorRef] = {
+    def windowMap: immutable.Map[UUID, AppWindow] = {
       Window.windowMapRWL.readLock().lock()
-      try Map(Window.windowMap.map { case (appWindow, (n, ref)) ⇒ (appWindow, ref) }.toSeq: _*)
+      try Map(Window.windowMap.map { case (id, (n, appWindow)) ⇒ (id, appWindow) }.toSeq: _*)
       finally Window.windowMapRWL.readLock().unlock()
     }
     /** Get map with all application windows with instance counter. */
-    def windowMapExt: immutable.Map[AppWindow, (Long, ActorRef)] = {
+    def windowMapExt: immutable.Map[UUID, (Long, AppWindow)] = {
       Window.windowMapRWL.readLock().lock()
       try Window.windowMap.toMap
       finally Window.windowMapRWL.readLock().unlock()
@@ -370,10 +370,21 @@ object Window extends Loggable {
       // Remove window from the common map.
       Window.windowMapRWL.writeLock().lock()
       try {
-        Window.windowMap -= this
+        Window.windowMap -= this.id
         val windows = Window.windowMap.toSeq
-        Future { Window.titleSynchronizer.notify(windows.sortBy(_._2._1).map(_._1)) }. // sort by instanceCounter
-          onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+        Future {
+          val sorted = windows.sortBy(_._2._1).map(_._2._2) // sort by instanceCounter
+          App.exec {
+            sorted.lastOption.foreach { lastWindow ⇒
+              // Activate last window.
+              lastWindow.windowContext.activate()
+              lastWindow.getShell().setActive()
+              lastWindow.getShell().forceActive()
+              lastWindow.getShell().forceFocus()
+            }
+          }
+          Window.titleSynchronizer.notify(sorted)
+        }.onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       } finally Window.windowMapRWL.writeLock().unlock()
     }
   }

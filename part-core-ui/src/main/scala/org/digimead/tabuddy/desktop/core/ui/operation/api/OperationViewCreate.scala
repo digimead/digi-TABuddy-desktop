@@ -45,13 +45,14 @@ package org.digimead.tabuddy.desktop.core.ui.operation.api
 
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api
+import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration
 
 /**
  * OperationViewCreate base trait.
  */
 /*
- * appWindow and viewConfiguration must be AnyRef since 'AppWindow' and
- * 'Configuration.CView' are private classes that are not shared across OSGi boundaries.
+ * viewConfiguration must be Configuration.CPlaceHolder since
+ * 'Configuration.CView' is private class that is not shared across OSGi boundaries.
  * In other way there will be "java.lang.LinkageError: loader constraint violation
  * in interface itable initialization: when resolving method ..." messages as expected.
  */
@@ -61,19 +62,19 @@ trait OperationViewCreate {
   /**
    * Create view.
    *
-   * @param appWindow AppWindow that will holds new view
+   * @param windowId Specific window Id that will holds new view
    * @param viewConfiguration new view configuration
    * @param new view id
    */
-  def apply(appWindow: AnyRef, viewConfiguration: AnyRef): Option[UUID]
+  def apply(windowId: UUID, viewConfiguration: Configuration.CPlaceHolder): Option[UUID]
   /**
    * Create 'Create view' operation.
    *
-   * @param appWindow AppWindow that will holds new view
+   * @param windowId Specific window Id that will holds new view
    * @param viewConfiguration new view configuration
    * @return 'Create view' operation
    */
-  def operation(appWindow: AnyRef, viewConfiguration: AnyRef): api.Operation[UUID]
+  def operation(windowId: UUID, viewConfiguration: Configuration.CPlaceHolder): api.Operation[UUID]
 
   /**
    * Checks that this class can be subclassed.

@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui.operation
 
 import akka.pattern.ask
+import java.util.UUID
 import java.util.concurrent.{ CancellationException, ExecutionException }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
@@ -65,21 +66,25 @@ class OperationViewClose extends api.OperationViewClose with Loggable {
   /**
    * Close view.
    *
-   * @param vComposite view composite
+   * @param vCompositeId view composite id
    */
-  def apply(vComposite: AnyRef) {
-    log.info(s"Close ${vComposite}.")
-    val future = vComposite.asInstanceOf[VComposite].ref ? App.Message.Destroy()
+  def apply(vCompositeId: UUID) {
+    log.info("Close VComposite{...}[%08X].".format(vCompositeId.hashCode()))
+    val vComposite = UI.viewMap(vCompositeId)
+    val future = vComposite.ref ? App.Message.Destroy()
     try Await.result(future, timeout.duration)
-    catch { case e: Throwable ⇒ throw new ExecutionException(s"Unable to close ${vComposite}: " + e.getMessage(), e) }
+    catch {
+      case e: Throwable ⇒
+        throw new ExecutionException(s"Unable to close VComposite{...}[%08X]: %s".format(vCompositeId.hashCode(), e.getMessage()), e)
+    }
   }
   /**
    * Create 'Close view' operation.
    *
-   * @param vComposite view composite
+   * @param vCompositeId view composite id
    * @return 'Close view' operation
    */
-  def operation(vComposite: AnyRef) = new Implemetation(vComposite)
+  def operation(vCompositeId: UUID) = new Implemetation(vCompositeId)
 
   /**
    * Checks that this class can be subclassed.
@@ -97,7 +102,7 @@ class OperationViewClose extends api.OperationViewClose with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(vComposite: AnyRef) extends OperationViewClose.Abstract(vComposite) with Loggable {
+  class Implemetation(vCompositeId: UUID) extends OperationViewClose.Abstract(vCompositeId) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -105,7 +110,7 @@ class OperationViewClose extends api.OperationViewClose with Loggable {
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      try Operation.Result.OK(Option(OperationViewClose.this(vComposite)))
+      try Operation.Result.OK(Option(OperationViewClose.this(vCompositeId)))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
@@ -121,14 +126,15 @@ object OperationViewClose extends Loggable {
   /**
    *  Build a new 'Close view' operation.
    *
-   * @param vComposite view composite
+   * @param vCompositeId view composite id
    * @return 'Close view' operation
    */
   @log
-  def apply(vComposite: VComposite): Option[Abstract] = Some(operation.operation(vComposite))
+  def apply(vCompositeId: UUID): Option[Abstract] = Some(operation.operation(vCompositeId))
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(vComposite: AnyRef) extends Operation[Unit](s"Close ${vComposite}.") {
+  abstract class Abstract(vCompositeId: UUID)
+    extends Operation[Unit]("Close VComposite{...}[%08X].".format(vCompositeId.hashCode())) {
     this: Loggable ⇒
   }
   /**

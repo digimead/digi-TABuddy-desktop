@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.core.support
 import java.util.HashSet
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener, Realm }
 import org.eclipse.core.databinding.observable.set.{ WritableSet ⇒ OriginalWritableSet }
-import scala.collection.JavaConversions.{ asScalaIterator, seqAsJavaList }
+import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.language.implicitConversions
 
@@ -122,6 +122,11 @@ class WritableSet[A](val underlying: OriginalWritableSet) extends mutable.Set[A]
   }
   /** HashCode from underlying. */
   override def hashCode() = this.underlying.hashCode()
+
+  override def toString() = if (App.isEventLoop())
+    s"WritableSet {${underlying.iterator.mkString(",")}}"
+  else
+    "WritableSet {*Wrong Thread*}"
 }
 
 object WritableSet {

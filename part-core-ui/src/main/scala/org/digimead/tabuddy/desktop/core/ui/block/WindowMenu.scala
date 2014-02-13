@@ -51,13 +51,16 @@ object WindowMenu {
   /** Menu descriptor. */
   case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
   /** Return the specific menu from the window CoolBarManager. */
-  def apply(window: AppWindow, menuDescriptor: Descriptor): IMenuManager = {
-    val mbm = window.getMenuBarManager()
-    Option(mbm.findMenuUsingPath(menuDescriptor.id)) match {
+  def apply(parent: Either[AppWindow, IMenuManager], menuDescriptor: Descriptor): IMenuManager = {
+    val manager = parent match {
+      case Left(window) ⇒ window.getMenuBarManager()
+      case Right(manager) ⇒ manager
+    }
+    Option(manager.findMenuUsingPath(menuDescriptor.id)) match {
       case Some(menu) ⇒ menu
       case None ⇒
         val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
-        mbm.add(menu)
+        manager.add(menu)
         menu
     }
   }

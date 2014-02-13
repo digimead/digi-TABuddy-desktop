@@ -50,6 +50,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
+import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeHSash, SCompositeTab, SCompositeVSash, VComposite, VEmpty }
 import org.digimead.tabuddy.desktop.core.ui.view.ViewDefault
 import org.eclipse.swt.widgets.{ Composite, Shell, Widget }
@@ -134,7 +135,7 @@ class StackConfiguration extends Loggable {
   }
 
   /** Rebuild configuration from the actual widgets hierarchy */
-  protected def generateConfiguration(widget: Widget): Option[Configuration.CPlaceHolder] = widget match {
+  protected def generateConfiguration(widget: Widget): Option[CPlaceHolder] = widget match {
     case vempty: VEmpty if !vempty.isDisposed ⇒
       Some(Configuration.CEmpty(vempty.id))
     case vcomposite: VComposite if !vcomposite.isDisposed ⇒

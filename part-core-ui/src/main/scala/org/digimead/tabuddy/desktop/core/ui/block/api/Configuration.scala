@@ -41,45 +41,21 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.operation.api
+package org.digimead.tabuddy.desktop.core.ui.block.api
 
 import java.util.UUID
-import org.digimead.tabuddy.desktop.core.definition.api
 
 /**
- * OperationWindowOpen base trait.
+ * Stack configuration with public place holder that is a base of all configuration elements.
  */
-trait OperationWindowOpen {
-  checkSubclass()
+object Configuration {
+  /** Any element of the configuration. */
+  trait CPlaceHolder {
+    val id: UUID
 
-  /**
-   * Open window.
-   *
-   * @param windowId Specific window Id or None
-   */
-  def apply(windowId: Option[UUID]): Option[UUID]
-  /**
-   * Create 'Open window' operation.
-   *
-   * @param windowId Specific window Id or None
-   * @return 'Open window' operation
-   */
-  def operation(windowId: Option[UUID]): api.Operation[UUID]
-
-  /**
-   * Checks that this class can be subclassed.
-   * <p>
-   * The API class is intended to be subclassed only at specific,
-   * controlled point. This method enforces this rule
-   * unless it is overridden.
-   * </p><p>
-   * <em>IMPORTANT:</em> By providing an implementation of this
-   * method that allows a subclass of a class which does not
-   * normally allow subclassing to be created, the implementer
-   * agrees to be fully responsible for the fact that any such
-   * subclass will likely fail.
-   * </p>
-   */
-  protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.core.ui.operation.OperationWindowOpen instead.")
+    /** Dump element hierarchy. */
+    def dump(indent: String): Seq[String]
+    /** Map stack element to the new one. */
+    def map(f: CPlaceHolder ⇒ CPlaceHolder): CPlaceHolder = f(this)
+  }
 }

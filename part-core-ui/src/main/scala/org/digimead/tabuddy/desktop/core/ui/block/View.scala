@@ -271,7 +271,7 @@ object View extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** All application view layers. */
-  protected val viewMap = mutable.WeakHashMap[UUID, VComposite]()
+  protected val viewMap = mutable.HashMap[UUID, VComposite]()
   /** View layer map lock. */
   protected val viewMapRWL = new ReentrantReadWriteLock
 
@@ -309,7 +309,7 @@ object View extends Loggable {
     // There are only 4^64 - 1 views. Please restart this software before the limit will be reached. ;-)
     protected var instanceCounter = Long.MinValue
 
-    /** Get contexts map. */
+    /** Get contexts map Actor name -> (counter, content context). */
     def contexts: Map[String, (Long, Context)] = {
       factoryRWL.readLock().lock()
       try contentContexts.toMap
@@ -377,6 +377,7 @@ object View extends Loggable {
           throw new IllegalArgumentException(s"Content actor name ${actorName} is already registered.")
         instanceCounter += 1
         contentContexts(actorName) = (instanceCounter, context)
+        context.set(UI.Id.viewTitle, name.name)
         val views = contentContexts.values.toSeq
         Future { titleSynchronizer.notify(views.sortBy(_._1).map(_._2)) }.
           onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
@@ -421,7 +422,7 @@ object View extends Loggable {
       override def changed(context: IEclipseContext): Boolean = {
         val newValue = context.get(UI.Id.viewTitle)
         observable.get.foreach(observable ⇒ App.exec { observable.setValue(newValue) })
-        false
+        true
       }
     }
   }

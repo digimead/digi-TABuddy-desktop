@@ -43,16 +43,19 @@
 
 package org.digimead.tabuddy.desktop.core.ui
 
-import org.digimead.tabuddy.desktop.core.definition.NLS
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.NLS
 
 object Messages extends NLS with Loggable {
+  val close_text = ""
   val consoleViewLongDescription = ""
   val consoleViewShortDescription = ""
   val console_text = ""
+  val create_text = ""
   val defaultViewLongDescription = ""
   val defaultViewShortDescription = ""
   val default_text = ""
+  val newWindow_text = ""
   val open_text = ""
   val viewCloseDescriptionLong_text = ""
   val viewCloseDescriptionShort_text = ""
@@ -63,6 +66,9 @@ object Messages extends NLS with Loggable {
   val viewInfoDescriptionShort_text = ""
   val viewInfo_text = ""
   val view_text = ""
+  val windowCloseDescriptionLong_text = ""
+  val windowCloseDescriptionShort_text = ""
+  val windowClose_text = ""
   val windowDescriptionLong_text = ""
   val windowDescriptionShort_text = ""
   val window_text = ""

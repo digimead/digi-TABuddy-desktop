@@ -47,60 +47,58 @@ import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.{ Messages, UI }
-import org.digimead.tabuddy.desktop.core.ui.operation.OperationWindowOpen
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.operation.OperationWindowClose
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
 /**
- * Create new or select exists window by name.
+ * Close an active or the specific window by name.
  */
-object CommandWindow extends Loggable {
+object CommandWindowClose extends Loggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.window_text,
-    Messages.windowDescriptionShort_text, Messages.windowDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.windowClose_text,
+    Messages.windowCloseDescriptionShort_text, Messages.windowCloseDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
-      parserResult match {
+      val window = parserResult match {
         case Some(title) ⇒
           val (_, (_, window)) = UI.windowMapExt.find { case (_, (_, window)) ⇒ window.windowContext.get(UI.Id.windowTitle) == title } getOrElse {
             throw new RuntimeException(s"Unable to find window with name: ${title}.")
           }
-          App.exec {
-            if (window.getShell() != null && !window.getShell().isDisposed()) {
-              window.getShell().setMinimized(false)
-              window.getShell().setActive()
-              window.getShell().forceActive()
-            }
-          }
-          "Open exists " + window
+          window
         case None ⇒
-          val exchanger = new Exchanger[Operation.Result[UUID]]()
-          OperationWindowOpen(None).foreach { operation ⇒
-            operation.getExecuteJob() match {
-              case Some(job) ⇒
-                job.setPriority(Job.LONG)
-                job.onComplete(exchanger.exchange).schedule()
-              case None ⇒
-                log.fatal(s"Unable to create job for ${operation}.")
-            }
+          (activeContext: Context.Rich).get(classOf[AppWindow]) getOrElse {
+            throw new IllegalStateException(s"Unable to complete operation: AppWindow not found.")
           }
-          exchanger.exchange(null) match {
-            case Operation.Result.OK(result, message) ⇒
-              log.info(s"Operation completed successfully.")
-              result.flatMap(UI.windowMap.get)
-            case Operation.Result.Cancel(message) ⇒
-              throw new CancellationException(s"Operation canceled, reason: ${message}.")
-            case err: Operation.Result.Error[_] ⇒
-              throw err
-            case other ⇒
-              throw new RuntimeException(s"Unable to complete operation: ${other}.")
-          }
+      }
+      val exchanger = new Exchanger[Operation.Result[Unit]]()
+      OperationWindowClose(window.id, false).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.LONG)
+            job.onComplete(exchanger.exchange).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
+      exchanger.exchange(null) match {
+        case Operation.Result.OK(Some(result), message) ⇒
+          log.info(s"Operation completed successfully.")
+          s"${window} is closed."
+        case Operation.Result.Cancel(message) ⇒
+          throw new CancellationException(s"Operation canceled, reason: ${message}.")
+        case err: Operation.Result.Error[_] ⇒
+          throw err
+        case other ⇒
+          throw new RuntimeException(s"Unable to complete operation: ${other}.")
       }
     })
   /** Command parser. */
@@ -122,7 +120,7 @@ object CommandWindow extends Loggable {
       }.toSeq
       titles.filter(_._1.startsWith(arg)).map {
         case (title, titleWithView) ⇒
-          Command.Hint(title, Some(Messages.open_text + s" window '$titleWithView'"), Seq(title.drop(arg.length)))
+          Command.Hint(title, Some(Messages.close_text + s" window '$titleWithView'"), Seq(title.drop(arg.length)))
       }.filter(_.completions.head.nonEmpty)
     }
   }

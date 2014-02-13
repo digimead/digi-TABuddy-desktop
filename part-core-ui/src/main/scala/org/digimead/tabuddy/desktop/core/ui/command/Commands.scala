@@ -78,6 +78,9 @@ class Commands extends Loggable {
     Command.register(window.CommandWindow.descriptor)
     Command.addToContext(Core.context, window.CommandWindow.parser).
       foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(window.CommandWindowClose.descriptor)
+    Command.addToContext(Core.context, window.CommandWindowClose.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
   }
   /** Unconfigure component commands. */
   @log
@@ -87,6 +90,7 @@ class Commands extends Loggable {
      * window
      */
     Command.unregister(window.CommandWindow.descriptor)
+    Command.unregister(window.CommandWindowClose.descriptor)
     /*
      * view
      */

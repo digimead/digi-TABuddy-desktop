@@ -67,9 +67,7 @@ class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppW
   protected def initialize() {
     addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
-        val context = Option(getContext())
-        WComposite.contextMap.remove(WComposite.this)
-        context.foreach(_.dispose())
+        WComposite.contextMap.remove(WComposite.this).foreach(_.dispose())
         ref ! App.Message.Destroy(WComposite.this, ref)
       }
     })

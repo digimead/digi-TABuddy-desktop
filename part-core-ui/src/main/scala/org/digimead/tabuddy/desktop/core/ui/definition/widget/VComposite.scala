@@ -73,9 +73,7 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
   protected def initialize() {
     addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
-        val context = Option(getContext())
-        VComposite.contextMap.remove(VComposite.this)
-        context.foreach(_.dispose())
+        VComposite.contextMap.remove(VComposite.this).foreach(_.dispose())
         viewRemoveFromCommonMap()
         ref ! App.Message.Destroy(None, ref)
       }

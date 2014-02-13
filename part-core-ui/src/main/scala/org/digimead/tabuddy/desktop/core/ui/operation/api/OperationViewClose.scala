@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.operation.api
 
+import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api
 
 /**
@@ -54,16 +55,16 @@ trait OperationViewClose {
   /**
    * Close view.
    *
-   * @param vComposite view composite
+   * @param vCompositeId view composite id
    */
-  def apply(vComposite: AnyRef): Unit
+  def apply(vCompositeId: UUID): Unit
   /**
    * Create 'Close view' operation.
    *
-   * @param vComposite view composite
+   * @param vCompositeId view composite id
    * @return 'Close view' operation
    */
-  def operation(vComposite: AnyRef): api.Operation[Unit]
+  def operation(vCompositeId: UUID): api.Operation[Unit]
 
   /**
    * Checks that this class can be subclassed.

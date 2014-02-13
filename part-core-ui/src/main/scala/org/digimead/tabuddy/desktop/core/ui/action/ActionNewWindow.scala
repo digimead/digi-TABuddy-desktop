@@ -41,45 +41,25 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.operation.api
+package org.digimead.tabuddy.desktop.core.ui.action
 
-import java.util.UUID
-import org.digimead.tabuddy.desktop.core.definition.api
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.Messages
+import org.digimead.tabuddy.desktop.core.ui.operation.OperationWindowOpen
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 
-/**
- * OperationWindowOpen base trait.
- */
-trait OperationWindowOpen {
-  checkSubclass()
-
-  /**
-   * Open window.
-   *
-   * @param windowId Specific window Id or None
-   */
-  def apply(windowId: Option[UUID]): Option[UUID]
-  /**
-   * Create 'Open window' operation.
-   *
-   * @param windowId Specific window Id or None
-   * @return 'Open window' operation
-   */
-  def operation(windowId: Option[UUID]): api.Operation[UUID]
-
-  /**
-   * Checks that this class can be subclassed.
-   * <p>
-   * The API class is intended to be subclassed only at specific,
-   * controlled point. This method enforces this rule
-   * unless it is overridden.
-   * </p><p>
-   * <em>IMPORTANT:</em> By providing an implementation of this
-   * method that allows a subclass of a class which does not
-   * normally allow subclassing to be created, the implementer
-   * agrees to be fully responsible for the fact that any such
-   * subclass will likely fail.
-   * </p>
-   */
-  protected def checkSubclass(): Unit =
-    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.core.ui.operation.OperationWindowOpen instead.")
+object ActionNewWindow extends JFaceAction(Messages.newWindow_text) with Loggable {
+  @log
+  override def run = OperationWindowOpen(None).foreach { operation ⇒
+    operation.getExecuteJob() match {
+      case Some(job) ⇒
+        job.setPriority(Job.LONG)
+        job.schedule(Timeout.shortest.toMillis)
+      case None ⇒
+        log.fatal(s"Unable to create job for ${operation}.")
+    }
+  }
 }

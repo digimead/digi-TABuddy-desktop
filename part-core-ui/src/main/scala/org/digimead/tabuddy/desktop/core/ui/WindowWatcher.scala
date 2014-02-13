@@ -48,8 +48,13 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
+import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, WindowMenu, WindowToolbar }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.jface.action.{ Action, ActionContributionItem, IContributionItem, Separator }
+import org.eclipse.ui.actions.CompoundContributionItem
 
 /**
  * Register action in new windows.
@@ -90,7 +95,11 @@ class WindowWatcher extends Actor with Loggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(window, WindowWatcher.fileMenu)
+    val file = WindowMenu(Left(window), WindowWatcher.fileMenu)
+    file.add(action.ActionNewWindow)
+    val showView = WindowMenu(Right(file), WindowWatcher.showViewMenu)
+    showView.add(new WindowWatcher.ListView)
+    file.add(new Separator())
     file.add(action.ActionExit)
   }
   /** Adjust window toolbar. */
@@ -103,19 +112,48 @@ class WindowWatcher extends Actor with Loggable {
   }
 }
 
-object WindowWatcher {
+object WindowWatcher extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Common toolbar descriptor. */
   val commonToolbar = WindowToolbar.Descriptor(getClass.getName() + "#common")
   /** File menu descriptor. */
   val fileMenu = WindowMenu.Descriptor("&File", None, getClass.getName() + "#file")
+  /** Show View menu descriptor. */
+  val showViewMenu = WindowMenu.Descriptor("Show &View", None, getClass.getName() + "#showView")
 
   /** Core actor reference configuration object. */
   def props = DI.props
 
   override def toString = "WindowWatcher[Singleton]"
 
+  class ListView extends CompoundContributionItem {
+    override protected def getContributionItems(): Array[IContributionItem] = {
+      Resources.factories.toSeq.sortBy(_._1.name.name).flatMap {
+        case (factory, true) ⇒
+          Some(new ActionContributionItem(new Action(factory.name.name) {
+            override def run = {
+              UI.getActiveWindow() match {
+                case Some(window) ⇒
+                  OperationViewCreate(window.id, Configuration.CView(factory.configuration)).foreach { operation ⇒
+                    operation.getExecuteJob() match {
+                      case Some(job) ⇒
+                        job.setPriority(Job.LONG)
+                        job.schedule(Timeout.shortest.toMillis)
+                      case None ⇒
+                        log.fatal(s"Unable to create job for ${operation}.")
+                    }
+                  }
+                case None ⇒
+                  log.fatal("Unable to find active window.")
+              }
+            }
+          }))
+        case _ ⇒
+          None
+      }.toArray
+    }
+  }
   /**
    * Dependency injection routines.
    */

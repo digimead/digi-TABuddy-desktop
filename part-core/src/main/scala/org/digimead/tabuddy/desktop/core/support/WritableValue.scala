@@ -86,6 +86,11 @@ class WritableValue[A <: AnyRef](val underlying: OriginalWritableValue) extends 
   }
   /** HashCode from underlying. */
   override def hashCode() = this.underlying.getValue().hashCode()
+
+  override def toString() = if (App.isEventLoop())
+    s"WritableValue {${underlying.getValue()}}"
+  else
+    "WritableValue {*Wrong Thread*}"
 }
 
 object WritableValue {

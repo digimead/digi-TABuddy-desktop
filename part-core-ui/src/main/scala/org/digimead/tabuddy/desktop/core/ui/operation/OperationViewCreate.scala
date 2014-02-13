@@ -49,13 +49,12 @@ import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
+import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
@@ -69,13 +68,14 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
   /**
    * Create view.
    *
-   * @param appWindow AppWindow that will holds new view
+   * @param windowId Specific window Id that will holds new view
    * @param viewConfiguration new view configuration
    * @param new view id
    */
-  def apply(appWindow: AnyRef, viewConfiguration: AnyRef): Option[UUID] = {
-    log.info(s"Create new ${viewConfiguration}.")
-    try Await.result(appWindow.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(viewConfiguration, None), timeout.duration) match {
+  def apply(windowId: UUID, viewConfiguration: CPlaceHolder): Option[UUID] = {
+    log.info(s"Create new ${viewConfiguration} in AppWindow[%08X].".format(windowId.hashCode()))
+    val (_, window) = UI.windowMapExt(windowId)
+    try Await.result(window.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(viewConfiguration, None), timeout.duration) match {
       case App.Message.Create(view: VComposite, _, _) ⇒
         Some(view.id)
       case App.Message.Error(message, _) ⇒
@@ -83,19 +83,19 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
         None
     } catch {
       case e: Throwable ⇒
-        log.error(s"Unable to open view ${viewConfiguration} in ${appWindow}: " + e.getMessage(), e)
+        log.error(s"Unable to open view ${viewConfiguration} in ${window}: " + e.getMessage(), e)
         None
     }
   }
   /**
    * Create 'Create view' operation.
    *
-   * @param appWindow AppWindow that will holds new view
+   * @param windowId Specific window Id that will holds new view
    * @param viewConfiguration new view configuration
    * @return 'Create view' operation
    */
-  def operation(appWindow: AnyRef, viewConfiguration: AnyRef) =
-    new Implemetation(appWindow.asInstanceOf[AppWindow], viewConfiguration.asInstanceOf[Configuration.CView])
+  def operation(windowId: UUID, viewConfiguration: CPlaceHolder) =
+    new Implemetation(windowId, viewConfiguration.asInstanceOf[Configuration.CView])
 
   /**
    * Checks that this class can be subclassed.
@@ -113,8 +113,8 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(appWindow: AppWindow, viewConfiguration: Configuration.CView)
-    extends OperationViewCreate.Abstract(appWindow, viewConfiguration) with Loggable {
+  class Implemetation(windowId: UUID, viewConfiguration: Configuration.CView)
+    extends OperationViewCreate.Abstract(windowId, viewConfiguration) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -122,7 +122,7 @@ class OperationViewCreate extends api.OperationViewCreate with Loggable {
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
-      try Operation.Result.OK(OperationViewCreate.this(appWindow, viewConfiguration))
+      try Operation.Result.OK(OperationViewCreate.this(windowId, viewConfiguration))
       catch { case e: CancellationException ⇒ Operation.Result.Cancel() }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[UUID] =
       throw new UnsupportedOperationException
@@ -138,17 +138,17 @@ object OperationViewCreate extends Loggable {
   /**
    * Build a new 'Create view' operation.
    *
-   * @param appWindow AppWindow that will holds new view
-   * @param viewFactory new view factory
+   * @param windowId Specific window Id that will holds new view
+   * @param viewConfiguration new view configuration
    * @return 'Create view' operation
    */
   @log
-  def apply(appWindow: AppWindow, viewConfiguration: Configuration.CView): Option[Abstract] =
-    Some(operation.operation(appWindow, viewConfiguration))
+  def apply(windowId: UUID, viewConfiguration: Configuration.CView): Option[Abstract] =
+    Some(operation.operation(windowId, viewConfiguration))
 
   /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
-  abstract class Abstract(val appWindow: AppWindow, val viewConfiguration: Configuration.CView)
-    extends Operation[UUID](s"Create ${viewConfiguration} in ${appWindow}.") {
+  abstract class Abstract(val windowId: UUID, val viewConfiguration: Configuration.CView)
+    extends Operation[UUID](s"Create ${viewConfiguration} in AppWindow[%08X].".format(windowId.hashCode())) {
     this: Loggable ⇒
   }
   /**

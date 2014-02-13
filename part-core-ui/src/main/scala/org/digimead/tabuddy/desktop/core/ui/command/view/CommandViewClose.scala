@@ -45,17 +45,19 @@ package org.digimead.tabuddy.desktop.core.ui.command.view
 
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.Messages
+import org.digimead.tabuddy.desktop.core.ui.{ Messages, Resources }
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewClose
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.swt.widgets.Composite
 import scala.concurrent.Future
+import scala.util.DynamicVariable
 
 /**
  * Close the current view.
@@ -68,32 +70,96 @@ object CommandViewClose extends Loggable {
   implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.viewClose_text,
     Messages.viewCloseDescriptionShort_text, Messages.viewCloseDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
-      activeContext.get(classOf[Composite]) match {
-        case vComposite: VComposite ⇒
-          val exchanger = new Exchanger[Operation.Result[Unit]]()
-          OperationViewClose(vComposite).foreach { operation ⇒
-            operation.getExecuteJob() match {
-              case Some(job) ⇒
-                job.setPriority(Job.LONG)
-                job.onComplete(exchanger.exchange).schedule()
-              case None ⇒
-                log.fatal(s"Unable to create job for ${operation}.")
-            }
+      val vComposite = parserResult match {
+        case Some(parserResult) ⇒
+          val (viewFactory, viewName) = parserResult match {
+            case ~(~(factory: View.Factory, _), name: String) ⇒ (factory, name)
           }
-          exchanger.exchange(null) match {
-            case Operation.Result.OK(result, message) ⇒
-              log.info(s"Operation completed successfully.")
-            case Operation.Result.Cancel(message) ⇒
-              throw new CancellationException(s"Operation canceled, reason: ${message}.")
-            case err: Operation.Result.Error[_] ⇒
-              throw err
-            case other ⇒
-              throw new RuntimeException(s"Unable to complete operation: ${other}.")
+          val (contentActorName, _) = viewFactory.contexts.find {
+            case (_, (_, context)) ⇒ context.get(UI.Id.viewTitle) == viewName
+          } getOrElse {
+            throw new RuntimeException(s"Unable to find view with name: ${viewName}.")
           }
-        case _ ⇒
-          throw new IllegalStateException(s"Unable to complete operation: VComposite not found.")
+          val (_, vComposite) = UI.viewMap.find {
+            case (_, vComposite) ⇒ vComposite.contentRef.path.name == contentActorName
+          } getOrElse {
+            throw new RuntimeException(s"Unable to find view actor for name: ${viewName}.")
+          }
+          vComposite
+        case None ⇒
+          activeContext.get(classOf[Composite]) match {
+            case vComposite: VComposite ⇒
+              vComposite
+            case _ ⇒
+              throw new IllegalStateException(s"Unable to complete operation: VComposite not found.")
+          }
+      }
+      val exchanger = new Exchanger[Operation.Result[Unit]]()
+      OperationViewClose(vComposite.id).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.LONG)
+            job.onComplete(exchanger.exchange).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
+      exchanger.exchange(null) match {
+        case Operation.Result.OK(result, message) ⇒
+          log.info(s"Operation completed successfully.")
+          s"Close the ${vComposite}."
+        case Operation.Result.Cancel(message) ⇒
+          throw new CancellationException(s"Operation canceled, reason: ${message}.")
+        case err: Operation.Result.Error[_] ⇒
+          throw err
+        case other ⇒
+          throw new RuntimeException(s"Unable to complete operation: ${other}.")
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name)
+  lazy val parser = Command.CmdParser(((descriptor.name ^^ { _ ⇒ localFactory.value = None }) ~>
+    opt(sp ~> viewFactoryParser ~ sp ~ viewNameParser)) ^^ { result ⇒ localFactory.value = None; result })
+  /** Thread local cache with selected factory. */
+  protected val localFactory = new DynamicVariable[Option[View.Factory]](None)
+
+  /** Parser with view factory. */
+  def viewFactoryParser: Command.parser.Parser[Any] =
+    commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r, ViewFactoryHintContainer) ^^ {
+      case name ⇒
+        val (factory, _) = Resources.factories.find { case (factory, available) ⇒ available && factory.name.name == name } getOrElse {
+          localFactory.value = None
+          throw Command.ParseException(s"View factory with name '$name' not found.")
+        }
+        // save result for further parsers
+        localFactory.value = Some(factory)
+        factory
+    }
+  /** Parser with view name. */
+  def viewNameParser: Command.parser.Parser[Any] =
+    commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_()")}*".r, ViewNameHintContainer)
+
+  /** Hint container for factory name. */
+  object ViewFactoryHintContainer extends Command.Hint.Container {
+    /** Get parser hints for user provided path. */
+    def apply(arg: String): Seq[Command.Hint] = {
+      val viewFactories = Resources.factories.filter(_._2 == true).keys.toSeq
+      viewFactories.filter(_.name.name.startsWith(arg)).map(proposal ⇒
+        Command.Hint(proposal.name.name, Some(Messages.close_text + " one view of " + proposal.shortDescription), Seq(proposal.name.name.drop(arg.length)))).
+        filter(_.completions.head.nonEmpty)
+    }
+  }
+  /** Hint container for view name. */
+  object ViewNameHintContainer extends Command.Hint.Container {
+    /** Get parser hints for user provided path. */
+    def apply(arg: String): Seq[Command.Hint] = localFactory.value match {
+      case Some(factory) ⇒
+        factory.contexts.flatMap {
+          case (_, (_, context)) ⇒ Option(context.get(UI.Id.viewTitle).toString())
+        }.map(proposal ⇒
+          Command.Hint(proposal, Some(s"${Messages.close_text} view with name '${proposal}'"), Seq(proposal.drop(arg.length)))).
+          filter(_.completions.head.nonEmpty).toSeq
+      case None ⇒
+        Seq()
+    }
+  }
 }
