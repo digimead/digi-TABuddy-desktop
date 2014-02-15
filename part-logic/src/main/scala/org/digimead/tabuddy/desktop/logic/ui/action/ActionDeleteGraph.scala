@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,17 +41,15 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.action
-/*
+package org.digimead.tabuddy.desktop.logic.ui.action
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.Messages
-import org.digimead.tabuddy.desktop.core.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.operation.OperationModelDelete
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.eclipse.core.runtime.jobs.Job
@@ -66,41 +64,41 @@ import akka.actor.Props
 import javax.inject.Inject
 import javax.inject.Named
 
-class ActionDeleteModel extends JFaceAction(Messages.delete_text) with Loggable {
+class ActionDeleteGraph extends JFaceAction(Messages.delete_text) with Loggable {
   @volatile protected var enabled = false
-  ContextInjectionFactory.inject(ActionDeleteModel.this, Core.context)
+  ContextInjectionFactory.inject(ActionDeleteGraph.this, Core.context)
 
   override def isEnabled(): Boolean = super.isEnabled && enabled
   /** Invoked at every modification of Data.Id.modelIdUserInput. */
-  @Inject @Optional // @log
-  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) = App.exec {
-    if ((id != null && id.trim.nonEmpty && Data.availableGraphs.contains(id.trim)) != enabled) {
-      enabled = !enabled
-      updateEnabled()
-    }
-  }
+//  @Inject @Optional // @log
+//  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) = App.exec {
+//    if ((id != null && id.trim.nonEmpty && Data.availableGraphs.contains(id.trim)) != enabled) {
+//      enabled = !enabled
+//      updateEnabled()
+//    }
+//  }
   /** Runs this action, passing the triggering SWT event. */
   @log
   override def runWithEvent(event: Event) = {
-    val context = Core.context.getActiveLeaf()
-    val id = context.get(Data.Id.modelIdUserInput).asInstanceOf[String]
-    if (id.nonEmpty)
-      OperationModelDelete(Symbol(id), true).foreach { operation =>
-        operation.getExecuteJob() match {
-          case Some(job) =>
-            job.setPriority(Job.SHORT)
-            job.onComplete(_ match {
-              case Operation.Result.OK(result, message) =>
-                log.info(s"Operation completed successfully: ${result}")
-              case Operation.Result.Cancel(message) =>
-                log.warn(s"Operation canceled, reason: ${message}.")
-              case other =>
-                log.error(s"Unable to complete operation: ${other}.")
-            }).schedule()
-          case None =>
-            log.fatal(s"Unable to create job for ${operation}.")
-        }
-      }
+//    val context = Core.context.getActiveLeaf()
+//    val id = context.get(Data.Id.modelIdUserInput).asInstanceOf[String]
+//    if (id.nonEmpty)
+//      OperationModelDelete(Symbol(id), true).foreach { operation =>
+//        operation.getExecuteJob() match {
+//          case Some(job) =>
+//            job.setPriority(Job.SHORT)
+//            job.onComplete(_ match {
+//              case Operation.Result.OK(result, message) =>
+//                log.info(s"Operation completed successfully: ${result}")
+//              case Operation.Result.Cancel(message) =>
+//                log.warn(s"Operation canceled, reason: ${message}.")
+//              case other =>
+//                log.error(s"Unable to complete operation: ${other}.")
+//            }).schedule()
+//          case None =>
+//            log.fatal(s"Unable to create job for ${operation}.")
+//        }
+//      }
   }
 
   /** Update enabled action state. */
@@ -110,43 +108,17 @@ class ActionDeleteModel extends JFaceAction(Messages.delete_text) with Loggable 
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
 
-object ActionDeleteModel extends Loggable {
+object ActionDeleteGraph extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Delete action. */
-  @volatile protected var action: Option[ActionDeleteModel] = None
+  @volatile protected var action: Option[ActionDeleteGraph] = None
 
   /** Returns delete action. */
-  def apply(): ActionDeleteModel = action.getOrElse {
-    val deleteAction = App.execNGet { new ActionDeleteModel }
+  def apply(): ActionDeleteGraph = action.getOrElse {
+    val deleteAction = App.execNGet { new ActionDeleteGraph }
     action = Some(deleteAction)
     deleteAction
   }
-  /** Delete action actor reference configuration object. */
-  def props = DI.props
-
-  /** Delete action actor. */
-  class Actor extends akka.actor.Actor {
-    log.debug("Start actor " + self.path)
-
-    /** Is called asynchronously after 'actor.stop()' is invoked. */
-    override def postStop() = {
-      log.debug(self.path.name + " actor is stopped.")
-    }
-    /** Is called when an Actor is started. */
-    override def preStart() {
-      log.debug(self.path.name + " actor is started.")
-    }
-    def receive = {
-      case message if message == null =>
-    }
-  }
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Delete actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Logic.Action.DeleteModel") getOrElse Props[ActionDeleteModel.Actor]
-  }
 }
-*/
+

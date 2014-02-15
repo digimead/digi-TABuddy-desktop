@@ -41,20 +41,19 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui
+package org.digimead.tabuddy.desktop.view.modification.ui
 
 import akka.actor.{ Actor, ActorRef, Props }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, WindowMenu, WindowToolbar }
+import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action, ActionContributionItem, IContributionItem, Separator }
-import org.eclipse.ui.actions.CompoundContributionItem
+import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.view.modification.ui.action.ViewToolBarManager
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import scala.ref.WeakReference
 
 /**
  * Register action in new windows.
@@ -74,7 +73,8 @@ class WindowWatcher extends Actor with Loggable {
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
-    case message @ App.Message.Create(window: AppWindow, Some(publisher), _) ⇒ App.traceMessage(message) {
+    // Adjust menu and toolbar after Core component.
+    case message @ App.Message.Create((logic.ui.WindowWatcher, window: AppWindow), Some(publisher), _) ⇒ App.traceMessage(message) {
       onCreated(window, publisher)
     }
 
@@ -95,20 +95,19 @@ class WindowWatcher extends Actor with Loggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(Left(window), WindowWatcher.fileMenu)
-    file.add(action.ActionNewWindow)
-    val showView = WindowMenu(Right(file), WindowWatcher.showViewMenu)
-    showView.add(new WindowWatcher.ListView)
-    file.add(new Separator())
-    file.add(action.ActionExit)
+    val model = WindowMenu(Left(window), logic.ui.WindowWatcher.viewMenu)
+    model.add(ContextInjectionFactory.make(classOf[action.ActionModifyFilterList], window.windowContext))
+    model.add(ContextInjectionFactory.make(classOf[action.ActionModifySortingList], window.windowContext))
+    model.add(ContextInjectionFactory.make(classOf[action.ActionModifyViewList], window.windowContext))
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val commonToolBar = WindowToolbar(window, WindowWatcher.commonToolbar)
-    //commonToolBar.getToolBarManager().add(action.ActionExit)
-    //commonToolBar.getToolBarManager().add(action.ActionTest)
+    val viewToolBar = WindowToolbar(window, WindowWatcher.viewToolbar(window))
+    viewToolBar.getToolBarManager().add(new action.ContributionSelectView(WeakReference(window)))
+    viewToolBar.getToolBarManager().add(new action.ContributionSelectFilter(WeakReference(window)))
+    viewToolBar.getToolBarManager().add(new action.ContributionSelectSorting(WeakReference(window)))
     window.getCoolBarManager2().update(true)
   }
 }
@@ -116,50 +115,22 @@ class WindowWatcher extends Actor with Loggable {
 object WindowWatcher extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** Common toolbar descriptor. */
-  val commonToolbar = WindowToolbar.Descriptor(getClass.getName() + "#common")
-  /** File menu descriptor. */
-  val fileMenu = WindowMenu.Descriptor("&File", None, getClass.getName() + "#file")
-  /** Show View menu descriptor. */
-  val showViewMenu = WindowMenu.Descriptor("Show &View", None, getClass.getName() + "#showView")
 
-  /** Core actor reference configuration object. */
+  /** WindowWatcher actor reference configuration object. */
   def props = DI.props
+  /** Get view toolbar descriptor. */
+  def viewToolbar(window: AppWindow) = App.execNGet {
+    WindowToolbar.Descriptor(getClass.getName() + "#view", () ⇒
+      ContextInjectionFactory.make(classOf[ViewToolBarManager], window.windowContext))
+  }
 
   override def toString = "WindowWatcher[Singleton]"
 
-  class ListView extends CompoundContributionItem {
-    override protected def getContributionItems(): Array[IContributionItem] = {
-      Resources.factories.toSeq.sortBy(_._1.name.name).flatMap {
-        case (factory, true) ⇒
-          Some(new ActionContributionItem(new Action(factory.name.name) {
-            override def run = {
-              UI.getActiveWindow() match {
-                case Some(window) ⇒
-                  OperationViewCreate(window.id, Configuration.CView(factory.configuration)).foreach { operation ⇒
-                    operation.getExecuteJob() match {
-                      case Some(job) ⇒
-                        job.setPriority(Job.LONG)
-                        job.schedule(Timeout.shortest.toMillis)
-                      case None ⇒
-                        log.fatal(s"Unable to create job for ${operation}.")
-                    }
-                  }
-                case None ⇒
-                  log.fatal("Unable to find active window.")
-              }
-            }
-          }))
-        case _ ⇒
-          None
-      }.toArray
-    }
-  }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** WindowWatcher actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Core.UI.WindowWatcher") getOrElse Props[WindowWatcher]
+    lazy val props = injectOptional[Props]("ViewModification.WindowWatcher") getOrElse Props[WindowWatcher]
   }
 }

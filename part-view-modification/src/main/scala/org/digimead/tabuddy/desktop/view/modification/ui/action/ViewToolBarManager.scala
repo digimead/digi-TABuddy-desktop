@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -42,53 +42,53 @@
  */
 
 package org.digimead.tabuddy.desktop.view.modification.ui.action
-//
-//import scala.ref.WeakReference
-//
-//import org.digimead.digi.lib.log.api.Loggable
-//import org.digimead.tabuddy.desktop.core.Core
-//import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
-//import org.digimead.tabuddy.desktop.definition.ToolBarManager
-//import org.digimead.tabuddy.desktop.gui.GUI
-//import org.digimead.tabuddy.desktop.gui.widget.VComposite
-//import org.digimead.tabuddy.desktop.logic.Data
-//import org.digimead.tabuddy.desktop.core.support.App
-//import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-//import org.eclipse.e4.core.contexts.ContextInjectionFactory
-//import org.eclipse.e4.core.di.annotations.Optional
-//import org.eclipse.jface.action.CoolBarManager
-//import org.eclipse.swt.widgets.Composite
-//import org.eclipse.swt.widgets.ToolBar
-//
-//import javax.inject.Inject
-//import javax.inject.Named
-//
-///**
-// * ToolBar manager that contains ContributionSelectView, ContributionSelectFilter, ContributionSelectSorting
-// */
-//class ViewToolBarManager extends ToolBarManager with Loggable {
-//  /** CoolBar */
-//  @volatile protected var coolBarManager = WeakReference[CoolBarManager](null)
-//  /** Flag indicating whether toolbar manager is visible. */
-//  @volatile protected var visible = false
-//
-//  override def createControl(parent: Composite): ToolBar = {
-//    App.execAsync { ContextInjectionFactory.inject(ViewToolBarManager.this, Core.context) }
-//    super.createControl(parent)
-//  }
-//  /** Invoked on view activation. */
-//  @Inject @Optional
-//  def onViewChanged(@Named(GUI.viewContextKey) vcomposite: VComposite): Unit = App.exec {
-//    visible = vcomposite.getContext.getLocal(Data.Id.usingViewDefinition) == java.lang.Boolean.TRUE
-//    contribution.get.foreach(_.setVisible(visible))
-//    getCoolBarManager.foreach(_.update(true))
-//  }
-//  /** Get coolbar manager for this toolbar manager. */
-//  protected def getCoolBarManager(): Option[CoolBarManager] = coolBarManager.get orElse {
-//    Option(getControl()).flatMap(c => Option(c.getShell())).flatMap(App.findWindowComposite).flatMap(_.getAppWindow).map { window =>
-//      val coolbar = window.getCoolBarManager()
-//      coolBarManager = WeakReference(coolbar)
-//      coolbar
-//    }
-//  }
-//}
+
+import javax.inject.Inject
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.logic.Logic
+import org.eclipse.e4.core.contexts.{ Active, ContextInjectionFactory }
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.CoolBarManager
+import org.eclipse.swt.widgets.{ Composite, ToolBar }
+import scala.ref.WeakReference
+
+/**
+ * ToolBar manager that contains ContributionSelectView, ContributionSelectFilter, ContributionSelectSorting
+ */
+class ViewToolBarManager @Inject() (windowContext: Context) extends ToolBarManager with Loggable {
+  /** CoolBar */
+  @volatile protected var coolBarManager = WeakReference[CoolBarManager](null)
+  /** Flag indicating whether the toolbar manager is visible. */
+  @volatile protected var visible = false
+
+  if (windowContext.getLocal(classOf[AppWindow]) == null)
+    throw new IllegalArgumentException(s"${windowContext} does not contain AppWindow.")
+
+  /** Set ToolBarManager contribution after toolbar is created and hide it if needed. */
+  override def setToolBarManagerContribution(arg: org.eclipse.jface.action.ToolBarContributionItem) {
+    super.setToolBarManagerContribution(arg)
+    // Hide toolbar if there is no active VComposite
+    arg.setVisible(Option(windowContext.getActive(classOf[VComposite])).nonEmpty)
+    getCoolBarManager.foreach(_.update(true))
+  }
+
+  /** Get coolbar manager for this toolbar manager. */
+  protected def getCoolBarManager(): Option[CoolBarManager] = coolBarManager.get orElse {
+    Option(windowContext.get(classOf[AppWindow])).map { window ⇒
+      val coolbar = window.getCoolBarManager()
+      coolBarManager = WeakReference(coolbar)
+      coolbar
+    }
+  }
+  /** Invoked on view activation. */
+  @Inject @Optional
+  protected def onViewChanged(@Active vComposite: VComposite): Unit = App.exec {
+    visible = vComposite.getContext.getLocal(Logic.Id.featureViewDefinition) == java.lang.Boolean.TRUE
+    contribution.get.foreach(_.setVisible(visible))
+    getCoolBarManager.foreach(_.update(true))
+  }
+}

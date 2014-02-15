@@ -155,7 +155,9 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       restoreCallback = None
       val children = context.children
       // Get only pointers that have valid nextLevelActor.
-      pointers.values.filter(p ⇒ children.exists(_.path == p.nextLevelActor.path)).flatMap(p ⇒ Option(p.block.get().ref)) match {
+      pointers.values.filter(p ⇒ children.exists(_.path == p.nextLevelActor.path)).flatMap { p ⇒
+        Option(p.block.get()).map(_.ref)
+      } match {
         case Nil ⇒
           if (pointers.nonEmpty)
             log.debug(s"Drop unreachable pointers: ${pointers.values.flatMap(p ⇒ Option(p.block.get)).mkString(", ")}.")

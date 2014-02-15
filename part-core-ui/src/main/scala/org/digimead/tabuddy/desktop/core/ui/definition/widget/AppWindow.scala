@@ -58,7 +58,7 @@ import org.digimead.tabuddy.desktop.core.ui.block.{ Window, WindowConfiguration,
 import org.digimead.tabuddy.desktop.core.ui.block.StackConfiguration
 import org.digimead.tabuddy.desktop.core.ui.block.builder.WindowContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
-import org.eclipse.e4.core.contexts.{ Active, IEclipseContext }
+import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.{ CoolBarManager, StatusLineManager }
 import org.eclipse.jface.window.ApplicationWindow
@@ -72,7 +72,7 @@ import scala.language.implicitConversions
  * Instance that represents visible window which is based on JFace framework.
  */
 class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: WindowConfiguration, val ref: ActorRef,
-  @Named("StackSupervisorActorRef") val supervisorRef: ActorRef, argWindowContext: IEclipseContext, @Optional parentShell: Shell)
+  @Named("StackSupervisorActorRef") val supervisorRef: ActorRef, val windowContext: Context, @Optional parentShell: Shell)
   extends ApplicationWindow(parentShell) with WComposite.ContextSetter with Window.WindowMapDisposer with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
@@ -80,8 +80,6 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Window initial configuration. */
   val initialConfiguration = Option(argInitialConfiguration)
-  /** Window context. */
-  val windowContext = argWindowContext.asInstanceOf[Context]
   /** Content composite that contains views. */
   @volatile protected var content: Option[WComposite] = None
   /** Filler composite that visible by default. */
@@ -250,7 +248,7 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
   }
   /** Update window title. */
   @Inject @Optional
-  protected def updateTitle(@Active context: IEclipseContext, @Active @Optional @Named(UI.Id.windowTitle) window: String,
+  protected def updateTitle(@Active context: Context, @Active @Optional @Named(UI.Id.windowTitle) window: String,
     @Active @Optional @Named(UI.Id.viewTitle) view: String, @Active @Optional @Named(UI.Id.contentTitle) content: String) = {
     val shell = getShell
     if (shell != null && !shell.isDisposed())

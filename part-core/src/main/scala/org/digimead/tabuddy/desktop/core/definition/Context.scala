@@ -58,6 +58,8 @@ import language.implicitConversions
  * EclipseContext wrapper.
  */
 class Context(parent: EclipseContext) extends EclipseContext(parent) {
+  set(classOf[Context], this)
+
   def containsKey(clazz: Class[_], localOnly: Boolean): Boolean = containsKey(clazz.getName(), localOnly)
   override def createChild(): Context = new Context(Context.this)
   override def createChild(name: String): Context = {

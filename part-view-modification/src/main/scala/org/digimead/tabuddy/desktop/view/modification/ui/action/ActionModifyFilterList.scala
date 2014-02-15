@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,99 +43,70 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.action
 
+import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-//import org.digimead.tabuddy.desktop.Messages
-//import org.digimead.tabuddy.desktop.core.definition.Operation
-//import org.digimead.tabuddy.desktop.logic.Data
-//import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilterList
-//import org.digimead.tabuddy.desktop.logic.payload.Payload
-//import org.digimead.tabuddy.desktop.logic.payload.view.Filter
-//import org.digimead.tabuddy.desktop.core.support.App
-//import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-//import org.digimead.tabuddy.model.Model
-//import org.digimead.tabuddy.model.Model.model2implementation
-import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilterList
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.view.modification.Messages
 import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action => JFaceAction }
-import org.eclipse.jface.action.IAction
+import org.eclipse.e4.core.contexts.Active
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
 import org.eclipse.swt.widgets.Event
 
-import akka.actor.Props
-
 /** Modify filter list. */
-//class ActionModifyFilterList private () extends JFaceAction(Messages.filters_text) with Loggable {
-//  override def isEnabled(): Boolean = super.isEnabled && (Model.eId != Payload.defaultModel.eId)
-//  /** Runs this action, passing the triggering SWT event. */
-//  @log
-//  override def runWithEvent(event: Event) =
-//    OperationModifyFilterList(Data.getAvailableViewFilters - Filter.allowAllFilter).foreach { operation =>
-//      operation.getExecuteJob() match {
-//        case Some(job) =>
-//          job.setPriority(Job.SHORT)
-//          job.onComplete(_ match {
-//            case Operation.Result.OK(result, message) =>
-//              log.info(s"Operation completed successfully: ${result}")
-//              result.foreach { case (filters) => Filter.save(filters) }
-//            case Operation.Result.Cancel(message) =>
-//              log.warn(s"Operation canceled, reason: ${message}.")
-//            case other =>
-//              log.error(s"Unable to complete operation: ${other}.")
-//          }).schedule()
-//          job.schedule()
-//        case None =>
-//          log.fatal(s"Unable to create job for ${operation}.")
-//      }
-//    }
-//
-//  /** Update enabled action state. */
-//  protected def updateEnabled() = if (isEnabled)
-//    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
-//  else
-//    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
-//}
-//
-//object ActionModifyFilterList extends Loggable {
-//  /** Singleton identificator. */
-//  val id = getClass.getSimpleName().dropRight(1)
-//  /** ModifyFilterList action. */
-//  @volatile protected var action: Option[ActionModifyFilterList] = None
-//
-//  /** Returns ModifyFilterList action. */
-//  def apply(): ActionModifyFilterList = action.getOrElse {
-//    val modifyFilterListAction = App.execNGet { new ActionModifyFilterList }
-//    action = Some(modifyFilterListAction)
-//    modifyFilterListAction
-//  }
-//  /** ModifyFilterList action actor reference configuration object. */
-//  def props = DI.props
-//
-//  /** ModifyFilterList action actor. */
-//  class Actor extends akka.actor.Actor {
-//    log.debug("Start actor " + self.path)
-//
-//    /** Is called asynchronously after 'actor.stop()' is invoked. */
-//    override def postStop() = {
-//      App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-//      log.debug(self.path.name + " actor is stopped.")
-//    }
-//    /** Is called when an Actor is started. */
-//    override def preStart() {
-//      App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-//      log.debug(self.path.name + " actor is started.")
-//    }
-//    def receive = {
-//      case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
-//        action.foreach(action => App.exec { action.updateEnabled })
-//      }
-//    }
-//  }
-//  /**
-//   * Dependency injection routines.
-//   */
-//  private object DI extends DependencyInjection.PersistentInjectable {
-//    /** ModifyFilterList actor reference configuration object. */
-//    lazy val props = injectOptional[Props]("ViewModification.Action.ModifyFilterList") getOrElse Props[ActionModifyFilterList.Actor]
-//  }
-//}
+class ActionModifyFilterList @Inject() (windowContext: Context) extends JFaceAction(Messages.filters_text) with Loggable {
+  /** Flag indicating whether the action is enabled. */
+  @volatile protected var vContext = Option.empty[Context]
+
+  if (windowContext.getLocal(classOf[AppWindow]) == null)
+    throw new IllegalArgumentException(s"${windowContext} does not contain AppWindow.")
+
+  override def isEnabled(): Boolean = super.isEnabled &&
+    vContext.map { context ⇒ context.get(classOf[GraphMarker]) != null }.getOrElse(false)
+
+  /** Runs this action, passing the triggering SWT event. */
+  @log
+  override def runWithEvent(event: Event) = for {
+    context ← vContext
+    marker ← Option(context.get(classOf[GraphMarker]))
+  } marker.safeRead { state ⇒
+    OperationModifyFilterList(state.graph, App.execNGet { state.payload.viewFilters.values.toSet }).foreach { operation ⇒
+      operation.getExecuteJob() match {
+        case Some(job) ⇒
+          job.setPriority(Job.LONG)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) ⇒
+              log.info(s"Operation completed successfully: ${result}")
+              result.foreach {
+                case (sortings) ⇒
+                  //Sorting.save(sortings)
+                  log.___glance("RESULT " + result)
+              }
+            case Operation.Result.Cancel(message) ⇒
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other ⇒
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+        case None ⇒
+          throw new RuntimeException(s"Unable to create job for ${operation}.")
+      }
+    }
+  }
+
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+  /** Invoked on view activation. */
+  @Inject @Optional
+  protected def onViewChanged(@Active vComposite: VComposite): Unit = {
+    vContext = Option(vComposite.getContext)
+    App.exec { updateEnabled() }
+  }
+}

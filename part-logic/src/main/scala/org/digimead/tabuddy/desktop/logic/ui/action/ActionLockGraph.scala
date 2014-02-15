@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,8 +41,8 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.action
-/*
+package org.digimead.tabuddy.desktop.logic.ui.action
+
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -50,15 +50,10 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.operation.OperationModelClose
-import org.digimead.tabuddy.desktop.logic.operation.OperationModelNew
-import org.digimead.tabuddy.desktop.logic.operation.OperationModelOpen
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
@@ -73,66 +68,66 @@ import javax.inject.Inject
 import javax.inject.Named
 
 /** Lock/unlock model. */
-class ActionLockModel private () extends JFaceAction(Messages.lock_text, IAction.AS_CHECK_BOX) with Loggable {
+class ActionLockGraph private () extends JFaceAction(Messages.lock_text, IAction.AS_CHECK_BOX) with Loggable {
   @volatile protected var enabled = false
-  ContextInjectionFactory.inject(ActionLockModel.this, Core.context)
+  ContextInjectionFactory.inject(ActionLockGraph.this, Core.context)
 
   override def isEnabled(): Boolean = super.isEnabled() && (enabled || isChecked)
-  override def isChecked(): Boolean = Model.eId != Payload.defaultModel.eId
+  override def isChecked(): Boolean = false //Model.eId != Payload.defaultModel.eId
   /** Invoked at every modification of Data.Id.modelIdUserInput. */
   @Inject @Optional // @log
-  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) =
-    if ((id != null && id.trim.nonEmpty) != enabled) {
-      enabled = !enabled
-      updateEnabled()
-    }
+//  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) =
+//    if ((id != null && id.trim.nonEmpty) != enabled) {
+//      enabled = !enabled
+//      updateEnabled()
+//    }
   /** Runs this action, passing the triggering SWT event. */
   @log
   override def runWithEvent(event: Event) {
-    val context = Core.context.getActiveLeaf()
-    if (Model.eId == Payload.defaultModel.eId) {
-      // There is the default model. Load different model.
-      val id = context.get(Data.Id.modelIdUserInput).asInstanceOf[String]
-      if (id.nonEmpty)
-        Payload.listModels.find(marker => marker.isValid && marker.id.name == id) match {
-          case Some(marker) =>
-            OperationModelOpen(Some(Model.eId), Symbol(id), false) foreach { operation =>
-              operation.getExecuteJob() match {
-                case Some(job) =>
-                  job.setPriority(Job.SHORT)
-                  job.schedule()
-                case None =>
-                  log.fatal(s"Unable to create job for ${operation}.")
-              }
-            }
-          case None =>
-            OperationModelNew(Some(id), None, true) foreach { operation =>
-              operation.getExecuteJob() match {
-                case Some(job) =>
-                  job.setPriority(Job.SHORT)
-                  job.schedule()
-                case None =>
-                  log.fatal(s"Unable to create job for ${operation}.")
-              }
-            }
-        }
-    } else {
-      // Something already loaded. Close.
-      OperationModelClose(Model.eId, false) foreach { operation =>
-        operation.getExecuteJob() match {
-          case Some(job) =>
-            job.setPriority(Job.SHORT)
-            job.schedule()
-          case None =>
-            log.fatal(s"Unable to create job for ${operation}.")
-        }
-      }
-    }
+//    val context = Core.context.getActiveLeaf()
+//    if (Model.eId == Payload.defaultModel.eId) {
+//      // There is the default model. Load different model.
+//      val id = context.get(Data.Id.modelIdUserInput).asInstanceOf[String]
+//      if (id.nonEmpty)
+//        Payload.listModels.find(marker => marker.isValid && marker.id.name == id) match {
+//          case Some(marker) =>
+//            OperationModelOpen(Some(Model.eId), Symbol(id), false) foreach { operation =>
+//              operation.getExecuteJob() match {
+//                case Some(job) =>
+//                  job.setPriority(Job.SHORT)
+//                  job.schedule()
+//                case None =>
+//                  log.fatal(s"Unable to create job for ${operation}.")
+//              }
+//            }
+//          case None =>
+//            OperationModelNew(Some(id), None, true) foreach { operation =>
+//              operation.getExecuteJob() match {
+//                case Some(job) =>
+//                  job.setPriority(Job.SHORT)
+//                  job.schedule()
+//                case None =>
+//                  log.fatal(s"Unable to create job for ${operation}.")
+//              }
+//            }
+//        }
+//    } else {
+//      // Something already loaded. Close.
+//      OperationModelClose(Model.eId, false) foreach { operation =>
+//        operation.getExecuteJob() match {
+//          case Some(job) =>
+//            job.setPriority(Job.SHORT)
+//            job.schedule()
+//          case None =>
+//            log.fatal(s"Unable to create job for ${operation}.")
+//        }
+//      }
+//    }
   }
   override def setChecked(checked: Boolean) {
-    val checked = Model.eId != Payload.defaultModel.eId
-    super.setChecked(checked)
-    updateChecked
+//    val checked = Model.eId != Payload.defaultModel.eId
+//    super.setChecked(checked)
+//    updateChecked
   }
 
   /** Update enabled action state. */
@@ -178,47 +173,16 @@ class ActionLockModel private () extends JFaceAction(Messages.lock_text, IAction
   }*/
 }
 
-object ActionLockModel extends Loggable {
+object ActionLockGraph extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Lock action. */
-  @volatile protected var action: Option[ActionLockModel] = None
+  @volatile protected var action: Option[ActionLockGraph] = None
 
   /** Returns lock action. */
-  def apply(): ActionLockModel = action.getOrElse {
-    val lockAction = App.execNGet { new ActionLockModel }
+  def apply(): ActionLockGraph = action.getOrElse {
+    val lockAction = App.execNGet { new ActionLockGraph }
     action = Some(lockAction)
     lockAction
   }
-  /** Lock action actor reference configuration object. */
-  def props = DI.props
-
-  /** Lock action actor. */
-  class Actor extends akka.actor.Actor {
-    log.debug("Start actor " + self.path)
-
-    /** Is called asynchronously after 'actor.stop()' is invoked. */
-    override def postStop() = {
-      App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Like, _ <: Model.Like]])
-      log.debug(self.path.name + " actor is stopped.")
-    }
-    /** Is called when an Actor is started. */
-    override def preStart() {
-      App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Like, _ <: Model.Like]])
-      log.debug(self.path.name + " actor is started.")
-    }
-    def receive = {
-      case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
-        action.foreach(action => App.exec { action.updateChecked })
-      }
-    }
-  }
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Lock actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Logic.Action.Lock") getOrElse Props[ActionLockModel.Actor]
-  }
 }
-*/

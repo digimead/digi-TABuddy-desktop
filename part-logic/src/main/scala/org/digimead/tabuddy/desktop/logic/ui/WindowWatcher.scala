@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,36 +41,23 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.ui.action
-/*
+package org.digimead.tabuddy.desktop.logic.ui
+
+import akka.actor.{ Actor, ActorRef, Props }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop
-import org.digimead.tabuddy.desktop.core.gui.WindowMenu
-import org.digimead.tabuddy.desktop.core.gui.WindowToolbar
-import org.digimead.tabuddy.desktop.core.gui.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.Props
+import org.digimead.tabuddy.desktop.core.ui
+import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 
 /**
  * Register action in new windows.
  * There is no need subscribe to App.Message.Destroyed because SWT dispose will do all job.
  */
-class Action extends Actor with Loggable {
+class WindowWatcher extends Actor with Loggable {
   log.debug("Start actor " + self.path)
-
-  /*
-   * Logic component action actors.
-   */
-  val closeModelActionRef = context.actorOf(ActionCloseModel.props, ActionCloseModel.id)
-  val deleteModelActionRef = context.actorOf(ActionDeleteModel.props, ActionDeleteModel.id)
-  val lockModelActionRef = context.actorOf(ActionLockModel.props, ActionLockModel.id)
-  val saveModelActionRef = context.actorOf(ActionSaveModel.props, ActionSaveModel.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -84,11 +71,11 @@ class Action extends Actor with Loggable {
   }
   def receive = {
     // Adjust menu and toolbar after Core component.
-    case message @ App.Message.Create(Right((action: desktop.action.Action.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
+    case message @ App.Message.Create((ui.WindowWatcher, window: AppWindow), Some(publisher), _) ⇒ App.traceMessage(message) {
       onCreated(window, publisher)
     }
 
-    case message @ App.Message.Create(_, _) =>
+    case message @ App.Message.Create(_, _, _) ⇒
   }
 
   /** Register actions in new window. */
@@ -100,30 +87,30 @@ class Action extends Actor with Loggable {
       adjustToolbar(window)
     }
     // publish that window menu and toolbar are ready
-    App.publish(App.Message.Create(Right(Action, window), self))
+    App.publish(App.Message.Create((WindowWatcher, window), self))
   }
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(window, desktop.action.Action.fileMenu)
-    file.add(ActionSaveModel())
-    file.add(ActionDeleteModel())
-    file.add(ActionCloseModel())
+    val file = WindowMenu(Left(window), ui.WindowWatcher.fileMenu)
+    //    file.add(action.ActionSaveModel())
+    //    file.add(action.ActionDeleteModel())
+    file.add(action.ActionCloseGraph())
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val modelToolBar = WindowToolbar(window, Action.modelToolbar)
-    modelToolBar.getToolBarManager().add(new ContributionSelectModel)
-    modelToolBar.getToolBarManager().add(ActionLockModel())
-    modelToolBar.getToolBarManager().add(ActionSaveModel())
-    modelToolBar.getToolBarManager().add(ActionDeleteModel())
+    val modelToolBar = WindowToolbar(window, WindowWatcher.modelToolbar)
+    //    modelToolBar.getToolBarManager().add(new ContributionSelectModel)
+    //    modelToolBar.getToolBarManager().add(WindowWatcherLockModel())
+    //    modelToolBar.getToolBarManager().add(WindowWatcherSaveModel())
+    //    modelToolBar.getToolBarManager().add(WindowWatcherDeleteModel())
     window.getCoolBarManager2().update(true)
   }
 }
 
-object Action {
+object WindowWatcher {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model menu descriptor. */
@@ -133,20 +120,20 @@ object Action {
   /** View menu descriptor. */
   lazy val viewMenu = App.execNGet { WindowMenu.Descriptor("&View", None, getClass.getName() + "#view") }
   // Initialize descendant actor singletons
-  ActionCloseModel
-  ActionDeleteModel
-  ActionLockModel
-  ActionSaveModel
+  //  WindowWatcherCloseModel
+  //  WindowWatcherDeleteModel
+  //  WindowWatcherLockModel
+  //  WindowWatcherSaveModel
 
-  /** Action actor reference configuration object. */
+  /** WindowWatcher actor reference configuration object. */
   def props = DI.props
 
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Action actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Logic.Action") getOrElse Props[Action]
+    /** WindowWatcher actor reference configuration object. */
+    lazy val props = injectOptional[Props]("Logic.WindowWatcher") getOrElse Props[WindowWatcher]
   }
 }
-*/
+

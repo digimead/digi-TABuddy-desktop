@@ -420,6 +420,8 @@ object View extends Loggable {
      */
     class ViewTitleRunAndTrack(observable: WeakReference[WritableValue]) extends RunAndTrack {
       override def changed(context: IEclipseContext): Boolean = {
+        if (context == null)
+          return false
         val newValue = context.get(UI.Id.viewTitle)
         observable.get.foreach(observable ⇒ App.exec { observable.setValue(newValue) })
         true

@@ -74,15 +74,13 @@ object CommandModifyFilterList extends Loggable {
         case marker: GraphMarker ⇒
           val exchanger = new Exchanger[Operation.Result[Set[Filter]]]()
           marker.safeRead { state ⇒
-            App.exec {
-              OperationModifyFilterList(state.graph, state.payload.viewFilters.values.toSet).foreach { operation ⇒
-                operation.getExecuteJob() match {
-                  case Some(job) ⇒
-                    job.setPriority(Job.LONG)
-                    job.onComplete(exchanger.exchange).schedule()
-                  case None ⇒
-                    throw new RuntimeException(s"Unable to create job for ${operation}.")
-                }
+            OperationModifyFilterList(state.graph, App.execNGet { state.payload.viewFilters.values.toSet }).foreach { operation ⇒
+              operation.getExecuteJob() match {
+                case Some(job) ⇒
+                  job.setPriority(Job.LONG)
+                  job.onComplete(exchanger.exchange).schedule()
+                case None ⇒
+                  throw new RuntimeException(s"Unable to create job for ${operation}.")
               }
             }
           }

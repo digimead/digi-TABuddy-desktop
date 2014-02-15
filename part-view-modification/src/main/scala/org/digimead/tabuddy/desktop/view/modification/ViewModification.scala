@@ -69,7 +69,7 @@ class ViewModification extends akka.actor.Actor with Loggable {
   /*
    * ViewModification component actors.
    */
-  //val actionRef = context.actorOf(action.Action.props, action.Action.id)
+  val windowWatcherRef = context.actorOf(ui.WindowWatcher.props, ui.WindowWatcher.id)
 
   if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
     App.watch(Activator, Logic, UI, this).always().
@@ -124,7 +124,6 @@ class ViewModification extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(ViewModification) on {
-      //Actions.configure
       Console ! Console.Message.Notice("ViewModification component is started.")
       self ! App.Message.Consistent(ViewModification, None)
     }
@@ -133,7 +132,6 @@ class ViewModification extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStopped() = initializationLock.synchronized {
     App.watch(ViewModification) off {
-      //Actions.unconfigure
       if (inconsistentSet.nonEmpty)
         log.fatal("Inconsistent elements detected: " + inconsistentSet)
       Console ! Console.Message.Notice("ViewModification component is stopped.")
@@ -162,7 +160,7 @@ object ViewModification {
   /** ViewModification actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  ui.action.Action
+  ui.WindowWatcher
 
   override def toString = "ViewModification[Singleton]"
 

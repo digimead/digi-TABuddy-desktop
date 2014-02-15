@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,46 +41,43 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.action
-/*
+package org.digimead.tabuddy.desktop.logic.ui.action
+
 import java.util.UUID
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
-import org.digimead.tabuddy.desktop.core.command.Command
-import org.digimead.tabuddy.desktop.core.command.Command.parser.commandLiteral
-import org.digimead.tabuddy.desktop.logic.operation.OperationModelClose
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action => JFaceAction }
+import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 import org.eclipse.jface.action.IAction
 import org.eclipse.swt.widgets.Event
 
 import akka.actor.Props
 
 /** Close the opened model. */
-class ActionCloseModel extends JFaceAction(Messages.closeFile_text) with Loggable {
-  override def isEnabled(): Boolean = super.isEnabled && (Model.eId != Payload.defaultModel.eId)
+class ActionCloseGraph extends JFaceAction(Messages.closeFile_text) with Loggable {
+  override def isEnabled(): Boolean = super.isEnabled && false // (Model.eId != Payload.defaultModel.eId)
   /** Runs this action, passing the triggering SWT event. */
   @log
-  override def runWithEvent(event: Event) = if (Model.eId != Payload.defaultModel.eId) {
-    OperationModelClose(Model.eId, false) foreach { operation =>
-      operation.getExecuteJob() match {
-        case Some(job) =>
-          job.setPriority(Job.SHORT)
-          job.schedule()
-        case None =>
-          log.fatal(s"Unable to create job for ${operation}.")
-      }
-    }
-  }
+  override def runWithEvent(event: Event) {}
+//  = if (Model.eId != Payload.defaultModel.eId) {
+//    OperationModelClose(Model.eId, false) foreach { operation ⇒
+//      operation.getExecuteJob() match {
+//        case Some(job) ⇒
+//          job.setPriority(Job.SHORT)
+//          job.schedule()
+//        case None ⇒
+//          log.fatal(s"Unable to create job for ${operation}.")
+//      }
+//    }
+//  }
 
   /** Update enabled action state. */
   protected def updateEnabled() = if (isEnabled)
@@ -89,53 +86,16 @@ class ActionCloseModel extends JFaceAction(Messages.closeFile_text) with Loggabl
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
 
-object ActionCloseModel extends Loggable {
-  import Command.parser._
-  /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())("close", "close model",
-    (activeContext, parserContext, parserResult) => action.foreach(_.runWithEvent(null)))
+object ActionCloseGraph extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** Command parser. */
-  lazy val parser = Command.CmdParser("close")
   /** Close action. */
-  @volatile protected var action: Option[ActionCloseModel] = None
+  @volatile protected var action: Option[ActionCloseGraph] = None
 
   /** Returns close action. */
-  def apply(): ActionCloseModel = action.getOrElse {
-    val closeAction = App.execNGet { new ActionCloseModel }
+  def apply(): ActionCloseGraph = action.getOrElse {
+    val closeAction = App.execNGet { new ActionCloseGraph }
     action = Some(closeAction)
     closeAction
   }
-  /** Close action actor reference configuration object. */
-  def props = DI.props
-
-  /** Close action actor. */
-  class Actor extends akka.actor.Actor {
-    log.debug("Start actor " + self.path)
-
-    /** Is called asynchronously after 'actor.stop()' is invoked. */
-    override def postStop() = {
-      App.system.eventStream.unsubscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Like, _ <: Model.Like]])
-      log.debug(self.path.name + " actor is stopped.")
-    }
-    /** Is called when an Actor is started. */
-    override def preStart() {
-      App.system.eventStream.subscribe(self, classOf[Element.Event.ModelReplace[_ <: Model.Like, _ <: Model.Like]])
-      log.debug(self.path.name + " actor is started.")
-    }
-    def receive = {
-      case message @ Element.Event.ModelReplace(oldModel, newModel, modified) => App.traceMessage(message) {
-        action.foreach(action => App.exec { action.updateEnabled })
-      }
-    }
-  }
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Close actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Logic.Action.CloseModel") getOrElse Props[ActionCloseModel.Actor]
-  }
 }
-*/

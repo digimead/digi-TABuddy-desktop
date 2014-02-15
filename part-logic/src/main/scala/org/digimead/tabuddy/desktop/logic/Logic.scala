@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -52,6 +52,7 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.logic.ui.WindowWatcher
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
 import org.eclipse.jface.commands.ToggleState
@@ -72,7 +73,7 @@ class Logic extends akka.actor.Actor with Loggable {
   /*
    * Logic component actors.
    */
-  val actionRef = if (App.isUIAvailable) context.actorOf(ui.UI.props, ui.UI.id) else null
+  val windowWatcherRef = context.actorOf(WindowWatcher.props, WindowWatcher.id)
 
   if (App.watch(Activator, Core, this).hooks.isEmpty)
     App.watch(Activator, Core, this).always().
@@ -250,7 +251,7 @@ object Logic {
     /** Value of the selected filter ID [UUID]. */
     final val selectedFilter = "org.digimead.tabuddy.desktop.logic/selectedFilter"
     /** Flag indicating whether this view is using 'view definitions/filters/sortings' [java.lang.Boolean]. */
-    final val usingViewDefinition = "org.digimead.tabuddy.desktop.logic/usingViewDefinition"
+    final val featureViewDefinition = "org.digimead.tabuddy.desktop.logic/featureViewDefinition"
   }
   /**
    * Dependency injection routines

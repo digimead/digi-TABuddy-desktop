@@ -239,7 +239,7 @@ class Editor(val contentId: UUID) extends Actor with Loggable {
     App.assertEventThread(false)
     view = Option(parent)
     val content = App.execNGet {
-      //parent.getContext.set(Data.Id.usingViewDefinition, java.lang.Boolean.TRUE)
+      //parent.getContext.set(Data.Id.featureViewDefinition, java.lang.Boolean.TRUE)
       new editor.View(parent, SWT.NONE)
     }
     Some(content)

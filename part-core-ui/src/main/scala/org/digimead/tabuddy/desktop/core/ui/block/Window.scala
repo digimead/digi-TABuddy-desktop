@@ -375,7 +375,7 @@ object Window extends Loggable {
         Future {
           val sorted = windows.sortBy(_._2._1).map(_._2._2) // sort by instanceCounter
           App.exec {
-            sorted.lastOption.foreach { lastWindow ⇒
+            sorted.filter(w ⇒ w.getShell() != null && !w.getShell().isDisposed()).lastOption.foreach { lastWindow ⇒
               // Activate last window.
               lastWindow.windowContext.activate()
               lastWindow.getShell().setActive()

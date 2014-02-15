@@ -43,58 +43,97 @@
 
 package org.digimead.tabuddy.desktop.core.ui.view.console
 
-import akka.actor.{ Actor, ActorContext, ActorRef, Props, actorRef2Scala }
+import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import java.util.UUID
-import java.util.concurrent.TimeoutException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.Messages
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, View }
+import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.layout.FillLayout
 import org.eclipse.swt.widgets.{ Composite, Widget }
 import org.eclipse.ui.console.MessageConsole
-import scala.collection.immutable
 
-class ViewConsole(val contentId: UUID) extends Actor with Loggable {
+class ViewConsole(val contentId: UUID, val factory: View.Factory) extends Actor with Loggable {
   /** View body widget. */
   @volatile var body: Option[Composite] = None
   /** View parent widget. */
   @volatile var parent: Option[VComposite] = None
+  /** Flag indicating whether the ViewDefault is alive. */
+  var terminated = false
   /** Container view actor. */
-  lazy val view = context.parent
+  var containerRef = Option.empty[ActorRef]
+  /** View context. */
+  lazy val viewContext = Context(self.path.name)
   log.debug("Start actor " + self.path)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    log.debug(this + " is stopped.")
+    factory.unregister(self.path.name)
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() = {
+    log.debug(this + " is started.")
+    factory.register(self.path.name, viewContext)
+  }
+  /** Get container actor reference. */
+  def container = containerRef getOrElse { throw new NoSuchElementException(s"${this} container not found.") }
   def receive = {
-    case message @ App.Message.Create(parentWidget: VComposite, Some(this.view), _) ⇒ App.traceMessage(message) {
-      create(parentWidget) match {
-        case Some(contentWidget) ⇒
-          App.publish(App.Message.Create(contentWidget, self))
-          App.Message.Create(contentWidget, self)
-        case None ⇒
-          App.Message.Error(s"Unable to create ${this} for ${parentWidget}.", None)
+    case message @ App.Message.Create(viewLayerWidget: VComposite, Some(view), _) if view == container ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        create(viewLayerWidget) match {
+          case Some(body) ⇒
+            App.publish(App.Message.Create(body, self))
+            App.Message.Create(body, self)
+          case None ⇒
+            App.Message.Error(s"Unable to create ${this} for ${viewLayerWidget}.", None)
+        }
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Destroy(Left(viewLayerWidget: VComposite), None, _) ⇒ App.traceMessage(message) {
-      this.parent.map { viewLayerWidget ⇒
-        App.execNGet { destroy(sender) }
-        this.parent = None
-        App.Message.Destroy(viewLayerWidget, None)
-      } getOrElse App.Message.Error(s"Unable to destroy ${this} in ${viewLayerWidget}.", None)
+    case message @ App.Message.Destroy(viewLayerWidget: VComposite, Some(view), None) if view == container ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        destroy() match {
+          case Some(body) ⇒
+            App.Message.Destroy(body, None)
+          case None ⇒
+            App.Message.Error(s"Unable to destroy ${this} for ${viewLayerWidget}.", None)
+        }
+      }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Start(Left(widget: Widget), None, _) ⇒ App.traceMessage(message) {
-      App.Message.Start(widget, None)
+    case message @ App.Message.Set(_, parentWidget: VComposite) ⇒ App.traceMessage(message) {
+      if (parentWidget.ref.path.name != "View_%08X".format(contentId.hashCode()))
+        throw new IllegalArgumentException(s"Illegal container ${parentWidget}.")
+      log.debug(s"Bind ${this} to ${parentWidget}.")
+      containerRef = Some(parentWidget.ref)
+      viewContext.setParent(parentWidget.getContext())
+    }
+
+    case message @ App.Message.Start(widget: Widget, _, None) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        App.Message.Start(widget, None)
+      }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(Left(widget: Widget), None, _) ⇒ App.traceMessage(message) {
-      App.Message.Stop(widget, None)
+    case message @ App.Message.Stop(widget: Widget, _, None) ⇒ App.traceMessage(message) {
+      if (terminated) {
+        App.Message.Error(s"${this} is terminated.", self)
+      } else {
+        App.Message.Stop(widget, None)
+      }
     } foreach { sender ! _ }
   }
 
@@ -107,41 +146,59 @@ class ViewConsole(val contentId: UUID) extends Actor with Loggable {
     if (this.parent.nonEmpty)
       throw new IllegalStateException("Unable to create view. It is already created.")
     App.assertEventThread(false)
-    this.parent = Option(parent)
     App.execNGet {
       parent.setLayout(new FillLayout())
-      new Console(parent, SWT.NONE, new MessageConsole("console", null, false))
+      val body = new Console(parent, SWT.NONE, new MessageConsole("console", null, false))
       parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
       parent.layout()
+      this.parent = Option(parent)
+      this.body = Option(body)
+      this.body
     }
     Some(null)
   }
   /** Destroy created window. */
   @log
-  protected def destroy(sender: ActorRef) = this.parent.foreach { view ⇒
-    App.assertEventThread()
+  protected def destroy(): Option[Composite] = {
+    App.assertEventThread(false)
+    terminated = true
+    for {
+      parent ← parent
+      body ← body
+    } yield {
+      App.execNGet { body.dispose() }
+      App.publish(App.Message.Destroy(body, self))
+      body
+    }
   }
 }
 
-object ViewConsole extends View.Factory with Loggable {
+object ViewConsole extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** View name. */
-  lazy val name = DI.name
-  /** Short view description (one line). */
-  lazy val shortDescription = DI.shortDescription
-  /** Long view description. */
-  lazy val longDescription = DI.longDescription
-  /** View image. */
-  lazy val image = DI.image
 
-  /** Default view actor reference configuration object. */
-  def props = DI.props
+  /** Default view factory. */
+  def factory = DI.factory
 
+  class Factory extends View.Factory {
+    /** View name. */
+    lazy val name = ViewConsole.DI.name
+    /** Short view description (one line). */
+    lazy val shortDescription = ViewConsole.DI.shortDescription
+    /** Long view description. */
+    lazy val longDescription = ViewConsole.DI.longDescription
+    /** View image. */
+    lazy val image = ViewConsole.DI.image
+
+    /** Default view actor reference configuration object. */
+    def props = ViewConsole.DI.props
+  }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** Default view factory. */
+    lazy val factory = injectOptional[Factory] getOrElse new Factory
     /** View name. */
     lazy val name = injectOptional[Symbol]("Core.View.Console.Name") getOrElse Symbol({
       val name = Messages.console_text
@@ -158,6 +215,8 @@ object ViewConsole extends View.Factory with Loggable {
     /** Console view actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.View.Console") getOrElse Props(classOf[ViewConsole],
       // content id == view layer id
-      UUID.fromString("00000000-0000-0000-0000-000000000000"))
+      UUID.fromString("00000000-0000-0000-0000-000000000000"),
+      // stub factory
+      null.asInstanceOf[View.Factory])
   }
 }
