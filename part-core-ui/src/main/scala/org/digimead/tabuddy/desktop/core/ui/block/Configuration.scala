@@ -110,6 +110,7 @@ object Configuration extends Loggable {
     } catch {
       case e: ClassNotFoundException ⇒ false
       case e: IllegalStateException ⇒ false
+      case e: NullPointerException ⇒ false
     }
     override lazy val toString = s"Factory(${factoryClassName})"
   }

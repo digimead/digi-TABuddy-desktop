@@ -62,7 +62,7 @@ import scala.concurrent.Future
 /**
  * Modify a view sorting list.
  */
-object CommandModifySortingList  extends Loggable {
+object CommandModifySortingList extends Loggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
@@ -74,15 +74,13 @@ object CommandModifySortingList  extends Loggable {
         case marker: GraphMarker ⇒
           val exchanger = new Exchanger[Operation.Result[Set[Sorting]]]()
           marker.safeRead { state ⇒
-            App.exec {
-              OperationModifySortingList(state.graph, state.payload.viewSortings.values.toSet).foreach { operation ⇒
-                operation.getExecuteJob() match {
-                  case Some(job) ⇒
-                    job.setPriority(Job.LONG)
-                    job.onComplete(exchanger.exchange).schedule()
-                  case None ⇒
-                    throw new RuntimeException(s"Unable to create job for ${operation}.")
-                }
+            OperationModifySortingList(state.graph, App.execNGet { state.payload.viewSortings.values.toSet }).foreach { operation ⇒
+              operation.getExecuteJob() match {
+                case Some(job) ⇒
+                  job.setPriority(Job.LONG)
+                  job.onComplete(exchanger.exchange).schedule()
+                case None ⇒
+                  throw new RuntimeException(s"Unable to create job for ${operation}.")
               }
             }
           }

@@ -231,7 +231,7 @@ object Generic extends Loggable {
       protected def update() {
         parent.get.foreach { parent ⇒
           log.trace("Synchronize " + elements)
-          parent.synchronize(elements)
+          parent.synchronize(elements.filter(_ != null))
           lock.synchronized {
             parent.pending match {
               case p @ Some(pending) ⇒

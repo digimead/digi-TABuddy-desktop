@@ -78,15 +78,15 @@ class ContributionSelectView(val window: WeakReference[AppWindow]) extends Contr
   /** Invoked on view activation. */
   @Inject @Optional
   def onViewChanged(vComposite: VComposite) = Option(vComposite) foreach (vcomposite ⇒ App.exec {
-    Option(vcomposite.getContext.getLocal(contextValueKey)) match {
+    vcomposite.getContext.flatMap(ctx ⇒ Option(ctx.getLocal(contextValueKey))) match {
       case Some(viewId: UUID) ⇒
         // Take previous value.
         updateComboBoxValue(viewId)
       case None ⇒
         // There is uninitialized context.
         log.debug(s"Initialize ${vcomposite} context.")
-//        updateContextValue(Some(Default.ViewModification.view))
-//        updateComboBoxValue(None)
+      //        updateContextValue(Some(Default.ViewModification.view))
+      //        updateComboBoxValue(None)
       case _ ⇒
     }
   })

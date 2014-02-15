@@ -74,15 +74,14 @@ object CommandModifyTypeSchemaList extends Loggable {
         case marker: GraphMarker ⇒
           val exchanger = new Exchanger[Operation.Result[(Set[TypeSchema], TypeSchema)]]()
           marker.safeRead { state ⇒
-            App.exec {
-              OperationModifyTypeSchemaList(state.graph, state.payload.typeSchemas.values.toSet, state.payload.typeSchema.value).foreach { operation ⇒
-                operation.getExecuteJob() match {
-                  case Some(job) ⇒
-                    job.setPriority(Job.LONG)
-                    job.onComplete(exchanger.exchange).schedule()
-                  case None ⇒
-                    throw new RuntimeException(s"Unable to create job for ${operation}.")
-                }
+            val (schemaList, activeSchema) = App.execNGet { (state.payload.typeSchemas.values.toSet, state.payload.typeSchema.value) }
+            OperationModifyTypeSchemaList(state.graph, schemaList, activeSchema).foreach { operation ⇒
+              operation.getExecuteJob() match {
+                case Some(job) ⇒
+                  job.setPriority(Job.LONG)
+                  job.onComplete(exchanger.exchange).schedule()
+                case None ⇒
+                  throw new RuntimeException(s"Unable to create job for ${operation}.")
               }
             }
           }

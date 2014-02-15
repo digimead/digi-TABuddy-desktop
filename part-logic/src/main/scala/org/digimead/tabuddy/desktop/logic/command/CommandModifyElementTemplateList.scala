@@ -74,15 +74,13 @@ object CommandModifyElementTemplateList extends Loggable {
         case marker: GraphMarker ⇒
           val exchanger = new Exchanger[Operation.Result[Set[ElementTemplate]]]()
           marker.safeRead { state ⇒
-            App.exec {
-              OperationModifyElementTemplateList(state.graph, state.payload.elementTemplates.values.toSet).foreach { operation ⇒
-                operation.getExecuteJob() match {
-                  case Some(job) ⇒
-                    job.setPriority(Job.LONG)
-                    job.onComplete(exchanger.exchange).schedule()
-                  case None ⇒
-                    throw new RuntimeException(s"Unable to create job for ${operation}.")
-                }
+            OperationModifyElementTemplateList(state.graph, App.execNGet { state.payload.elementTemplates.values.toSet }).foreach { operation ⇒
+              operation.getExecuteJob() match {
+                case Some(job) ⇒
+                  job.setPriority(Job.LONG)
+                  job.onComplete(exchanger.exchange).schedule()
+                case None ⇒
+                  throw new RuntimeException(s"Unable to create job for ${operation}.")
               }
             }
           }

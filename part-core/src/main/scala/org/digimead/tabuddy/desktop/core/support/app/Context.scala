@@ -122,14 +122,14 @@ trait Context {
   /** Get parent children. */
   @tailrec
   private def getContextParents(ctx: IEclipseContext, acc: Seq[IEclipseContext] = Seq()): Seq[IEclipseContext] = {
-    val parent = Option(ctx.getParent())
+    val parent = Option(ctx).flatMap(ctx ⇒ Option(ctx.getParent()))
     if (parent.isEmpty) return acc
     getContextParents(parent.get, parent.get +: acc)
   }
   /** Get context children. */
   @tailrec
   private def getContextChildren(ctx: Seq[EclipseContext], acc: Seq[EclipseContext] = Seq()): Seq[EclipseContext] = {
-    val children = ctx.map(_.getChildren().toSeq).flatten
+    val children = ctx.map(ctx ⇒ if (ctx != null) ctx.getChildren().toSeq else Seq.empty).flatten
     if (children.isEmpty) return acc.distinct
     getContextChildren(children, children ++ acc)
   }

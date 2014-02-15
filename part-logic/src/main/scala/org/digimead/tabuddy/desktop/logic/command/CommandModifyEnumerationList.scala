@@ -74,15 +74,13 @@ object CommandModifyEnumerationList extends Loggable {
         case marker: GraphMarker ⇒
           val exchanger = new Exchanger[Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]]()
           marker.safeRead { state ⇒
-            App.exec {
-              OperationModifyEnumerationList(state.graph, state.payload.enumerations.values.toSet).foreach { operation ⇒
-                operation.getExecuteJob() match {
-                  case Some(job) ⇒
-                    job.setPriority(Job.LONG)
-                    job.onComplete(exchanger.exchange).schedule()
-                  case None ⇒
-                    throw new RuntimeException(s"Unable to create job for ${operation}.")
-                }
+            OperationModifyEnumerationList(state.graph, App.execNGet { state.payload.enumerations.values.toSet }).foreach { operation ⇒
+              operation.getExecuteJob() match {
+                case Some(job) ⇒
+                  job.setPriority(Job.LONG)
+                  job.onComplete(exchanger.exchange).schedule()
+                case None ⇒
+                  throw new RuntimeException(s"Unable to create job for ${operation}.")
               }
             }
           }

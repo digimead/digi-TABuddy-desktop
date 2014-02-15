@@ -251,7 +251,7 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
   protected def updateTitle(@Active context: Context, @Active @Optional @Named(UI.Id.windowTitle) window: String,
     @Active @Optional @Named(UI.Id.viewTitle) view: String, @Active @Optional @Named(UI.Id.contentTitle) content: String) = {
     val shell = getShell
-    if (shell != null && !shell.isDisposed())
+    if (context != null && shell != null && !shell.isDisposed())
       if (App.contextParents(context).contains(windowContext) || window != lastWindowTitle)
         App.exec {
           lastWindowTitle = window

@@ -65,7 +65,8 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
   initialize
 
   /** Get view context. */
-  def getContext(): Context = VComposite.contextMap(this)
+  // There are a lot of situations when an application try to access context after WComposite is disposed.
+  def getContext(): Option[Context] = VComposite.contextMap.get(this)
   /** Returns the receiver's parent, which must be a ScrolledComposite. */
   override def getParent(): ScrolledComposite = super.getParent.asInstanceOf[ScrolledComposite]
 

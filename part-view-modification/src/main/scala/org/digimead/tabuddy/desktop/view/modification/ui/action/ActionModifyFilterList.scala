@@ -106,7 +106,7 @@ class ActionModifyFilterList @Inject() (windowContext: Context) extends JFaceAct
   /** Invoked on view activation. */
   @Inject @Optional
   protected def onViewChanged(@Active vComposite: VComposite): Unit = {
-    vContext = Option(vComposite.getContext)
+    vContext = vComposite.getContext
     App.exec { updateEnabled() }
   }
 }

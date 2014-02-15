@@ -59,7 +59,8 @@ class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppW
   initialize
 
   /** Get window context. */
-  def getContext(): Context = WComposite.contextMap(this)
+  // There are a lot of situations when an application try to access context after WComposite is disposed.
+  def getContext(): Option[Context] = WComposite.contextMap.get(this)
   /** Get AppWindow. */
   def getAppWindow() = window.get
 

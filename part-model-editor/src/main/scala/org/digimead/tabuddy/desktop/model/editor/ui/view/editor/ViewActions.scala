@@ -57,7 +57,7 @@ import org.digimead.tabuddy.desktop.model.editor.ModelEditor
  * TableView actions.
  */
 trait ViewActions {
-  this: View =>
+  this: View ⇒
 
   object ActionAutoResize extends Action(Messages.autoresize_key) {
     setChecked(true)
@@ -95,35 +95,39 @@ trait ViewActions {
   /** Toggle visibility of identificators in the view. */
   object ActionToggleIdentificators extends Action(Messages.identificators_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    ViewActions.this.getParent.getContext.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
-    ContextInjectionFactory.inject(this, ViewActions.this.getParent.getContext)
+    ViewActions.this.getParent.getContext.foreach { context ⇒
+      context.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
+      ContextInjectionFactory.inject(this, context)
+    }
 
     def apply() = Table.toggleColumnId(isChecked(), ViewActions.this)
     /** Update checked state from context of the current view. */
     @Inject @Optional
     def onStateOfToggleIdentificatorChanged(@Named(ModelEditor.Id.stateOfToggleIdentificator) checked: java.lang.Boolean) =
-      Option(checked) foreach (checked => App.exec {
+      Option(checked) foreach (checked ⇒ App.exec {
         if (checked != isChecked()) {
           setChecked(checked)
           apply()
         }
       })
     override def run() = {
-      ViewActions.this.getParent.getContext.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
+      ViewActions.this.getParent.getContext.foreach(_.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean))
       apply()
     }
   }
   /** Toggle visibility of empty rows in the view. */
   object ActionToggleEmpty extends Action(Messages.emptyRows_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    ViewActions.this.getParent.getContext.set(ModelEditor.Id.stateOfToggleEmpty, isChecked(): java.lang.Boolean)
-    ContextInjectionFactory.inject(this, ViewActions.this.getParent.getContext)
+    ViewActions.this.getParent.getContext.foreach { context ⇒
+      context.set(ModelEditor.Id.stateOfToggleEmpty, isChecked(): java.lang.Boolean)
+      ContextInjectionFactory.inject(this, context)
+    }
 
     def apply() = Table.toggleEmptyRows(!isChecked(), ViewActions.this)
     /** Update checked state from context of the current view. */
     @Inject @Optional
     def onStateOfToggleIdentificatorChanged(@Named(ModelEditor.Id.stateOfToggleEmpty) checked: java.lang.Boolean) =
-      Option(checked) foreach (checked => App.exec {
+      Option(checked) foreach (checked ⇒ App.exec {
         if (checked != isChecked()) {
           setChecked(checked)
           apply()
@@ -154,8 +158,10 @@ trait ViewActions {
    */
   object ActionToggleSystem extends Action(Messages.systemElements_text, IAction.AS_CHECK_BOX) {
     setChecked(false)
-    ViewActions.this.getParent.getContext.set(ModelEditor.Id.stateOfToggleSystem, isChecked(): java.lang.Boolean)
-    ContextInjectionFactory.inject(this, ViewActions.this.getParent.getContext)
+    ViewActions.this.getParent.getContext.foreach { context ⇒
+      context.set(ModelEditor.Id.stateOfToggleSystem, isChecked(): java.lang.Boolean)
+      ContextInjectionFactory.inject(this, context)
+    }
 
     def apply() = View.withRedrawDelayed(ViewActions.this) {
       Tree.toggleSystemElementsFilter(!isChecked(), ViewActions.this)
@@ -164,7 +170,7 @@ trait ViewActions {
     /** Update checked state from context of the current view. */
     @Inject @Optional
     def onStateOfToggleIdentificatorChanged(@Named(ModelEditor.Id.stateOfToggleSystem) checked: java.lang.Boolean) =
-      Option(checked) foreach (checked => App.exec {
+      Option(checked) foreach (checked ⇒ App.exec {
         if (checked != isChecked()) {
           setChecked(checked)
           apply()

@@ -110,7 +110,7 @@ class View(parent: VComposite, style: Int)
   /** Returns the view's parent, which must be a VComposite. */
   override def getParent(): VComposite = parent
   /** Get selected element for current context. */
-  def getSelectedElement() = Option(parent.getContext.get(Logic.Id.selectedElement).asInstanceOf[Element])
+  def getSelectedElement() = parent.getContext.flatMap(ctx ⇒ Option(ctx.get(Logic.Id.selectedElement).asInstanceOf[Element]))
   /** Invoked at every modification of Payload.Id.selectedElement. */
   @Inject @Optional // @log
   def onSelectedElementChanged(@Named(Logic.Id.selectedElement) element: Element) =
@@ -137,159 +137,159 @@ class View(parent: VComposite, style: Int)
    */
   def refresh(elementsForRefresh: Array[Element]) {
     log.debug("Refresh editor view: structural changes.")
-//    if (tree.treeViewer.getTree.getItemCount() == 0 || tree.treeViewer.getInput() == null) {
-//      log.debug("Skip refresh for empty editor view.")
-//      return
-//    }
-//    if (Model.eId == Payload.defaultModel.eId) {
-//      log.debug("Skip refresh for default model.")
-//      return
-//    }
-//    val elements = elementsForRefresh.distinct
-//    if (elements.size >= maximumElementsPerRefresh)
-//      return reload()
-//    /*
-//     * search for top elements
-//     */
-//    class SearchMap extends mutable.HashMap[Element, SearchMap]
-//    val treeRoot = tree.treeViewer.getInput().asInstanceOf[TreeProxy.Item]
-//    val searchMap = new SearchMap
-//    elements.foreach { element ⇒
-//      var pointer = searchMap
-//      util.control.Breaks.breakable {
-//        (element.eAncestors.reverse :+ element).foreach { ancestorOrElement ⇒
-//          pointer.get(ancestorOrElement) match {
-//            case Some(ancestorOrElementMap) ⇒
-//              if (ancestorOrElementMap.nonEmpty) {
-//                if (ancestorOrElement == element)
-//                  pointer = new SearchMap // drop the longer sequence
-//                else
-//                  pointer = searchMap
-//              } else
-//                util.control.Breaks.break // ancestor is an element that is waiting for refresh
-//            case None ⇒
-//              val map = new SearchMap
-//              pointer(ancestorOrElement) = map
-//              pointer = map
-//          }
-//        }
-//      }
-//    }
-//    // sequence of top elements
-//    def topElements(searchMap: SearchMap): Iterable[Element] = searchMap.map {
-//      case (key, value) ⇒
-//        if (value.isEmpty)
-//          Seq(key)
-//        else
-//          topElements(value)
-//    }.flatten
-//    // The element new name may affect to tree item position, so handle it as structural change
-//    // updating parent, not the element itself
-//    var topFiltered = topElements(searchMap).flatMap(el ⇒
-//      if (treeRoot.element == el) Option[Element](el) else el.eParent).toSeq.distinct
-//    if (topFiltered.size >= maximumFilteredElementsPerRefresh)
-//      return reload()
-//    // refresh
-//    log.debug("Refresh %d elements vs %d total: %s.".format(topFiltered.size, elements.size, topFiltered.mkString(",")))
-//    /*
-//     * search for middle and bottom elements
-//     */
-//    // unmodified ancestors of modified elements
-//    val middleItems = mutable.HashMap[Element, Seq[TreeProxy.Item]](topFiltered.map(el ⇒ (el, Seq())): _*)
-//    // modified elements itself
-//    val bottomElements = immutable.HashMap[Element, Seq[TreeProxy.Item]](topFiltered.map { topElement ⇒
-//      (topElement, elements.filter(el ⇒ el.ne(topElement) && {
-//        val ancestors = el.eAncestors
-//        if (ancestors.contains(topElement)) {
-//          middleItems(topElement) = middleItems(topElement) ++ ancestors.takeWhile(_ != topElement).map(TreeProxy.Item(_))
-//          true
-//        } else false
-//      }).toSeq.map(TreeProxy.Item(_)))
-//    }: _*)
-//    /*
-//     * refresh
-//     */
-//    var refreshVisible = false
-//    View.withRedrawDelayed(this) {
-//      topFiltered.foreach { topElement ⇒
-//        val topItem = TreeProxy.Item(topElement)
-//        val expanded = tree.expandedItems(topItem)
-//        if (topItem != treeRoot && (topElement.eChildren.nonEmpty || expanded)) {
-//          val ancestors = topElement.eAncestors
-//          val visibleAncestors = ancestors.takeWhile(_ == treeRoot.element)
-//          if (ancestors.size != visibleAncestors.size) {
-//            // treeRoot discovered
-//            if (ancestors.dropRight(1).forall(el ⇒ tree.expandedItems(TreeProxy.Item(el)))) {
-//              proxy.onRefresh(topItem, middleItems(topElement).distinct, bottomElements(topElement))
-//            } else {
-//              log.debug(s"Refresh invisible ${topElement}.")
-//              tree.treeViewer.refresh(topItem, true)
-//              bottomElements(topElement).foreach(tree.treeViewer.refresh(_, true))
-//            }
-//          } else
-//            log.debug(s"Skip $topElement - the element is not belong to the current tree.")
-//        } else {
-//          proxy.onRefresh(topItem, middleItems(topElement).distinct, bottomElements(topElement))
-//        }
-//      }
-//      ActionAutoResize(false)
-//    }
+    //    if (tree.treeViewer.getTree.getItemCount() == 0 || tree.treeViewer.getInput() == null) {
+    //      log.debug("Skip refresh for empty editor view.")
+    //      return
+    //    }
+    //    if (Model.eId == Payload.defaultModel.eId) {
+    //      log.debug("Skip refresh for default model.")
+    //      return
+    //    }
+    //    val elements = elementsForRefresh.distinct
+    //    if (elements.size >= maximumElementsPerRefresh)
+    //      return reload()
+    //    /*
+    //     * search for top elements
+    //     */
+    //    class SearchMap extends mutable.HashMap[Element, SearchMap]
+    //    val treeRoot = tree.treeViewer.getInput().asInstanceOf[TreeProxy.Item]
+    //    val searchMap = new SearchMap
+    //    elements.foreach { element ⇒
+    //      var pointer = searchMap
+    //      util.control.Breaks.breakable {
+    //        (element.eAncestors.reverse :+ element).foreach { ancestorOrElement ⇒
+    //          pointer.get(ancestorOrElement) match {
+    //            case Some(ancestorOrElementMap) ⇒
+    //              if (ancestorOrElementMap.nonEmpty) {
+    //                if (ancestorOrElement == element)
+    //                  pointer = new SearchMap // drop the longer sequence
+    //                else
+    //                  pointer = searchMap
+    //              } else
+    //                util.control.Breaks.break // ancestor is an element that is waiting for refresh
+    //            case None ⇒
+    //              val map = new SearchMap
+    //              pointer(ancestorOrElement) = map
+    //              pointer = map
+    //          }
+    //        }
+    //      }
+    //    }
+    //    // sequence of top elements
+    //    def topElements(searchMap: SearchMap): Iterable[Element] = searchMap.map {
+    //      case (key, value) ⇒
+    //        if (value.isEmpty)
+    //          Seq(key)
+    //        else
+    //          topElements(value)
+    //    }.flatten
+    //    // The element new name may affect to tree item position, so handle it as structural change
+    //    // updating parent, not the element itself
+    //    var topFiltered = topElements(searchMap).flatMap(el ⇒
+    //      if (treeRoot.element == el) Option[Element](el) else el.eParent).toSeq.distinct
+    //    if (topFiltered.size >= maximumFilteredElementsPerRefresh)
+    //      return reload()
+    //    // refresh
+    //    log.debug("Refresh %d elements vs %d total: %s.".format(topFiltered.size, elements.size, topFiltered.mkString(",")))
+    //    /*
+    //     * search for middle and bottom elements
+    //     */
+    //    // unmodified ancestors of modified elements
+    //    val middleItems = mutable.HashMap[Element, Seq[TreeProxy.Item]](topFiltered.map(el ⇒ (el, Seq())): _*)
+    //    // modified elements itself
+    //    val bottomElements = immutable.HashMap[Element, Seq[TreeProxy.Item]](topFiltered.map { topElement ⇒
+    //      (topElement, elements.filter(el ⇒ el.ne(topElement) && {
+    //        val ancestors = el.eAncestors
+    //        if (ancestors.contains(topElement)) {
+    //          middleItems(topElement) = middleItems(topElement) ++ ancestors.takeWhile(_ != topElement).map(TreeProxy.Item(_))
+    //          true
+    //        } else false
+    //      }).toSeq.map(TreeProxy.Item(_)))
+    //    }: _*)
+    //    /*
+    //     * refresh
+    //     */
+    //    var refreshVisible = false
+    //    View.withRedrawDelayed(this) {
+    //      topFiltered.foreach { topElement ⇒
+    //        val topItem = TreeProxy.Item(topElement)
+    //        val expanded = tree.expandedItems(topItem)
+    //        if (topItem != treeRoot && (topElement.eChildren.nonEmpty || expanded)) {
+    //          val ancestors = topElement.eAncestors
+    //          val visibleAncestors = ancestors.takeWhile(_ == treeRoot.element)
+    //          if (ancestors.size != visibleAncestors.size) {
+    //            // treeRoot discovered
+    //            if (ancestors.dropRight(1).forall(el ⇒ tree.expandedItems(TreeProxy.Item(el)))) {
+    //              proxy.onRefresh(topItem, middleItems(topElement).distinct, bottomElements(topElement))
+    //            } else {
+    //              log.debug(s"Refresh invisible ${topElement}.")
+    //              tree.treeViewer.refresh(topItem, true)
+    //              bottomElements(topElement).foreach(tree.treeViewer.refresh(_, true))
+    //            }
+    //          } else
+    //            log.debug(s"Skip $topElement - the element is not belong to the current tree.")
+    //        } else {
+    //          proxy.onRefresh(topItem, middleItems(topElement).distinct, bottomElements(topElement))
+    //        }
+    //      }
+    //      ActionAutoResize(false)
+    //    }
   }
   /** Reload data. */
   def reload() {
     log.debug("Update editor view: major changes.")
-//    proxy.clearContent
-//    if (Model.eId == Payload.defaultModel.eId) {
-//      log.debug("Update for defalt model.")
-//      tree.treeViewer.setInput(null)
-//      tree.treeViewer.getTree.clearAll(true)
-//      table.tableViewer.setInput(null)
-//      table.tableViewer.getTable.clearAll()
-//    } else {
-//      log.debug(s"Update for ${Model.eId} model.")
-//      /*
-//       * reload:
-//       *  Table.columnTemplate
-//       *  Table.columnLabelProvider
-//       */
-//      val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
-//      val properties = Data.elementTemplates.values.flatMap { template ⇒
-//        template.properties.foreach {
-//          case (group, properties) ⇒ properties.foreach(property ⇒
-//            propertyCache(property) = propertyCache.get(property).getOrElse(Seq()) :+ template)
-//        }
-//        template.properties.flatMap(_._2)
-//      }.toList.groupBy(_.id.name.toLowerCase())
-//      val columnIds = List(View.COLUMN_ID, View.COLUMN_NAME) ++ properties.keys.filterNot(_ == View.COLUMN_NAME).toSeq.sorted
-//      Table.columnTemplate = immutable.HashMap((for (columnId ← columnIds) yield columnId match {
-//        case id if id == View.COLUMN_ID ⇒
-//          (View.COLUMN_ID, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]())
-//        case id if id == View.COLUMN_NAME ⇒
-//          (View.COLUMN_NAME, immutable.HashMap(properties.get(View.COLUMN_NAME).getOrElse(List()).map { property ⇒
-//            propertyCache(property).map(template ⇒ (template.id, property))
-//          }.flatten: _*))
-//        case _ ⇒
-//          (columnId, immutable.HashMap(properties(columnId).map { property ⇒
-//            propertyCache(property).map(template ⇒ (template.id, property))
-//          }.flatten: _*))
-//      }): _*)
-//      Table.columnLabelProvider = Table.columnTemplate.map {
-//        case (columnId, columnProperties) ⇒
-//          if (columnId == View.COLUMN_ID)
-//            columnId -> new Table.TableLabelProviderID()
-//          else
-//            columnId -> new Table.TableLabelProvider(columnId, columnProperties)
-//      }
-//      updateColumns()
-//      // update content
-//      table.tableViewer.setInput(table.content.underlying)
-//      tree.treeViewer.setInput(TreeProxy.Item(Model.inner))
-//      tree.treeViewer.setExpandedElements(tree.expandedItems.toArray)
-//      table.tableViewer.refresh()
-//    }
+    //    proxy.clearContent
+    //    if (Model.eId == Payload.defaultModel.eId) {
+    //      log.debug("Update for defalt model.")
+    //      tree.treeViewer.setInput(null)
+    //      tree.treeViewer.getTree.clearAll(true)
+    //      table.tableViewer.setInput(null)
+    //      table.tableViewer.getTable.clearAll()
+    //    } else {
+    //      log.debug(s"Update for ${Model.eId} model.")
+    //      /*
+    //       * reload:
+    //       *  Table.columnTemplate
+    //       *  Table.columnLabelProvider
+    //       */
+    //      val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
+    //      val properties = Data.elementTemplates.values.flatMap { template ⇒
+    //        template.properties.foreach {
+    //          case (group, properties) ⇒ properties.foreach(property ⇒
+    //            propertyCache(property) = propertyCache.get(property).getOrElse(Seq()) :+ template)
+    //        }
+    //        template.properties.flatMap(_._2)
+    //      }.toList.groupBy(_.id.name.toLowerCase())
+    //      val columnIds = List(View.COLUMN_ID, View.COLUMN_NAME) ++ properties.keys.filterNot(_ == View.COLUMN_NAME).toSeq.sorted
+    //      Table.columnTemplate = immutable.HashMap((for (columnId ← columnIds) yield columnId match {
+    //        case id if id == View.COLUMN_ID ⇒
+    //          (View.COLUMN_ID, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]())
+    //        case id if id == View.COLUMN_NAME ⇒
+    //          (View.COLUMN_NAME, immutable.HashMap(properties.get(View.COLUMN_NAME).getOrElse(List()).map { property ⇒
+    //            propertyCache(property).map(template ⇒ (template.id, property))
+    //          }.flatten: _*))
+    //        case _ ⇒
+    //          (columnId, immutable.HashMap(properties(columnId).map { property ⇒
+    //            propertyCache(property).map(template ⇒ (template.id, property))
+    //          }.flatten: _*))
+    //      }): _*)
+    //      Table.columnLabelProvider = Table.columnTemplate.map {
+    //        case (columnId, columnProperties) ⇒
+    //          if (columnId == View.COLUMN_ID)
+    //            columnId -> new Table.TableLabelProviderID()
+    //          else
+    //            columnId -> new Table.TableLabelProvider(columnId, columnProperties)
+    //      }
+    //      updateColumns()
+    //      // update content
+    //      table.tableViewer.setInput(table.content.underlying)
+    //      tree.treeViewer.setInput(TreeProxy.Item(Model.inner))
+    //      tree.treeViewer.setExpandedElements(tree.expandedItems.toArray)
+    //      table.tableViewer.refresh()
+    //    }
   }
   /** Set selected element for current context. */
-  def setSelectedElement(element: Element) = parent.getContext.set(Logic.Id.selectedElement, element)
+  def setSelectedElement(element: Element) = parent.getContext.flatMap(ctx ⇒ Option(ctx.set(Logic.Id.selectedElement, element)))
   /**
    * Updates the given elements' presentation when one or more of their properties change.
    * Only the given elements are updated.
@@ -299,17 +299,17 @@ class View(parent: VComposite, style: Int)
    * To handle structural changes, use the refresh methods instead.
    */
   def update(elements: Array[Element]) {
-//    log.debug("Update editor view.")
-//    // The element new name may affect to tree item position, so handle it as structural change
-//    // tree.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null) is inapplicable
-//    val elementsPerParent = (elements.flatMap(el ⇒ el.eParent.map(p ⇒ (p, el))): Array[(Element, Element)]).
-//      groupBy(_._1): immutable.Map[Element, Array[(Element, Element)]]
-//    elementsPerParent.foreach {
-//      case (parent, parentAndElement) ⇒
-//        val parentItem = TreeProxy.Item(parent)
-//        proxy.onRefresh(parentItem, Seq(), parentAndElement.map(el ⇒ TreeProxy.Item(el._2)))
-//    }
-//    table.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null)
+    //    log.debug("Update editor view.")
+    //    // The element new name may affect to tree item position, so handle it as structural change
+    //    // tree.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null) is inapplicable
+    //    val elementsPerParent = (elements.flatMap(el ⇒ el.eParent.map(p ⇒ (p, el))): Array[(Element, Element)]).
+    //      groupBy(_._1): immutable.Map[Element, Array[(Element, Element)]]
+    //    elementsPerParent.foreach {
+    //      case (parent, parentAndElement) ⇒
+    //        val parentItem = TreeProxy.Item(parent)
+    //        proxy.onRefresh(parentItem, Seq(), parentAndElement.map(el ⇒ TreeProxy.Item(el._2)))
+    //    }
+    //    table.structuredViewerUpdateF(elements.map(TreeProxy.Item(_).asInstanceOf[AnyRef]).toArray, null)
   }
 
   /** Clear root path */
@@ -324,140 +324,140 @@ class View(parent: VComposite, style: Int)
   override protected[editor] def getSashForm() = super.getSashForm
   /** Initialize editor view */
   protected def initialize() {
-//    // Initialize injection from view context after everything is ready.
-//    App.execAsync { ContextInjectionFactory.inject(View.this, getParent.getContext) }
-//    setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
-//    // initialize tree
-//    tree
-//    // initialize table
-//    table
-//    // initialize miscellaneous elements
-//    getBtnResetActiveElement.addListener(SWT.Selection, new Listener() {
-//      def handleEvent(event: Event) = Option(tree.treeViewer.getInput().asInstanceOf[TreeProxy.Item]) match {
-//        case Some(item) if item.hash != 0 ⇒ setSelectedElement(item.element)
-//        case _ ⇒ setSelectedElement(Model)
-//      }
-//    })
-//    // Jump for root links.
-//    getTextRootElement.addListener(SWT.MouseDown, new Listener() {
-//      def handleEvent(event: Event) = try {
-//        val offset = getTextRootElement.getOffsetAtLocation(new Point(event.x, event.y))
-//        val style = getTextRootElement.getStyleRangeAtOffset(offset)
-//        if (style != null && style.underline && style.underlineStyle == SWT.UNDERLINE_LINK)
-//          rootElementRanges.find(range ⇒ offset >= range.index && offset <= range.index + range.length).foreach { range ⇒
-//            setSelectedElement(range.element)
-//            val item = TreeProxy.Item(range.element)
-//            if (tree.treeViewer.getInput() != item) View.withRedrawDelayed(View.this) {
-//              tree.treeViewer.setInput(item)
-//              ActionAutoResize(false)
-//            }
-//          }
-//      } catch {
-//        case e: IllegalArgumentException ⇒ // no character under event.x, event.y
-//      }
-//    })
-//    View.views += this -> {}
-//    // Update newly created view
-//    View.withRedrawDelayed(this) {
-//      reload()
-//      ActionAutoResize(false)
-//      if (ActionToggleExpand.isChecked())
-//        Tree.expandAll(this)
-//      ActionToggleEmpty()
-//      ActionToggleSystem()
-//      ActionToggleIdentificators()
-//      ActionAutoResize(true)
-//    }
+    //    // Initialize injection from view context after everything is ready.
+    //    App.execAsync { ContextInjectionFactory.inject(View.this, getParent.getContext) }
+    //    setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1))
+    //    // initialize tree
+    //    tree
+    //    // initialize table
+    //    table
+    //    // initialize miscellaneous elements
+    //    getBtnResetActiveElement.addListener(SWT.Selection, new Listener() {
+    //      def handleEvent(event: Event) = Option(tree.treeViewer.getInput().asInstanceOf[TreeProxy.Item]) match {
+    //        case Some(item) if item.hash != 0 ⇒ setSelectedElement(item.element)
+    //        case _ ⇒ setSelectedElement(Model)
+    //      }
+    //    })
+    //    // Jump for root links.
+    //    getTextRootElement.addListener(SWT.MouseDown, new Listener() {
+    //      def handleEvent(event: Event) = try {
+    //        val offset = getTextRootElement.getOffsetAtLocation(new Point(event.x, event.y))
+    //        val style = getTextRootElement.getStyleRangeAtOffset(offset)
+    //        if (style != null && style.underline && style.underlineStyle == SWT.UNDERLINE_LINK)
+    //          rootElementRanges.find(range ⇒ offset >= range.index && offset <= range.index + range.length).foreach { range ⇒
+    //            setSelectedElement(range.element)
+    //            val item = TreeProxy.Item(range.element)
+    //            if (tree.treeViewer.getInput() != item) View.withRedrawDelayed(View.this) {
+    //              tree.treeViewer.setInput(item)
+    //              ActionAutoResize(false)
+    //            }
+    //          }
+    //      } catch {
+    //        case e: IllegalArgumentException ⇒ // no character under event.x, event.y
+    //      }
+    //    })
+    //    View.views += this -> {}
+    //    // Update newly created view
+    //    View.withRedrawDelayed(this) {
+    //      reload()
+    //      ActionAutoResize(false)
+    //      if (ActionToggleExpand.isChecked())
+    //        Tree.expandAll(this)
+    //      ActionToggleEmpty()
+    //      ActionToggleSystem()
+    //      ActionToggleIdentificators()
+    //      ActionAutoResize(true)
+    //    }
   }
   /** Recreate table columns with preserve table selected elements */
   protected def recreateSmart() {
-//    if (Table.columnLabelProvider.isEmpty)
-//      return // there are not column definitions yet
-//    val selection = table.tableViewer.getSelection()
-//    updateColumns
-//    table.tableViewer.refresh()
-//    table.tableViewer.setSelection(selection)
+    //    if (Table.columnLabelProvider.isEmpty)
+    //      return // there are not column definitions yet
+    //    val selection = table.tableViewer.getSelection()
+    //    updateColumns
+    //    table.tableViewer.refresh()
+    //    table.tableViewer.setSelection(selection)
   }
   /** Recreate table columns */
   protected def updateColumns() {
-//    val disposedColumnsWidth = table.disposeColumns()
-//    val columnList = Data.getSelectedViewDefinition(getParent.getContext).map(selected ⇒ mutable.LinkedHashSet(View.COLUMN_ID) ++
-//      (selected.fields.map(_.name) - View.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(View.COLUMN_ID, View.COLUMN_NAME))
-//    table.createColumns(columnList, disposedColumnsWidth)
+    //    val disposedColumnsWidth = table.disposeColumns()
+    //    val columnList = Data.getSelectedViewDefinition(getParent.getContext).map(selected ⇒ mutable.LinkedHashSet(View.COLUMN_ID) ++
+    //      (selected.fields.map(_.name) - View.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(View.COLUMN_ID, View.COLUMN_NAME))
+    //    table.createColumns(columnList, disposedColumnsWidth)
   }
   /** Update active element status */
   protected[editor] def updateActiveElement(element: Element) {
-//    val item = TreeProxy.Item(element)
-//    val ancestorsN = 8
-//    val ancestors = element.eAncestors
-//    var n = 0
-//    val tooltipPrefix = if (ancestors.size > ancestorsN) {
-//      n += 1
-//      ": \n > ..."
-//    } else
-//      ":"
-//    val tooltip = (ancestors.take(ancestorsN).reverse :+ element).foldLeft(Messages.path_text + tooltipPrefix) { (acc, element) ⇒
-//      val separator = "\n " + " " * n + "> "
-//      n += 1
-//      acc + separator + element.eId.name + ", " + element.eGet[String]('name).map(value ⇒ "\"%s\"".format(value.get)).getOrElse(Messages.untitled_text)
-//    }
-//    if (tree.treeViewer.getInput() == item) {
-//      // root
-//      val prefix = element.toString + " "
-//      val suffix = "[root]"
-//      val style = new StyleRange()
-//      style.fontStyle ^= SWT.ITALIC | SWT.BOLD
-//      style.foreground = ResourceManager.getColor(SWT.COLOR_DARK_YELLOW)
-//      getTextActiveElement.setText(prefix + suffix)
-//      getTextActiveElement.setStyleRanges(Array(prefix.length(), suffix.length()), Array(style))
-//      ActionElementNew.setEnabled(true)
-//      ActionElementEdit.setEnabled(false)
-//      ActionElementDelete.setEnabled(false)
-//    } else if (proxy.getContent.exists(_ == item)) {
-//      getTextActiveElement.setText(element.toString)
-//      ActionElementNew.setEnabled(true)
-//      ActionElementEdit.setEnabled(true)
-//      ActionElementDelete.setEnabled(true)
-//    } else {
-//      // hidden
-//      val prefix = element.toString + " "
-//      val suffix = "[hidden]"
-//      val style = new StyleRange()
-//      style.fontStyle ^= SWT.ITALIC | SWT.BOLD
-//      style.foreground = ResourceManager.getColor(SWT.COLOR_DARK_RED)
-//      getTextActiveElement.setText(prefix + suffix)
-//      getTextActiveElement.setStyleRanges(Array(prefix.length(), suffix.length()), Array(style))
-//      ActionElementNew.setEnabled(false)
-//      ActionElementEdit.setEnabled(false)
-//      ActionElementDelete.setEnabled(false)
-//    }
-//    getTextActiveElement.setToolTipText(tooltip)
-//    getBtnResetActiveElement.setEnabled(TreeProxy.Item(element) != tree.treeViewer.getInput())
+    //    val item = TreeProxy.Item(element)
+    //    val ancestorsN = 8
+    //    val ancestors = element.eAncestors
+    //    var n = 0
+    //    val tooltipPrefix = if (ancestors.size > ancestorsN) {
+    //      n += 1
+    //      ": \n > ..."
+    //    } else
+    //      ":"
+    //    val tooltip = (ancestors.take(ancestorsN).reverse :+ element).foldLeft(Messages.path_text + tooltipPrefix) { (acc, element) ⇒
+    //      val separator = "\n " + " " * n + "> "
+    //      n += 1
+    //      acc + separator + element.eId.name + ", " + element.eGet[String]('name).map(value ⇒ "\"%s\"".format(value.get)).getOrElse(Messages.untitled_text)
+    //    }
+    //    if (tree.treeViewer.getInput() == item) {
+    //      // root
+    //      val prefix = element.toString + " "
+    //      val suffix = "[root]"
+    //      val style = new StyleRange()
+    //      style.fontStyle ^= SWT.ITALIC | SWT.BOLD
+    //      style.foreground = ResourceManager.getColor(SWT.COLOR_DARK_YELLOW)
+    //      getTextActiveElement.setText(prefix + suffix)
+    //      getTextActiveElement.setStyleRanges(Array(prefix.length(), suffix.length()), Array(style))
+    //      ActionElementNew.setEnabled(true)
+    //      ActionElementEdit.setEnabled(false)
+    //      ActionElementDelete.setEnabled(false)
+    //    } else if (proxy.getContent.exists(_ == item)) {
+    //      getTextActiveElement.setText(element.toString)
+    //      ActionElementNew.setEnabled(true)
+    //      ActionElementEdit.setEnabled(true)
+    //      ActionElementDelete.setEnabled(true)
+    //    } else {
+    //      // hidden
+    //      val prefix = element.toString + " "
+    //      val suffix = "[hidden]"
+    //      val style = new StyleRange()
+    //      style.fontStyle ^= SWT.ITALIC | SWT.BOLD
+    //      style.foreground = ResourceManager.getColor(SWT.COLOR_DARK_RED)
+    //      getTextActiveElement.setText(prefix + suffix)
+    //      getTextActiveElement.setStyleRanges(Array(prefix.length(), suffix.length()), Array(style))
+    //      ActionElementNew.setEnabled(false)
+    //      ActionElementEdit.setEnabled(false)
+    //      ActionElementDelete.setEnabled(false)
+    //    }
+    //    getTextActiveElement.setToolTipText(tooltip)
+    //    getBtnResetActiveElement.setEnabled(TreeProxy.Item(element) != tree.treeViewer.getInput())
   }
   /** Update root path */
   protected[editor] def updateRootElement(element: Element) {
     log.debug(s"Update root element to ${element}.")
-//    val ancestors = element.eAncestors
-//    val path = ancestors.reverse :+ element
-//    val style = new StyleRange()
-//    style.underline = true
-//    style.underlineStyle = SWT.UNDERLINE_LINK
-//    val separator = " > "
-//    val shift = separator.length
-//    var rangeIndex = 0
-//    var rangeShift = 0
-//    var rootElementLinks = Seq[View.RootPathLinkRange[_ <: Element]]()
-//    val ranges = path.map { element ⇒
-//      val name = element.eId.name
-//      val index = rangeIndex
-//      rangeIndex = rangeIndex + name.length + shift
-//      rootElementLinks = rootElementLinks :+ View.RootPathLinkRange(element, index, name.length)
-//      Array(index, name.length)
-//    }.flatten.toArray
-//    val styles = path.map(_ ⇒ style).toArray
-//    rootElementRanges = rootElementLinks
-//    getTextRootElement.setText(path.map(_.eId.name).mkString(separator))
-//    getTextRootElement.setStyleRanges(ranges, styles)
+    //    val ancestors = element.eAncestors
+    //    val path = ancestors.reverse :+ element
+    //    val style = new StyleRange()
+    //    style.underline = true
+    //    style.underlineStyle = SWT.UNDERLINE_LINK
+    //    val separator = " > "
+    //    val shift = separator.length
+    //    var rangeIndex = 0
+    //    var rangeShift = 0
+    //    var rootElementLinks = Seq[View.RootPathLinkRange[_ <: Element]]()
+    //    val ranges = path.map { element ⇒
+    //      val name = element.eId.name
+    //      val index = rangeIndex
+    //      rangeIndex = rangeIndex + name.length + shift
+    //      rootElementLinks = rootElementLinks :+ View.RootPathLinkRange(element, index, name.length)
+    //      Array(index, name.length)
+    //    }.flatten.toArray
+    //    val styles = path.map(_ ⇒ style).toArray
+    //    rootElementRanges = rootElementLinks
+    //    getTextRootElement.setText(path.map(_.eId.name).mkString(separator))
+    //    getTextRootElement.setStyleRanges(ranges, styles)
   }
 }
 

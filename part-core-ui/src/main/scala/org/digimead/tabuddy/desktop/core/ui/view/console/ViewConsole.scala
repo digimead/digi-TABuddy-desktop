@@ -117,7 +117,7 @@ class ViewConsole(val contentId: UUID, val factory: View.Factory) extends Actor 
         throw new IllegalArgumentException(s"Illegal container ${parentWidget}.")
       log.debug(s"Bind ${this} to ${parentWidget}.")
       containerRef = Some(parentWidget.ref)
-      viewContext.setParent(parentWidget.getContext())
+      parentWidget.getContext.foreach(viewContext.setParent)
     }
 
     case message @ App.Message.Start(widget: Widget, _, None) ⇒ App.traceMessage(message) {
