@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.support
 
+import javafx.util.Builder
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, VComposite, WComposite }
@@ -60,6 +61,11 @@ import scala.ref.WeakReference
 trait Generic {
   this: org.digimead.tabuddy.desktop.core.ui.UI.type ⇒
 
+  /**
+   * little wrapper that negate effect of Java <B extends T<B>>
+   * and prevents crush of Scala compiler
+   */
+  def <>[T, S](b: Builder[_])(f: T ⇒ S) = f(b.asInstanceOf[T])
   /** Adjust table viewer column width. */
   def adjustTableViewerColumnWidth(viewerColumn: TableViewerColumn, padding: Int, n: Int = 3) {
     val bounds = viewerColumn.getViewer.getControl.getBounds()

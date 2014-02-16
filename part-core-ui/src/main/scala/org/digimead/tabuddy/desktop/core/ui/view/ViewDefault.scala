@@ -156,7 +156,8 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
     App.assertEventThread(false)
     App.execNGet {
       parent.setLayout(new FillLayout())
-      val body = new defaultv.Content4()(parent)
+      val body = new defaultv.Content(parent)
+      body.initialize()
       body.addDisposeListener(new DisposeListener {
         def widgetDisposed(e: DisposeEvent) = container ! App.Message.Destroy(None, self)
       })
