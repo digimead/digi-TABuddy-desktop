@@ -173,16 +173,3 @@ class ActionLockGraph private () extends JFaceAction(Messages.lock_text, IAction
   }*/
 }
 
-object ActionLockGraph extends Loggable {
-  /** Singleton identificator. */
-  val id = getClass.getSimpleName().dropRight(1)
-  /** Lock action. */
-  @volatile protected var action: Option[ActionLockGraph] = None
-
-  /** Returns lock action. */
-  def apply(): ActionLockGraph = action.getOrElse {
-    val lockAction = App.execNGet { new ActionLockGraph }
-    action = Some(lockAction)
-    lockAction
-  }
-}

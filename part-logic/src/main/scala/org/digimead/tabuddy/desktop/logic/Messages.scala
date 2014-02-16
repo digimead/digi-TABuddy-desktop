@@ -47,6 +47,11 @@ import org.digimead.tabuddy.desktop.core.definition.NLS
 import org.digimead.digi.lib.log.api.Loggable
 
 object Messages extends NLS with Loggable {
+  val exportFile_text = ""
+  val newFile_text = ""
+  val openFile_text = ""
+  val saveFile_text = ""
+  val saveAllFiles_text = ""
   val graph_closeDescriptionLong_text = ""
   val graph_closeDescriptionShort_text = ""
   val graph_close_text = ""
@@ -77,6 +82,7 @@ object Messages extends NLS with Loggable {
   val graph_showDescriptionLong_text = ""
   val graph_showDescriptionShort_text = ""
   val graph_show_text = ""
+  val importFile_text = ""
   val localizedTypeSchemaDescription_text = ""
   val localizedTypeSchemaName_text = ""
   val modifyElementTemplateListDescriptionLong_text = ""
@@ -101,6 +107,9 @@ object Messages extends NLS with Loggable {
   val script_runDescriptionLong_text = ""
   val script_runDescriptionShort_text = ""
   val script_run_text = ""
+  val closeFile_text = ""
+  val closeAllFiles_text = ""
+  val properties_text = ""
 
-  T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
+    T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
 }

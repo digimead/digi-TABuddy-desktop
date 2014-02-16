@@ -53,11 +53,10 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.Messages
 import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
-import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.layout.FillLayout
-import org.eclipse.swt.widgets.{ Composite, Control, Widget }
+import org.eclipse.swt.widgets.{ Composite, Widget }
 
 class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor with Loggable {
   /** View body widget. */
@@ -151,15 +150,11 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
     App.assertEventThread(false)
     App.execNGet {
       parent.setLayout(new FillLayout())
-      val body = new Composite(parent, SWT.NONE)
-      body.setLayout(new FillLayout())
-      val button = new org.eclipse.swt.widgets.Button(parent, SWT.PUSH)
-      button.setText("!!!!!!!!!!!!!!!!!!!!!!!!")
-      parent.getParent().setMinSize(parent.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-      parent.layout(Array[Control](button), SWT.ALL)
+      val body = new ViewDefaultContent()(parent)
       body.addDisposeListener(new DisposeListener {
         def widgetDisposed(e: DisposeEvent) = container ! App.Message.Destroy(None, self)
       })
+      parent.layout()
       this.parent = Option(parent)
       this.body = Option(body)
       this.body

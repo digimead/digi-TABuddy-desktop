@@ -51,6 +51,8 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
 import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.jface.action.Separator
 
 /**
  * Register action in new windows.
@@ -95,7 +97,21 @@ class WindowWatcher extends Actor with Loggable {
     val file = WindowMenu(Left(window), ui.WindowWatcher.fileMenu)
     //    file.add(action.ActionSaveModel())
     //    file.add(action.ActionDeleteModel())
-    file.add(action.ActionCloseGraph())
+    //file.add(action.ActionCloseGraph())
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphNew], window.windowContext))
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphOpen], window.windowContext))
+    file.add(new Separator())
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphClose], window.windowContext))
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphCloseAll], window.windowContext))
+    file.add(new Separator())
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphSave], window.windowContext))
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphSaveAll], window.windowContext))
+    file.add(new Separator())
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphImport], window.windowContext))
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphExport], window.windowContext))
+    file.add(new Separator())
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphProperties], window.windowContext))
+    file.add(new Separator())
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */

@@ -46,79 +46,48 @@ package org.digimead.tabuddy.desktop.logic.ui.action
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.Data
+import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.e4.core.contexts.Active
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
-import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.{ Action => JFaceAction }
 import org.eclipse.jface.action.IAction
 import org.eclipse.swt.widgets.Event
-
 import akka.actor.Props
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.core.definition.Context
 import javax.inject.Inject
-import javax.inject.Named
 
-class ActionDeleteGraph extends JFaceAction(Messages.delete_text) with Loggable {
-  @volatile protected var enabled = false
-  ContextInjectionFactory.inject(ActionDeleteGraph.this, Core.context)
-
-  override def isEnabled(): Boolean = super.isEnabled && enabled
-  /** Invoked at every modification of Data.Id.modelIdUserInput. */
-//  @Inject @Optional // @log
-//  def onModelIdUserInputChanged(@Active @Named(Data.Id.modelIdUserInput) id: String) = App.exec {
-//    if ((id != null && id.trim.nonEmpty && Data.availableGraphs.contains(id.trim)) != enabled) {
-//      enabled = !enabled
-//      updateEnabled()
-//    }
-//  }
+/** Save the opened model. */
+class ActionGraphSave  @Inject() (windowContext: Context) extends JFaceAction(Messages.saveFile_text) with Loggable {
+  override def isEnabled(): Boolean = super.isEnabled && false //(Model.eId != Payload.defaultModel.eId)
   /** Runs this action, passing the triggering SWT event. */
   @log
-  override def runWithEvent(event: Event) = {
-//    val context = Core.context.getActiveLeaf()
-//    val id = context.get(Data.Id.modelIdUserInput).asInstanceOf[String]
-//    if (id.nonEmpty)
-//      OperationModelDelete(Symbol(id), true).foreach { operation =>
-//        operation.getExecuteJob() match {
-//          case Some(job) =>
-//            job.setPriority(Job.SHORT)
-//            job.onComplete(_ match {
-//              case Operation.Result.OK(result, message) =>
-//                log.info(s"Operation completed successfully: ${result}")
-//              case Operation.Result.Cancel(message) =>
-//                log.warn(s"Operation canceled, reason: ${message}.")
-//              case other =>
-//                log.error(s"Unable to complete operation: ${other}.")
-//            }).schedule()
-//          case None =>
-//            log.fatal(s"Unable to create job for ${operation}.")
-//        }
+  override def runWithEvent(event: Event) {}
+//    OperationModelSave(Model.eId).foreach { operation =>
+//      operation.getExecuteJob() match {
+//        case Some(job) =>
+//          job.setPriority(Job.SHORT)
+//          job.onComplete(_ match {
+//            case Operation.Result.OK(result, message) =>
+//              log.info(s"Operation completed successfully: ${result}")
+//            case Operation.Result.Cancel(message) =>
+//              log.warn(s"Operation canceled, reason: ${message}.")
+//            case other =>
+//              log.error(s"Unable to complete operation: ${other}.")
+//          }).schedule()
+//        case None =>
+//          log.fatal(s"Unable to create job for ${operation}.")
 //      }
-  }
+//    }
 
   /** Update enabled action state. */
   protected def updateEnabled() = if (isEnabled)
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
   else
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
-}
-
-object ActionDeleteGraph extends Loggable {
-  /** Singleton identificator. */
-  val id = getClass.getSimpleName().dropRight(1)
-  /** Delete action. */
-  @volatile protected var action: Option[ActionDeleteGraph] = None
-
-  /** Returns delete action. */
-  def apply(): ActionDeleteGraph = action.getOrElse {
-    val deleteAction = App.execNGet { new ActionDeleteGraph }
-    action = Some(deleteAction)
-    deleteAction
-  }
 }
 

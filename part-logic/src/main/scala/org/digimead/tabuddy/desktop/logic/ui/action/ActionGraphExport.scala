@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,11 +44,9 @@
 package org.digimead.tabuddy.desktop.logic.ui.action
 
 import java.util.UUID
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
@@ -58,44 +56,13 @@ import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 import org.eclipse.jface.action.IAction
 import org.eclipse.swt.widgets.Event
-
 import akka.actor.Props
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.eclipse.ui.internal.WorkbenchImages
+import org.eclipse.ui.internal.IWorkbenchGraphicConstants
+import javax.inject.Inject
+import org.digimead.tabuddy.desktop.core.definition.Context
 
-/** Close the opened model. */
-class ActionCloseGraph extends JFaceAction(Messages.closeFile_text) with Loggable {
-  override def isEnabled(): Boolean = super.isEnabled && false // (Model.eId != Payload.defaultModel.eId)
-  /** Runs this action, passing the triggering SWT event. */
-  @log
-  override def runWithEvent(event: Event) {}
-//  = if (Model.eId != Payload.defaultModel.eId) {
-//    OperationModelClose(Model.eId, false) foreach { operation ⇒
-//      operation.getExecuteJob() match {
-//        case Some(job) ⇒
-//          job.setPriority(Job.SHORT)
-//          job.schedule()
-//        case None ⇒
-//          log.fatal(s"Unable to create job for ${operation}.")
-//      }
-//    }
-//  }
-
-  /** Update enabled action state. */
-  protected def updateEnabled() = if (isEnabled)
-    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
-  else
-    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
-}
-
-object ActionCloseGraph extends Loggable {
-  /** Singleton identificator. */
-  val id = getClass.getSimpleName().dropRight(1)
-  /** Close action. */
-  @volatile protected var action: Option[ActionCloseGraph] = None
-
-  /** Returns close action. */
-  def apply(): ActionCloseGraph = action.getOrElse {
-    val closeAction = App.execNGet { new ActionCloseGraph }
-    action = Some(closeAction)
-    closeAction
-  }
+class ActionGraphExport @Inject() (windowContext: Context) extends JFaceAction(Messages.exportFile_text) with Loggable  {
+  this.setImageDescriptor(WorkbenchImages.getImageDescriptor(IWorkbenchGraphicConstants.IMG_ETOOL_EXPORT_WIZ))
 }

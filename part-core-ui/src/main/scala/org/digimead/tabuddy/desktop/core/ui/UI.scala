@@ -55,6 +55,7 @@ import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.block.{ View, Window, WindowSupervisor }
 import org.eclipse.core.runtime.Platform
 import org.eclipse.jface.commands.ToggleState
+import org.eclipse.swt.widgets.Canvas
 import scala.concurrent.Future
 import scala.concurrent.duration.{ Duration, FiniteDuration }
 import scala.language.implicitConversions
@@ -227,6 +228,7 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
    * Provides information for bundle manifest generation.
    */
   private def explicitToggleState: ToggleState = ???
+  private def explicitCanvas: Canvas = ???
 
   object Id {
     /** Value with view title [String]. */
