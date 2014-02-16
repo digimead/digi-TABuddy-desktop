@@ -58,6 +58,12 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.layout.FillLayout
 import org.eclipse.swt.widgets.{ Composite, Widget }
 
+/*
+ * http://stackoverflow.com/questions/15421527/how-to-animate-2d-curve-arrows-between-two-nodes-in-javafx?rq=1
+ *
+ *
+ *
+ */
 class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor with Loggable {
   /** View body widget. */
   @volatile var body: Option[Composite] = None
@@ -150,7 +156,7 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
     App.assertEventThread(false)
     App.execNGet {
       parent.setLayout(new FillLayout())
-      val body = new ViewDefaultContent()(parent)
+      val body = new defaultv.Content4()(parent)
       body.addDisposeListener(new DisposeListener {
         def widgetDisposed(e: DisposeEvent) = container ! App.Message.Destroy(None, self)
       })

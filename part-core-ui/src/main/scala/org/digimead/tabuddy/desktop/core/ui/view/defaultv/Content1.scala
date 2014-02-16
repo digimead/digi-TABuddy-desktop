@@ -41,30 +41,22 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.view
+package org.digimead.tabuddy.desktop.core.ui.view.defaultv
 
 import com.sun.javafx.perf.PerformanceTracker
-import javafx.animation.{ AnimationTimer, PathTransition, PathTransitionBuilder }
+import javafx.animation.AnimationTimer
 import javafx.embed.swt.FXCanvas
-import javafx.event.EventHandler
-import javafx.scene.{ Group, Scene }
+import javafx.scene.Scene
 import javafx.scene.canvas.Canvas
-import javafx.scene.image.{ Image, ImageView }
-import javafx.scene.input.MouseEvent
+import javafx.scene.image.Image
 import javafx.scene.layout.{ BorderPane, StackPane }
 import javafx.scene.paint.Color
-import javafx.scene.shape.{ LineTo, MoveTo, Path }
 import javafx.scene.text.{ Font, FontSmoothingType, Text }
-import javafx.util.Duration
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.Composite
 
-/**
- * Default view content.
- */
-// JavaFX test successful.
-class ViewDefaultContent {
+class Content1 {
   lazy val canvas = new Canvas(200, 200)
   lazy val fpsLabel = new Text()
   lazy val stack = new StackPane()
@@ -95,15 +87,18 @@ class ViewDefaultContent {
   /** Get ViewDefault content. */
   def apply(parent: Composite): Composite = {
     val body = new FXCanvas(parent, SWT.NONE)
-    val scene = createScene2()
+    val scene = createScene()
     body.setScene(scene)
     body
   }
+
   /** Get content scene. */
   protected def createScene(): Scene = {
     val font = new Font("Arial", 16)
     val pane = new BorderPane()
     pane.setCenter(canvas)
+    //canvas.widthProperty().bind(pane.widthProperty())
+    //canvas.heightProperty().bind(pane.heightProperty())
     val timer = new AnimationTimer() {
       def handle(now: Long) {
         renderFrame()
@@ -143,50 +138,5 @@ class ViewDefaultContent {
       gc.drawImage(image, -image.getWidth() / 2, -image.getHeight() / 2)
     }
     fpsLabel.setText(x.result())
-  }
-  def createScene2(): Scene = {
-    val root = new Group()
-    val scene = new Scene(root, 400, 300, Color.WHITE)
-
-    val imageView = new ImageView()
-    imageView.setImage(image)
-
-    val path = new Path()
-    path.setStrokeWidth(1);
-    path.setStroke(Color.BLACK)
-
-    //Mouse button pressed - clear path and start from the current X, Y.
-    scene.onMousePressedProperty().set(new EventHandler[MouseEvent]() {
-      override def handle(event: MouseEvent) {
-        path.getElements().clear()
-        path.getElements().add(new MoveTo(event.getX(), event.getY()))
-      }
-    })
-
-    //Mouse dragged - add current point.
-    scene.onMouseDraggedProperty().set(new EventHandler[MouseEvent]() {
-      override def handle(event: MouseEvent) {
-        path.getElements().add(new LineTo(event.getX(), event.getY()));
-      }
-    })
-
-    //Mouse button released,  finish path.
-    scene.onMouseReleasedProperty().set(new EventHandler[MouseEvent]() {
-      override def handle(event: MouseEvent) {
-        val pathTransition = PathTransitionBuilder.create()
-          .node(imageView)
-          .path(path)
-          .duration(Duration.millis(5000))
-          .orientation(PathTransition.OrientationType.ORTHOGONAL_TO_TANGENT)
-          .cycleCount(1)
-          .build();
-
-        pathTransition.play()
-      }
-    })
-
-    root.getChildren().add(imageView);
-    root.getChildren().add(path)
-    scene
   }
 }
