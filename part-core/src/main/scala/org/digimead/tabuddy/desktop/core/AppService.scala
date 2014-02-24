@@ -72,11 +72,21 @@ class AppService extends api.Main with Disposable.Default with Loggable {
     log.debug("Start Akka ecosystem.")
     val config = ConfigFactory.parseString("""
       akka {
-        actor.debug.unhandled = true
-        actor.debug {
-          receive = on
-          autoreceive = on
-          lifecycle = on
+        actor{
+          debug {
+            receive = on
+            autoreceive = on
+            lifecycle = on
+            unhandled = true
+          }
+          default-dispatcher = {
+            executor = "fork-join-executor"
+            fork-join-executor {
+              parallelism-min = 32
+              parallelism-factor = 10.0
+              parallelism-max = 128
+            }
+          }
         }
         # Event handlers to register at boot time (Logging$DefaultLogger logs to STDOUT)
         loggers = ["org.digimead.tabuddy.desktop.core.support.AkkaLogBridge"]

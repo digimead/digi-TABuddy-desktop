@@ -55,7 +55,7 @@ trait OperationInfo {
   /**
    * Get information about application.
    */
-  def apply(): Info
+  def apply(): Option[Info]
   /**
    * Create 'Get information' operation.
    */

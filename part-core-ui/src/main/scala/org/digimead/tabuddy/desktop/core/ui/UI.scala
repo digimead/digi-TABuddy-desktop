@@ -47,6 +47,8 @@ import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import java.util.concurrent.TimeUnit
 import javax.swing.UIManager
 import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.jfx4swt.JFX
+import org.digimead.digi.lib.jfx4swt.JFXApplication
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
@@ -86,6 +88,11 @@ class UI extends akka.actor.Actor with Loggable {
   implicit lazy val ec = App.system.dispatcher
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef](UI)
+  /** JavaFX initialization helper. */
+  // I suspect that group of developers that wrote FXCanvas must be punished in extremely violent form :-/
+  // Those code monkeys from the Oracle corporation wrote really ugly shit.
+  // One more reason for closed source at a big company...
+  //protected lazy val javaFXInitializationHelper = new javafx.embed.swt.FXCanvas(new Shell(), SWT.None)
   /** Current bundle */
   protected lazy val thisBundle = App.bundle(getClass())
   /** Start/stop initialization lock. */
@@ -151,6 +158,9 @@ class UI extends akka.actor.Actor with Loggable {
   /** Invoked on Core started. */
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(UI) on {
+      JFX.start()
+      // Prevent deadlock SWT<->JFX<->App with screen initialization.
+      log.debug(s"Java FX environment ready. Actual screen: ${JFXApplication.virtualScreen}.")
       // Start event in separated thread since watcher is synchronous
       // and watcher hook may depends on event loop
       // Eclipse Bug 341799 workaround
@@ -173,6 +183,7 @@ class UI extends akka.actor.Actor with Loggable {
       command.Commands.unconfigure()
       view.Views.unconfigure()
       Console ! Console.Message.Notice("UI component is stopped.")
+      JFX.stop()
     }
     Future {
       val display = App.display

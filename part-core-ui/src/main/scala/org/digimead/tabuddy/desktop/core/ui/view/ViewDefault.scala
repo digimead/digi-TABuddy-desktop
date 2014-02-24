@@ -47,6 +47,7 @@ import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.jfx4swt.JFX
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
@@ -157,7 +158,8 @@ class ViewDefault(val contentId: UUID, val factory: View.Factory) extends Actor 
     App.execNGet {
       parent.setLayout(new FillLayout())
       val body = new defaultv.Content(parent)
-      body.initialize()
+      body.initializeSWT()
+      JFX.exec { body.initializeJFX() }
       body.addDisposeListener(new DisposeListener {
         def widgetDisposed(e: DisposeEvent) = container ! App.Message.Destroy(None, self)
       })

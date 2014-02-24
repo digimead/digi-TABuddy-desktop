@@ -50,6 +50,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeTab, VComposite }
+import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.Control
 import scala.language.implicitConversions
@@ -94,9 +95,14 @@ class TransformTabToView extends Loggable {
           case Some((parentId, viewConfiguration: Configuration.CView)) ⇒
             log.debug(s"Attach ${viewConfiguration} as top level element.")
             val result = ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, Some(view))
-            result.foreach { _ ⇒
+            result.foreach { result ⇒
               ss.context.stop(view.ref)
               App.execNGet { tab.dispose() }
+              // Resize VComposite.
+              // VComposite -> WComposite . layout()
+              App.execWithTimer(100) {
+                if (!result.isDisposed()) result.getParent().layout(true, true)
+              }
             }
             result.toRight(Some(view))
           case Some((parent, configuration)) ⇒

@@ -298,7 +298,7 @@ object Window extends Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Window instance counter. */
-  // There are only 4^64 - 1 windows. Please restart this software before the limit will be reached. ;-)
+  // There are only 2^64 - 1 windows. Please restart this software before the limit will be reached. ;-)
   protected var instanceCounter = Long.MinValue
   /** All application windows. */
   protected val windowMap = mutable.HashMap[UUID, (Long, AppWindow)]()
@@ -374,15 +374,16 @@ object Window extends Loggable {
         val windows = Window.windowMap.toSeq
         Future {
           val sorted = windows.sortBy(_._2._1).map(_._2._2) // sort by instanceCounter
-          App.exec {
-            sorted.filter(w ⇒ w.getShell() != null && !w.getShell().isDisposed()).lastOption.foreach { lastWindow ⇒
-              // Activate last window.
-              lastWindow.windowContext.activate()
-              lastWindow.getShell().setActive()
-              lastWindow.getShell().forceActive()
-              lastWindow.getShell().forceFocus()
+          if (!App.display.isDisposed())
+            App.exec {
+              sorted.filter(w ⇒ w.getShell() != null && !w.getShell().isDisposed()).lastOption.foreach { lastWindow ⇒
+                // Activate last window.
+                lastWindow.windowContext.activate()
+                lastWindow.getShell().setActive()
+                lastWindow.getShell().forceActive()
+                lastWindow.getShell().forceFocus()
+              }
             }
-          }
           Window.titleSynchronizer.notify(sorted)
         }.onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       } finally Window.windowMapRWL.writeLock().unlock()

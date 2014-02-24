@@ -57,11 +57,9 @@ class OperationInfo extends api.OperationInfo with Loggable {
   /**
    * Get information.
    */
-  override def apply(): Report.Info = {
+  override def apply(): Option[Report.Info] = {
     log.info(s"Get information.")
-    Report.info() getOrElse {
-      throw new RuntimeException("Information is not available.")
-    }
+    Report.info()
   }
   /**
    * Create 'Get information' operation.
@@ -92,7 +90,7 @@ class OperationInfo extends api.OperationInfo with Loggable {
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Report.Info] =
-      try Operation.Result.OK(Option(OperationInfo.this()))
+      try Operation.Result.OK(OperationInfo.this())
       catch {
         case e: CancellationException ⇒ Operation.Result.Cancel()
         case e: RuntimeException ⇒ Operation.Result.Error(e.getMessage(), e)

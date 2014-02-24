@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.core.ui.view.defaultv;
 
 import org.digimead.tabuddy.desktop.core.ui.ResourceManager;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.layout.FormAttachment;
 import org.eclipse.swt.layout.FormData;
 import org.eclipse.swt.layout.FormLayout;
@@ -60,8 +61,7 @@ import org.eclipse.swt.widgets.Composite;
 public class ContentSkel extends Composite {
 	private Composite compositeAbout;
 	private Composite compositeInfo;
-	private Composite compositeMonitor1;
-	private Composite compositeMonitor2;
+	private Composite compositeQuotation;
 	private Composite compositeTitle;
 
 	/**
@@ -72,55 +72,49 @@ public class ContentSkel extends Composite {
 	 */
 	public ContentSkel(Composite parent, int style) {
 		super(parent, style);
-		setLayout(new FormLayout());
+		setLayout(new GridLayout(1, false));
 
-		Composite compositeMain = new Composite(this, SWT.NONE);
+		Composite compositeMain = new Composite(this, SWT.BORDER);
+		GridData gd_compositeMain = new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1);
+		gd_compositeMain.minimumWidth = 300;
+		gd_compositeMain.minimumHeight = 300;
+		compositeMain.setLayoutData(gd_compositeMain);
 		compositeMain.setBackground(ResourceManager.getColor(SWT.COLOR_WHITE));
-		FormData fd_compositeMain = new FormData();
-		fd_compositeMain.bottom = new FormAttachment(100, 0);
-		fd_compositeMain.top = new FormAttachment(0, 0);
-		fd_compositeMain.left = new FormAttachment(0, 0);
-		fd_compositeMain.right = new FormAttachment(100, 0);
-		compositeMain.setLayoutData(fd_compositeMain);
-		compositeMain.setLayout(new GridLayout(1, false));
+		compositeMain.setLayout(new FormLayout());
 
 		compositeTitle = new Composite(compositeMain, SWT.NONE);
-		GridLayout gl_compositeTitle = new GridLayout(1, false);
-		gl_compositeTitle.marginWidth = 0;
-		gl_compositeTitle.marginHeight = 0;
-		compositeTitle.setLayout(gl_compositeTitle);
-		GridData gd_compositeTitle = new GridData(SWT.FILL, SWT.CENTER, true, true, 1, 1);
-		gd_compositeTitle.minimumWidth = 300;
-		gd_compositeTitle.minimumHeight = 1;
-		compositeTitle.setLayoutData(gd_compositeTitle);
+		compositeTitle.setBackground(ResourceManager.getColor(SWT.COLOR_WHITE));
+		compositeTitle.setLayout(new GridLayout(1, false));
+		FormData fd_compositeTitle = new FormData();
+		fd_compositeTitle.left = new FormAttachment(0);
+		fd_compositeTitle.right = new FormAttachment(100);
+		fd_compositeTitle.bottom = new FormAttachment(50);
+		compositeTitle.setLayoutData(fd_compositeTitle);
+
+		compositeQuotation = new Composite(compositeMain, SWT.NONE);
+		compositeQuotation.setBackground(ResourceManager.getColor(SWT.COLOR_WHITE));
+		compositeQuotation.setLayout(new FillLayout(SWT.HORIZONTAL));
+		FormData fd_compositeQuotation = new FormData();
+		fd_compositeQuotation.height = 16;
+		fd_compositeQuotation.right = new FormAttachment(70);
+		fd_compositeQuotation.left = new FormAttachment(20);
+		fd_compositeQuotation.top = new FormAttachment(compositeTitle);
+		compositeQuotation.setLayoutData(fd_compositeQuotation);
+
+		compositeInfo = new Composite(compositeMain, SWT.NONE);
+		compositeInfo.setBackground(ResourceManager.getColor(SWT.COLOR_WHITE));
+		FormData fd_compositeInfo = new FormData();
+		fd_compositeInfo.right = new FormAttachment(90);
+		compositeInfo.setLayoutData(fd_compositeInfo);
+		compositeInfo.setLayout(new GridLayout(2, false));
+		fd_compositeInfo.bottom = new FormAttachment(compositeAbout);
 
 		compositeAbout = new Composite(compositeMain, SWT.NONE);
-		GridLayout gl_compositeAbout = new GridLayout(1, true);
-		gl_compositeAbout.marginHeight = 0;
-		gl_compositeAbout.marginWidth = 0;
-		compositeAbout.setLayout(gl_compositeAbout);
-		GridData gd_compositeAbout = new GridData(SWT.CENTER, SWT.CENTER, true, false, 1, 1);
-		gd_compositeAbout.minimumWidth = 1;
-		gd_compositeAbout.minimumHeight = 1;
-		compositeAbout.setLayoutData(gd_compositeAbout);
-
-		compositeInfo = new Composite(this, SWT.NONE);
-		compositeInfo.setLayout(new GridLayout(2, false));
-		FormData fd_compositeInfo = new FormData();
-		fd_compositeInfo.right = new FormAttachment(100, 0);
-		fd_compositeInfo.bottom = new FormAttachment(100, 0);
-		compositeInfo.setLayoutData(fd_compositeInfo);
-
-		compositeMonitor1 = new Composite(compositeInfo, SWT.NONE);
-		GridData gd_compositeMonitor1 = new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1);
-		gd_compositeMonitor1.minimumWidth = 1;
-		gd_compositeMonitor1.minimumHeight = 1;
-		compositeMonitor1.setLayoutData(gd_compositeMonitor1);
-		compositeMonitor2 = new Composite(compositeInfo, SWT.NONE);
-		GridData gd_compositeMonitor2 = new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1);
-		gd_compositeMonitor2.minimumWidth = 1;
-		gd_compositeMonitor2.minimumHeight = 1;
-		compositeMonitor2.setLayoutData(gd_compositeMonitor2);
+		compositeAbout.setBackground(ResourceManager.getColor(SWT.COLOR_WHITE));
+		FormData fd_compositeAbout = new FormData();
+		fd_compositeAbout.bottom = new FormAttachment(100);
+		compositeAbout.setLayoutData(fd_compositeAbout);
+		compositeAbout.setLayout(new FillLayout(SWT.HORIZONTAL));
 	}
 
 	@Override
@@ -128,23 +122,19 @@ public class ContentSkel extends Composite {
 		// Disable the check that prevents subclassing of SWT components
 	}
 
-	protected Composite getCompositeTitle() {
-		return compositeTitle;
-	}
-
 	protected Composite getCompositeAbout() {
 		return compositeAbout;
 	}
 
-	protected Composite getCompositeMonitor1() {
-		return compositeMonitor1;
-	}
-
-	protected Composite getCompositeMonitor2() {
-		return compositeMonitor2;
-	}
-
 	protected Composite getCompositeInfo() {
 		return compositeInfo;
+	}
+
+	protected Composite getCompositeQuotation() {
+		return compositeQuotation;
+	}
+
+	protected Composite getCompositeTitle() {
+		return compositeTitle;
 	}
 }
