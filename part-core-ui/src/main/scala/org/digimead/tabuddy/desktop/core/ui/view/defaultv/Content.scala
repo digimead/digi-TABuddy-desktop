@@ -44,16 +44,15 @@
 package org.digimead.tabuddy.desktop.core.ui.view.defaultv
 
 import java.util.concurrent.atomic.AtomicReference
-import javafx.animation.{ FadeTransition, FadeTransitionBuilder, PathTransition }
+import javafx.animation.{ FadeTransition, FadeTransitionBuilder }
+import javafx.animation.{ PathTransitionBuilder, Transition }
 import javafx.animation.PathTransition.OrientationType
-import javafx.animation.PathTransitionBuilder
-import javafx.beans.property.SimpleDoubleProperty
 import javafx.beans.value.{ ChangeListener, ObservableValue }
 import javafx.event.{ ActionEvent, EventHandler }
-import javafx.geometry.{ Bounds, VPos }
+import javafx.geometry.VPos
 import javafx.scene.{ Group, Scene }
 import javafx.scene.effect.DropShadow
-import javafx.scene.layout.Pane
+import javafx.scene.layout.{ HBox, Pane, VBox }
 import javafx.scene.paint.Color
 import javafx.scene.shape.Rectangle
 import javafx.scene.text.{ Font, FontPosture, FontWeight, Text, TextAlignment, TextBuilder }
@@ -67,7 +66,6 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.{ ResourceManager, UI }
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.ControlEvent
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.layout.{ FormAttachment, FormData, GridData, GridLayout }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener }
@@ -89,14 +87,7 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
   /** Quotation original size. */
   val quotationOriginalSize = new AtomicReference(default)
   /** Title composite with FX canvas. */
-  val titleComposite = new FXCanvas(getCompositeTitle, SWT.NONE, false) {
-    override protected def createAdapter(bindSceneSizeToCanvas: Boolean) = new Adapter(bindSceneSizeToCanvas) {
-      override def controlResized(e: ControlEvent) = if (bindSceneSizeToCanvas) {
-        println("!!!!!!! " + e)
-        super.controlResized(e)
-      }
-    }
-  }
+  val titleComposite = new FXCanvas(getCompositeTitle, SWT.NONE, false)
   /** Title maximum margin. */
   lazy val titleMaximumMargin = 300
   /** Title minimum margin. */
@@ -105,32 +96,31 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
   lazy val titleOriginalSize = new AtomicReference(default)
 
   def initializeJFX() {
-    val (titleScene, titleTransition, titleSize) = createTitle(titleComposite)
-    titleComposite.addDisposeListener { stage ⇒
-      titleTransition.stop()
-      titleScene.rootProperty().set(new Group)
-    }
-    titleComposite.setScene(titleScene, { _ ⇒ titleTransition.play() })
+    val (titleScene, titlePathTransition, titlePenTransition, titleSize) = createTitle(titleComposite)
+    titleComposite.addDisposeListener { stage ⇒ titleScene.rootProperty().set(new Group) }
+    titlePenTransition.setOnFinished(new EventHandler[ActionEvent]() {
+      override def handle(t: ActionEvent) = titleComposite.sceneNeedsRepaint()
+    })
+    titleComposite.setScene(titleScene, { _ ⇒ titlePathTransition.play() })
     titleOriginalSize.set(titleSize)
 
-    val (quotationScene, quotationTransition, quotationBounds) = createQuotation(quotationComposite)
-    quotationComposite.addDisposeListener { stage ⇒
-      quotationTransition.stop()
-      quotationScene.rootProperty().set(new Group)
-    }
+    val (quotationScene, quotationTransition, quotationSize) = createQuotation(quotationComposite)
+    quotationComposite.addDisposeListener { stage ⇒ quotationScene.rootProperty().set(new Group) }
+    quotationTransition.setOnFinished(new EventHandler[ActionEvent]() {
+      override def handle(t: ActionEvent) = quotationComposite.sceneNeedsRepaint()
+    })
     quotationComposite.setScene(quotationScene, _ ⇒ quotationTransition.play())
-    quotationOriginalSize.set(new Point(quotationBounds.getWidth().toInt + 1, quotationBounds.getHeight().toInt + 1))
+    quotationOriginalSize.set(quotationSize)
 
     val aboutScene = createAbout(aboutComposite)
-    aboutComposite.addDisposeListener { stage ⇒
-      aboutScene.rootProperty().set(new Group)
-    }
+    aboutComposite.addDisposeListener { stage ⇒ aboutScene.rootProperty().set(new Group) }
+    aboutComposite.setScene(aboutScene)
 
     App.exec {
       if (!titleComposite.isDisposed() && !quotationComposite.isDisposed() && !aboutComposite.isDisposed()) {
-        getCompositeAbout.notifyListeners(SWT.Resize, new Event)
-        getCompositeQuotation.notifyListeners(SWT.Resize, new Event)
-        getCompositeTitle.notifyListeners(SWT.Resize, new Event)
+        getCompositeAbout.getParent().notifyListeners(SWT.Resize, null)
+        getCompositeQuotation.notifyListeners(SWT.Resize, null)
+        getCompositeTitle.notifyListeners(SWT.Resize, null)
       }
     }
   }
@@ -184,7 +174,6 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
                   case fxCanvas: FXCanvas ⇒ fxCanvas.setPreferredSize(size.x, quotationData.height)
                 }
                 getParent().layout(Array[Control](composite), SWT.DEFER)
-              case _ ⇒
             }
           }
         case _ ⇒
@@ -199,13 +188,12 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
           if (size.x > 0 && size.y > 0) {
             getCompositeAbout().getLayoutData() match {
               case aboutData: FormData ⇒
-                val aboutPrefferedSize = aboutOriginalSize.get
-                if (size.x > aboutPrefferedSize.x)
-                  aboutData.left = new FormAttachment(0, (size.x - aboutPrefferedSize.x) / 2)
+                val aboutPreferredSize = aboutOriginalSize.get
+                if (size.x > aboutPreferredSize.x)
+                  aboutData.left = new FormAttachment(0, (size.x - aboutPreferredSize.x) / 2)
                 else
                   aboutData.left = new FormAttachment(0, 0)
                 composite.layout(Array[Control](aboutComposite), SWT.DEFER)
-              case _ ⇒
             }
           }
         case _ ⇒
@@ -226,9 +214,13 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
     text.textProperty().addListener(new ChangeListener[AnyRef]() {
       override def changed(ov: ObservableValue[_ <: AnyRef], t: AnyRef, t1: AnyRef) {
         val bounds = text.getLayoutBounds()
-        aboutOriginalSize.set(new Point(bounds.getWidth().toInt + 1, bounds.getHeight().toInt + 1))
+        val preferredSize = new Point(bounds.getWidth().toInt + 1, bounds.getHeight().toInt + 1)
+        aboutOriginalSize.set(preferredSize)
         App.exec {
-          if (!parent.isDisposed()) parent.getParent().notifyListeners(SWT.RESIZE, new Event)
+          if (!parent.isDisposed()) {
+            parent.setPreferredSize(preferredSize.x, preferredSize.y)
+            parent.getParent().getParent().notifyListeners(SWT.Resize, null)
+          }
         }
       }
     })
@@ -262,59 +254,128 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
     val root = new Pane()
     root.getChildren().addAll(text)
     val group = new Group(root)
+    group.setAutoSizeChildren(false)
     val scene = new Scene(group)
 
     scene
   }
   /** Create quotation composite. */
-  protected def createQuotation(parent: FXCanvas): (Scene, FadeTransition, Bounds) = {
+  protected def createQuotation(parent: FXCanvas): (Scene, FadeTransition, Point) = {
     // I see no reason to translate this in the future.
-    val text = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.text("A *human being should be able* to change a diaper, " +
-        "plan an invasion, butcher a hog, conn a ship,\ndesign a building, " +
-        "write a sonnet, balance accounts, build a wall, set a bone, " +
-        "comfort the dying,\ntake orders, give orders, cooperate, act alone, " +
-        "solve equations, analyze a new problem,\npitch manure, program a computer, " +
-        "cook a tasty meal, fight efficiently, die gallantly.\n" +
-        "Specialization is for *insects*.\n\n" +
-        "    - Robert A. Heinlein")
-      b.font(Font.font(null, FontPosture.ITALIC, 12))
+    val prePart1 = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+      b.text("A human being should be able ")
       b.cache(true)
-      b.textOrigin(VPos.TOP)
-      b.fill(Color.LIGHTGRAY)
-      b.opacity(0)
+      b.fill(Color.BLACK)
+      b.font(Font.font(null, FontWeight.BOLD, 4)) // set minimum size
       b.build()
     }
-    lazy val textBounds = text.getLayoutBounds()
+    val prePart2 = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+      b.text("to change a diaper, plan an invasion, butcher a hog, conn a ship,")
+      b.cache(true)
+      b.fill(Color.DARKGRAY)
+      b.build()
+    }
+    val body = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+      b.text("design a building, write a sonnet, balance accounts, build a wall, set a bone, " +
+        "comfort the dying,\ntake orders, give orders, cooperate, act alone, " +
+        "solve equations, analyze a new problem,\npitch manure, program a computer, " +
+        "cook a tasty meal, fight efficiently, die gallantly.")
+      b.cache(true)
+      b.fill(Color.DARKGRAY)
+      b.build()
+    }
+    val post = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+      b.text("Specialization is for insects.")
+      b.cache(true)
+      b.fill(Color.BLACK)
+      b.build()
+    }
+    val signature = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+      b.text("\n    - Robert A. Heinlein")
+      b.cache(true)
+      b.fill(Color.DARKGRAY)
+      b.build()
+    }
 
-    val root = new Pane()
-    root.getChildren().addAll(text)
+    def adjust(size: Int) {
+      val italic = Font.font(null, FontPosture.ITALIC, size)
+      prePart1.setFont(italic)
+      prePart2.setFont(italic)
+      body.setFont(italic)
+      post.setFont(italic)
+      signature.setFont(italic)
+    }
+    val pre = new HBox()
+    pre.getChildren().addAll(prePart1, prePart2)
+    val root = new VBox()
+    root.getChildren().addAll(pre, body, post, signature)
+    root.setOpacity(0)
+    val minimumHeight = prePart1.getLayoutBounds.getHeight()
+    adjust(20) // set maximum size
+    val maximumHeight = prePart1.getLayoutBounds.getHeight()
+    val fontSizeStep = (maximumHeight - minimumHeight) / 16
+    val fontGradation = for (i ← 1 to 16)
+      yield (i * fontSizeStep + minimumHeight) * 8
+
     // Wrap the resizable content in a non-resizable container (Group).
+    val prePartBounds = prePart1.getLayoutBounds()
+    val bodyBounds = body.getLayoutBounds()
+    val postBounds = post.getLayoutBounds()
+    val signatureBounds = signature.getLayoutBounds()
+    val quotationWidth = Seq(bodyBounds.getWidth(), postBounds.getWidth(), signatureBounds.getWidth()).foldLeft(pre.getLayoutBounds().getWidth())(math.max)
+    val quotationHeight = prePartBounds.getHeight() * 8
+    val quotationSize = new Point(math.ceil(quotationWidth).toInt, math.ceil(quotationHeight).toInt)
     val group = new Group(root)
+    group.setAutoSizeChildren(false)
     val scene = new Scene(group)
 
-    val scaleK = new SimpleDoubleProperty()
-    group.layoutXProperty().bind(scene.widthProperty().subtract(textBounds.getWidth()).divide(2))
-    group.layoutYProperty().bind(scene.heightProperty().subtract(textBounds.getHeight()).divide(2))
-    group.scaleXProperty().bind(scaleK)
-    group.scaleYProperty().bind(scaleK)
+    scene.heightProperty().addListener(new ChangeListener[AnyRef]() {
+      override def changed(ov: ObservableValue[_ <: AnyRef], t: AnyRef, t1: AnyRef) = {
+        val height = t1.asInstanceOf[Double]
+        val index = fontGradation.indexWhere(_ > height)
+        val size = if (index == -1) 20 else index + 4
+        adjust(size)
+        group.layout()
+        val rootBounds = root.getBoundsInLocal()
+        if (rootBounds.getWidth() > scene.getWidth()) {
+          val k = scene.getWidth() / rootBounds.getWidth()
+          root.setScaleX(k)
+          root.setScaleY(k)
+        } else {
+          root.setScaleX(1)
+          root.setScaleY(1)
+        }
+      }
+    })
     scene.widthProperty().addListener(new ChangeListener[AnyRef]() {
       override def changed(ov: ObservableValue[_ <: AnyRef], t: AnyRef, t1: AnyRef) =
-        if (t1.asInstanceOf[Double] > 0)
-          scaleK.set(t1.asInstanceOf[Double] / textBounds.getWidth())
+        if (t1.asInstanceOf[Double] > 0) {
+          val rootBounds = root.getBoundsInLocal()
+          if (rootBounds.getWidth() > scene.getWidth()) {
+            val k = scene.getWidth() / rootBounds.getWidth()
+            root.setScaleX(k)
+            root.setScaleY(k)
+          } else {
+            root.setScaleX(1)
+            root.setScaleY(1)
+          }
+        }
     })
 
     val fadeTransition = FadeTransitionBuilder.create()
-      .duration(Duration.seconds(3))
-      .fromValue(0.0)
+      .duration(Duration.seconds(7))
+      .fromValue(0)
       .toValue(1.0)
-      .node(text)
+      .node(root)
       .build()
+    fadeTransition.setOnFinished(new EventHandler[ActionEvent]() {
+      override def handle(t: ActionEvent) = fadeTransition.stop()
+    })
 
-    (scene, fadeTransition, textBounds)
+    (scene, fadeTransition, quotationSize)
   }
   /** Create title composite. */
-  protected def createTitle(parent: FXCanvas): (Scene, PathTransition, Point) = {
+  protected def createTitle(parent: FXCanvas): (Scene, Transition, Transition, Point) = {
     val pen = new Rectangle(0, 0, 20, 20)
 
     // This pane contain clipping.
@@ -369,46 +430,44 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
         if (t1.asInstanceOf[Double] > 0) {
           val k = t1.asInstanceOf[Double] / titleSize.x
           root.setScaleX(k)
+          root.setScaleY(k)
           root.setLayoutX((scene.getWidth() - titleSize.x) / 2)
         }
     })
     scene.heightProperty().addListener(new ChangeListener[AnyRef]() {
       override def changed(ov: ObservableValue[_ <: AnyRef], t: AnyRef, t1: AnyRef) =
-        if (t1.asInstanceOf[Double] > 0) {
-          val k = t1.asInstanceOf[Double] / titleSize.y
-          root.setScaleY(k)
+        if (t1.asInstanceOf[Double] > 0)
           root.setLayoutY((scene.getHeight() - titleSize.y) / 2)
-        }
     })
 
-    val pathTransition = PathTransitionBuilder.create()
-      .duration(Duration.seconds(15))
-      .path(text)
-      .node(pen)
-      .orientation(OrientationType.ORTHOGONAL_TO_TANGENT)
-      .build()
+    val pathTransition = PathTransitionBuilder.create().
+      duration(Duration.seconds(15)).
+      path(text).
+      node(pen).
+      orientation(OrientationType.ORTHOGONAL_TO_TANGENT).
+      build()
+    val penTransition = FadeTransitionBuilder.create().
+      duration(Duration.seconds(1)).
+      toValue(0.2).
+      node(pen).
+      build()
 
-    // once we done we don't want to store thousands of rectangles used to clip
+    // Once we done we don't want to store thousands of rectangles used to clip.
     pathTransition.setOnFinished(new EventHandler[ActionEvent]() {
       override def handle(t: ActionEvent) {
         text.setClip(null)
         clip.getChildren().clear()
-        val penTransition = FadeTransitionBuilder.create()
-          .duration(Duration.seconds(1))
-          .toValue(0.2)
-          .node(pen)
-          .build()
+        pathTransition.stop()
         penTransition.play()
         penTransition.setOnFinished(new EventHandler[ActionEvent]() {
           override def handle(t: ActionEvent) {
             penTransition.stop()
             root.getChildren().remove(pen)
-            System.gc()
           }
         })
       }
     })
 
-    (scene, pathTransition, titleSize)
+    (scene, pathTransition, penTransition, titleSize)
   }
 }
