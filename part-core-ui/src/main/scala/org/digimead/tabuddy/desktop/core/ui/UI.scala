@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import javax.swing.UIManager
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.jfx4swt.JFX
@@ -158,7 +158,9 @@ class UI extends akka.actor.Actor with Loggable {
   /** Invoked on Core started. */
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(UI) on {
-      JFX.start()
+      val fxStartLatch = new CountDownLatch(1)
+      JFX.start(new Runnable { def run = fxStartLatch.countDown() })
+      fxStartLatch.await(Timeout.short.toMillis, TimeUnit.MILLISECONDS)
       // Prevent deadlock SWT<->JFX<->App with screen initialization.
       log.debug(s"Java FX environment ready. Actual screen: ${JFXApplication.virtualScreen}.")
       // Start event in separated thread since watcher is synchronous
@@ -183,7 +185,9 @@ class UI extends akka.actor.Actor with Loggable {
       command.Commands.unconfigure()
       view.Views.unconfigure()
       Console ! Console.Message.Notice("UI component is stopped.")
-      JFX.stop()
+      val fxStopLatch = new CountDownLatch(1)
+      JFX.stop(new Runnable { def run = fxStopLatch.countDown() }, true)
+      fxStopLatch.await(Timeout.short.toMillis, TimeUnit.MILLISECONDS)
     }
     Future {
       val display = App.display
