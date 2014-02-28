@@ -50,6 +50,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.logic.Logic
 import scala.language.implicitConversions
 
@@ -68,10 +69,10 @@ class ModelDefinition extends akka.actor.Actor with Loggable {
   /*
    * Logic component actors.
    */
-  val actionRef = context.actorOf(ui.action.Action.props, ui.action.Action.id)
+  lazy val actionRef = context.actorOf(ui.action.Action.props, ui.action.Action.id)
 
-  if (App.watch(Activator, Logic, this).hooks.isEmpty)
-    App.watch(Activator, Logic, this).always().
+  if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
+    App.watch(Activator, Logic, UI, this).always().
       makeAfterStart { onGUIStarted() }.
       makeBeforeStop { onGUIStopped() }.sync()
 
@@ -123,6 +124,10 @@ class ModelDefinition extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(ModelDefinition) on {
+      self ! App.Message.Inconsistent(ModelDefinition, None)
+      // Initialize lazy actors
+      ModelDefinition.actor
+      actionRef
       //Actions.configure
       Console ! Console.Message.Notice("ModelDefinition component is started.")
       self ! App.Message.Consistent(ModelDefinition, None)
@@ -132,6 +137,7 @@ class ModelDefinition extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStopped() = initializationLock.synchronized {
     App.watch(ModelDefinition) off {
+      self ! App.Message.Inconsistent(ModelDefinition, None)
       //Actions.unconfigure
       if (inconsistentSet.nonEmpty)
         log.fatal("Inconsistent elements detected: " + inconsistentSet)
@@ -160,8 +166,10 @@ object ModelDefinition {
   val id = getClass.getSimpleName().dropRight(1)
   /** ModelDefinition actor reference configuration object. */
   lazy val props = DI.props
+
   // Initialize descendant actor singletons
-  ui.action.Action
+  if (App.isUIAvailable)
+    ui.action.Action
 
   override def toString = "ModelDefinition[Singleton]"
 

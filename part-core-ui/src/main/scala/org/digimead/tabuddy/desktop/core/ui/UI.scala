@@ -102,8 +102,8 @@ class UI extends akka.actor.Actor with Loggable {
   /*
    * UI component actors.
    */
-  val windowWatcherRef = context.actorOf(WindowWatcher.props, WindowWatcher.id)
-  val windowSupervisorRef = context.actorOf(WindowSupervisor.props, WindowSupervisor.id)
+  lazy val windowWatcherRef = context.actorOf(WindowWatcher.props, WindowWatcher.id)
+  lazy val windowSupervisorRef = context.actorOf(WindowSupervisor.props, WindowSupervisor.id)
 
   if (App.watch(Activator, Core, this).hooks.isEmpty)
     App.watch(Activator, Core, this).always().
@@ -158,6 +158,12 @@ class UI extends akka.actor.Actor with Loggable {
   /** Invoked on Core started. */
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(UI) on {
+      self ! App.Message.Inconsistent(UI, None)
+      // Initialize lazy actors.
+      UI.actor
+      windowWatcherRef
+      windowSupervisorRef
+      // Initialize Java FX.
       val fxStartLatch = new CountDownLatch(1)
       JFX.start(new Runnable { def run = fxStartLatch.countDown() })
       fxStartLatch.await(Timeout.short.toMillis, TimeUnit.MILLISECONDS)
@@ -182,11 +188,13 @@ class UI extends akka.actor.Actor with Loggable {
   /** Invoked on Core stopped. */
   protected def onCoreStopped() = initializationLock.synchronized {
     App.watch(UI) off {
+      self ! App.Message.Inconsistent(UI, None)
       command.Commands.unconfigure()
       view.Views.unconfigure()
       Console ! Console.Message.Notice("UI component is stopped.")
       val fxStopLatch = new CountDownLatch(1)
-      JFX.stop(new Runnable { def run = fxStopLatch.countDown() }, true)
+      // Java FX platform restart routine is absent. :-) Say hello to Java FX designers.
+      JFX.stop(new Runnable { def run = fxStopLatch.countDown() }, App.isDevelopmentMode)
       fxStopLatch.await(Timeout.short.toMillis, TimeUnit.MILLISECONDS)
     }
     Future {

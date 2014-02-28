@@ -52,6 +52,7 @@ import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.logic.ui.WindowWatcher
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
@@ -73,12 +74,16 @@ class Logic extends akka.actor.Actor with Loggable {
   /*
    * Logic component actors.
    */
-  val windowWatcherRef = context.actorOf(WindowWatcher.props, WindowWatcher.id)
+  lazy val windowWatcherRef = context.actorOf(WindowWatcher.props, WindowWatcher.id)
 
   if (App.watch(Activator, Core, this).hooks.isEmpty)
     App.watch(Activator, Core, this).always().
       makeAfterStart { onCoreStarted() }.
       makeBeforeStop { onCoreStopped() }.sync()
+  if (App.watch(Activator, UI, this).hooks.isEmpty)
+    App.watch(Activator, UI, this).always().
+      makeAfterStart { onGUIStarted() }.
+      makeBeforeStop { onGUIStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -175,6 +180,9 @@ class Logic extends akka.actor.Actor with Loggable {
   /** Invoked on Core started. */
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(Logic) on {
+      self ! App.Message.Inconsistent(Logic, None)
+      Logic.actor
+      windowWatcherRef
       val context = thisBundle.getBundleContext()
       openContainer()
       Config.start(context) // Initialize the application configuration based on Configgy
@@ -187,6 +195,7 @@ class Logic extends akka.actor.Actor with Loggable {
   /** Invoked on Core stopped. */
   protected def onCoreStopped() = initializationLock.synchronized {
     App.watch(Logic) off {
+      self ! App.Message.Inconsistent(Logic, None)
       val context = thisBundle.getBundleContext()
       command.Commands.unconfigure()
       Config.stop(context)
@@ -195,6 +204,16 @@ class Logic extends akka.actor.Actor with Loggable {
         log.fatal("Inconsistent elements detected: " + inconsistentSet)
       Console ! Console.Message.Notice("Logic component is stopped.")
     }
+  }
+  /** This callback is invoked when GUI is valid. */
+  @log
+  protected def onGUIStarted() = initializationLock.synchronized {
+    ui.Wizards.configure()
+  }
+  /** This callback is invoked when GUI is invalid. */
+  @log
+  protected def onGUIStopped() = initializationLock.synchronized {
+    ui.Wizards.unconfigure()
   }
 }
 
@@ -225,9 +244,10 @@ object Logic {
     ResourcesPlugin.getWorkspace().getRuleFactory()
     root.getProject(Logic.containerName)
   }
+
   // Initialize descendant actor singletons
   if (App.isUIAvailable)
-    ui.UI
+    WindowWatcher
 
   def containerName = DI.infrastructureWideProjectName
   def graphContainer = DI.graphContainer

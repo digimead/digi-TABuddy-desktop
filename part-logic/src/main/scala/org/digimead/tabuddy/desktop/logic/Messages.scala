@@ -43,15 +43,36 @@
 
 package org.digimead.tabuddy.desktop.logic
 
-import org.digimead.tabuddy.desktop.core.definition.NLS
+import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.NLS
+
+/**
+ * Resource bundle implementation.
+ *
+ * This code is directly evaluated in IDE (WindowBuilderPro).
+ * Any runtime references that may prevent creation are prohibited.
+ */
+class Messages extends ResourceBundle {
+  def getKeys() = new java.util.Enumeration[String] {
+    private val iterator = Messages.T.messages.keys.iterator
+    def hasMoreElements(): Boolean = iterator.hasNext
+    def nextElement(): String = iterator.next()
+  }
+  protected def handleGetObject(key: String): Object = try {
+    Messages.T.messages.get(key).
+      getOrElse { Messages.log.error(s"'${key}' not found in ${this.getClass()}"); key }
+  } catch {
+    case e: Throwable ⇒
+      key
+  }
+}
 
 object Messages extends NLS with Loggable {
+  val closeAllFiles_text = ""
+  val closeFile_text = ""
+  val creationError_text = ""
   val exportFile_text = ""
-  val newFile_text = ""
-  val openFile_text = ""
-  val saveFile_text = ""
-  val saveAllFiles_text = ""
   val graph_closeDescriptionLong_text = ""
   val graph_closeDescriptionShort_text = ""
   val graph_close_text = ""
@@ -82,9 +103,16 @@ object Messages extends NLS with Loggable {
   val graph_showDescriptionLong_text = ""
   val graph_showDescriptionShort_text = ""
   val graph_show_text = ""
+  val identifierIsEmpty_text = ""
   val importFile_text = ""
+  val lblModelIdentificator_hint_text = ""
+  val lblModelIdentificator_text = ""
+  val lblModelLocation_hint_text = ""
   val localizedTypeSchemaDescription_text = ""
   val localizedTypeSchemaName_text = ""
+  val locationIsAlreadyExists_text = ""
+  val locationIsEmpty_text = ""
+  val locationIsIncorrect_text = ""
   val modifyElementTemplateListDescriptionLong_text = ""
   val modifyElementTemplateListDescriptionShort_text = ""
   val modifyElementTemplateList_text = ""
@@ -103,13 +131,19 @@ object Messages extends NLS with Loggable {
   val modifyViewSortingListDescriptionLong_text = ""
   val modifyViewSortingListDescriptionShort_text = ""
   val modifyViewSortingList_text = ""
+  val newFile_text = ""
+  val openFile_text = ""
   val overViewPanelTitle_text = ""
+  val properties_text = ""
+  val saveAllFiles_text = ""
+  val saveFile_text = ""
   val script_runDescriptionLong_text = ""
   val script_runDescriptionShort_text = ""
   val script_run_text = ""
-  val closeFile_text = ""
-  val closeAllFiles_text = ""
-  val properties_text = ""
+  val shellTitleEmpty_text = ""
+  val shellTitle_text = ""
+  val wizardGraphNewPageOneDescription_text = ""
+  val wizardGraphNewPageOneTitle_text = ""
 
-    T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
+  T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
 }

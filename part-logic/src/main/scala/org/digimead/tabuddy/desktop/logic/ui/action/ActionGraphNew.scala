@@ -62,6 +62,20 @@ import org.eclipse.ui.internal.WorkbenchImages
 import org.eclipse.ui.internal.IWorkbenchGraphicConstants
 import javax.inject.Inject
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
 
+/**
+ * Create new graph.
+ */
 class ActionGraphNew @Inject() (windowContext: Context) extends JFaceAction(Messages.newFile_text) with Loggable {
+  @log
+  override def run = OperationGraphNew(None, None, true).foreach { operation ⇒
+    operation.getExecuteJob() match {
+      case Some(job) ⇒
+        job.setPriority(Job.LONG)
+        job.schedule()
+      case None ⇒
+        throw new RuntimeException(s"Unable to create job for ${operation}.")
+    }
+  }
 }

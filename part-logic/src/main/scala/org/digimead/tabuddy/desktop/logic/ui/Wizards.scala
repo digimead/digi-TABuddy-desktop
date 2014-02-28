@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,45 +41,41 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.logic.ui
 
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-//import org.digimead.tabuddy.desktop.core.command.Command
-//import org.digimead.tabuddy.desktop.core.command.Command.cmdLine2implementation
-
-import language.implicitConversions
+import org.digimead.tabuddy.desktop.core.ui.Resources
+import org.digimead.tabuddy.desktop.logic.ui.wizard.WizardGraphNew
+import scala.language.implicitConversions
 
 /**
- * Configurator responsible for configure/unconfigure logic actions.
+ * The configurator is responsible for configure/unconfigure logic wizards.
  */
-class Actions extends Loggable {
-  /** Configure component actions. */
+class Wizards extends Loggable {
+  /** Configure component wizards. */
   @log
   def configure() {
-//    Command.register(action.ActionCloseModel.descriptor)
-//    Command.addToContext(Core.context, action.ActionCloseModel.parser)
+    Resources.registerWizard(classOf[WizardGraphNew])
   }
-  /** Unconfigure component actions. */
-  @log
+  @log /** Unconfigure component wizards. */
   def unconfigure() {
-//    Command.unregister(action.ActionCloseModel.descriptor)
+    Resources.unregisterWizard(classOf[WizardGraphNew])
   }
 }
 
-object Actions {
-  implicit def configurator2implementation(c: Actions.type): Actions = c.inner
+object Wizards {
+  implicit def wizards2implementation(w: Wizards.type): Wizards = w.inner
 
-  /** Actions implementation. */
-  def inner: Actions = DI.implementation
+  /** Wizards implementation. */
+  def inner(): Wizards = DI.implementation
 
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Actions implementation */
-    lazy val implementation = injectOptional[Actions] getOrElse new Actions
+    /** Wizards implementation */
+    lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
   }
 }

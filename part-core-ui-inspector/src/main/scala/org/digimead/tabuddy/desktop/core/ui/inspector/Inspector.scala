@@ -119,6 +119,8 @@ class Inspector extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(Inspector) on {
+      self ! App.Message.Inconsistent(Inspector, None)
+      Inspector.actor // Initialize lazy actor.
       Commands.configure
       Console ! Console.Message.Notice("UI inspector component is started.")
       self ! App.Message.Consistent(Inspector, None)
@@ -128,6 +130,7 @@ class Inspector extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStopped() = initializationLock.synchronized {
     App.watch(Inspector) off {
+      self ! App.Message.Inconsistent(Inspector, None)
       Commands.unconfigure
       if (inconsistentSet.nonEmpty)
         log.fatal("Inconsistent elements detected: " + inconsistentSet)

@@ -84,7 +84,7 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
       UI.getActiveShell match {
         case Some(shell) ⇒
           App.execNGet {
-            Wizards.open("org.digimead.tabuddy.desktop.graph.editor.wizard.ModelCreationWizard", shell, Some(name, location)) match {
+            Wizards.open("org.digimead.tabuddy.desktop.logic.ui.wizard.WizardGraphNew", shell, Some(name, location)) match {
               case marker: GraphMarker ⇒
                 if (!marker.markerIsValid)
                   throw new IllegalStateException(marker + " is not valid.")

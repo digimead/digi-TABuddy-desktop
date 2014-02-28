@@ -47,6 +47,7 @@ import com.google.common.io.Files
 import java.io.File
 import java.io.{ PrintWriter, StringWriter }
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.EventLoop
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -58,6 +59,7 @@ import org.osgi.framework.{ Bundle, FrameworkUtil }
 import scala.annotation.elidable
 import scala.annotation.elidable._
 import scala.annotation.tailrec
+import scala.language.reflectiveCalls
 
 trait Generic extends EventLoop.Consumer {
   this: Loggable with Context with Thread with Watch ⇒
@@ -95,6 +97,11 @@ trait Generic extends EventLoop.Consumer {
   def bundle(clazz: Class[_]) = FrameworkUtil.getBundle(clazz)
   /** Copy files recursively. */
   def copyRecursive(from: File, to: File) = copyRecursiveImpl(Array((from, to)))
+  /** Get development mode flag. */
+  def isDevelopmentMode: Boolean =
+    // Get developmentMode AtomicBoolean from org.digimead.digi.launcher.RootClassLoader
+    bundle(getClass()).getClass().getClassLoader().asInstanceOf[{ val developmentMode: AtomicBoolean }].developmentMode.get
+
   /** Check the current thread against the event one. */
   def isEventLoop() = thread.eq(Thread.currentThread())
   /** Get application preference store. */

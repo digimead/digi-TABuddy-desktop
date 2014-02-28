@@ -41,17 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor.wizard
+package org.digimead.tabuddy.desktop.logic.ui.wizard
 //
 //import org.digimead.digi.lib.aop.log
 //import org.digimead.digi.lib.log.api.Loggable
-//import org.digimead.tabuddy.desktop.{ Messages => CoreMessages }
 //import org.digimead.tabuddy.desktop.model.editor.Messages
 //import org.digimead.tabuddy.desktop.logic.payload.Payload
-//import org.digimead.tabuddy.desktop.logic.payload.Payload.payload2implementation
-//import org.digimead.tabuddy.desktop.support.App
-//import org.digimead.tabuddy.desktop.support.App.app2implementation
-//import org.digimead.tabuddy.desktop.definition.INewWizard
 //import org.eclipse.core.runtime.IStatus
 //import org.eclipse.core.runtime.Status
 //import org.eclipse.jface.dialogs.ErrorDialog
