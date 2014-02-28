@@ -44,8 +44,9 @@
 package org.digimead.tabuddy.desktop.core.ui.inspector
 
 import akka.actor.{ Inbox, PoisonPill, Terminated }
-import org.digimead.digi.lib.{ DependencyInjection, Disposable }
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.{ DependencyInjection, Disposable }
+import org.digimead.tabuddy.desktop.core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.osgi.framework.{ BundleActivator, BundleContext }
@@ -99,6 +100,11 @@ class Activator extends BundleActivator with Loggable {
     }
     f onFailure { case e: Throwable ⇒ log.error("Error while starting UI inspector: " + e.getMessage(), e) }
     f onComplete { case _ ⇒ App.watch(context).on() }
+    // Prevents stop Core bundle before this one.
+    App.watch(core.Activator).once.makeBeforeStop {
+      if (!App.isDevelopmentMode)
+        App.watch(Activator).waitForStop(Timeout.short)
+    }
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {

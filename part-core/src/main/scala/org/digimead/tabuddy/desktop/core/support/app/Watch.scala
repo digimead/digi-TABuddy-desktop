@@ -128,7 +128,8 @@ object Watch extends Loggable {
     def off[A](f: ⇒ A = {}): A = {
       log.debug("off " + this)
       val (before, after, watchers) = App.watchSet.synchronized {
-        if (ids.forall(!App.watchSet(_)))
+        // Core bundle is reseted independently while development mode is enabled.
+        if (ids.forall(!App.watchSet(_)) && !App.isDevelopmentMode)
           throw new IllegalStateException(this + " is already off")
         val activeWatchers = ids.flatMap {
           case id if App.watchSet(id) ⇒ App.watchRef.get(id)

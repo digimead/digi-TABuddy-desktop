@@ -43,23 +43,19 @@
 
 package org.digimead.tabuddy.desktop.core.definition
 
-import java.lang.reflect.Field
-import java.lang.reflect.Modifier
-import java.security.AccessController
-import java.security.PrivilegedAction
+import java.lang.reflect.{ Field, Modifier }
+import java.security.{ AccessController, PrivilegedAction }
 import java.util.Locale
-
-import scala.Array.canBuildFrom
-import scala.collection.immutable
-import scala.collection.mutable
-import scala.concurrent.Future
-
+import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.api.Translation
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.osgi.util.tracker.ServiceTracker
+import scala.Array.canBuildFrom
+import scala.collection.{ immutable, mutable }
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
 /**
  * Apply translation to singleton.
@@ -161,7 +157,7 @@ object NLS {
   /** All registered NLS singletons. */
   private val registry = mutable.WeakHashMap[NLS, Seq[String]]()
   /** Translation service. */
-  lazy val translationService = translationServiceTracker.flatMap(tracker ⇒ Option(tracker.waitForService(Timeout.short.toMillis)))
+  lazy val translationService = translationServiceTracker.flatMap(tracker ⇒ Option(tracker.waitForService(DI.timeout.toMillis)))
 
   /** Get hash map with all messages (key -> translated value). */
   def messages(): immutable.ListMap[String, String] = registry.synchronized {
@@ -194,5 +190,12 @@ object NLS {
       // Get translation service in the separate thread.
       Future { translationService }
     }
+  }
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Translation service registration timeout. */
+    lazy val timeout = injectOptional[Duration]("Core.NLS") getOrElse Timeout.short
   }
 }

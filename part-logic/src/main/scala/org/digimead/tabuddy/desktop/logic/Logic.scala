@@ -181,6 +181,7 @@ class Logic extends akka.actor.Actor with Loggable {
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(Logic) on {
       self ! App.Message.Inconsistent(Logic, None)
+      // Initialize lazy actors
       Logic.actor
       windowWatcherRef
       val context = thisBundle.getBundleContext()

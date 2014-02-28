@@ -44,10 +44,9 @@
 package org.digimead.tabuddy.desktop
 
 import java.io.File
-
 import org.digimead.digi.lib.util.Util
-
 import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
 
 /**
  * This is the core bundle of the TA Buddy desktop application.
@@ -67,4 +66,5 @@ package object core {
   }) ~
     command.default ~
     operation.default
+  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.definition.NLS$DI$")
 }
