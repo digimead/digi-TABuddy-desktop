@@ -162,7 +162,6 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
     // Set the common top level widget
     windowContext.set(classOf[Composite], content)
     showContent(content)
-    //    App.publish(App.Message.Open(this), None))
     container
   }
   /**
@@ -236,6 +235,8 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
               ref ! App.Message.Open(this, ref)
             }
         }
+      case App.Message.Restore(None, _, _) if !App.isActive(UI) ⇒
+        log.debug(s"Unable to create top level content for window ${this}.")
       case App.Message.Error(error, None) ⇒
         log.fatal(s"Unable to create top level content for window ${this}: ${error}.")
       case error ⇒

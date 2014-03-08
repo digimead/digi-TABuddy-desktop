@@ -41,41 +41,44 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.ui
+package org.digimead.tabuddy.desktop.logic.ui.view.graph
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
+import java.util.concurrent.atomic.AtomicReference
+import javafx.animation.{ FadeTransition, FadeTransitionBuilder }
+import javafx.animation.{ PathTransitionBuilder, Transition }
+import javafx.animation.PathTransition.OrientationType
+import javafx.beans.value.{ ChangeListener, ObservableValue }
+import javafx.event.{ ActionEvent, EventHandler }
+import javafx.geometry.VPos
+import javafx.scene.{ Group, Scene }
+import javafx.scene.effect.DropShadow
+import javafx.scene.layout.{ HBox, Pane, VBox }
+import javafx.scene.paint.Color
+import javafx.scene.shape.Rectangle
+import javafx.scene.text.{ Font, FontPosture, FontWeight, Text, TextAlignment, TextBuilder }
+import javafx.util.Duration
+import org.digimead.digi.lib.jfx4swt.FXCanvas
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.ui.Resources
-import org.digimead.tabuddy.desktop.logic.ui.wizard.WizardGraphNew
-import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.core.Report
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.operation.OperationInfo
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.{ ResourceManager, UI }
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.swt.SWT
+import org.eclipse.swt.graphics.Point
+import org.eclipse.swt.layout.{ FormAttachment, FormData, GridData, GridLayout }
+import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener }
 
 /**
- * The configurator is responsible for configure/unconfigure logic wizards.
+ * Graph content.
  */
-class Wizards extends Loggable {
-  /** Configure component wizards. */
-  @log
-  def configure() {
-    Resources.registerWizard(classOf[WizardGraphNew])
+class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(parent, style) with Loggable {
+  def initializeJFX() {
   }
-  @log /** Unconfigure component wizards. */
-  def unconfigure() {
-    Resources.unregisterWizard(classOf[WizardGraphNew])
+  def initializeSWT() {
   }
-}
-
-object Wizards {
-  implicit def wizards2implementation(w: Wizards.type): Wizards = w.inner
-
-  /** Wizards implementation. */
-  def inner(): Wizards = DI.implementation
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Wizards implementation */
-    lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
+  def graphChanged() {
+    log.___glance("!!!")
   }
 }

@@ -132,8 +132,9 @@ class Inspector extends akka.actor.Actor with Loggable {
     App.watch(Inspector) off {
       self ! App.Message.Inconsistent(Inspector, None)
       Commands.unconfigure
-      if (inconsistentSet.nonEmpty)
-        log.fatal("Inconsistent elements detected: " + inconsistentSet)
+      val lost = inconsistentSet - Inspector
+      if (lost.nonEmpty)
+        log.debug("Inconsistent elements: " + lost)
       Console ! Console.Message.Notice("UI inspector component is stopped.")
     }
   }

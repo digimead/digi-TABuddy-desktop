@@ -98,7 +98,7 @@ class WizardGraphNewPageOne extends WizardPage(Messages.wizardGraphNewPageOneTit
         val widget = event.widget
         UI.findShell(widget) match {
           case Some(shell) ⇒
-            locationField.setValue(selectGraphLocation(shell))
+            Option(selectGraphLocation(shell)).foreach(locationField.setValue)
           case None ⇒
             log.fatal("Unable to find shell for widget " + widget)
         }

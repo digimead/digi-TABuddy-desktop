@@ -169,6 +169,9 @@ class Core extends akka.actor.Actor with Loggable {
       case Some(service) ⇒ log.debug("Register TA Buddy Desktop application entry point service as: " + service)
       case None ⇒ log.error("Unable to register TA Buddy Desktop application entry point service.")
     }
+    // Initialize lazy actors before application will be started.
+    Core.actor
+    consoleRef
     self ! App.Message.Consistent(Core, None)
   } finally App.watch(context).on() // Send notice to Activator that initialization is complete.
   /** Invoked when application started. */
@@ -176,9 +179,6 @@ class Core extends akka.actor.Actor with Loggable {
     App.watch(Core) on {
       self ! App.Message.Inconsistent(Core, None)
       App.verifyApplicationEnvironment
-      // Initialize lazy actors.
-      Core.actor
-      consoleRef
       // Wait for translationService
       NLS.translationService
       // Translate all messages
@@ -202,6 +202,9 @@ class Core extends akka.actor.Actor with Loggable {
       command.Commands.unconfigure()
       if (App.isUIAvailable)
         Core.DI.approvers.foreach(Operation.history.removeOperationApprover)
+      val lost = inconsistentSet - Core
+      if (lost.nonEmpty)
+        log.debug("Inconsistent elements: " + lost)
       Console ! Console.Message.Notice("Core component is stopped.")
     }
   }

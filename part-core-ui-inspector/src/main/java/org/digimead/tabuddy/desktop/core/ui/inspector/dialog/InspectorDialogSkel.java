@@ -126,6 +126,8 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 		treeViewer = new TreeViewer(composite, SWT.BORDER);
 		treeViewer.setUseHashlookup(true);
 		Tree tree = treeViewer.getTree();
+		tree.setLinesVisible(true);
+		tree.setHeaderVisible(true);
 		tree.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 4));
 
 		btnReset = new Button(composite, SWT.NONE);

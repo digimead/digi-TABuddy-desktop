@@ -52,7 +52,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
 import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeHSash, SCompositeTab, SCompositeVSash, VComposite, VEmpty }
-import org.digimead.tabuddy.desktop.core.ui.view.ViewDefault
+import org.digimead.tabuddy.desktop.core.ui.view.defaultv
 import org.eclipse.swt.widgets.{ Composite, Shell, Widget }
 import org.osgi.framework.wiring.BundleWiring
 import scala.language.implicitConversions
@@ -201,7 +201,7 @@ object StackConfiguration {
     lazy val configurationExtenstion = injectOptional[String]("Core.UI.StackConfiguration.Extension") getOrElse "jblob"
     /** Default window configuration. */
     lazy val default = injectOptional[StackConfiguration.Builder]("Core.UI.StackConfiguration.Default") getOrElse {
-      () ⇒ Configuration(Configuration.CView(ViewDefault.factory.configuration))
+      () ⇒ Configuration(Configuration.CView(defaultv.View.factory.configuration))
     }
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()

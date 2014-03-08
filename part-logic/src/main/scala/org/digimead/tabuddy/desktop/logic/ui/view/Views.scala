@@ -41,13 +41,42 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui
+package org.digimead.tabuddy.desktop.logic.ui.view
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.digi.lib.DependencyInjection
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.ui.Resources
+import scala.language.implicitConversions
 
-package object view {
-  lazy val default = new NewBindingModule(module ⇒ {})
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.view.console.View$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.view.defaultv.View$DI$")
+/**
+ * Configurator responsible for configure/unconfigure application views.
+ */
+class Views extends Loggable {
+  private val lock = new Object
+  /** Configure component views. */
+  @log
+  def configure() = lock.synchronized {
+    Resources.registerViewFactory(graph.View.factory, false)
+  }
+  /** Unconfigure component views. */
+  @log
+  def unconfigure() = lock.synchronized {
+    Resources.unregisterViewFactory(graph.View.factory)
+  }
+}
+
+object Views {
+  implicit def configurator2implementation(c: Views.type): Views = c.inner
+
+  /** Views implementation. */
+  def inner(): Views = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Views implementation. */
+    lazy val implementation = injectOptional[Views] getOrElse new Views
+  }
 }

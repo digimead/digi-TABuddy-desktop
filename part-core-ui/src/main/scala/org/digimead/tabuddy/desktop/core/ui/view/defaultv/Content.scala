@@ -79,9 +79,9 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
   /** About original size. */
   val aboutOriginalSize = new AtomicReference(default)
   /** Default element size. */
-  lazy val default = new Point(8, 8)
+  lazy val default = new Point(mininumSize, mininumSize)
   /** Element minimum size. */
-  val mininumSize = 16
+  lazy val mininumSize = 16
   /** Quotation composite with FX canvas. */
   val quotationComposite = new FXCanvas(getCompositeQuotation(), SWT.NONE, false)
   /** Quotation original size. */

@@ -89,7 +89,15 @@ class ViewContentBuilder extends VComposite.ContextSetter with Loggable {
     log.debug(s"Build ${configuration}.")
     App.assertEventThread(false)
     val viewContext = pAppContext.createChild(viewName): Context.Rich
-    Command.addToContext(viewContext, CommandViewClose.parser)
+    val resultOfAddToContext = try { Command.addToContext(viewContext, CommandViewClose.parser); None }
+    catch { case e: IllegalArgumentException ⇒ Some(e) }
+    // Application may be closed
+    resultOfAddToContext.foreach { error ⇒
+      log.debug("Cancel view creation: " + error.getMessage())
+      pAppContext.removeChild(viewContext)
+      viewContext.dispose()
+      return None
+    }
     val view = parentActorContext.actorOf(View.props.copy(args = immutable.Seq(configuration.id, viewContext: Context.Rich)), viewName)
     // Block until view is created.
     Await.result(view ? App.Message.Create(View.<>(configuration, pWidget, content), parentActorContext.self), timeout.duration) match {

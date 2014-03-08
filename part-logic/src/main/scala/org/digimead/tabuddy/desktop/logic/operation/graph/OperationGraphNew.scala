@@ -45,16 +45,16 @@ package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.CancellationException
+import java.util.concurrent.{ CancellationException, ExecutionException }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.{ UI, Wizards }
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.core.ui.{ UI, Wizards }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
@@ -83,7 +83,7 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
     val marker = if (interactive)
       UI.getActiveShell match {
         case Some(shell) ⇒
-          App.execNGet {
+          try App.execNGet {
             Wizards.open("org.digimead.tabuddy.desktop.logic.ui.wizard.WizardGraphNew", shell, Some(name, location)) match {
               case marker: GraphMarker ⇒
                 if (!marker.markerIsValid)
@@ -94,7 +94,8 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
               case other ⇒
                 throw new IllegalStateException(s"Unable to create new graph. Result ${other}.")
             }
-          }
+          }(App.LongRunnable)
+          catch { case e: ExecutionException if e.getCause() != null ⇒ throw e.getCause() }
         case None ⇒
           throw new IllegalStateException("Unable to create new graph dialog without parent shell.")
       }
@@ -149,8 +150,9 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
-        case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to create new graph.", e)
+        case e: CancellationException ⇒ Operation.Result.Cancel()
+        case e: RuntimeException ⇒ Operation.Result.Error(e.getMessage(), e)
+        case e: Throwable ⇒ Operation.Result.Error(s"Unable to create new graph.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =

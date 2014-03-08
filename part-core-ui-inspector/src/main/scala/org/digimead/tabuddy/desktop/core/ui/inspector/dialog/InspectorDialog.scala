@@ -51,13 +51,13 @@ import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, VComposite, WComposite }
 import org.eclipse.e4.core.contexts.IEclipseContext
-import org.eclipse.jface.viewers.{ ArrayContentProvider, DoubleClickEvent, IDoubleClickListener, ISelectionChangedListener, IStructuredSelection, ITableLabelProvider, ITreeContentProvider, LabelProvider, SelectionChangedEvent, TreeViewer, Viewer }
+import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnLabelProvider, DoubleClickEvent, IDoubleClickListener, ISelectionChangedListener, IStructuredSelection, ITableLabelProvider, ITreeContentProvider, LabelProvider, SelectionChangedEvent, TreeViewer, TreeViewerColumn, Viewer }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StackLayout
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionEvent, SelectionListener }
 import org.eclipse.swt.graphics.{ Color, Image }
 import org.eclipse.swt.layout.{ FillLayout, FormLayout, GridLayout, RowLayout }
-import org.eclipse.swt.widgets.{ Composite, Control, Shell, ToolTip, Widget }
+import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, ToolTip, TreeItem, Widget }
 
 /**
  * Inspector dialog implementation.
@@ -90,6 +90,7 @@ class InspectorDialog @Inject() (
    */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
+    getShell.setText("Inspector")
     getBtnRefresh().addSelectionListener(new SelectionListener() {
       def widgetSelected(event: SelectionEvent) = InspectorDialog.this.refresh()
       def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
@@ -99,7 +100,21 @@ class InspectorDialog @Inject() (
       def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
     })
     val treeViewer = getTreeViewer()
-    treeViewer.setLabelProvider(new InspectorDialog.TreeLabelProvider)
+    val column1 = new TreeViewerColumn(treeViewer, SWT.LEFT)
+    column1.getColumn().setText("Widget")
+    column1.getColumn().pack()
+    column1.setLabelProvider(new InspectorDialog.WigdetLabelProvider)
+    val column2 = new TreeViewerColumn(treeViewer, SWT.LEFT)
+    column2.getColumn().setText("Default size")
+    column2.getColumn().pack()
+    column2.setLabelProvider(new InspectorDialog.SizeLabelProvider)
+    val autoResizeListener = new Listener() {
+      override def handleEvent(e: Event) = e.item match {
+        case treeItem: TreeItem ⇒ App.exec { for (tc ← treeItem.getParent().getColumns()) tc.pack() }
+      }
+    }
+    treeViewer.getTree().addListener(SWT.Collapse, autoResizeListener)
+    treeViewer.getTree().addListener(SWT.Expand, autoResizeListener)
     treeViewer.setContentProvider(new InspectorDialog.TreeContentProvider)
     treeViewer.addSelectionChangedListener(new ISelectionChangedListener() {
       def selectionChanged(e: SelectionChangedEvent) = e.getSelection() match {
@@ -157,7 +172,7 @@ class InspectorDialog @Inject() (
   protected def decorateControl(control: Control, colorIndex: Int = 0) {
     if (control.getData(InspectorDialog.swtBackgroundId) != null)
       return
-    val index = ((colorIndex + 1) % colors.size) - 1
+    val index = colorIndex % colors.size
     control.setData(InspectorDialog.swtBackgroundId, control.getBackground())
     control.setBackground(colors(index))
     control.setData(InspectorDialog.swtToolTipId, control.getToolTipText())
@@ -367,16 +382,18 @@ object InspectorDialog {
     }
   }
   /**
-   * InspectorDialog tree label provider.
+   * InspectorDialog widget column label provider.
    */
-  class TreeLabelProvider extends LabelProvider {
-    override def getImage(element: AnyRef): Image = {
-      return super.getImage(element);
-    }
-    override def getText(element: AnyRef): String = {
-      return super.getText(element);
+  class SizeLabelProvider extends ColumnLabelProvider {
+    override def getText(element: AnyRef) = element match {
+      case element: Control ⇒ element.computeSize(SWT.DEFAULT, SWT.DEFAULT).toString()
+      case element ⇒ "unknown"
     }
   }
+  /**
+   * InspectorDialog widget column label provider.
+   */
+  class WigdetLabelProvider extends ColumnLabelProvider
   /**
    * InspectorDialog tree content provider.
    */

@@ -43,15 +43,14 @@
 
 package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
-import akka.actor.ActorRef
+import akka.actor.{ ActorRef, actorRef2Scala }
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.Configuration
-import org.digimead.tabuddy.desktop.core.ui.block.View
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, View }
+import org.eclipse.e4.core.di.InjectionException
 import org.eclipse.swt.custom.ScrolledComposite
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.widgets.Composite
 import scala.collection.mutable
 
@@ -74,7 +73,10 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
   protected def initialize() {
     addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
-        VComposite.contextMap.remove(VComposite.this).foreach(_.dispose())
+        VComposite.contextMap.remove(VComposite.this).foreach { context ⇒
+          try context.dispose()
+          catch { case e: InjectionException ⇒ context.dispose() } // Yes, there is a bug in org.eclipse.e4.core.internal.contexts.EclipseContext.dispose
+        }
         viewRemoveFromCommonMap()
         ref ! App.Message.Destroy(None, ref)
       }

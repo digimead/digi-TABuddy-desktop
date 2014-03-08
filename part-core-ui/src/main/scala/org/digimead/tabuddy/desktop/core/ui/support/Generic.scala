@@ -75,7 +75,7 @@ trait Generic {
   }
   /** Find SWT widget shell. */
   def findShell(widget: Widget): Option[Shell] = {
-    if (widget == null)
+    if (widget == null || widget.isDisposed())
       return None
     widget match {
       case shell: Shell ⇒ Option(shell)
@@ -106,7 +106,7 @@ trait Generic {
   }
   /** Find SWT widget parent. */
   def findParent(widget: Widget): Option[Composite] = {
-    if (widget == null)
+    if (widget == null || widget.isDisposed())
       return None
     widget match {
       case shell: Shell ⇒ Option(shell.getParent())

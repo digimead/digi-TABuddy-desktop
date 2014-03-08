@@ -191,6 +191,9 @@ class UI extends akka.actor.Actor with Loggable {
       self ! App.Message.Inconsistent(UI, None)
       command.Commands.unconfigure()
       view.Views.unconfigure()
+      val lost = inconsistentSet - UI
+      if (lost.nonEmpty)
+        log.fatal("Inconsistent elements detected: " + lost)
       Console ! Console.Message.Notice("UI component is stopped.")
       val fxStopLatch = new CountDownLatch(1)
       // Java FX platform restart routine is absent. :-) Say hello to Java FX designers.

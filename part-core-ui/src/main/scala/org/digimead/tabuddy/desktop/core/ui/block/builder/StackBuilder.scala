@@ -65,30 +65,29 @@ class StackBuilder extends Loggable {
       case tab: Configuration.Stack.CTab ⇒
         val (tabComposite, containers) = App.execNGet { StackTabBuilder(tab, parentWidget, stackActorContext.self) }
         // Attach list of Configuration.View(from tab.children) to ScrolledComposite(from containers)
-        val tabs = for { (container, viewConfiguration) ← containers zip tab.children } yield {
-          ViewContentBuilder.container(viewConfiguration, container, parentContext, stackActorContext, None) match {
-            case result @ Some(viewWidget) ⇒
-              App.execNGet {
-                // Adjust tab.
-                tabComposite.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
-                  case Some(tabItem) ⇒
-                    container.setContent(viewWidget)
-                    container.setMinSize(viewWidget.computeSize(SWT.DEFAULT, SWT.DEFAULT))
-                    container.layout(true)
-                    Some(viewWidget)
-                  case None ⇒
-                    log.fatal(s"CTabItem for ${viewConfiguration} in ${tabComposite} not found.")
-                    None
-                }
-              }
-              result
-            case None ⇒
-              None
-          }
-        }
+        val content = for { (container, viewConfiguration) ← containers zip tab.children }
+          yield (container, viewConfiguration, ViewContentBuilder.container(viewConfiguration, container, parentContext, stackActorContext, None))
         App.execNGet {
+          content.foreach {
+            case (container, viewConfiguration, Some(viewWidget)) ⇒
+              // Adjust tab.
+              tabComposite.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
+                case Some(tabItem) ⇒
+                  container.setContent(viewWidget)
+                  val minimum = viewWidget.computeSize(SWT.DEFAULT, SWT.DEFAULT)
+                  log.debug(s"Set minimum size to ${minimum} for ${viewConfiguration}.")
+                  container.setMinSize(minimum)
+                  container.layout(true)
+                case None ⇒
+                  log.fatal(s"CTabItem for ${viewConfiguration} in ${tabComposite} not found.")
+              }
+            case (container, viewConfiguration, None) ⇒
+              log.fatal(s"Drop ${viewConfiguration} for ${container}.")
+          }
           parentWidget.setContent(tabComposite)
-          parentWidget.setMinSize(tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+          val minimum = tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT)
+          log.debug(s"Set minimum size to ${minimum} for STabComposite.")
+          parentWidget.setMinSize(minimum)
           parentWidget.setExpandHorizontal(true)
           parentWidget.setExpandVertical(true)
           parentWidget.layout(true)

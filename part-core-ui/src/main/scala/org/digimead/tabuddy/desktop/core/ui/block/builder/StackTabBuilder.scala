@@ -106,7 +106,9 @@ class StackTabBuilder extends Loggable {
           container.getChildren().headOption match {
             case Some(vComposite: VComposite) ⇒
               container.setContent(vComposite)
-              container.setMinSize(vComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT))
+              val minimum = vComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT)
+              log.debug(s"Set minimum size to ${minimum} for ${viewConfiguration}.")
+              container.setMinSize(minimum)
               container.layout(true)
             case unexpected ⇒
               throw new IllegalStateException(s"Incorrect ScrolledComposite content ${unexpected}.")

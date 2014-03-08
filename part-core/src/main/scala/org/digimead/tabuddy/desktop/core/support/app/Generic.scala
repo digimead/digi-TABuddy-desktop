@@ -69,8 +69,8 @@ trait Generic extends EventLoop.Consumer {
   protected lazy val preferenceStore = new ScopedPreferenceStore(InstanceScope.INSTANCE, bundle(getClass).getSymbolicName())
   /** Flag indicating whether UI available. */
   lazy val isUIAvailable = try {
-    val state = bundle(Class.forName("org.digimead.tabuddy.desktop.core.ui.Activator")).getState()
-    watch(UIFlag).waitForStart(Timeout.short); isActive(UIFlag)
+    watch(UIFlag).waitForStart(Timeout.short)
+    isActive(UIFlag)
   } catch {
     case e: TimeoutException ⇒ false
     case e: ClassNotFoundException ⇒ false
@@ -100,7 +100,8 @@ trait Generic extends EventLoop.Consumer {
   /** Get development mode flag. */
   def isDevelopmentMode: Boolean =
     // Get developmentMode AtomicBoolean from org.digimead.digi.launcher.RootClassLoader
-    bundle(getClass()).getClass().getClassLoader().asInstanceOf[{ val developmentMode: AtomicBoolean }].developmentMode.get
+    try bundle(getClass()).getClass().getClassLoader().asInstanceOf[{ val developmentMode: AtomicBoolean }].developmentMode.get
+    catch { case e: NoSuchMethodException ⇒ true } // This is not a RootClassLoader
 
   /** Check the current thread against the event one. */
   def isEventLoop() = thread.eq(Thread.currentThread())

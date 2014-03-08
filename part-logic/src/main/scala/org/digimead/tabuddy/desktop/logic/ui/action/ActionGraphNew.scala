@@ -43,39 +43,56 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.action
 
-import java.util.UUID
+import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.block.Configuration
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
+import org.digimead.tabuddy.desktop.logic.ui.view
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
-import org.eclipse.jface.action.IAction
-import org.eclipse.swt.widgets.Event
-import akka.actor.Props
-import org.digimead.tabuddy.desktop.logic.Messages
-import org.eclipse.ui.internal.WorkbenchImages
-import org.eclipse.ui.internal.IWorkbenchGraphicConstants
-import javax.inject.Inject
-import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
 
 /**
  * Create new graph.
  */
 class ActionGraphNew @Inject() (windowContext: Context) extends JFaceAction(Messages.newFile_text) with Loggable {
   @log
-  override def run = OperationGraphNew(None, None, true).foreach { operation ⇒
+  override def run {
+    val appWindow = windowContext.get(classOf[AppWindow])
+    OperationViewCreate(appWindow.id, Configuration.CView(view.graph.View.factory.configuration)).foreach { operation ⇒
+      operation.getExecuteJob() match {
+        case Some(job) ⇒
+          job.setPriority(Job.LONG)
+          job.onComplete(_ match {
+            case Operation.Result.OK(Some(viewId), message) ⇒ UI.viewMap.get(viewId).map(onViewCreated)
+            case _ ⇒
+          }).schedule()
+        case None ⇒
+          log.fatal(s"Unable to create job for ${operation}.")
+      }
+    }
+  }
+  def onViewCreated(view: VComposite) = OperationGraphNew(None, None, true).foreach { operation ⇒
     operation.getExecuteJob() match {
       case Some(job) ⇒
         job.setPriority(Job.LONG)
-        job.schedule()
+        job.onComplete(_ match {
+          case Operation.Result.OK(Some(graph: Graph[Model.Like]), message) ⇒ onGraphCreated(view, graph)
+          case _ ⇒ App.exec { view.dispose() }
+        }).schedule()
       case None ⇒
         throw new RuntimeException(s"Unable to create job for ${operation}.")
     }
+  }
+  def onGraphCreated(view: VComposite, graph: Graph[_ <: Model.Like]) {
+    view.contentRef ! App.Message.Set(Some(graph))
   }
 }

@@ -41,13 +41,40 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui
+package org.digimead.tabuddy.desktop.logic.ui.wizard
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.digi.lib.DependencyInjection
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.ui.Resources
+import scala.language.implicitConversions
 
-package object view {
-  lazy val default = new NewBindingModule(module ⇒ {})
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.view.console.View$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.view.defaultv.View$DI$")
+/**
+ * The configurator is responsible for configure/unconfigure logic wizards.
+ */
+class Wizards extends Loggable {
+  /** Configure component wizards. */
+  @log
+  def configure() {
+    Resources.registerWizard(classOf[WizardGraphNew])
+  }
+  @log /** Unconfigure component wizards. */
+  def unconfigure() {
+    Resources.unregisterWizard(classOf[WizardGraphNew])
+  }
+}
+
+object Wizards {
+  implicit def wizards2implementation(w: Wizards.type): Wizards = w.inner
+
+  /** Wizards implementation. */
+  def inner(): Wizards = DI.implementation
+
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** Wizards implementation */
+    lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
+  }
 }

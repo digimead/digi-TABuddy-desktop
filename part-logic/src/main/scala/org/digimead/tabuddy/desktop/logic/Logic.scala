@@ -201,20 +201,23 @@ class Logic extends akka.actor.Actor with Loggable {
       command.Commands.unconfigure()
       Config.stop(context)
       closeContainer()
-      if (inconsistentSet.nonEmpty)
-        log.fatal("Inconsistent elements detected: " + inconsistentSet)
+      val lost = inconsistentSet - Logic
+      if (lost.nonEmpty)
+        log.fatal("Inconsistent elements detected: " + lost)
       Console ! Console.Message.Notice("Logic component is stopped.")
     }
   }
   /** This callback is invoked when GUI is valid. */
   @log
   protected def onGUIStarted() = initializationLock.synchronized {
-    ui.Wizards.configure()
+    ui.wizard.Wizards.configure()
+    ui.view.Views.configure()
   }
   /** This callback is invoked when GUI is invalid. */
   @log
   protected def onGUIStopped() = initializationLock.synchronized {
-    ui.Wizards.unconfigure()
+    ui.view.Views.unconfigure()
+    ui.wizard.Wizards.unconfigure()
   }
 }
 
