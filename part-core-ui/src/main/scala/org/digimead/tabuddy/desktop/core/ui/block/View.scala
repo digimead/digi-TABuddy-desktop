@@ -299,6 +299,8 @@ object View extends Loggable {
     val longDescription: String
     /** View image. */
     val image: Option[Image]
+    /** Features. */
+    val features: Seq[String]
     /** Factory view title synchronizer. */
     val titleSynchronizer = new TitleSynchronizer
     /** All available content contexts for this factory Actor name -> (counter, content context). */

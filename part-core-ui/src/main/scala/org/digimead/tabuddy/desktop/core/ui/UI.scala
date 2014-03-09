@@ -260,6 +260,9 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
   private def explicitToggleState: ToggleState = ???
   private def explicitCanvas: Canvas = ???
 
+  /**
+   * List of predefined identifiers that are used as context keys.
+   */
   object Id {
     /** Value with view title [String]. */
     final val contentTitle = "org.digimead.tabuddy.desktop.core.ui/contentTitle"

@@ -43,42 +43,232 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.view.graph
 
-import java.util.concurrent.atomic.AtomicReference
-import javafx.animation.{ FadeTransition, FadeTransitionBuilder }
-import javafx.animation.{ PathTransitionBuilder, Transition }
-import javafx.animation.PathTransition.OrientationType
-import javafx.beans.value.{ ChangeListener, ObservableValue }
-import javafx.event.{ ActionEvent, EventHandler }
-import javafx.geometry.VPos
-import javafx.scene.{ Group, Scene }
-import javafx.scene.effect.DropShadow
-import javafx.scene.layout.{ HBox, Pane, VBox }
-import javafx.scene.paint.Color
-import javafx.scene.shape.Rectangle
-import javafx.scene.text.{ Font, FontPosture, FontWeight, Text, TextAlignment, TextBuilder }
-import javafx.util.Duration
-import org.digimead.digi.lib.jfx4swt.FXCanvas
+import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Report
-import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.operation.OperationInfo
+import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.{ ResourceManager, UI }
+import org.digimead.tabuddy.desktop.core.ui.Resources
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.block.Configuration
+import org.digimead.tabuddy.desktop.core.ui.block.View.Factory
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.swt.SWT
-import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.layout.{ FormAttachment, FormData, GridData, GridLayout }
-import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.viewers.{ ColumnLabelProvider, ISelectionChangedListener, IStructuredContentProvider, IStructuredSelection, SelectionChangedEvent, Viewer, ViewerFilter }
+import org.eclipse.swt.events.{ SelectionAdapter, SelectionEvent }
+import org.eclipse.swt.widgets.Composite
 
 /**
  * Graph content.
  */
-class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(parent, style) with Loggable {
+class Content(val context: Context, parent: Composite, style: Int) extends ContentSkel(parent, style) with Loggable {
+  ContextInjectionFactory.inject(Content.this, context)
+
   def initializeJFX() {
   }
   def initializeSWT() {
+    /*
+     * Table with active elements.
+     */
+    val tableViewerActive = getTableViewerActive()
+    tableViewerActive.setContentProvider(Content.ContentProvider)
+    val tableViewerColumnActiveNames = getTableViewerColumnActiveNames()
+    tableViewerActive.addFilter(Content.ActiveFilter)
+    tableViewerColumnActiveNames.setLabelProvider(new Content.NameLabelProvider())
+    val tableViewerColumnActiveCount = getTableViewerColumnActiveCount()
+    tableViewerColumnActiveCount.setLabelProvider(new Content.NestedLabelProvider(this))
+    tableViewerActive.addSelectionChangedListener(new ISelectionChangedListener() {
+      def selectionChanged(e: SelectionChangedEvent) = e.getSelection() match {
+        case iStructuredSelection: IStructuredSelection ⇒
+          iStructuredSelection.getFirstElement() match {
+            case factory: Factory ⇒ getBtnCloseGroup().setEnabled(true)
+            case _ ⇒ getBtnCloseGroup().setEnabled(false)
+          }
+        case _ ⇒ getBtnCloseGroup().setEnabled(false)
+      }
+    })
+    /*
+     * Table with available elements.
+     */
+    val tableViewerAvailable = getTableViewerAvailable()
+    tableViewerAvailable.setContentProvider(Content.ContentProvider)
+    val tableViewerColumnAvailableName = getTableViewerColumnAvailableName()
+    tableViewerColumnAvailableName.setLabelProvider(new Content.NameLabelProvider())
+    val tableViewerColumnAvailableCount = getTableViewerColumnAvailableCount()
+    tableViewerColumnAvailableCount.setLabelProvider(new Content.TotalLabelProvider())
+    tableViewerAvailable.addSelectionChangedListener(new ISelectionChangedListener() {
+      def selectionChanged(e: SelectionChangedEvent) = e.getSelection() match {
+        case iStructuredSelection: IStructuredSelection ⇒
+          iStructuredSelection.getFirstElement() match {
+            case factory: Factory ⇒ getBtnOpenNew().setEnabled(true)
+            case _ ⇒ getBtnOpenNew().setEnabled(false)
+          }
+        case _ ⇒ getBtnOpenNew().setEnabled(false)
+      }
+    })
+    /*
+     * Configure buttons
+     */
+    val btnCloseAll = getBtnCloseAll()
+    btnCloseAll.addSelectionListener(new SelectionAdapter() {
+      override def widgetSelected(event: SelectionEvent) = {
+        val marker = Some(context.get(classOf[GraphMarker]))
+        val widget = event.widget
+        val toCloseRefs = UI.viewMap.filter { case (uuid, vComposite) ⇒ vComposite.getContext().map(_.getActive(classOf[GraphMarker])) == marker }.map(_._2.ref)
+        toCloseRefs.foreach(_ ! App.Message.Destroy())
+      }
+    })
+    val btnCloseGroup = getBtnCloseGroup()
+    btnCloseGroup.setEnabled(false)
+    btnCloseGroup.addSelectionListener(new SelectionAdapter() {
+      override def widgetSelected(event: SelectionEvent) = {
+        val marker = Some(context.get(classOf[GraphMarker]))
+        val widget = event.widget
+        tableViewerActive.getSelection() match {
+          case iStructuredSelection: IStructuredSelection ⇒
+            iStructuredSelection.getFirstElement() match {
+              case factory: Factory ⇒
+                val toCloseRefs = UI.viewMap.filter {
+                  case (uuid, vComposite) ⇒
+                    vComposite.factory.factoryClassName == factory.getClass().getName() &&
+                      vComposite.getContext().map(_.getActive(classOf[GraphMarker])) == marker
+                }.map(_._2.ref)
+                toCloseRefs.foreach(_ ! App.Message.Destroy())
+              case unknown ⇒ log.fatal(s"Unknown selection ${unknown}.")
+            }
+          case unknown ⇒ log.fatal(s"Unknown selection ${unknown}.")
+        }
+      }
+    })
+    val btnOpenNew = getBtnOpenNew()
+    btnOpenNew.setEnabled(false)
+    btnOpenNew.addSelectionListener(new SelectionAdapter() {
+      override def widgetSelected(event: SelectionEvent) = {
+        tableViewerAvailable.getSelection() match {
+          case iStructuredSelection: IStructuredSelection ⇒
+            iStructuredSelection.getFirstElement() match {
+              case factory: Factory ⇒ createView(factory)
+              case unknown ⇒ log.fatal(s"Unknown selection ${unknown}.")
+            }
+          case unknown ⇒ log.fatal(s"Unknown selection ${unknown}.")
+        }
+      }
+    })
   }
-  def graphChanged() {
-    log.___glance("!!!")
+
+  /** Create new view. */
+  protected def createView(factory: Factory) {
+    val marker = Some(context.get(classOf[GraphMarker]))
+    val appWindow = context.get(classOf[AppWindow])
+    OperationViewCreate(appWindow.id, Configuration.CView(factory.configuration)).foreach { operation ⇒
+      operation.getExecuteJob() match {
+        case Some(job) ⇒
+          job.setPriority(Job.LONG)
+          job.onComplete(_ match {
+            case Operation.Result.OK(Some(viewId), message) ⇒ UI.viewMap.get(viewId).map(onViewCreated)
+            case _ ⇒
+          }).schedule()
+        case None ⇒
+          log.fatal(s"Unable to create job for ${operation}.")
+      }
+    }
+  }
+  /** Assign graph to the new view. */
+  def onViewCreated(view: VComposite) {
+    val marker = context.get(classOf[GraphMarker])
+    view.contentRef ! App.Message.Set(marker)
+  }
+
+  /** Update the content when a graph changed. */
+  @Inject
+  protected def graphChanged(@Optional marker: GraphMarker) = App.exec {
+    Option(marker) match {
+      case Some(marker) ⇒
+        log.debug(s"Set content marker to ${marker}.")
+        getForm().setText(Messages.graphContentTitle.format(marker.graphModelId.name, marker.uuid, marker.graphOrigin.name))
+        context.set(UI.Id.contentTitle, s"${marker.graphModelId.name} by ${marker.graphOrigin.name}")
+        if (getTableViewerActive().getContentProvider() != null && getTableViewerAvailable().getContentProvider() != null) {
+          val graphViews = Resources.factories.keys.filter(_.features.contains(Logic.Feature.graph)).toArray.sortBy(_.name.name)
+          getTableViewerActive().setInput(graphViews)
+          getTableViewerAvailable().setInput(graphViews)
+        }
+      case None ⇒
+        log.debug("Reset content marker.")
+        getForm().setText(Messages.graphContentTitleEmpty)
+        context.remove(UI.Id.contentTitle)
+        if (getTableViewerActive().getContentProvider() != null && getTableViewerAvailable().getContentProvider() != null) {
+          getTableViewerActive().setInput(null)
+          getTableViewerAvailable().setInput(null)
+        }
+    }
+    App.execAsync { getForm.getBody().layout(true, true) }
+  }
+}
+
+object Content extends Loggable {
+  /** Pass only active elements. */
+  object ActiveFilter extends ViewerFilter {
+    /** Filters the given elements for the given viewer. The input array is not modified. */
+    def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = element match {
+      case factory: Factory ⇒
+        UI.viewMap.exists { case (uuid, vComposite) ⇒ vComposite.factory.factoryClassName == factory.getClass().getName() }
+      case unknown ⇒
+        log.fatal(s"Unknown element: ${unknown}.")
+        false
+    }
+  }
+  /** Content provider for active and available tables. */
+  object ContentProvider extends IStructuredContentProvider {
+    /** Disposes of this content provider.     */
+    def dispose() {}
+    /** Returns the elements to display in the viewer when its input is set to the given element. */
+    def getElements(inputElement: AnyRef): Array[AnyRef] = inputElement match {
+      case inputElement: Array[AnyRef] ⇒ inputElement
+      case _ ⇒ Array()
+    }
+    /** Notifies this content provider that the given viewer's input has been switched to a different element. */
+    def inputChanged(viewer: Viewer, oldInput: AnyRef, newInput: AnyRef) {}
+  }
+  /** Name label provider. */
+  class NameLabelProvider extends ColumnLabelProvider {
+    /** Returns the text for the label of the given element. */
+    override def getText(element: AnyRef): String = element match {
+      case factory: Factory ⇒
+        factory.name.name
+      case unknown ⇒
+        log.fatal(s"Unknown element: ${unknown}.")
+        super.getText(element)
+    }
+  }
+  /** Nested label provider. */
+  class NestedLabelProvider(content: Content) extends ColumnLabelProvider {
+    /** Returns the text for the label of the given element. */
+    override def getText(element: AnyRef): String = element match {
+      case factory: Factory ⇒
+        val marker = Some(content.context.get(classOf[GraphMarker]))
+        UI.viewMap.filter {
+          case (uuid, vComposite) ⇒
+            vComposite.factory.factoryClassName == factory.getClass().getName() &&
+              vComposite.getContext().map(_.getActive(classOf[GraphMarker])) == marker
+        }.size.toString()
+      case unknown ⇒
+        log.fatal(s"Unknown element: ${unknown}.")
+        super.getText(element)
+    }
+  }
+  /** Total label provider. */
+  class TotalLabelProvider extends ColumnLabelProvider {
+    /** Returns the text for the label of the given element. */
+    override def getText(element: AnyRef): String = element match {
+      case factory: Factory ⇒
+        UI.viewMap.filter { case (uuid, vComposite) ⇒ vComposite.factory.factoryClassName == factory.getClass().getName() }.size.toString()
+      case unknown ⇒
+        log.fatal(s"Unknown element: ${unknown}.")
+        super.getText(element)
+    }
   }
 }

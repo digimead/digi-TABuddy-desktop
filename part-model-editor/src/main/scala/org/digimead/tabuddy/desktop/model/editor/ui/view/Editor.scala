@@ -81,6 +81,7 @@ import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.model.editor.Messages
 import akka.actor.ActorContext
+import org.digimead.tabuddy.desktop.logic.Logic
 
 class Editor(val contentId: UUID) extends Actor with Loggable {
   /** Aggregation listener delay */
@@ -282,6 +283,8 @@ object Editor extends Loggable {
     lazy val longDescription = DI.longDescription
     /** View image. */
     lazy val image = DI.image
+    /** Features. */
+    val features: Seq[String] = Seq(Logic.Feature.graph)
 
     /** Editor view actor reference configuration object. */
     def props = DI.props

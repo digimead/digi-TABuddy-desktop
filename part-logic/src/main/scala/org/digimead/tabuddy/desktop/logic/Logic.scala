@@ -263,6 +263,18 @@ object Logic {
    */
   private def explicitToggleState: ToggleState = ???
 
+  /**
+   * List of predefined identifiers that are used as feature flags.
+   */
+  object Feature {
+    /** Flag indicating whether this view is required a graph argument. */
+    final val graph = "org.digimead.tabuddy.desktop.logic/graph"
+    /** Flag indicating whether this view is using 'view definitions/filters/sortings' [java.lang.Boolean]. */
+    final val viewDefinition = "org.digimead.tabuddy.desktop.logic/viewDefinition"
+  }
+  /**
+   * List of predefined identifiers that are used as context keys.
+   */
   object Id {
     /** Value of the various UI elements with model id [String] value. */
     final val modelIdUserInput = "org.digimead.tabuddy.desktop.logic/modelIdUserInput"
@@ -274,8 +286,6 @@ object Logic {
     final val selectedSorting = "org.digimead.tabuddy.desktop.logic/selectedSorting"
     /** Value of the selected filter ID [UUID]. */
     final val selectedFilter = "org.digimead.tabuddy.desktop.logic/selectedFilter"
-    /** Flag indicating whether this view is using 'view definitions/filters/sortings' [java.lang.Boolean]. */
-    final val featureViewDefinition = "org.digimead.tabuddy.desktop.logic/featureViewDefinition"
   }
   /**
    * Dependency injection routines

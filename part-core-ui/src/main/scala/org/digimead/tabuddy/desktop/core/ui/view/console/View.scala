@@ -86,6 +86,8 @@ object View extends Loggable {
     lazy val longDescription = View.DI.longDescription
     /** View image. */
     lazy val image = View.DI.image
+    /** Features. */
+    val features: Seq[String] = Seq()
 
     /** Default view actor reference configuration object. */
     def props = View.DI.props

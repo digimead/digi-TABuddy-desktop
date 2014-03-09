@@ -54,6 +54,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComp
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.ui.view
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -80,19 +81,19 @@ class ActionGraphNew @Inject() (windowContext: Context) extends JFaceAction(Mess
       }
     }
   }
+  /** Create graph when view is created. */
   def onViewCreated(view: VComposite) = OperationGraphNew(None, None, true).foreach { operation ⇒
     operation.getExecuteJob() match {
       case Some(job) ⇒
         job.setPriority(Job.LONG)
         job.onComplete(_ match {
-          case Operation.Result.OK(Some(graph: Graph[Model.Like]), message) ⇒ onGraphCreated(view, graph)
-          case _ ⇒ App.exec { view.dispose() }
+          case Operation.Result.OK(Some(graph: Graph[Model.Like]), message) ⇒
+            view.contentRef ! App.Message.Set(GraphMarker(graph))
+          case _ ⇒
+            App.exec { view.dispose() }
         }).schedule()
       case None ⇒
         throw new RuntimeException(s"Unable to create job for ${operation}.")
     }
-  }
-  def onGraphCreated(view: VComposite, graph: Graph[_ <: Model.Like]) {
-    view.contentRef ! App.Message.Set(Some(graph))
   }
 }

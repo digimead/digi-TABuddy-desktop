@@ -53,10 +53,13 @@ import org.digimead.tabuddy.desktop.core.ui.block
 import org.digimead.tabuddy.desktop.core.ui.definition.IView
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.core.ui.view.{ Loading, defaultv }
+import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StackLayout
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.widgets.Composite
 
 /**
@@ -70,31 +73,27 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
   log.debug("Start actor " + self.path)
 
   override def receive: Actor.Receive = super.receive orElse {
-    case message @ App.Message.Set(_, Some(graph: Graph[_])) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Set(_, marker: GraphMarker) ⇒ App.traceMessage(message) {
       if (terminated)
         App.Message.Error(s"${this} is terminated.", self)
       else
-        App.exec { assignGraph(graph) }
-    }
-    case message @ App.Message.Set(_, None) ⇒ App.traceMessage(message) {
-      if (terminated)
-        App.Message.Error(s"${this} is terminated.", self)
-      else
-        body.foreach(body ⇒ App.exec { body.dispose() })
+        App.exec { assignGraphMarker(marker) }
     }
   }
 
-  /** Assign graph to view. */
-  protected def assignGraph(graph: Graph[_ <: Model.Like]) = for {
+  /** Assign graph marker to view. */
+  protected def assignGraphMarker(marker: GraphMarker) = for {
     body ← body
     content ← content
-    loading ← loading
     layout = body.getLayout().asInstanceOf[StackLayout]
   } {
     layout.topControl = content
     body.layout()
-    content.graphChanged()
-    loading.dispose()
+    loading.foreach { loading ⇒
+      View.this.loading = None
+      loading.dispose()
+    }
+    viewContext.set(classOf[GraphMarker], marker)
   }
   /** Creates and returns this window's contents. */
   protected def createContents(parent: VComposite): Composite = {
@@ -104,13 +103,19 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
     val loading = new Loading(body, SWT.NONE)
     loading.initializeSWT()
     JFX.exec { loading.initializeJFX() }
-    val content = new Content(body, SWT.NONE)
+    val content = new Content(viewContext, body, SWT.NONE)
     content.initializeSWT()
     JFX.exec { content.initializeJFX() }
     layout.topControl = loading
     body.layout()
     this.content = Some(content)
     this.loading = Some(loading)
+    body.addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) = {
+        View.this.content = None
+        View.this.loading = None
+      }
+    })
     body
   }
 }
@@ -131,6 +136,8 @@ object View extends Loggable {
     lazy val longDescription = "View.DI.longDescription"
     /** View image. */
     lazy val image = defaultv.View.factory.image
+    /** Features. */
+    val features: Seq[String] = Seq(Logic.Feature.graph)
 
     /** Graph view actor reference configuration object. */
     def props = View.DI.props

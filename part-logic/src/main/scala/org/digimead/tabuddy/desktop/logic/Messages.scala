@@ -73,6 +73,8 @@ object Messages extends NLS with Loggable {
   val closeFile_text = ""
   val creationError_text = ""
   val exportFile_text = ""
+  val graphContentTitle = ""
+  val graphContentTitleEmpty = ""
   val graph_closeDescriptionLong_text = ""
   val graph_closeDescriptionShort_text = ""
   val graph_close_text = ""

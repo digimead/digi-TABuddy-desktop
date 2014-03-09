@@ -87,7 +87,7 @@ class ViewToolBarManager @Inject() (windowContext: Context) extends ToolBarManag
   /** Invoked on view activation. */
   @Inject @Optional
   protected def onViewChanged(@Active vComposite: VComposite): Unit = App.exec {
-    visible = vComposite.getContext.exists(_.getLocal(Logic.Id.featureViewDefinition) == java.lang.Boolean.TRUE)
+    visible = vComposite.factory().features.contains(Logic.Feature.viewDefinition)
     contribution.get.foreach(_.setVisible(visible))
     getCoolBarManager.foreach(_.update(true))
   }
