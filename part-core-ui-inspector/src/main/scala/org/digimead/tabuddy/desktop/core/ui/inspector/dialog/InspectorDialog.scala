@@ -51,6 +51,7 @@ import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, VComposite, WComposite }
 import org.eclipse.e4.core.contexts.IEclipseContext
+import org.eclipse.jface.action.{ Action, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnLabelProvider, DoubleClickEvent, IDoubleClickListener, ISelectionChangedListener, IStructuredSelection, ITableLabelProvider, ITreeContentProvider, LabelProvider, SelectionChangedEvent, TreeViewer, TreeViewerColumn, Viewer }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StackLayout
@@ -99,6 +100,9 @@ class InspectorDialog @Inject() (
       def widgetSelected(event: SelectionEvent) = InspectorDialog.this.reset()
       def widgetDefaultSelected(event: SelectionEvent) = widgetSelected(event)
     })
+    /*
+     * tree
+     */
     val treeViewer = getTreeViewer()
     val column1 = new TreeViewerColumn(treeViewer, SWT.LEFT)
     column1.getColumn().setText("Widget")
@@ -107,7 +111,11 @@ class InspectorDialog @Inject() (
     val column2 = new TreeViewerColumn(treeViewer, SWT.LEFT)
     column2.getColumn().setText("Default size")
     column2.getColumn().pack()
-    column2.setLabelProvider(new InspectorDialog.SizeLabelProvider)
+    column2.setLabelProvider(new InspectorDialog.SizeLabelProvider(true))
+    val column3 = new TreeViewerColumn(treeViewer, SWT.LEFT)
+    column3.getColumn().setText("Minimum size")
+    column3.getColumn().pack()
+    column3.setLabelProvider(new InspectorDialog.SizeLabelProvider(false))
     val autoResizeListener = new Listener() {
       override def handleEvent(e: Event) = e.item match {
         case treeItem: TreeItem ⇒ App.exec { for (tc ← treeItem.getParent().getColumns()) tc.pack() }
@@ -145,6 +153,31 @@ class InspectorDialog @Inject() (
         doubleClickTreeElement(selectedNode)
       }
     })
+    // tree menu
+    val menuMgr = new MenuManager("#PopupMenu")
+    menuMgr.setRemoveAllWhenShown(true)
+    menuMgr.addMenuListener(new IMenuListener() {
+      override def menuAboutToShow(manager: IMenuManager) = treeViewer.getSelection() match {
+        case iStructuredSelection: IStructuredSelection ⇒
+          iStructuredSelection.getFirstElement() match {
+            case composite: Composite ⇒
+              manager.add(new Action("Locate") { override def run = doubleClickTreeElement(iStructuredSelection.getFirstElement()) })
+              manager.add(new Action("Call computeSize def") { override def run = composite.computeSize(SWT.DEFAULT, SWT.DEFAULT) })
+              manager.add(new Action("Call computeSize min") { override def run = composite.computeSize(1, 1) })
+              manager.add(new Action("Pack") { override def run = composite.pack() })
+              manager.add(new Action("Layout") { override def run = composite.layout() })
+              manager.add(new Action("Update") { override def run = composite.update() })
+              manager.add(new Action("Redraw") { override def run = composite.redraw() })
+            case _ ⇒
+          }
+        case _ ⇒
+      }
+    })
+    val menu = menuMgr.createContextMenu(treeViewer.getTree())
+    treeViewer.getTree().setMenu(menu)
+    /*
+     * table
+     */
     val tableViewer = getTableViewer()
     tableViewer.setContentProvider(ArrayContentProvider.getInstance())
     tableViewer.setLabelProvider(new InspectorDialog.TableLabelProvider())
@@ -384,9 +417,13 @@ object InspectorDialog {
   /**
    * InspectorDialog widget column label provider.
    */
-  class SizeLabelProvider extends ColumnLabelProvider {
+  class SizeLabelProvider(val default: Boolean) extends ColumnLabelProvider {
     override def getText(element: AnyRef) = element match {
-      case element: Control ⇒ element.computeSize(SWT.DEFAULT, SWT.DEFAULT).toString()
+      case element: Control ⇒
+        if (default)
+          element.computeSize(SWT.DEFAULT, SWT.DEFAULT).toString()
+        else
+          element.computeSize(1, 1).toString()
       case element ⇒ "unknown"
     }
   }

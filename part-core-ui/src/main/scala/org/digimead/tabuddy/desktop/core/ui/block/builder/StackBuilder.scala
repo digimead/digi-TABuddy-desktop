@@ -74,7 +74,7 @@ class StackBuilder extends Loggable {
               tabComposite.getItems().find { item ⇒ item.getData(UI.swtId) == viewConfiguration.id } match {
                 case Some(tabItem) ⇒
                   container.setContent(viewWidget)
-                  val minimum = viewWidget.computeSize(SWT.DEFAULT, SWT.DEFAULT)
+                  val minimum = viewWidget.computeSize(UI.DEFAULT_WIDTH, UI.DEFAULT_HEIGHT)
                   log.debug(s"Set minimum size to ${minimum} for ${viewConfiguration}.")
                   container.setMinSize(minimum)
                   container.layout(true)
@@ -85,7 +85,7 @@ class StackBuilder extends Loggable {
               log.fatal(s"Drop ${viewConfiguration} for ${container}.")
           }
           parentWidget.setContent(tabComposite)
-          val minimum = tabComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT)
+          val minimum = tabComposite.computeSize(UI.DEFAULT_WIDTH, UI.DEFAULT_HEIGHT)
           log.debug(s"Set minimum size to ${minimum} for STabComposite.")
           parentWidget.setMinSize(minimum)
           parentWidget.setExpandHorizontal(true)

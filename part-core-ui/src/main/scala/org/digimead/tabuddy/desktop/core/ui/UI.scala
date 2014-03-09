@@ -240,6 +240,10 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
   def closeWindowWithLastView = DI.closeWindowWithLastView
   /** Communication timeout for rapid requests with Akka 'await' or similar pattern. */
   def communicationTimeout = DI.communicationTimeout
+  /** Widget default(minimum) height. */
+  def DEFAULT_HEIGHT = DI.defaultHeight
+  /** Widget default(minimum) width. */
+  def DEFAULT_WIDTH = DI.defaultWidth
   /** UI focus timeout for start/stop event. */
   def focusTimeout = DI.focusTimeout
   /** Stop event loop when last window is closed. */
@@ -274,6 +278,10 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
     lazy val closeWindowWithLastView = injectOptional[Boolean]("Core.UI.closeWindowWithLastView") getOrElse true
     /** Communication timeout for rapid requests with Akka 'await' or similar pattern. */
     lazy val communicationTimeout = injectOptional[FiniteDuration]("Core.UI.communicationTimeout") getOrElse Timeout.short
+    /** Widget default(minimum) height. */
+    lazy val defaultHeight = injectOptional[Int]("Core.UI.defaultHeight") getOrElse 64
+    /** Widget default(minimum) width. */
+    lazy val defaultWidth = injectOptional[Int]("Core.UI.defaultWidth") getOrElse 64
     /** UI focus timeout for start/stop event. */
     lazy val focusTimeout = injectOptional[FiniteDuration]("Core.UI.focusTimeout") getOrElse Duration(200, TimeUnit.MILLISECONDS)
     /** UI actor reference configuration object. */

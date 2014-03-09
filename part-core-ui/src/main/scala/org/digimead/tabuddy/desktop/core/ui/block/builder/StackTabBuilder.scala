@@ -92,6 +92,8 @@ class StackTabBuilder extends Loggable {
     scroll.setLayout(new GridLayout)
     scroll.setExpandHorizontal(true)
     scroll.setExpandVertical(true)
+    scroll.setMinWidth(UI.DEFAULT_WIDTH)
+    scroll.setMinHeight(UI.DEFAULT_HEIGHT)
     scroll
   }
   /** Adjust CTabItem. */
@@ -106,7 +108,7 @@ class StackTabBuilder extends Loggable {
           container.getChildren().headOption match {
             case Some(vComposite: VComposite) ⇒
               container.setContent(vComposite)
-              val minimum = vComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT)
+              val minimum = vComposite.computeSize(UI.DEFAULT_WIDTH, UI.DEFAULT_HEIGHT)
               log.debug(s"Set minimum size to ${minimum} for ${viewConfiguration}.")
               container.setMinSize(minimum)
               container.layout(true)
