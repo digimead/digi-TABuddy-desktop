@@ -54,8 +54,14 @@ import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.api.OperationApprover
 import org.digimead.tabuddy.desktop.core.support.App
+import org.eclipse.e4.core.contexts.IEclipseContext
+import org.eclipse.e4.ui.internal.workbench.swt.E4Application
+import org.eclipse.e4.ui.model.application.MApplication
+import org.eclipse.swt.widgets.Display
+import org.eclipse.ui.PlatformUI
+import org.eclipse.ui.application.WorkbenchAdvisor
+import org.eclipse.ui.internal.Workbench
 import org.osgi.framework.{ BundleContext, BundleEvent, BundleListener, ServiceRegistration }
-import scala.concurrent.Future
 import scala.language.implicitConversions
 
 /**
@@ -66,6 +72,7 @@ class Core extends akka.actor.Actor with Loggable {
   implicit lazy val ec = App.system.dispatcher
   /** Inconsistent elements. */
   protected var inconsistentSet = Set[AnyRef](Console, Core)
+  /** Application entry point registration. */
   @volatile protected var mainRegistration: Option[ServiceRegistration[api.Main]] = None
   /** Start/stop initialization lock. */
   private val initializationLock = new Object
@@ -178,7 +185,7 @@ class Core extends akka.actor.Actor with Loggable {
   protected def onAppStarted(): Unit = initializationLock.synchronized {
     App.watch(Core) on {
       self ! App.Message.Inconsistent(Core, None)
-      App.verifyApplicationEnvironment
+      App.verifyApplicationEnvironment()
       // Wait for translationService
       NLS.translationService
       // Translate all messages
@@ -188,6 +195,7 @@ class Core extends akka.actor.Actor with Loggable {
         Core.DI.approvers.foreach(Operation.history.addOperationApprover)
       } else
         log.info("Start application without GUI.")
+      adjustWorkbench()
       command.Commands.configure()
       Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
       Console ! App.Message.Start(Console, None)
@@ -206,6 +214,30 @@ class Core extends akka.actor.Actor with Loggable {
       if (lost.nonEmpty)
         log.debug("Inconsistent elements: " + lost)
       Console ! Console.Message.Notice("Core component is stopped.")
+    }
+  }
+  /** Adjust platform workbench. */
+  protected def adjustWorkbench() = App.execNGet {
+    if (!PlatformUI.isWorkbenchRunning()) {
+      /*
+       * BLAME FOR PLATFORM DEVELOPERS. KILL'EM ALL :-/ HATE THOSE MONKEYS
+       * So ugly code :-/ Awesome... :-(
+       */
+      val constructor = classOf[Workbench].getDeclaredConstructor(classOf[Display], classOf[WorkbenchAdvisor], classOf[MApplication], classOf[IEclipseContext])
+      if (!constructor.isAccessible())
+        constructor.setAccessible(true)
+      val instance = classOf[Workbench].getDeclaredField("instance")
+      if (!instance.isAccessible())
+        instance.setAccessible(true)
+      if (App.isUIAvailable)
+        instance.set(null, constructor.newInstance(App.display, new WorkbenchAdvisor {
+          def getInitialWindowPerspectiveId() = ""
+        }, null, E4Application.createDefaultContext()))
+      else
+        instance.set(null, constructor.newInstance(App.display, new WorkbenchAdvisor {
+          def getInitialWindowPerspectiveId() = ""
+        }, null, E4Application.createDefaultHeadlessContext()))
+      assert(PlatformUI.isWorkbenchRunning())
     }
   }
 }

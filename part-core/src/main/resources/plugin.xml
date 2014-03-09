@@ -5,7 +5,6 @@
     <product application="org.eclipse.e4.ui.workbench.swt.E4Application" description="Mock that initiate E4 initialization." name="NoName">
       <property name="clearPersistedState" value="true"/>
       <property name="preferenceCustomization" value="plugin_customization.ini"/>
-      <property name="applicationXMI" value="org.eclipse.platform/LegacyIDE.e4xmi"/>
       <property name="cssTheme" value="org.eclipse.e4.ui.css.theme.e4_default"/>
       <property name="applicationCSSResources" value="platform:/plugin/org.eclipse.platform/images/"/>
     </product>
