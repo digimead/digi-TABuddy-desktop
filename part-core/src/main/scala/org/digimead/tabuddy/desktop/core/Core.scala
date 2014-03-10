@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.core
 
 import akka.actor.{ ActorRef, Props, ScalaActorRef, UnhandledMessage, actorRef2Scala }
 import java.util.concurrent.atomic.AtomicLong
+import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -219,29 +220,33 @@ class Core extends akka.actor.Actor with Loggable {
   }
   /** Start platform workbench. */
   protected def startWorkbench() = App.execNGet {
-    if (!PlatformUI.isWorkbenchRunning()) {
-      log.debug("Start workbench.")
-      /*
-       * BLAME FOR PLATFORM DEVELOPERS. KILL'EM ALL :-/ HATE THOSE MONKEYS
-       * So ugly code :-/ Awesome... :-(
-       * Reassign a new instance of Workbench after each restart.
-       * This is a memory leak, but only in development mode.
-       */
-      val constructor = classOf[Workbench].getDeclaredConstructor(classOf[Display], classOf[WorkbenchAdvisor], classOf[MApplication], classOf[IEclipseContext])
-      if (!constructor.isAccessible())
-        constructor.setAccessible(true)
-      val instance = classOf[Workbench].getDeclaredField("instance")
-      if (!instance.isAccessible())
-        instance.setAccessible(true)
-      // We may but not use E4Application.createDefaultContext() or E4Application.createDefaultHeadlessContext()
-      val workbenchContext = Context("workbench")
-      // IEventBroker are useless part in this application. Actually, as most of the workbench...
-      workbenchContext.set(classOf[IEventBroker], new Core.EventBrokerStub)
-      instance.set(null, constructor.newInstance(App.display, new WorkbenchAdvisor {
-        def getInitialWindowPerspectiveId() = ""
-      }, new Core.ApplicationStub, workbenchContext))
-      assert(PlatformUI.isWorkbenchRunning())
-    }
+    log.debug("Start workbench.")
+    /*
+     * BLAME FOR PLATFORM DEVELOPERS. KILL'EM ALL :-/ HATE THOSE MONKEYS
+     * So ugly code :-/ Awesome... :-(
+     * Reassign a new instance of Workbench after each restart.
+     * This is a memory leak, but only in development mode.
+     */
+    // I tried adjust environment via custom IApplication -
+    //   waste of time: hard coded constants... final classes... initialization in static blocks...
+    val oldWorkbench = try Option(PlatformUI.getWorkbench())
+    catch { case e: IllegalStateException ⇒ None }
+    val constructor = classOf[Workbench].getDeclaredConstructor(classOf[Display], classOf[WorkbenchAdvisor], classOf[MApplication], classOf[IEclipseContext])
+    if (!constructor.isAccessible())
+      constructor.setAccessible(true)
+    val instance = classOf[Workbench].getDeclaredField("instance")
+    if (!instance.isAccessible())
+      instance.setAccessible(true)
+    instance.set(null, null)
+    oldWorkbench.foreach(Disposable.clean)
+    // We may but not use E4Application.createDefaultContext() or E4Application.createDefaultHeadlessContext()
+    val workbenchContext = Context("workbench")
+    // IEventBroker are useless part in this application. Actually, as most of the workbench...
+    workbenchContext.set(classOf[IEventBroker], new Core.EventBrokerStub)
+    instance.set(null, constructor.newInstance(App.display, new WorkbenchAdvisor {
+      def getInitialWindowPerspectiveId() = ""
+    }, new Core.ApplicationStub, workbenchContext))
+    assert(PlatformUI.isWorkbenchRunning())
   }
   /** Stop platform workbench. */
   protected def stopWorkbench() = App.execNGet {
@@ -255,6 +260,7 @@ class Core extends akka.actor.Actor with Loggable {
       if (!instance.isAccessible())
         instance.setAccessible(true)
       instance.set(null, null)
+      Disposable.clean(workbench)
       assert(!PlatformUI.isWorkbenchRunning())
     }
   }

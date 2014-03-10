@@ -43,17 +43,17 @@
 
 package org.digimead.tabuddy.desktop.core.ui
 
-import java.util.{ Locale, UUID }
+import java.util.Locale
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.View
-import org.digimead.tabuddy.desktop.core.ui.definition.IWizard
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry
 import org.eclipse.jface.resource.{ ImageDescriptor, JFaceResources }
-import org.eclipse.swt.graphics.{ Font, Image }
+import org.eclipse.swt.SWT
+import org.eclipse.swt.graphics.{ Font, GC, Image }
+import org.eclipse.swt.widgets.Shell
 import org.osgi.framework.{ BundleActivator, BundleContext }
 import scala.collection.mutable
 import scala.language.implicitConversions
@@ -71,6 +71,14 @@ class Resources extends BundleActivator with Loggable {
     fD.head.setHeight(fD.head.getHeight + 1)
     new Font(App.display, fD.head)
   }
+  /** Default font metrics. */
+  lazy val fontMetrics = App.execNGet {
+    val gc = new GC(limboShell)
+    gc.setFont(limboShell.getFont())
+    val fontMetrics = gc.getFontMetrics()
+    gc.dispose()
+    fontMetrics
+  }
   /** The small font */
   lazy val fontSmall = {
     val fD = App.display.getSystemFont().getFontData()
@@ -81,8 +89,17 @@ class Resources extends BundleActivator with Loggable {
   protected val viewFactoriesMap = new Resources.ViewFactoryMap with mutable.SynchronizedMap[View.Factory, Boolean]
   /** Application wizards set. */
   protected val wizardsSet = new mutable.HashSet[Class[_ <: IWizard]]() with mutable.SynchronizedSet[Class[_ <: IWizard]]
+  /** Limbo shell. */
+  lazy val limboShell = App.execNGet {
+    val limbo = new Shell(App.display, SWT.NONE)
+    limbo.setBackgroundMode(SWT.INHERIT_DEFAULT)
+    limbo
+  }
   private val lock = new Object
 
+  /** Returns the number of pixels corresponding to the height of the given number of characters. */
+  def convertHeightInCharsToPixels(chars: Int): Int =
+    org.eclipse.jface.dialogs.Dialog.convertHeightInCharsToPixels(fontMetrics, chars)
   /** Get factory by singleton class name. */
   def factory(className: String): Option[View.Factory] =
     viewFactoriesMap.find(_._1.getClass().getName() == className).map(_._1)
