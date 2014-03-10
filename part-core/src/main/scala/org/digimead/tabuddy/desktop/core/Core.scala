@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.api.OperationApprover
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.e4.core.contexts.IEclipseContext
-import org.eclipse.e4.ui.internal.workbench.swt.E4Application
+import org.eclipse.e4.core.services.events.IEventBroker
 import org.eclipse.e4.ui.model.application.MApplication
 import org.eclipse.swt.widgets.Display
 import org.eclipse.ui.PlatformUI
@@ -195,7 +195,7 @@ class Core extends akka.actor.Actor with Loggable {
         Core.DI.approvers.foreach(Operation.history.addOperationApprover)
       } else
         log.info("Start application without GUI.")
-      adjustWorkbench()
+      startWorkbench()
       command.Commands.configure()
       Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
       Console ! App.Message.Start(Console, None)
@@ -213,15 +213,19 @@ class Core extends akka.actor.Actor with Loggable {
       val lost = inconsistentSet - Core
       if (lost.nonEmpty)
         log.debug("Inconsistent elements: " + lost)
+      stopWorkbench()
       Console ! Console.Message.Notice("Core component is stopped.")
     }
   }
-  /** Adjust platform workbench. */
-  protected def adjustWorkbench() = App.execNGet {
+  /** Start platform workbench. */
+  protected def startWorkbench() = App.execNGet {
     if (!PlatformUI.isWorkbenchRunning()) {
+      log.debug("Start workbench.")
       /*
        * BLAME FOR PLATFORM DEVELOPERS. KILL'EM ALL :-/ HATE THOSE MONKEYS
        * So ugly code :-/ Awesome... :-(
+       * Reassign a new instance of Workbench after each restart.
+       * This is a memory leak, but only in development mode.
        */
       val constructor = classOf[Workbench].getDeclaredConstructor(classOf[Display], classOf[WorkbenchAdvisor], classOf[MApplication], classOf[IEclipseContext])
       if (!constructor.isAccessible())
@@ -229,15 +233,29 @@ class Core extends akka.actor.Actor with Loggable {
       val instance = classOf[Workbench].getDeclaredField("instance")
       if (!instance.isAccessible())
         instance.setAccessible(true)
-      if (App.isUIAvailable)
-        instance.set(null, constructor.newInstance(App.display, new WorkbenchAdvisor {
-          def getInitialWindowPerspectiveId() = ""
-        }, null, E4Application.createDefaultContext()))
-      else
-        instance.set(null, constructor.newInstance(App.display, new WorkbenchAdvisor {
-          def getInitialWindowPerspectiveId() = ""
-        }, null, E4Application.createDefaultHeadlessContext()))
+      // We may but not use E4Application.createDefaultContext() or E4Application.createDefaultHeadlessContext()
+      val workbenchContext = Context("workbench")
+      // IEventBroker are useless part in this application. Actually, as most of the workbench...
+      workbenchContext.set(classOf[IEventBroker], new Core.EventBrokerStub)
+      instance.set(null, constructor.newInstance(App.display, new WorkbenchAdvisor {
+        def getInitialWindowPerspectiveId() = ""
+      }, new Core.ApplicationStub, workbenchContext))
       assert(PlatformUI.isWorkbenchRunning())
+    }
+  }
+  /** Stop platform workbench. */
+  protected def stopWorkbench() = App.execNGet {
+    Option(Workbench.getInstance()).foreach { workbench ⇒
+      log.debug("Stop workbench.")
+      // YUP. Another flag that indicates code quality.
+      // Workbench may be closed only once. What is about reopen? Fucking morons... Architects...
+      if (!App.isDevelopmentMode)
+        workbench.close()
+      val instance = classOf[Workbench].getDeclaredField("instance")
+      if (!instance.isAccessible())
+        instance.setAccessible(true)
+      instance.set(null, null)
+      assert(!PlatformUI.isWorkbenchRunning())
     }
   }
 }
@@ -261,6 +279,68 @@ object Core extends Loggable {
 
   override def toString = "Core[Singleton]"
 
+  /**
+   * MApplication stub for workbench.
+   */
+  class ApplicationStub extends MApplication {
+    def getAccessibilityPhrase(): String = ""
+    def getAddons(): java.util.List[org.eclipse.e4.ui.model.application.MAddon] = new java.util.ArrayList()
+    def getBindingContexts(): java.util.List[org.eclipse.e4.ui.model.application.commands.MBindingContext] = new java.util.ArrayList()
+    def getBindingTables(): java.util.List[org.eclipse.e4.ui.model.application.commands.MBindingTable] = new java.util.ArrayList()
+    def getCategories(): java.util.List[org.eclipse.e4.ui.model.application.commands.MCategory] = new java.util.ArrayList()
+    def getChildren(): java.util.List[org.eclipse.e4.ui.model.application.ui.basic.MWindow] = new java.util.ArrayList()
+    def getCommands(): java.util.List[org.eclipse.e4.ui.model.application.commands.MCommand] = new java.util.ArrayList()
+    def getContainerData(): String = ""
+    def getContext(): org.eclipse.e4.core.contexts.IEclipseContext = ???
+    def getContributorURI(): String = ""
+    def getCurSharedRef(): org.eclipse.e4.ui.model.application.ui.advanced.MPlaceholder = ???
+    def getDescriptors(): java.util.List[org.eclipse.e4.ui.model.application.descriptor.basic.MPartDescriptor] = new java.util.ArrayList()
+    def getElementId(): String = ""
+    def getHandlers(): java.util.List[org.eclipse.e4.ui.model.application.commands.MHandler] = new java.util.ArrayList()
+    def getLocalizedAccessibilityPhrase(): String = ""
+    def getMenuContributions(): java.util.List[org.eclipse.e4.ui.model.application.ui.menu.MMenuContribution] = new java.util.ArrayList()
+    def getParent(): org.eclipse.e4.ui.model.application.ui.MElementContainer[org.eclipse.e4.ui.model.application.ui.MUIElement] = ???
+    def getPersistedState(): java.util.Map[String, String] = new java.util.HashMap()
+    def getProperties(): java.util.Map[String, String] = new java.util.HashMap()
+    def getRenderer(): Object = ???
+    def getRootContext(): java.util.List[org.eclipse.e4.ui.model.application.commands.MBindingContext] = new java.util.ArrayList()
+    def getSelectedElement(): org.eclipse.e4.ui.model.application.ui.basic.MWindow = null
+    def getSnippets(): java.util.List[org.eclipse.e4.ui.model.application.ui.MUIElement] = new java.util.ArrayList()
+    def getTags(): java.util.List[String] = new java.util.ArrayList()
+    def getToolBarContributions(): java.util.List[org.eclipse.e4.ui.model.application.ui.menu.MToolBarContribution] = new java.util.ArrayList()
+    def getTransientData(): java.util.Map[String, Object] = new java.util.HashMap()
+    def getTrimContributions(): java.util.List[org.eclipse.e4.ui.model.application.ui.menu.MTrimContribution] = new java.util.ArrayList()
+    def getVariables(): java.util.List[String] = new java.util.ArrayList()
+    def getVisibleWhen(): org.eclipse.e4.ui.model.application.ui.MExpression = ???
+    def getWidget(): Object = ???
+    def isOnTop(): Boolean = false
+    def isToBeRendered(): Boolean = false
+    def isVisible(): Boolean = false
+    def setAccessibilityPhrase(x$1: String) {}
+    def setContainerData(x$1: String) {}
+    def setContext(x$1: org.eclipse.e4.core.contexts.IEclipseContext) {}
+    def setContributorURI(x$1: String) {}
+    def setCurSharedRef(x$1: org.eclipse.e4.ui.model.application.ui.advanced.MPlaceholder) {}
+    def setElementId(x$1: String) {}
+    def setOnTop(x$1: Boolean) {}
+    def setParent(x$1: org.eclipse.e4.ui.model.application.ui.MElementContainer[org.eclipse.e4.ui.model.application.ui.MUIElement]) {}
+    def setRenderer(x$1: Any) {}
+    def setSelectedElement(x$1: org.eclipse.e4.ui.model.application.ui.basic.MWindow) {}
+    def setToBeRendered(x$1: Boolean) {}
+    def setVisible(x$1: Boolean) {}
+    def setVisibleWhen(x$1: org.eclipse.e4.ui.model.application.ui.MExpression) {}
+    def setWidget(x$1: Any) {}
+  }
+  /**
+   * EventBroker stub for workbench.
+   */
+  class EventBrokerStub extends IEventBroker {
+    def post(x$1: String, x$2: Any): Boolean = true
+    def send(x$1: String, x$2: Any): Boolean = true
+    def subscribe(x$1: String, x$2: String, x$3: org.osgi.service.event.EventHandler, x$4: Boolean): Boolean = true
+    def subscribe(x$1: String, x$2: org.osgi.service.event.EventHandler): Boolean = true
+    def unsubscribe(x$1: org.osgi.service.event.EventHandler): Boolean = true
+  }
   /**
    * Dependency injection routines
    */
