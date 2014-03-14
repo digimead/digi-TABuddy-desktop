@@ -149,6 +149,7 @@ object Messages extends NLS with Loggable {
   val graphSelectionDialog_text = ""
   val graphSelectionDialogDescription_text = ""
   val graphSelectionDialogTitle_text = ""
+  val autoresize_key = ""
 
   T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
 }

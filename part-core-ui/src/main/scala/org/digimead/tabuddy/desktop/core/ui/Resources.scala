@@ -49,6 +49,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.View
+import org.digimead.tabuddy.desktop.core.ui.definition.IWizard
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry
 import org.eclipse.jface.resource.{ ImageDescriptor, JFaceResources }
 import org.eclipse.swt.SWT

@@ -94,6 +94,7 @@ class ActionGraphOpen @Inject() (windowContext: Context) extends JFaceAction(Mes
             filter(m ⇒ m.markerIsValid && !m.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name)
           val dialogContext = windowContext.createChild("GraphSelectionDialog")
           dialogContext.set(classOf[Shell], shell)
+          dialogContext.set(classOf[Array[GraphMarker]], markers.toArray)
           val dialog = ContextInjectionFactory.make(classOf[GraphSelectionDialog], dialogContext)
           dialog.openOrFocus { result ⇒
             windowContext.removeChild(dialogContext)
