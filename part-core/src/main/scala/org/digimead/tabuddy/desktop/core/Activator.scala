@@ -136,6 +136,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TA Buddy Desktop core.")
+    Core ! App.Message.Inconsistent(Core, None)
     App.watch(Activator) off {
       // Shutdown event loop.
       if (EventLoop.thread != null && EventLoop.thread.exitCode.isEmpty) {

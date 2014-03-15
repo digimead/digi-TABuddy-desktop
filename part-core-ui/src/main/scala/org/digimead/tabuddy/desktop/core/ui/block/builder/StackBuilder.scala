@@ -118,7 +118,7 @@ class StackBuilder extends Loggable {
 }
 
 object StackBuilder {
-  implicit def builder2implementation(c: StackBuilder.type): StackBuilder = c.inner
+  implicit def builder2implementation(b: StackBuilder.type): StackBuilder = b.inner
 
   /** StackBuilder implementation. */
   def inner = DI.implementation
@@ -127,7 +127,7 @@ object StackBuilder {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Window ContentBuilder implementation. */
+    /** Window StackBuilder implementation. */
     lazy val implementation = injectOptional[StackBuilder] getOrElse new StackBuilder
   }
 }

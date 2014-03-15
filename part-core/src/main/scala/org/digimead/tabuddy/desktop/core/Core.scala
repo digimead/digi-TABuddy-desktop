@@ -55,13 +55,26 @@ import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.api.OperationApprover
 import org.digimead.tabuddy.desktop.core.support.App
-import org.eclipse.e4.core.contexts.IEclipseContext
+import org.eclipse.core.commands.CommandManager
+import org.eclipse.core.commands.contexts.ContextManager
+import org.eclipse.core.runtime.{ IExtensionRegistry, RegistryFactory }
+import org.eclipse.e4.core.commands.{ ECommandService, EHandlerService }
+import org.eclipse.e4.core.commands.internal.{ CommandServiceImpl, HandlerServiceCreationFunction }
+import org.eclipse.e4.core.contexts.{ ContextInjectionFactory, IEclipseContext }
 import org.eclipse.e4.core.services.events.IEventBroker
+import org.eclipse.e4.ui.bindings.EBindingService
+import org.eclipse.e4.ui.bindings.internal.{ BindingServiceCreationFunction, BindingTableManager }
+import org.eclipse.e4.ui.internal.services.ContextContextFunction
 import org.eclipse.e4.ui.model.application.MApplication
+import org.eclipse.e4.ui.services.EContextService
+import org.eclipse.e4.ui.workbench.IPresentationEngine
+import org.eclipse.jface.bindings.BindingManager
 import org.eclipse.swt.widgets.Display
 import org.eclipse.ui.PlatformUI
 import org.eclipse.ui.application.WorkbenchAdvisor
 import org.eclipse.ui.internal.Workbench
+import org.eclipse.ui.internal.services.SourceProviderService
+import org.eclipse.ui.services.ISourceProviderService
 import org.osgi.framework.{ BundleContext, BundleEvent, BundleListener, ServiceRegistration }
 import scala.language.implicitConversions
 
@@ -196,7 +209,7 @@ class Core extends akka.actor.Actor with Loggable {
         Core.DI.approvers.foreach(Operation.history.addOperationApprover)
       } else
         log.info("Start application without GUI.")
-      startWorkbench()
+      try startWorkbench() catch { case e: Throwable ⇒ log.error("Unable to start workbench: " + e.getMessage, e) }
       command.Commands.configure()
       Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
       Console ! App.Message.Start(Console, None)
@@ -214,7 +227,7 @@ class Core extends akka.actor.Actor with Loggable {
       val lost = inconsistentSet - Core
       if (lost.nonEmpty)
         log.debug("Inconsistent elements: " + lost)
-      stopWorkbench()
+      try stopWorkbench() catch { case e: Throwable ⇒ log.error("Unable to stop workbench: " + e.getMessage, e) }
       Console ! Console.Message.Notice("Core component is stopped.")
     }
   }
@@ -240,12 +253,40 @@ class Core extends akka.actor.Actor with Loggable {
     instance.set(null, null)
     oldWorkbench.foreach(Disposable.clean)
     // We may but not use E4Application.createDefaultContext() or E4Application.createDefaultHeadlessContext()
-    val workbenchContext = Context("workbench")
+    val workbenchContext = Core.context.createChild("workbench")
+    val mApplication = new Core.ApplicationStub(workbenchContext)
+    workbenchContext.set(classOf[BindingTableManager], ContextInjectionFactory.make(classOf[BindingTableManager], workbenchContext))
+    workbenchContext.set(classOf[CommandManager], new CommandManager())
+    workbenchContext.set(classOf[ContextManager], new ContextManager())
+    workbenchContext.set(classOf[EBindingService].getName(), new BindingServiceCreationFunction())
+    workbenchContext.set(classOf[ECommandService], ContextInjectionFactory.make(classOf[CommandServiceImpl], workbenchContext))
+    workbenchContext.set(classOf[EContextService].getName(), new ContextContextFunction())
+    workbenchContext.set(classOf[EHandlerService].getName(), new HandlerServiceCreationFunction())
     // IEventBroker are useless part in this application. Actually, as most of the workbench...
     workbenchContext.set(classOf[IEventBroker], new Core.EventBrokerStub)
-    instance.set(null, constructor.newInstance(App.display, new WorkbenchAdvisor {
+    workbenchContext.set(classOf[IExtensionRegistry], RegistryFactory.getRegistry())
+    workbenchContext.set(classOf[IPresentationEngine], new Core.PresentationEngineStub())
+    workbenchContext.set(classOf[MApplication], mApplication)
+    workbenchContext.set(classOf[BindingManager], new BindingManager(workbenchContext.get(classOf[ContextManager]), workbenchContext.get(classOf[CommandManager])))
+    val workbench = constructor.newInstance(App.display, new WorkbenchAdvisor {
       def getInitialWindowPerspectiveId() = ""
-    }, new Core.ApplicationStub, workbenchContext))
+    }, mApplication, workbenchContext)
+    instance.set(null, workbench)
+    // init
+    val initMethod = classOf[Workbench].getDeclaredMethod("init")
+    if (!initMethod.isAccessible())
+      initMethod.setAccessible(true)
+    initMethod.invoke(workbench)
+    // adjust
+    workbench.getService(classOf[ISourceProviderService]) match {
+      case sourceProviderService: SourceProviderService ⇒
+        val providers = sourceProviderService.getSourceProviders()
+        providers.foreach { provider ⇒
+          sourceProviderService.unregisterProvider(provider)
+          provider.dispose()
+        }
+      case _ ⇒
+    }
     assert(PlatformUI.isWorkbenchRunning())
   }
   /** Stop platform workbench. */
@@ -288,7 +329,7 @@ object Core extends Loggable {
   /**
    * MApplication stub for workbench.
    */
-  class ApplicationStub extends MApplication {
+  class ApplicationStub(context: IEclipseContext) extends MApplication {
     def getAccessibilityPhrase(): String = ""
     def getAddons(): java.util.List[org.eclipse.e4.ui.model.application.MAddon] = new java.util.ArrayList()
     def getBindingContexts(): java.util.List[org.eclipse.e4.ui.model.application.commands.MBindingContext] = new java.util.ArrayList()
@@ -297,7 +338,7 @@ object Core extends Loggable {
     def getChildren(): java.util.List[org.eclipse.e4.ui.model.application.ui.basic.MWindow] = new java.util.ArrayList()
     def getCommands(): java.util.List[org.eclipse.e4.ui.model.application.commands.MCommand] = new java.util.ArrayList()
     def getContainerData(): String = ""
-    def getContext(): org.eclipse.e4.core.contexts.IEclipseContext = ???
+    def getContext() = context
     def getContributorURI(): String = ""
     def getCurSharedRef(): org.eclipse.e4.ui.model.application.ui.advanced.MPlaceholder = ???
     def getDescriptors(): java.util.List[org.eclipse.e4.ui.model.application.descriptor.basic.MPartDescriptor] = new java.util.ArrayList()
@@ -346,6 +387,17 @@ object Core extends Loggable {
     def subscribe(x$1: String, x$2: String, x$3: org.osgi.service.event.EventHandler, x$4: Boolean): Boolean = true
     def subscribe(x$1: String, x$2: org.osgi.service.event.EventHandler): Boolean = true
     def unsubscribe(x$1: org.osgi.service.event.EventHandler): Boolean = true
+  }
+  /**
+   * PresentationEngine stub for workbench.
+   */
+  class PresentationEngineStub extends IPresentationEngine {
+    def createGui(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): Object = null
+    def createGui(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: Any, x$3: IEclipseContext): Object = null
+    def focusGui(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement) {}
+    def removeGui(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement) {}
+    def run(x$1: org.eclipse.e4.ui.model.application.MApplicationElement, x$2: IEclipseContext): Object = null
+    def stop() {}
   }
   /**
    * Dependency injection routines

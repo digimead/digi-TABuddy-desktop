@@ -48,6 +48,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.logic.payload.maker.{ GraphMarker, api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -66,38 +67,61 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
    * @return the same marker or read only marker if current one is deleted
    */
   def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker = {
-    GraphMarker.globalRWL.writeLock().lock()
-    try {
-      val marker = GraphMarker(graph)
-      marker.safeUpdate { state ⇒
-        log.info(s"Close $graph, force is $force.")
-        if (!marker.graphIsOpen())
-          throw new IllegalStateException(s"$graph is already closed.")
-        if (marker.graphIsDirty()) {
-          if (!force && App.isUIAvailable) {
-            val dialog = new MessageBox(null, SWT.ICON_QUESTION | SWT.OK | SWT.CANCEL)
-            dialog.setText("Model is modified")
-            dialog.setMessage("Do you want to save modifications?")
-            if (dialog.open() == Window.OK)
-              // save modified model if user permits
-              OperationGraphSave.operation(graph, false)
+    @volatile var closeApproved = force
+    val marker = GraphMarker(graph)
+    while (true) {
+      GraphMarker.globalRWL.writeLock().lock()
+      val shell = try {
+        marker.safeUpdate { state ⇒
+          log.info(s"Close $graph, force is $force.")
+          if (!marker.graphIsOpen())
+            throw new IllegalStateException(s"$graph is already closed.")
+          val shell = if (marker.graphIsDirty() && !closeApproved && App.isUIAvailable) {
+            UI.getActiveShell match {
+              case Some(shell) ⇒
+                Some(shell)
+              case None ⇒
+                log.error("Unable to find active shell.")
+                log.info(s"Close modified $graph without saving.")
+                None
+            }
+          } else {
+            None
+          }
+          if (shell.isEmpty) {
+            // Close graph
+            if (graph.stored.isEmpty) {
+              marker.graphClose()
+              log.info(s"$graph is closed.")
+              return GraphMarker.deleteFromWorkspace(marker) // newly created graph is unsaved, clean and
+            } else {
+              // Returns the same marker
+              marker.graphClose()
+              log.info(s"$graph is closed.")
+              return marker
+            }
+          }
+          shell
+        }
+      } finally GraphMarker.globalRWL.writeLock().unlock()
+      shell.foreach { shell ⇒
+        closeApproved = App.execNGet {
+          val style = SWT.ICON_QUESTION | SWT.YES | SWT.NO
+          val dialog = new MessageBox(shell, style)
+          dialog.setText(s"Graph '${marker.graphModelId.name}' is modified")
+          dialog.setMessage("Do you want to save modifications?")
+          if (dialog.open() == SWT.YES) {
+            // save modified model if user permits
+            OperationGraphSave.operation(graph, false)
+            false // marker.graphIsDirty() should be false
           } else {
             log.info(s"Close modified $graph without saving.")
+            true
           }
-        }
-        // close model
-        if (graph.stored.isEmpty) {
-          marker.graphClose()
-          log.info(s"$graph is closed.")
-          GraphMarker.deleteFromWorkspace(marker) // newly created graph is unsaved, clean and
-        } else {
-          // returns the same marker
-          marker.graphClose()
-          log.info(s"$graph is closed.")
-          marker
-        }
+        }(App.LongRunnable)
       }
-    } finally GraphMarker.globalRWL.writeLock().unlock()
+    }
+    throw new IllegalStateException("This code is un")
   }
   /**
    * Create 'Close graph' operation.

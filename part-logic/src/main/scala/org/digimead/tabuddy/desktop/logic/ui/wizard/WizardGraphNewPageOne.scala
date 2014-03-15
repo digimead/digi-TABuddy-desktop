@@ -73,7 +73,7 @@ class WizardGraphNewPageOne extends WizardPage(Messages.wizardGraphNewPageOneTit
 
   /** Create form content. */
   def createControl(parent: Composite) {
-    val view = new WizardGraphNewPageOneView(parent, SWT.NONE)
+    val view = new WizardGraphNewPageOneView(parent, SWT.APPLICATION_MODAL)
     this.view = Some(view)
     // model name
     view.getTxtModelIdentificator.setMessage(Messages.lblModelIdentificator_hint_text)

@@ -48,7 +48,6 @@ import java.util.ResourceBundle;
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.viewers.ComboViewer;
-import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.nebula.widgets.gallery.Gallery;
 import org.eclipse.swt.SWT;
@@ -119,7 +118,7 @@ public class GraphSelectionDialogSkel extends TitleAreaDialog {
 	 */
 	public GraphSelectionDialogSkel(Shell parentShell) {
 		super(parentShell);
-		setShellStyle(SWT.SHELL_TRIM);
+		setShellStyle(SWT.SHELL_TRIM | SWT.APPLICATION_MODAL);
 	}
 
 	/**
@@ -308,17 +307,5 @@ public class GraphSelectionDialogSkel extends TitleAreaDialog {
 
 	protected Gallery getTableGallery() {
 		return tableGallery;
-	}
-
-	class ModifiedTableViewer extends TableViewer {
-
-		public ModifiedTableViewer(Composite parent, int style) {
-			super(parent, style);
-		}
-
-		@Override
-		protected Object[] getSortedChildren(Object parent) {
-			return super.getSortedChildren(parent);
-		}
 	}
 }

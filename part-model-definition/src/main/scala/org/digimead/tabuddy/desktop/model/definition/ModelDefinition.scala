@@ -139,8 +139,9 @@ class ModelDefinition extends akka.actor.Actor with Loggable {
     App.watch(ModelDefinition) off {
       self ! App.Message.Inconsistent(ModelDefinition, None)
       //Actions.unconfigure
-      if (inconsistentSet.nonEmpty)
-        log.fatal("Inconsistent elements detected: " + inconsistentSet)
+      val lost = inconsistentSet - ModelDefinition
+      if (lost.nonEmpty)
+        log.fatal("Inconsistent elements detected: " + lost)
       Console ! Console.Message.Notice("ModelDefinition component is stopped.")
     }
   }

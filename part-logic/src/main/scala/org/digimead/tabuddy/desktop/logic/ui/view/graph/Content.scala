@@ -47,6 +47,7 @@ import javax.inject.Inject
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.core.ui.Resources
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
@@ -55,6 +56,8 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComp
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
+import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
@@ -67,10 +70,17 @@ import org.eclipse.swt.widgets.Composite
  */
 class Content(val context: Context, parent: Composite, style: Int) extends ContentSkel(parent, style) with Loggable {
   ContextInjectionFactory.inject(Content.this, context)
+  lazy val delayedMarkerUpdater = WritableValue(System.currentTimeMillis(): java.lang.Long)
 
   def initializeJFX() {
   }
   def initializeSWT() {
+    /*
+     * Update marker records after delay 100ms.
+     */
+    new DelayedObservableValue(100, delayedMarkerUpdater).addChangeListener(new IChangeListener() {
+      override def handleChange(event: ChangeEvent) = updateGraphMarker()
+    })
     /*
      * Table with active elements.
      */
@@ -151,7 +161,7 @@ class Content(val context: Context, parent: Composite, style: Int) extends Conte
         tableViewerAvailable.getSelection() match {
           case iStructuredSelection: IStructuredSelection ⇒
             iStructuredSelection.getFirstElement() match {
-              case factory: Factory ⇒ createView(factory)
+              case factory: Factory ⇒ doCreateView(factory)
               case unknown ⇒ log.fatal(s"Unknown selection ${unknown}.")
             }
           case unknown ⇒ log.fatal(s"Unknown selection ${unknown}.")
@@ -159,9 +169,14 @@ class Content(val context: Context, parent: Composite, style: Int) extends Conte
       }
     })
   }
+  /** Update records that are binded to markers. */
+  def updateGraphMarker() = if (getTableViewerActive().getContentProvider() != null && getTableViewerAvailable().getContentProvider() != null) {
+    getTableViewerActive().refresh()
+    getTableViewerAvailable().refresh()
+  }
 
   /** Create new view. */
-  protected def createView(factory: Factory) {
+  protected def doCreateView(factory: Factory) {
     val marker = Some(context.get(classOf[GraphMarker]))
     val appWindow = context.get(classOf[AppWindow])
     OperationViewCreate(appWindow.id, Configuration.CView(factory.configuration)).foreach { operation ⇒
@@ -178,7 +193,7 @@ class Content(val context: Context, parent: Composite, style: Int) extends Conte
     }
   }
   /** Assign graph to the new view. */
-  def onViewCreated(view: VComposite) {
+  protected def onViewCreated(view: VComposite) {
     val marker = context.get(classOf[GraphMarker])
     view.contentRef ! App.Message.Set(marker)
   }

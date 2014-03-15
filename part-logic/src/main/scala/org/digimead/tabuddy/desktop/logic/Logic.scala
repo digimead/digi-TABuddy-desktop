@@ -58,6 +58,7 @@ import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
 import org.eclipse.jface.commands.ToggleState
 import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 
 /**
  * Root actor of the Logic component.
@@ -89,11 +90,13 @@ class Logic extends akka.actor.Actor with Loggable {
   override def postStop() = {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Destroy[_]])
     App.watch(this) off ()
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[App.Message.Destroy[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
     App.watch(this) on ()
@@ -125,7 +128,13 @@ class Logic extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet + element
     }
 
+    case message @ App.Message.Destroy(vComposite: VComposite, _, _) ⇒ App.traceMessage(message) {
+      if (vComposite.factory().features.contains(Logic.Feature.graph))
+        behaviour.CloseGraphWhenLastViewIsClosed.run()
+    }
+
     case message @ App.Message.Consistent(_, _, _) ⇒ // skip
+    case message @ App.Message.Destroy(_, _, _) ⇒ // skip
     case message @ App.Message.Inconsistent(_, _, _) ⇒ // skip
   }
 

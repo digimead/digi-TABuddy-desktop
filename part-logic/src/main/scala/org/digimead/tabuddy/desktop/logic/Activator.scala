@@ -109,6 +109,7 @@ class Activator extends BundleActivator with Loggable {
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TABuddy Desktop logic.")
+    Logic ! App.Message.Inconsistent(Logic, None)
     App.watch(Activator) off {}
     try {
       // Stop component actors.

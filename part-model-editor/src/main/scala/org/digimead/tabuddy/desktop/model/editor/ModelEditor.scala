@@ -122,6 +122,7 @@ class ModelEditor extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(ModelEditor) on {
+      self ! App.Message.Inconsistent(ModelEditor, None)
       ui.Views.configure
       ui.Wizards.configure
       //Approver.start()
@@ -133,11 +134,13 @@ class ModelEditor extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStopped() = initializationLock.synchronized {
     App.watch(ModelEditor) off {
+      self ! App.Message.Inconsistent(ModelEditor, None)
       //Actions.unconfigure
       ui.Wizards.unconfigure
       ui.Views.unconfigure
-      if (inconsistentSet.nonEmpty)
-        log.fatal("Inconsistent elements detected: " + inconsistentSet)
+      val lost = inconsistentSet - ModelEditor
+      if (lost.nonEmpty)
+        log.fatal("Inconsistent elements detected: " + lost)
       Console ! Console.Message.Notice("ModelEditor component is stopped.")
     }
   }

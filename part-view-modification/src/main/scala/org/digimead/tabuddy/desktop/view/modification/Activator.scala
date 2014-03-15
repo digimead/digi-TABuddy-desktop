@@ -109,8 +109,9 @@ class Activator extends BundleActivator with Loggable {
   }
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
-    App.watch(Activator) off {}
     log.debug("Stop TABuddy Desktop ViewModification component.")
+    ViewModification ! App.Message.Inconsistent(ViewModification, None)
+    App.watch(Activator) off {}
     try {
       // Stop component actors.
       val inbox = Inbox.create(App.system)

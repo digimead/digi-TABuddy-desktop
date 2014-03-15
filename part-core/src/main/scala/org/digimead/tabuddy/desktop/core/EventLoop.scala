@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicReference
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.core.databinding.DataBindingContext
 import org.eclipse.core.databinding.observable.Realm
@@ -179,6 +180,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
       case e: Throwable ⇒
         log.error(e.getMessage, e)
     }
+    Console ! Console.Message.Notice("Shutdown application.")
     Future { App.watch(EventLoop) off {} } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
     log.debug("Event loop is finishing. Process pending events.")
     // Process events until the display is disposed.

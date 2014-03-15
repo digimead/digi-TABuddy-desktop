@@ -72,6 +72,19 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
   @volatile var loading: Option[Loading] = None
   log.debug("Start actor " + self.path)
 
+  /** Is called asynchronously after 'actor.stop()' is invoked. */
+  override def postStop() = {
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Update[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Destroy[_]])
+    super.postStop()
+  }
+  /** Is called when an Actor is started. */
+  override def preStart() = {
+    super.preStart()
+    App.system.eventStream.subscribe(self, classOf[App.Message.Destroy[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Update[_]])
+  }
+
   override def receive: Actor.Receive = super.receive orElse {
     case message @ App.Message.Set(_, marker: GraphMarker) ⇒ App.traceMessage(message) {
       if (terminated)
@@ -79,6 +92,19 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
       else
         App.exec { assignGraphMarker(marker) }
     }
+
+    case message @ App.Message.Destroy(vComposite: VComposite, _, _) ⇒ App.traceMessage(message) {
+      // Update marker records.
+      if (!terminated) App.exec { this.content.foreach(_.delayedMarkerUpdater.value = System.currentTimeMillis()) }
+    }
+
+    case message @ App.Message.Update(marker: GraphMarker, _, _) ⇒ App.traceMessage(message) {
+      // Update marker records.
+      if (!terminated) App.exec { this.content.foreach(_.delayedMarkerUpdater.value = System.currentTimeMillis()) }
+    }
+
+    case message @ App.Message.Destroy(_, _, _) ⇒ // skip
+    case message @ App.Message.Update(_, _, _) ⇒ // skip
   }
 
   /** Assign graph marker to view. */
@@ -94,6 +120,7 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
       loading.dispose()
     }
     viewContext.set(classOf[GraphMarker], marker)
+    App.publish(App.Message.Update(marker, self))
   }
   /** Creates and returns this window's contents. */
   protected def createContents(parent: VComposite): Composite = {

@@ -124,6 +124,7 @@ class ViewModification extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(ViewModification) on {
+      self ! App.Message.Inconsistent(ViewModification, None)
       Console ! Console.Message.Notice("ViewModification component is started.")
       self ! App.Message.Consistent(ViewModification, None)
     }
@@ -132,8 +133,10 @@ class ViewModification extends akka.actor.Actor with Loggable {
   @log
   protected def onGUIStopped() = initializationLock.synchronized {
     App.watch(ViewModification) off {
-      if (inconsistentSet.nonEmpty)
-        log.fatal("Inconsistent elements detected: " + inconsistentSet)
+      self ! App.Message.Inconsistent(ViewModification, None)
+      val lost = inconsistentSet - ViewModification
+      if (lost.nonEmpty)
+        log.fatal("Inconsistent elements detected: " + lost)
       Console ! Console.Message.Notice("ViewModification component is stopped.")
     }
   }

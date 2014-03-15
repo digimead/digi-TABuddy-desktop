@@ -111,6 +111,7 @@ class Activator extends BundleActivator with Loggable {
   /** Stop bundle. */
   def stop(context: BundleContext) = Activator.startStopLock.synchronized {
     log.debug("Stop TABuddy Desktop UI interface.")
+    UI ! App.Message.Inconsistent(UI, None)
     // Mark UI as unavailable; see App.isUIAvailable
     App.watch(App.UIFlag) off ()
     App.watch(Activator) off {}
