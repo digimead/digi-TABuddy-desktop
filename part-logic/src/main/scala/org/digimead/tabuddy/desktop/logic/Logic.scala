@@ -53,12 +53,12 @@ import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.ui.WindowWatcher
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
 import org.eclipse.jface.commands.ToggleState
 import scala.language.implicitConversions
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 
 /**
  * Root actor of the Logic component.

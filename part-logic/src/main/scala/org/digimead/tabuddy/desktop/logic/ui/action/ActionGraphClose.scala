@@ -43,42 +43,50 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.action
 
-import java.util.UUID
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
-import org.eclipse.jface.action.IAction
-import org.eclipse.swt.widgets.Event
-import akka.actor.Props
-import org.digimead.tabuddy.desktop.logic.Messages
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.eclipse.e4.core.contexts.Active
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
+import org.eclipse.swt.widgets.Event
 
-/** Close the opened model. */
+/**
+ * Close the opened graph.
+ */
 class ActionGraphClose @Inject() (windowContext: Context) extends JFaceAction(Messages.closeFile_text) with Loggable {
-  override def isEnabled(): Boolean = super.isEnabled && false // (Model.eId != Payload.defaultModel.eId)
+  @volatile protected var marker = Option.empty[GraphMarker]
   /** Runs this action, passing the triggering SWT event. */
   @log
-  override def runWithEvent(event: Event) {}
-//  = if (Model.eId != Payload.defaultModel.eId) {
-//    OperationModelClose(Model.eId, false) foreach { operation ⇒
-//      operation.getExecuteJob() match {
-//        case Some(job) ⇒
-//          job.setPriority(Job.SHORT)
-//          job.schedule()
-//        case None ⇒
-//          log.fatal(s"Unable to create job for ${operation}.")
-//      }
-//    }
-//  }
+  override def runWithEvent(event: Event) {
+    val toCloseRefs = UI.viewMap.filter {
+      case (uuid, vComposite) ⇒
+        vComposite.factory().features.contains(Logic.Feature.graph) &&
+          vComposite.getContext().map(_.getActive(classOf[GraphMarker])) == marker
+    }.map(_._2.ref)
+    toCloseRefs.foreach(_ ! App.Message.Destroy())
+  }
 
+  /** Update action state. */
+  @Inject
+  protected def update(@Optional @Active vComposite: VComposite, @Optional @Active marker: GraphMarker) = (vComposite, marker) match {
+    case (vComposite: VComposite, marker: GraphMarker) if !isEnabled ⇒
+      this.marker = Option(marker)
+      setEnabled(true)
+      updateEnabled()
+    case (vComposite: VComposite, marker: GraphMarker) ⇒
+    case _ if isEnabled ⇒
+      this.marker = None
+      setEnabled(false)
+      updateEnabled()
+    case _ ⇒
+  }
   /** Update enabled action state. */
   protected def updateEnabled() = if (isEnabled)
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)

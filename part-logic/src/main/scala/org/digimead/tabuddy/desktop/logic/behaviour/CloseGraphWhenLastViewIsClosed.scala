@@ -85,7 +85,7 @@ object CloseGraphWhenLastViewIsClosed {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** Window ContentBuilder implementation. */
+    /** CloseGraphWhenLastViewIsClosed implementation. */
     lazy val implementation = injectOptional[CloseGraphWhenLastViewIsClosed] getOrElse new CloseGraphWhenLastViewIsClosed
   }
 }
