@@ -50,7 +50,7 @@ import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
@@ -66,34 +66,35 @@ import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
  */
 class ActionGraphNew @Inject() (windowContext: Context) extends JFaceAction(Messages.newFile_text) with Loggable {
   @log
-  override def run {
+  override def run = OperationGraphNew(None, None, true).foreach { operation ⇒
+    operation.getExecuteJob() match {
+      case Some(job) ⇒
+        job.setPriority(Job.LONG)
+        job.onComplete(_ match {
+          case Operation.Result.OK(Some(graph: Graph[Model.Like]), message) ⇒
+            onGraphCreated(GraphMarker(graph))
+          case _ ⇒
+        }).schedule()
+      case None ⇒
+        throw new RuntimeException(s"Unable to create job for ${operation}.")
+    }
+  }
+  /** Create view when graph is available. */
+  def onGraphCreated(marker: GraphMarker) {
     val appWindow = windowContext.get(classOf[AppWindow])
     OperationViewCreate(appWindow.id, Configuration.CView(view.graph.View.factory.configuration)).foreach { operation ⇒
       operation.getExecuteJob() match {
         case Some(job) ⇒
           job.setPriority(Job.LONG)
           job.onComplete(_ match {
-            case Operation.Result.OK(Some(viewId), message) ⇒ UI.viewMap.get(viewId).map(onViewCreated)
+            case Operation.Result.OK(Some(viewId), message) ⇒
+              // Fine
+              UI.viewMap.get(viewId).map { view ⇒ view.contentRef ! App.Message.Set(marker) }
             case _ ⇒
           }).schedule()
         case None ⇒
           log.fatal(s"Unable to create job for ${operation}.")
       }
-    }
-  }
-  /** Create graph when view is created. */
-  def onViewCreated(view: VComposite) = OperationGraphNew(None, None, true).foreach { operation ⇒
-    operation.getExecuteJob() match {
-      case Some(job) ⇒
-        job.setPriority(Job.LONG)
-        job.onComplete(_ match {
-          case Operation.Result.OK(Some(graph: Graph[Model.Like]), message) ⇒
-            view.contentRef ! App.Message.Set(GraphMarker(graph))
-          case _ ⇒
-            App.exec { view.dispose() }
-        }).schedule()
-      case None ⇒
-        throw new RuntimeException(s"Unable to create job for ${operation}.")
     }
   }
 }

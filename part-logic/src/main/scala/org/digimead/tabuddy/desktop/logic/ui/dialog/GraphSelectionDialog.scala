@@ -71,9 +71,10 @@ import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.core.databinding.observable.value.DecoratingObservableValue
 import org.eclipse.e4.core.contexts.IEclipseContext
+import org.eclipse.jface.action.{ Action, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.dialogs.IDialogConstants
-import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnLabelProvider, ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, LabelProvider, SelectionChangedEvent, StructuredSelection, Viewer, ViewerFilter }
+import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnLabelProvider, ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, LabelProvider, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator, ViewerFilter }
 import org.eclipse.nebula.widgets.gallery.{ DefaultGalleryItemRenderer, GalleryItem, NoGroupRenderer }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StackLayout
@@ -82,6 +83,7 @@ import org.eclipse.swt.graphics.Image
 import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Sash, Shell }
 import scala.concurrent.Future
+import scala.ref.WeakReference
 
 /**
  * Graph selection dialog.
@@ -109,6 +111,12 @@ class GraphSelectionDialog @Inject() (
   lazy val galleryGroupRenderer = new NoGroupRenderer()
   /** Awesome font for this dialog. */
   lazy val font = Font.loadFont(classOf[FontAwesome].getResource("FontAwesome.ttf").toExternalForm(), 100)
+  /** Selected marker. */
+  @volatile protected var marker = Option.empty[GraphMarker]
+  /** Actual sort direction */
+  @volatile protected var sortDirection = Default.sortingDirection
+  /** Actual sortBy column index */
+  @volatile protected var sortColumn = 1
   /** Default graph icon. */
   lazy val text = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
     b.text(FontAwesome.ICON_FILE.toString())
@@ -122,6 +130,9 @@ class GraphSelectionDialog @Inject() (
   lazy val textBounds = JFXUtil.getCroppedBounds(textImage, 0.01)
   /** Default graph icon image. */
   lazy val textImage = JFXUtil.takeSnapshot(text)
+
+  /** Get selected marker. */
+  def getMarker(): Option[GraphMarker] = marker
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
@@ -220,7 +231,7 @@ class GraphSelectionDialog @Inject() (
   protected def configureGallery() {
     val gallery = getTableGallery()
     try {
-      // Fix outdated shit in Nebula Gallery :-(
+      // Fix outdated shit(private final field for TEMPORARY workaround) in Nebula Gallery :-(
       val fixedIn2007 = gallery.getClass().getDeclaredField("BUG_PLATFORM_LINUX_GTK_174932")
       if (!fixedIn2007.isAccessible())
         fixedIn2007.setAccessible(true)
@@ -233,12 +244,16 @@ class GraphSelectionDialog @Inject() (
       override def widgetSelected(event: SelectionEvent) = event.item match {
         case item: GalleryItem ⇒
           val marker = item.getData().asInstanceOf[GraphMarker]
-          updateCompositePreviewContent(marker)
+          GraphSelectionDialog.this.marker = Some(marker)
+          updateCompositePreviewContent()
           getCompositePreview().setMinSize(getCompositePreviewContent().computeSize(SWT.DEFAULT, SWT.DEFAULT))
           getCompositePreview().setContent(getCompositePreviewContent())
+          Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(true))
         case _ ⇒
+          GraphSelectionDialog.this.marker = None
           getCompositePreview().setMinSize(getCompositePreviewNone.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           getCompositePreview().setContent(getCompositePreviewNone())
+          Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(false))
       }
     })
     galleryGroupRenderer.setMinMargin(2)
@@ -247,6 +262,10 @@ class GraphSelectionDialog @Inject() (
     galleryGroupRenderer.setAutoMargin(true)
     gallery.setGroupRenderer(galleryGroupRenderer)
     gallery.setItemRenderer(new DefaultGalleryItemRenderer())
+    val manager = new MenuManager("#PopupMenu")
+    manager.add(GalleryZoomInAction)
+    manager.add(GalleryZoomOutAction)
+    gallery.setMenu(manager.createContextMenu(gallery))
     new GalleryItem(getTableGallery(), SWT.NONE)
   }
   /** Configure sash form. */
@@ -276,13 +295,17 @@ class GraphSelectionDialog @Inject() (
     val tableViewerColumnModified = getTableViewerColumnModified()
 
     tableViewerColumnName.setLabelProvider(GraphSelectionDialog.NameLabelProvider)
+    tableViewerColumnName.getColumn.addSelectionListener(new GraphSelectionDialog.ViewSelectionAdapter(WeakReference(tableViewer), 0))
     tableViewerColumnOrigin.setLabelProvider(GraphSelectionDialog.OriginLabelProvider)
+    tableViewerColumnOrigin.getColumn.addSelectionListener(new GraphSelectionDialog.ViewSelectionAdapter(WeakReference(tableViewer), 1))
     tableViewerColumnCreated.setLabelProvider(GraphSelectionDialog.CreatedAtLabelProvider)
+    tableViewerColumnCreated.getColumn.addSelectionListener(new GraphSelectionDialog.ViewSelectionAdapter(WeakReference(tableViewer), 2))
     tableViewerColumnModified.setLabelProvider(GraphSelectionDialog.ModifiedLabelProvider)
+    tableViewerColumnModified.getColumn.addSelectionListener(new GraphSelectionDialog.ViewSelectionAdapter(WeakReference(tableViewer), 3))
 
+    tableViewer.setComparator(new GraphSelectionDialog.ViewComparator(WeakReference(this)))
     tableViewer.addFilter(TableViewerFilter)
     tableViewer.setContentProvider(ArrayContentProvider.getInstance())
-    tableViewer.setInput(markers)
 
     // Activate the tooltip support for the viewer
     ColumnViewerToolTipSupport.enableFor(tableViewer)
@@ -292,15 +315,20 @@ class GraphSelectionDialog @Inject() (
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() ⇒
           val marker = selection.getFirstElement().asInstanceOf[GraphMarker]
-          updateCompositePreviewContent(marker)
+          GraphSelectionDialog.this.marker = Some(marker)
+          updateCompositePreviewContent()
           getCompositePreview().setMinSize(getCompositePreviewContent().computeSize(SWT.DEFAULT, SWT.DEFAULT))
           getCompositePreview().setContent(getCompositePreviewContent())
+          Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(true))
         case selection ⇒
+          GraphSelectionDialog.this.marker = None
           getCompositePreview().setMinSize(getCompositePreviewNone.computeSize(SWT.DEFAULT, SWT.DEFAULT))
           getCompositePreview().setContent(getCompositePreviewNone())
+          Option(getButton(IDialogConstants.OK_ID)).foreach(_.setEnabled(false))
       }
     })
 
+    tableViewer.setInput(markers)
     tableViewer.getTable().setFocus()
   }
   /** Create contents of the button bar. */
@@ -409,7 +437,7 @@ class GraphSelectionDialog @Inject() (
     }
   }
   /** Update composite content. */
-  protected def updateCompositePreviewContent(marker: GraphMarker) {
+  protected def updateCompositePreviewContent() = marker.foreach { marker ⇒
     getLblNameValue.setText(marker.graphModelId.name)
     getLblOriginValue().setText(marker.graphOrigin.name)
   }
@@ -464,6 +492,7 @@ class GraphSelectionDialog @Inject() (
       }
     }
   }
+  /** Table viewer filter. */
   object TableViewerFilter extends ViewerFilter {
     def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = filterType match {
       case 0 ⇒ // All
@@ -487,9 +516,37 @@ class GraphSelectionDialog @Inject() (
       case _ ⇒ true
     }
   }
+  /** Gallery ZoomIn action. */
+  object GalleryZoomInAction extends Action("Zoom In") {
+    override def run() {
+      val width = galleryGroupRenderer.getItemWidth()
+      if (width < 300) {
+        galleryGroupRenderer.setItemWidth(width + 50)
+        galleryGroupRenderer.setItemHeight(width + 50)
+        if (galleryGroupRenderer.getItemWidth() >= 300)
+          setEnabled(false)
+        GalleryZoomOutAction.setEnabled(true)
+        updateGallery()
+      }
+    }
+  }
+  /** Gallery ZoomOut action. */
+  object GalleryZoomOutAction extends Action("Zoom Out") {
+    override def run() {
+      val width = galleryGroupRenderer.getItemWidth()
+      if (width > 50) {
+        galleryGroupRenderer.setItemWidth(width - 50)
+        galleryGroupRenderer.setItemHeight(width - 50)
+        if (galleryGroupRenderer.getItemWidth() <= 50)
+          setEnabled(false)
+        GalleryZoomInAction.setEnabled(true)
+        updateGallery()
+      }
+    }
+  }
 }
 
-object GraphSelectionDialog {
+object GraphSelectionDialog extends Loggable {
   lazy val comboFilterArray = Array("All", "Name", "Owner", "CreatedAt", "Modified")
 
   object NameLabelProvider extends ColumnLabelProvider {
@@ -510,6 +567,62 @@ object GraphSelectionDialog {
   object ModifiedLabelProvider extends ColumnLabelProvider {
     override def getText(element: AnyRef): String = element match {
       case marker: GraphMarker ⇒ Report.dateString(new Date(marker.graphStored.milliseconds))
+    }
+  }
+  /** Table viewer comparator. */
+  class ViewComparator(dialog: WeakReference[GraphSelectionDialog]) extends ViewerComparator {
+    private var _column = dialog.get.map(_.sortColumn) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
+    private var _direction = dialog.get.map(_.sortDirection) getOrElse
+      { throw new IllegalStateException("Dialog not found.") }
+
+    /** Active column getter */
+    def column = _column
+    /** Active column setter */
+    def column_=(arg: Int) {
+      _column = arg
+      dialog.get.foreach(_.sortColumn = _column)
+      _direction = Default.sortingDirection
+      dialog.get.foreach(_.sortDirection = _direction)
+    }
+    /** Sorting direction */
+    def direction = _direction
+    /**
+     * Returns a negative, zero, or positive number depending on whether
+     * the first element is less than, equal to, or greater than
+     * the second element.
+     */
+    override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
+      val entity1 = e1.asInstanceOf[GraphMarker]
+      val entity2 = e2.asInstanceOf[GraphMarker]
+      val rc = column match {
+        case 0 ⇒ entity1.graphModelId.name.compareTo(entity2.graphModelId.name)
+        case 1 ⇒ entity1.graphOrigin.name.compareTo(entity2.graphOrigin.name)
+        case 2 ⇒ entity1.graphCreated.compareTo(entity2.graphCreated)
+        case 3 ⇒ entity1.graphStored.compareTo(entity2.graphStored)
+        case index ⇒
+          log.fatal(s"unknown column with index $index"); 0
+      }
+      if (_direction) -rc else rc
+    }
+    /** Switch comparator direction */
+    def switchDirection() {
+      _direction = !_direction
+      dialog.get.foreach(_.sortDirection = _direction)
+    }
+  }
+  /** Table viewer selection adapter. */
+  class ViewSelectionAdapter(tableViewer: WeakReference[TableViewer], column: Int) extends SelectionAdapter {
+    override def widgetSelected(e: SelectionEvent) = {
+      tableViewer.get.foreach(viewer ⇒ viewer.getComparator() match {
+        case comparator: ViewComparator if comparator.column == column ⇒
+          comparator.switchDirection()
+          viewer.refresh()
+        case comparator: ViewComparator ⇒
+          comparator.column = column
+          viewer.refresh()
+        case _ ⇒
+      })
     }
   }
 }
