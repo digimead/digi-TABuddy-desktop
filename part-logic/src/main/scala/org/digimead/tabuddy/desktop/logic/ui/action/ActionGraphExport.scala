@@ -43,26 +43,13 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.action
 
-import java.util.UUID
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
-import org.eclipse.jface.action.IAction
-import org.eclipse.swt.widgets.Event
-import akka.actor.Props
-import org.digimead.tabuddy.desktop.logic.Messages
-import org.eclipse.ui.internal.WorkbenchImages
-import org.eclipse.ui.internal.IWorkbenchGraphicConstants
 import javax.inject.Inject
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.ui.definition.Action
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.eclipse.ui.internal.{ IWorkbenchGraphicConstants, WorkbenchImages }
 
-class ActionGraphExport @Inject() (windowContext: Context) extends JFaceAction(Messages.exportFile_text) with Loggable  {
+class ActionGraphExport @Inject() (windowContext: Context) extends Action(Messages.exportFile_text) with Loggable {
   this.setImageDescriptor(WorkbenchImages.getImageDescriptor(IWorkbenchGraphicConstants.IMG_ETOOL_EXPORT_WIZ))
 }

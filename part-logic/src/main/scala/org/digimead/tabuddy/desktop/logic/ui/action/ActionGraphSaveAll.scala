@@ -49,13 +49,13 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.behaviour.TrackActiveGraph
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSave
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.model.graph.{ Event ⇒ GraphEvent }
 import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
 import org.eclipse.swt.widgets.Event
 import scala.collection.mutable
 import scala.collection.mutable.{ Publisher, Subscriber }
@@ -64,9 +64,10 @@ import scala.concurrent.Future
 /**
  * Save all modified graphs.
  */
-class ActionGraphSaveAll @Inject() (windowContext: Context) extends JFaceAction(Messages.saveAllFiles_text) with Loggable {
+class ActionGraphSaveAll @Inject() (windowContext: Context) extends Action(Messages.saveAllFiles_text) with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
+
   ActionGraphSaveAll.register(this)
 
   /** Runs this action, passing the triggering SWT event. */
@@ -86,12 +87,6 @@ class ActionGraphSaveAll @Inject() (windowContext: Context) extends JFaceAction(
       }
     }
   }
-
-  /** Update enabled action state. */
-  protected def updateEnabled() = if (isEnabled)
-    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
-  else
-    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
 
 object ActionGraphSaveAll extends Loggable {
@@ -99,10 +94,10 @@ object ActionGraphSaveAll extends Loggable {
   implicit lazy val akka = App.system
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
-  /** List of all application actions. */
+  /** List of all actions. */
   private val actions = mutable.WeakHashMap[ActionGraphSaveAll, Unit]()
   /** Track graph markers events. */
-  val appEventListener = actor(new Act {
+  private val appEventListener = actor(new Act {
     become {
       case App.Message.Save(marker: GraphMarker, _, _) ⇒
         if (enabled) Future { update(TrackActiveGraph.active.exists(_.graphIsDirty())) } // disable if clean

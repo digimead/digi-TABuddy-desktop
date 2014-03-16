@@ -50,6 +50,7 @@ import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
+import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.digimead.tabuddy.desktop.logic.Messages
@@ -59,12 +60,11 @@ import org.digimead.tabuddy.desktop.logic.ui.view
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 
 /**
  * Create new graph.
  */
-class ActionGraphNew @Inject() (windowContext: Context) extends JFaceAction(Messages.newFile_text) with Loggable {
+class ActionGraphNew @Inject() (windowContext: Context) extends Action(Messages.newFile_text) with Loggable {
   @log
   override def run = OperationGraphNew(None, None, true).foreach { operation ⇒
     operation.getExecuteJob() match {

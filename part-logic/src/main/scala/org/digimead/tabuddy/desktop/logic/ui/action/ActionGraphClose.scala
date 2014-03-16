@@ -49,19 +49,20 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
-import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
 import org.eclipse.swt.widgets.Event
 
 /**
  * Close the opened graph.
  */
-class ActionGraphClose @Inject() (windowContext: Context) extends JFaceAction(Messages.closeFile_text) with Loggable {
+class ActionGraphClose @Inject() (windowContext: Context) extends Action(Messages.closeFile_text) with Loggable {
   @volatile protected var marker = Option.empty[GraphMarker]
+
   /** Runs this action, passing the triggering SWT event. */
   @log
   override def runWithEvent(event: Event) {
@@ -75,22 +76,20 @@ class ActionGraphClose @Inject() (windowContext: Context) extends JFaceAction(Me
 
   /** Update action state. */
   @Inject
-  protected def update(@Optional @Active vComposite: VComposite, @Optional @Active marker: GraphMarker) = (vComposite, marker) match {
-    case (vComposite: VComposite, marker: GraphMarker) if !isEnabled ⇒
+  protected def update(@Optional @Active vComposite: VComposite, @Optional @Active marker: GraphMarker) = marker match {
+    case marker: GraphMarker if !isEnabled ⇒
       this.marker = Option(marker)
-      setEnabled(true)
-      updateEnabled()
-    case (vComposite: VComposite, marker: GraphMarker) ⇒
+      App.exec {
+        setEnabled(true)
+        updateEnabled()
+      }
+    case marker: GraphMarker ⇒
     case _ if isEnabled ⇒
       this.marker = None
-      setEnabled(false)
-      updateEnabled()
+      App.exec {
+        setEnabled(false)
+        updateEnabled()
+      }
     case _ ⇒
   }
-  /** Update enabled action state. */
-  protected def updateEnabled() = if (isEnabled)
-    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
-  else
-    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
-

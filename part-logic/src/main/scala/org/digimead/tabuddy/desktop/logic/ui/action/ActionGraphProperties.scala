@@ -43,23 +43,11 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.action
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action => JFaceAction }
-import org.eclipse.jface.action.IAction
-import org.eclipse.swt.widgets.Event
-import akka.actor.Props
-import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.core.definition.Context
 import javax.inject.Inject
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.ui.definition.Action
+import org.digimead.tabuddy.desktop.logic.Messages
 
-class ActionGraphProperties @Inject() (windowContext: Context) extends JFaceAction(Messages.properties_text) with Loggable {
+class ActionGraphProperties @Inject() (windowContext: Context) extends Action(Messages.properties_text) with Loggable {
 }

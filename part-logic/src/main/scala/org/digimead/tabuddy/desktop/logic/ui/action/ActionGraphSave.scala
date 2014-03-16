@@ -43,51 +43,107 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.action
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action => JFaceAction }
-import org.eclipse.jface.action.IAction
-import org.eclipse.swt.widgets.Event
-import akka.actor.Props
-import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.core.definition.Context
+import akka.actor.ActorDSL.{ Act, actor }
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.definition.Action
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSave
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.model.graph.{ Event ⇒ GraphEvent }
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.e4.core.contexts.Active
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.swt.widgets.Event
+import scala.collection.mutable
+import scala.collection.mutable.{ Publisher, Subscriber }
+import scala.concurrent.Future
 
 /** Save the opened model. */
-class ActionGraphSave  @Inject() (windowContext: Context) extends JFaceAction(Messages.saveFile_text) with Loggable {
-  override def isEnabled(): Boolean = super.isEnabled && false //(Model.eId != Payload.defaultModel.eId)
+class ActionGraphSave @Inject() (windowContext: Context) extends Action(Messages.saveFile_text) with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  @volatile protected var marker = Option.empty[GraphMarker]
+
+  ActionGraphSave.register(this)
+
   /** Runs this action, passing the triggering SWT event. */
   @log
-  override def runWithEvent(event: Event) {}
-//    OperationModelSave(Model.eId).foreach { operation =>
-//      operation.getExecuteJob() match {
-//        case Some(job) =>
-//          job.setPriority(Job.SHORT)
-//          job.onComplete(_ match {
-//            case Operation.Result.OK(result, message) =>
-//              log.info(s"Operation completed successfully: ${result}")
-//            case Operation.Result.Cancel(message) =>
-//              log.warn(s"Operation canceled, reason: ${message}.")
-//            case other =>
-//              log.error(s"Unable to complete operation: ${other}.")
-//          }).schedule()
-//        case None =>
-//          log.fatal(s"Unable to create job for ${operation}.")
-//      }
-//    }
+  override def runWithEvent(event: Event) = marker.foreach { marker ⇒
+    val graph = marker.safeRead(_.graph)
+    OperationGraphSave(graph, false).foreach { operation ⇒
+      operation.getExecuteJob() match {
+        case Some(job) ⇒
+          job.setPriority(Job.LONG)
+          job.schedule()
+        case None ⇒
+          throw new RuntimeException(s"Unable to create job for ${operation}.")
+      }
+    }
+  }
 
-  /** Update enabled action state. */
-  protected def updateEnabled() = if (isEnabled)
-    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
-  else
-    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+  /** Track the state of the current marker. */
+  def trackMarker(marker: GraphMarker) = marker.safeRead { state ⇒
+    state.graph.subscribe(GraphEventListener)
+  }
+  /** Stop tracking the state of the marker. */
+  def untrackMarker(marker: GraphMarker) = marker.safeRead { state ⇒
+    state.graph.removeSubscription(GraphEventListener)
+  }
+  /** Update action state. */
+  @Inject
+  protected def update(@Optional @Active vComposite: VComposite, @Optional @Active marker: GraphMarker) = marker match {
+    case marker: GraphMarker if !isEnabled && marker.graphIsDirty() ⇒
+      this.marker = Option(marker)
+      trackMarker(marker)
+      App.exec {
+        setEnabled(true)
+        updateEnabled()
+      }
+    case marker: GraphMarker if isEnabled && marker.graphIsDirty() ⇒
+    case _ if isEnabled ⇒
+      this.marker.foreach(untrackMarker)
+      this.marker = None
+      App.exec {
+        setEnabled(false)
+        updateEnabled()
+      }
+    case _ ⇒
+  }
+
+  /** Track graphs events. */
+  object GraphEventListener extends Subscriber[GraphEvent, Publisher[GraphEvent]] {
+    def notify(pub: Publisher[GraphEvent], event: GraphEvent) =
+      if (!isEnabled()) Future { marker.foreach(marker ⇒ update(null, marker)) } // enable if dirty
+  }
 }
 
+object ActionGraphSave {
+  /** Akka system. */
+  implicit lazy val akka = App.system
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** List of all actions. */
+  private val actions = new mutable.WeakHashMap[ActionGraphSave, Unit]() with mutable.SynchronizedMap[ActionGraphSave, Unit]
+  /** Track graph markers events. */
+  private val appEventListener = actor(new Act {
+    become {
+      case App.Message.Save(marker: GraphMarker, _, _) ⇒ Future {
+        actions.keys.foreach { action ⇒
+          if (action.marker.map(_.uuid) == Some(marker.uuid))
+            action.update(null, marker)
+        }
+      }
+      case App.Message.Save(_, _, _) ⇒
+    }
+    whenStarting { App.system.eventStream.subscribe(self, classOf[App.Message.Save[_]]) }
+    whenStopping { App.system.eventStream.unsubscribe(self, classOf[App.Message.Save[_]]) }
+  })
+
+  /** Register action in action map. */
+  protected def register(action: ActionGraphSave) = actions(action) = ()
+}

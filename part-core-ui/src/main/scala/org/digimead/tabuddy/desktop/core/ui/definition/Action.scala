@@ -41,50 +41,33 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.ui.action
+package org.digimead.tabuddy.desktop.core.ui.definition
 
-import javax.inject.Inject
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.definition.Action
-import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.eclipse.e4.core.contexts.Active
-import org.eclipse.e4.core.di.annotations.Optional
-import org.eclipse.swt.widgets.Event
+import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
 
 /**
- * Close all opened graphs.
+ * Action implementation with volatile 'enabled' value.
  */
-class ActionGraphCloseAll @Inject() (windowContext: Context) extends Action(Messages.closeAllFiles_text) with Loggable {
-  /** Runs this action, passing the triggering SWT event. */
-  @log
-  override def runWithEvent(event: Event) {
-    val toCloseRefs = UI.viewMap.filter {
-      case (uuid, vComposite) ⇒ vComposite.factory().features.contains(Logic.Feature.graph)
-    }.map(_._2.ref)
-    toCloseRefs.foreach(_ ! App.Message.Destroy())
-  }
+abstract class Action(text: String, style: Int = IAction.AS_PUSH_BUTTON) extends JFaceAction(text: String, style: Int) {
+  /** Indicates this action is enabled. */
+  @volatile protected[this] var enabled = true
 
-  /** Update action state. */
-  @Inject
-  protected def update(@Optional @Active marker: GraphMarker) = UI.viewMap.find {
-    case (uuid, vComposite) ⇒ vComposite.factory().features.contains(Logic.Feature.graph) &&
-      vComposite.getContext().map(_.getActive(classOf[GraphMarker])).nonEmpty
-  } match {
-    case Some(marker) if !isEnabled ⇒
-      App.exec {
-        setEnabled(true)
-        updateEnabled()
-      }
-    case None if isEnabled ⇒
-      App.exec {
-        setEnabled(false)
-        updateEnabled()
-      }
-    case _ ⇒
+  /** Returns whether this action is enabled. */
+  override def isEnabled() = enabled
+  /** Sets the enabled state of this action. */
+  override def setEnabled(enabled: Boolean) {
+    if (enabled != this.enabled) {
+      App.assertEventThread()
+      val oldVal = if (this.enabled) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
+      val newVal = if (enabled) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
+      this.enabled = enabled
+      firePropertyChange(IAction.ENABLED, oldVal, newVal)
+    }
   }
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 }
