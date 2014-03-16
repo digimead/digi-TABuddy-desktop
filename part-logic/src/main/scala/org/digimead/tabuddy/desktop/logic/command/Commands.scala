@@ -58,7 +58,8 @@ import scala.language.implicitConversions
  */
 class Commands extends Loggable {
   @volatile protected var contextParsers = Seq.empty[UUID]
-  private val lock = new Object
+  /** Synchronization lock. */
+  protected val lock = new Object
 
   /** Configure component commands. */
   @log

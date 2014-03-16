@@ -53,7 +53,9 @@ import scala.language.implicitConversions
  * Configurator responsible for configure/unconfigure application views.
  */
 class Views extends Loggable {
-  private val lock = new Object
+  /** Synchronization lock. */
+  protected val lock = new Object
+
   /** Configure component views. */
   @log
   def configure() = lock.synchronized {

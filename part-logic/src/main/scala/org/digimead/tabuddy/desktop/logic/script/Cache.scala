@@ -96,7 +96,9 @@ object Cache extends Loggable {
    * Clear script container before dispose.
    */
   class ScriptRemovalListener extends RemovalListener[String, Script.Container[_]] {
-    val lock = new Object
+    /** Synchronization lock. */
+    protected val lock = new Object
+
     def onRemoval(notification: RemovalNotification[String, Script.Container[_]]) = lock.synchronized {
       Cache.log.debug(s"Script container associated with the key(${notification.getKey()}) is removed.")
       Option(notification.getValue()).foreach(_.clear()) // value maybe GC'ed

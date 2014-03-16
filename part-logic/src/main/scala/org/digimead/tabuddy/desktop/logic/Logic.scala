@@ -89,9 +89,10 @@ class Logic extends akka.actor.Actor with Loggable {
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
-    App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Open[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Destroy[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Close[_]])
     App.watch(this) off ()
     log.debug(self.path.name + " actor is stopped.")
@@ -99,9 +100,10 @@ class Logic extends akka.actor.Actor with Loggable {
   /** Is called when an Actor is started. */
   override def preStart() {
     App.system.eventStream.subscribe(self, classOf[App.Message.Close[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Destroy[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
-    App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
+    App.system.eventStream.subscribe(self, classOf[App.Message.Open[_]])
     App.watch(this) on ()
     log.debug(self.path.name + " actor is started.")
   }
@@ -131,19 +133,25 @@ class Logic extends akka.actor.Actor with Loggable {
       inconsistentSet = inconsistentSet + element
     }
 
+    case message @ App.Message.Close(marker: GraphMarker, _, _) ⇒ App.traceMessage(message) {
+      behaviour.TrackActiveGraph.close(marker)
+      behaviour.CloseRelatedWhenGraphIsClosed.run(marker)
+    }
+
     case message @ App.Message.Destroy(vComposite: VComposite, _, _) ⇒ App.traceMessage(message) {
       if (vComposite.factory().features.contains(Logic.Feature.graph))
         behaviour.CloseGraphWhenLastViewIsClosed.run()
     }
 
-    case message @ App.Message.Close(marker: GraphMarker, _, _) ⇒ App.traceMessage(message) {
-      behaviour.CloseRelatedWhenGraphIsClosed.run(marker)
+    case message @ App.Message.Open(marker: GraphMarker, _, _) ⇒ App.traceMessage(message) {
+      behaviour.TrackActiveGraph.open(marker)
     }
 
     case message @ App.Message.Close(_, _, _) ⇒ // skip
     case message @ App.Message.Consistent(_, _, _) ⇒ // skip
     case message @ App.Message.Destroy(_, _, _) ⇒ // skip
     case message @ App.Message.Inconsistent(_, _, _) ⇒ // skip
+    case message @ App.Message.Open(_, _, _) ⇒ // skip
   }
 
   /** Close infrastructure wide container. */
