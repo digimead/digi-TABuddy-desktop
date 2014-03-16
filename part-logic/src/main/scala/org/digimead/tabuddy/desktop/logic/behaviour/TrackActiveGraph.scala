@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.behaviour
 
+import java.util.UUID
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
@@ -50,17 +51,17 @@ import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import scala.language.implicitConversions
 
 class TrackActiveGraph extends Loggable {
-  /** Set of tracked graphs. */
-  protected var trackObjects = Set[GraphMarker]()
+  /** Map of tracked graphs. */
+  protected var trackObjects = Map[UUID, GraphMarker]()
   /** Set of track listeners. */
   protected var trackListeners = Set[TrackActiveGraph.Listener]()
   /** TrackActiveGraph lock. */
   protected val lock = new ReentrantReadWriteLock()
 
   /** Get active graphs. */
-  def active = {
+  def active: Iterable[GraphMarker] = {
     lock.readLock().lock()
-    try trackObjects
+    try trackObjects.values
     finally lock.readLock().unlock()
   }
   /** Add listener. */
@@ -74,18 +75,18 @@ class TrackActiveGraph extends Loggable {
   /** Remove marker from tracked objects. */
   def close(marker: GraphMarker) = {
     lock.writeLock().lock()
-    try if (trackObjects(marker)) {
+    try if (trackObjects.isDefinedAt(marker.uuid)) {
       log.debug(s"Remove ${marker} from tracked objects.")
-      trackObjects = trackObjects - marker
+      trackObjects = trackObjects - marker.uuid
       trackListeners.par.foreach(listener ⇒ try listener.close(marker) catch { case e: Throwable ⇒ log.error(e.getMessage, e) })
     } finally lock.writeLock().unlock()
   }
   /** Add marker to tracked objects. */
   def open(marker: GraphMarker) = {
     lock.writeLock().lock()
-    try if (!trackObjects(marker)) {
+    try if (!trackObjects.isDefinedAt(marker.uuid)) {
       log.debug(s"Add ${marker} to tracked objects.")
-      trackObjects = trackObjects + marker
+      trackObjects = trackObjects + (marker.uuid -> marker)
       trackListeners.par.foreach(listener ⇒ try listener.open(marker) catch { case e: Throwable ⇒ log.error(e.getMessage, e) })
     } finally lock.writeLock().unlock()
   }

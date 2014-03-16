@@ -43,25 +43,123 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.action
 
-import java.util.UUID
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.jobs.Job
-import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
-import org.eclipse.jface.action.IAction
-import org.eclipse.swt.widgets.Event
-import akka.actor.Props
-import org.digimead.tabuddy.desktop.logic.Messages
-import org.eclipse.ui.internal.WorkbenchImages
-import org.eclipse.ui.internal.IWorkbenchGraphicConstants
+import akka.actor.ActorDSL.{ Act, actor }
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.behaviour.TrackActiveGraph
+import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSave
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.model.graph.{ Event ⇒ GraphEvent }
+import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
+import org.eclipse.swt.widgets.Event
+import scala.collection.mutable
+import scala.collection.mutable.{ Publisher, Subscriber }
+import scala.concurrent.Future
 
+/**
+ * Save all modified graphs.
+ */
 class ActionGraphSaveAll @Inject() (windowContext: Context) extends JFaceAction(Messages.saveAllFiles_text) with Loggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  ActionGraphSaveAll.register(this)
+
+  /** Runs this action, passing the triggering SWT event. */
+  @log
+  override def runWithEvent(event: Event) = Future {
+    val unsaved = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.graphIsOpen() && m.graphIsDirty())
+    unsaved.foreach { marker ⇒
+      val graph = marker.safeRead(_.graph)
+      OperationGraphSave(graph, false).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.LONG)
+            job.schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
+    }
+  }
+
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+}
+
+object ActionGraphSaveAll extends Loggable {
+  /** Akka system. */
+  implicit lazy val akka = App.system
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** List of all application actions. */
+  private val actions = mutable.WeakHashMap[ActionGraphSaveAll, Unit]()
+  /** Track graph markers events. */
+  val appEventListener = actor(new Act {
+    become {
+      case App.Message.Save(marker: GraphMarker, _, _) ⇒
+        if (enabled) Future { update(TrackActiveGraph.active.exists(_.graphIsDirty())) } // disable if clean
+      case App.Message.Save(_, _, _) ⇒
+    }
+    whenStarting { App.system.eventStream.subscribe(self, classOf[App.Message.Save[_]]) }
+    whenStopping { App.system.eventStream.unsubscribe(self, classOf[App.Message.Save[_]]) }
+  })
+  /** Action enabled flag. */
+  @volatile private var enabled = false
+  /** Synchronization lock. */
+  private val lock = new Object
+
+  TrackActiveGraph.addListener(GraphMarkerListener,
+    () ⇒ enabled = TrackActiveGraph.active.exists(_.graphIsDirty()))
+
+  /** Update action state. */
+  def update(action: ActionGraphSaveAll, state: Boolean): Unit = App.exec {
+    if (action.isEnabled() != state) {
+      action.setEnabled(state)
+      action.updateEnabled()
+    }
+  }
+  /** Update actions state. */
+  def update(state: Boolean): Unit = lock.synchronized {
+    if (enabled != state) {
+      enabled = state
+      if (enabled)
+        log.debug(s"Enable '${Messages.saveAllFiles_text}' action")
+      else
+        log.debug(s"Disable '${Messages.saveAllFiles_text}' action")
+      actions.foreach { case (action, _) ⇒ update(action, state) }
+    }
+  }
+
+  /** Register action in action map. */
+  protected def register(action: ActionGraphSaveAll) = lock.synchronized {
+    actions(action) = ()
+    update(action, enabled)
+  }
+
+  /** Track active graphs. */
+  object GraphMarkerListener extends TrackActiveGraph.Listener {
+    /** Remove marker from tracked objects. */
+    def close(marker: GraphMarker) {
+      /* All subscribers already removed. */
+      if (enabled) Future { update(TrackActiveGraph.active.exists(_.graphIsDirty())) } // disable if clean
+    }
+    /** Add marker to tracked objects. */
+    def open(marker: GraphMarker) = marker.safeRead(state ⇒ if (marker.graphIsOpen()) {
+      state.graph.subscribe(GraphEventListener)
+      if (!enabled) Future { update(TrackActiveGraph.active.exists(_.graphIsDirty())) } // enable if dirty
+    })
+  }
+  /** Track graphs events. */
+  object GraphEventListener extends Subscriber[GraphEvent, Publisher[GraphEvent]] {
+    def notify(pub: Publisher[GraphEvent], event: GraphEvent) =
+      if (!enabled) Future { update(TrackActiveGraph.active.exists(_.graphIsDirty())) } // enable if dirty
+  }
 }

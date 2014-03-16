@@ -91,6 +91,7 @@ trait GraphSpecific {
   def graphClose(): Unit = state.safeWrite { state ⇒
     assertState()
     log.info(s"Close '${state.graph}' with '${this}'.")
+    state.graph.removeSubscriptions()
     state.contextRefs.keys.map(GraphMarker.unbind)
     state.contextRefs.clear()
     try markerSave() finally {
