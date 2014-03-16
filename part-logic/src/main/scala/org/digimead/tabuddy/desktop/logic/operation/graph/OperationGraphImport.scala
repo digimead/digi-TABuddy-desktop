@@ -125,6 +125,7 @@ class OperationGraphImport extends api.OperationGraphImport with Loggable {
           }
         })))
         newMarker.graphAcquire()
+        newMarker.safeRead(_.graph)
       case None ⇒
         throw new IllegalStateException(s"Unable to import graph with origin $graphOrigin from " + graphLocation)
     }

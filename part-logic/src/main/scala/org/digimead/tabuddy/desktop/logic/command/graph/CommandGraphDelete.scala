@@ -71,8 +71,7 @@ object CommandGraphDelete extends Loggable {
       parserResult match {
         case (Some(marker: GraphMarker), _, _, _) ⇒
           val exchanger = new Exchanger[Operation.Result[graphapi.GraphMarker]]()
-          val graph = marker.graphAcquire()
-          OperationGraphDelete(graph, false).foreach { operation ⇒
+          OperationGraphDelete(marker.safeRead(_.graph), false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)

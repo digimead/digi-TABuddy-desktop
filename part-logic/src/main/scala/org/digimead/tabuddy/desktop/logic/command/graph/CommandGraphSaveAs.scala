@@ -76,8 +76,8 @@ object CommandGraphSaveAs extends Loggable {
         case ~(~(~(Some(marker: GraphMarker), space), name: String), path: File) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
           val shouldCloseAfterComplete = !marker.graphIsOpen()
-          val graph = marker.graphAcquire()
-          OperationGraphSaveAs(graph, name, path, None).foreach { operation ⇒
+          marker.graphAcquire()
+          OperationGraphSaveAs(marker.safeRead(_.graph), name, path, None).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -90,7 +90,7 @@ object CommandGraphSaveAs extends Loggable {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
               if (shouldCloseAfterComplete) {
-                OperationGraphClose.operation(graph, false)
+                OperationGraphClose.operation(marker.safeRead(_.graph), false)
                 result.foreach(OperationGraphClose.operation(_, false))
               }
               result

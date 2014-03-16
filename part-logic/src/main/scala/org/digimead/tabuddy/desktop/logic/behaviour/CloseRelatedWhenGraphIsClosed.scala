@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,59 +41,39 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.maker.api
+package org.digimead.tabuddy.desktop.logic.behaviour
 
-import java.io.File
-import java.util.UUID
-import org.digimead.tabuddy.desktop.logic.payload.api
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.Serialization
-import scala.collection.immutable
+import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import scala.language.implicitConversions
 
-/**
- * Graph marker is an object that holds an association between real graph at client
- *   and Eclipse IResource within container(project).
- */
-trait GraphMarker {
-  /** Autoload property file if suitable information needed. */
-  val autoload: Boolean
-  /** Container IResource unique id. */
-  val uuid: UUID
+class CloseRelatedWhenGraphIsClosed extends Loggable {
+  def run(marker: GraphMarker) {
+    log.debug(s"Close all views that are related to ${marker}.")
+    val toCloseRefs = UI.viewMap.filter {
+      case (uuid, vComposite) ⇒
+        vComposite.factory().features.contains(Logic.Feature.graph) &&
+          vComposite.getContext().map(_.getActive(classOf[GraphMarker])) == Some(marker)
+    }.map(_._2.ref)
+    toCloseRefs.foreach(_ ! App.Message.Destroy())
+  }
+}
 
-  /** Assert marker state. */
-  def assertState()
-  /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(reload: Boolean = false)
-  /** Close the loaded graph. */
-  def graphClose()
-  /** Graph creation timestamp. */
-  def graphCreated: Element.Timestamp
-  /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None)
-  /** Check whether the graph is modified. */
-  def graphIsDirty(): Boolean
-  /** Check whether the graph is loaded. */
-  def graphIsOpen(): Boolean
-  /** Model ID. */
-  def graphModelId: Symbol
-  /** Origin of the graph. */
-  def graphOrigin: Symbol
-  /** Path to the graph: base directory and graph directory name. */
-  def graphPath: File
-  /** Graph last save timestamp. */
-  def graphStored: Element.Timestamp
-  /** Load type schemas from local storage. */
-  def loadTypeSchemas(): immutable.HashSet[api.TypeSchema]
-  /** The validation flag indicating whether the marker is consistent. */
-  def markerIsValid: Boolean
-  /** Marker last access timestamp. */
-  def markerLastAccessed: Long
-  /** Load marker properties. */
-  def markerLoad()
-  /** Save marker properties. */
-  def markerSave()
-  /** Save type schemas to the local storage. */
-  def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema])
+object CloseRelatedWhenGraphIsClosed {
+  implicit def class2implementation(c: CloseRelatedWhenGraphIsClosed.type): CloseRelatedWhenGraphIsClosed = c.inner
+
+  /** CloseRelatedWhenGraphIsClosed implementation. */
+  def inner = DI.implementation
+
+  /**
+   * Dependency injection routines.
+   */
+  private object DI extends DependencyInjection.PersistentInjectable {
+    /** CloseRelatedWhenGraphIsClosed implementation. */
+    lazy val implementation = injectOptional[CloseRelatedWhenGraphIsClosed] getOrElse new CloseRelatedWhenGraphIsClosed
+  }
 }

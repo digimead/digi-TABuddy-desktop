@@ -61,13 +61,12 @@ trait GraphSpecific {
   this: GraphMarker ⇒
 
   /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = state.safeWrite { state ⇒
+  def graphAcquire(reload: Boolean = false): Unit = state.safeWrite { state ⇒
     assertState()
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    val loaded = if (!reload) state.graphObject else None
-    loaded getOrElse {
+    if (reload || state.graphObject.isEmpty) {
       val graph = loadGraph(takeItEasy = true) getOrElse {
         log.info("Create new empty graph " + graphModelId)
         /**
@@ -85,11 +84,11 @@ trait GraphSpecific {
       graph.withData(_(GraphMarker) = GraphSpecific.this)
       state.graphObject = Option(graph)
       state.payloadObject = Option(initializePayload())
-      graph
+      App.publish(App.Message.Open(this, None))
     }
   }
   /** Close the loaded graph. */
-  def graphClose() = state.safeWrite { state ⇒
+  def graphClose(): Unit = state.safeWrite { state ⇒
     assertState()
     log.info(s"Close '${state.graph}' with '${this}'.")
     state.contextRefs.keys.map(GraphMarker.unbind)
@@ -98,6 +97,7 @@ trait GraphSpecific {
       state.graphObject = None
       state.payloadObject = None
     }
+    App.publish(App.Message.Close(this, None))
   }
   /** Graph creation timestamp. */
   def graphCreated: Element.Timestamp = getValueFromGraphProperties { p ⇒
@@ -111,6 +111,7 @@ trait GraphSpecific {
       throw new IllegalStateException("Workspace is not available.")
     saveTypeSchemas(App.execNGet { state.payload.typeSchemas.values.toSet })
     Serialization.freeze(state.graph, storages = storages)
+    App.publish(App.Message.Save(this, None))
   }
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean = graphIsOpen && !safeRead { state ⇒

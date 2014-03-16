@@ -112,7 +112,7 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
     body ← body
     content ← content
     layout = body.getLayout().asInstanceOf[StackLayout]
-  } {
+  } if (marker.graphIsOpen()) {
     layout.topControl = content
     body.layout()
     loading.foreach { loading ⇒
@@ -121,7 +121,8 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
     }
     viewContext.set(classOf[GraphMarker], marker)
     App.publish(App.Message.Update(marker, self))
-  }
+  } else
+    container ! App.Message.Destroy(None, self)
   /** Creates and returns this window's contents. */
   protected def createContents(parent: VComposite): Composite = {
     val body = new Composite(parent, SWT.NONE)

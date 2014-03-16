@@ -107,6 +107,7 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
       marker
     }
     marker.graphAcquire()
+    marker.safeRead(_.graph)
   }
   /**
    * Create 'New graph' operation.

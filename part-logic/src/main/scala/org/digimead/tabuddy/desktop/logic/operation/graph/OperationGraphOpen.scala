@@ -72,6 +72,7 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
       if (marker.graphIsOpen())
         throw new IllegalStateException("Graph is already opened.")
       marker.graphAcquire()
+      state.graph
     }
     graph
   }

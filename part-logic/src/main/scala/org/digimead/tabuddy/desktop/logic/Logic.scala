@@ -54,6 +54,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.ui.WindowWatcher
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
@@ -91,11 +92,13 @@ class Logic extends akka.actor.Actor with Loggable {
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Consistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.unsubscribe(self, classOf[App.Message.Destroy[_]])
+    App.system.eventStream.unsubscribe(self, classOf[App.Message.Close[_]])
     App.watch(this) off ()
     log.debug(self.path.name + " actor is stopped.")
   }
   /** Is called when an Actor is started. */
   override def preStart() {
+    App.system.eventStream.subscribe(self, classOf[App.Message.Close[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Destroy[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Inconsistent[_]])
     App.system.eventStream.subscribe(self, classOf[App.Message.Consistent[_]])
@@ -133,6 +136,11 @@ class Logic extends akka.actor.Actor with Loggable {
         behaviour.CloseGraphWhenLastViewIsClosed.run()
     }
 
+    case message @ App.Message.Close(marker: GraphMarker, _, _) ⇒ App.traceMessage(message) {
+      behaviour.CloseRelatedWhenGraphIsClosed.run(marker)
+    }
+
+    case message @ App.Message.Close(_, _, _) ⇒ // skip
     case message @ App.Message.Consistent(_, _, _) ⇒ // skip
     case message @ App.Message.Destroy(_, _, _) ⇒ // skip
     case message @ App.Message.Inconsistent(_, _, _) ⇒ // skip

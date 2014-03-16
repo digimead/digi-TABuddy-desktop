@@ -75,8 +75,8 @@ object CommandGraphExport extends Loggable {
         case ~(arg, ~(marker: GraphMarker, destination: File)) ⇒
           val exchanger = new Exchanger[Operation.Result[Unit]]()
           val shouldCloseAfterComplete = !marker.graphIsOpen()
-          val graph = marker.graphAcquire()
-          OperationGraphExport(graph, Some(destination), arg == Some(forceArg), false).foreach { operation ⇒
+          marker.graphAcquire()
+          OperationGraphExport(marker.safeRead(_.graph), Some(destination), arg == Some(forceArg), false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -88,6 +88,7 @@ object CommandGraphExport extends Loggable {
           exchanger.exchange(null) match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully.")
+              val graph = marker.safeRead(_.graph)
               if (shouldCloseAfterComplete)
                 OperationGraphClose.operation(graph, false)
               result match {

@@ -350,13 +350,13 @@ object GraphMarker extends Loggable {
     finally globalRWL.readLock().unlock()
   }
   /**
-   * Create new model marker in the workspace.
+   * Create new graph marker in the workspace.
    *
    * @param uuid container IResource unique id.
    * @param fullPath path to model with model directory name.
-   * @param created model creation timestamp.
-   * @param origin model owner that launch creation process.
-   * @return model marker
+   * @param created graph creation timestamp.
+   * @param origin graph owner that launch creation process.
+   * @return graph marker
    */
   def createInTheWorkspace(resourceUUID: UUID, fullPath: File, created: Element.Timestamp, origin: Symbol): GraphMarker = {
     globalRWL.writeLock().lock()
@@ -574,7 +574,7 @@ object GraphMarker extends Loggable {
     /** Assert marker state. */
     def assertState() {}
     /** Load the specific graph from the predefined directory ${location}/id/ */
-    def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = throw new UnsupportedOperationException()
+    def graphAcquire(reload: Boolean = false) = throw new UnsupportedOperationException()
     /** Close the loaded graph. */
     def graphClose() = throw new UnsupportedOperationException()
     /** Store the graph to the predefined directory ${location}/id/ */
@@ -622,7 +622,7 @@ object GraphMarker extends Loggable {
     /** Assert marker state. */
     override def assertState() {}
     /** Load the specific graph from the predefined directory ${location}/id/ */
-    override def graphAcquire(reload: Boolean = false): Graph[_ <: Model.Like] = graph
+    override def graphAcquire(reload: Boolean = false) = throw new UnsupportedOperationException()
     /** Graph creation timestamp. */
     override def graphCreated: Element.Timestamp = graph.created
     /** Close the loaded graph. */
