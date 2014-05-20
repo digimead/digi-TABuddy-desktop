@@ -211,9 +211,25 @@ object KeyRing {
   def secretKeyRingName = DI.secretKeyRingName
 
   /**
+   * Asymmetric cipher decryptor.
+   */
+  trait Decryptor extends Function1[Array[Byte], Array[Byte]]
+  /**
+   * Asymmetric cipher encryptor.
+   */
+  trait Encryptor extends Function1[Array[Byte], Array[Byte]] {
+    /**
+     * Return the maximum size for an input block to this engine.
+     *
+     * @return maximum size for an input block.
+     */
+    def getInputBlockSize(): Int
+  }
+  /**
    * Keyring implementation.
    */
-  class Implementation extends KeyRingGeneral with KeyRingSignature with KeyRingExchange with Loggable
+  class Implementation extends KeyRingExchange with KeyRingGeneral
+    with KeyRingSignature with KeyRingTransform with Loggable
   /**
    * Signature notation. rfc2440 5.2.3.15.
    */

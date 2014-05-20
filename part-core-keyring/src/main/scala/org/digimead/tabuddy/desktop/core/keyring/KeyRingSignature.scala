@@ -71,14 +71,25 @@ trait KeyRingSignature {
   }
   /** Verify public key against another public key. */
   def verify(target: PGPPublicKey, pubKey: PGPPublicKey): Boolean = {
-    target.getSignatures().asScala.asInstanceOf[Iterator[PGPSignature]].filter(_.getKeyID() == pubKey.getKeyID()).foreach {
-      signature ⇒
-        val ids = pubKey.getUserIDs().asInstanceOf[java.util.Iterator[String]]
-        while (ids.hasNext()) {
+    if (target.isMasterKey()) {
+      // Verify master key against another master key.
+      target.getSignatures().asScala.asInstanceOf[Iterator[PGPSignature]].filter(_.getKeyID() == pubKey.getKeyID()).foreach {
+        signature ⇒
+          val ids = pubKey.getUserIDs().asInstanceOf[java.util.Iterator[String]]
+          while (ids.hasNext()) {
+            signature.init(new BcPGPContentVerifierBuilderProvider(), pubKey)
+            if (signature.verifyCertification(ids.next(), target))
+              return true
+          }
+      }
+    } else {
+      // Verify subkey against master key.
+      target.getSignatures().asScala.asInstanceOf[Iterator[PGPSignature]].filter(_.getKeyID() == pubKey.getKeyID()).foreach {
+        signature ⇒
           signature.init(new BcPGPContentVerifierBuilderProvider(), pubKey)
-          if (signature.verifyCertification(ids.next(), target))
+          if (signature.verifyCertification(pubKey, target))
             return true
-        }
+      }
     }
     false
   }
