@@ -50,7 +50,7 @@ import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import scala.concurrent.Future
 
 /**

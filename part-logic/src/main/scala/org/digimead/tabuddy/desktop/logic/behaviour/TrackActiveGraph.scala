@@ -47,7 +47,7 @@ import java.util.UUID
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import scala.language.implicitConversions
 
 class TrackActiveGraph extends Loggable {

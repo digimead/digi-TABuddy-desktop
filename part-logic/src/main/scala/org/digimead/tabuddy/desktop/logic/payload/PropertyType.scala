@@ -47,7 +47,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.logic.Default
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.core.ui.support.Validator
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType

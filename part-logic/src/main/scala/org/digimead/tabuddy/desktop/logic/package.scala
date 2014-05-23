@@ -55,6 +55,7 @@ package object logic {
     command.default ~
     payload.default ~
     payload.view.default ~
+    payload.marker.serialization.encryption.default ~
     comparator.default ~
     filter.default ~
     operation.default

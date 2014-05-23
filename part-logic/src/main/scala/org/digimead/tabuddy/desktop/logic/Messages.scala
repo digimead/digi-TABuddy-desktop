@@ -69,12 +69,19 @@ class Messages extends ResourceBundle {
 }
 
 object Messages extends NLS with Loggable {
+  val autoresize_key = ""
   val closeAllFiles_text = ""
   val closeFile_text = ""
   val creationError_text = ""
   val exportFile_text = ""
   val graphContentTitle = ""
   val graphContentTitleEmpty = ""
+  val graphImportDialogDescription_text = ""
+  val graphImportDialogTitle_text = ""
+  val graphImportDialog_text = ""
+  val graphSelectionDialogDescription_text = ""
+  val graphSelectionDialogTitle_text = ""
+  val graphSelectionDialog_text = ""
   val graph_closeDescriptionLong_text = ""
   val graph_closeDescriptionShort_text = ""
   val graph_close_text = ""
@@ -146,10 +153,6 @@ object Messages extends NLS with Loggable {
   val shellTitle_text = ""
   val wizardGraphNewPageOneDescription_text = ""
   val wizardGraphNewPageOneTitle_text = ""
-  val graphSelectionDialog_text = ""
-  val graphSelectionDialogDescription_text = ""
-  val graphSelectionDialogTitle_text = ""
-  val autoresize_key = ""
 
   T.ranslate("org.digimead.tabuddy.desktop.logic.messages")
 }

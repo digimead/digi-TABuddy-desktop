@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.IView
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.core.ui.view.{ Loading, defaultv }
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.swt.SWT

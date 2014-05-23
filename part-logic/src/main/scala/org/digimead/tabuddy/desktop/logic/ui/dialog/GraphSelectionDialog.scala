@@ -67,7 +67,7 @@ import org.digimead.tabuddy.desktop.core.ui.{ ResourceManager, Resources }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.logic.Default
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.core.databinding.observable.value.DecoratingObservableValue
 import org.eclipse.e4.core.contexts.IEclipseContext

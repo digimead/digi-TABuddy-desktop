@@ -50,7 +50,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.NLS
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.yaml.snakeyaml.{ DumperOptions, Yaml }
 import org.yaml.snakeyaml.constructor.{ AbstractConstruct, Constructor }
 import org.yaml.snakeyaml.error.YAMLException

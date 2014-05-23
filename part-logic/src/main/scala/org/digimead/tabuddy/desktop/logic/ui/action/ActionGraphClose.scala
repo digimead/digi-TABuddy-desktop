@@ -52,7 +52,7 @@ import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.swt.widgets.Event

@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.{ UI, Wizards }
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph

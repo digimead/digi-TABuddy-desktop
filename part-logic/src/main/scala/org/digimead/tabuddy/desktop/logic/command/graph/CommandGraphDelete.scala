@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphDelete
-import org.digimead.tabuddy.desktop.logic.payload.maker.{ GraphMarker, api ⇒ graphapi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.{ GraphMarker, api ⇒ graphapi }
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 

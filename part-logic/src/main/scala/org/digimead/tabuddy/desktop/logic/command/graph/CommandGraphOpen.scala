@@ -52,7 +52,7 @@ import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphOpen
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job

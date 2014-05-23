@@ -44,15 +44,48 @@
 package org.digimead.tabuddy.desktop.logic.ui.action
 
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.support.App.app2implementation
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.eclipse.ui.internal.{ IWorkbenchGraphicConstants, WorkbenchImages }
+import org.eclipse.swt.widgets.Shell
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.digimead.tabuddy.desktop.logic.ui.dialog.GraphImportDialog
 
 class ActionGraphImport @Inject() (windowContext: Context) extends Action(Messages.importFile_text) with Loggable {
   //this.setText(WorkbenchMessages.ImportResourcesAction_text);
   //this.setToolTipText(WorkbenchMessages.ImportResourcesAction_toolTip);
-  //this.getWorkbench().getHelpSystem().setHelp(action, IWorkbenchHelpContextIds.IMPORT_ACTION)
+  //PlatformUI.getWorkbench().getHelpSystem().setHelp(this, IWorkbenchHelpContextIds.IMPORT_ACTION)
   this.setImageDescriptor(WorkbenchImages.getImageDescriptor(IWorkbenchGraphicConstants.IMG_ETOOL_IMPORT_WIZ))
+  @log
+  override def run = App.execAsync {
+    UI.getActiveShell match {
+      case Some(shell) ⇒
+        val dialogContext = windowContext.createChild("GraphImportDialog")
+        dialogContext.set(classOf[Shell], shell)
+        val dialog = ContextInjectionFactory.make(classOf[GraphImportDialog], dialogContext)
+        dialog.openOrFocus { result ⇒
+          windowContext.removeChild(dialogContext)
+          dialogContext.dispose()
+          if (result == org.eclipse.jface.window.Window.OK)
+            null
+//            dialog.getMarker() match {
+//              case Some(marker) ⇒
+//                //onGraphSelected(marker)
+//              case None ⇒
+//                log.debug("There is no graph selected.")
+//            }
+          else
+            log.debug("Cancelled.")
+        }
+      case None ⇒
+        log.error("Unable to find active shell.")
+    }
+  }(App.LongRunnable)
 }

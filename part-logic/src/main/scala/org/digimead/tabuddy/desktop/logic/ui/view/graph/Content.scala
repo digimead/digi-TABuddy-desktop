@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.ui.block.View.Factory
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
 import org.eclipse.core.runtime.jobs.Job

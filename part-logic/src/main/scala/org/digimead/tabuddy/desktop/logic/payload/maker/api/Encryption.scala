@@ -41,51 +41,50 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.behaviour
+package org.digimead.tabuddy.desktop.logic.payload.marker.api
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.eclipse.core.runtime.jobs.Job
-import scala.language.implicitConversions
+/**
+ * Base encryption interface.
+ */
+trait Encryption {
+  /** Encryption description. */
+  val description: String
+  /** Unique encryption identifier. */
+  val identifier: Encryption.Identifier
 
-class CloseGraphWhenLastViewIsClosed extends Loggable {
-  def run() {
-    log.debug("Check for last view.")
-    val allOpened = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.markerIsValid && m.graphIsOpen()).toSet
-    val allExists = UI.viewMap.flatMap(_._2.getContext().flatMap(context ⇒ Option(context.getActive(classOf[GraphMarker])))).toSet
-    val diff = allOpened.diff(allExists)
-    if (diff.isEmpty)
-      return
-    log.debug(s"Close unbinded ${diff.mkString(",")}.")
-    diff.foreach { marker ⇒
-      OperationGraphClose(marker.safeRead(_.graph), false).foreach { operation ⇒
-        operation.getExecuteJob() match {
-          case Some(job) ⇒
-            job.setPriority(Job.LONG)
-            job.schedule()
-          case None ⇒
-            throw new RuntimeException(s"Unable to create job for ${operation}.")
-        }
-      }
-    }
-  }
+  /** Get encryption parameters. */
+  def apply(key: Option[String], args: String*): Encryption.Parameters
+  /** Encrypt data. */
+  def encrypt(data: Array[Byte], parameters: Encryption.Parameters): Array[Byte]
+  /** Decrypt data. */
+  def decrypt(data: Array[Byte], parameters: Encryption.Parameters): Array[Byte]
 }
 
-object CloseGraphWhenLastViewIsClosed {
-  implicit def class2implementation(c: CloseGraphWhenLastViewIsClosed.type): CloseGraphWhenLastViewIsClosed = c.inner
-
-  /** CloseGraphWhenLastViewIsClosed implementation. */
-  def inner = DI.implementation
-
+object Encryption {
   /**
-   * Dependency injection routines.
+   * Identifier that is associated with the encryption.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** CloseGraphWhenLastViewIsClosed implementation. */
-    lazy val implementation = injectOptional[CloseGraphWhenLastViewIsClosed] getOrElse new CloseGraphWhenLastViewIsClosed
+  trait Identifier extends Equals with java.io.Serializable {
+    val name: String
+
+    override def canEqual(that: Any) = that.isInstanceOf[Identifier]
+    override def equals(that: Any): Boolean = that match {
+      case that: Identifier ⇒ that.canEqual(this) && that.name.equals(this.name)
+      case _ ⇒ false
+    }
+    override def hashCode = name.##
+
+    override def toString = s"Encryption.Identifier(${name})"
+  }
+  /**
+   * Encryption parameters.
+   */
+  trait Parameters {
+    /** Encryption parameters as sequence of strings. */
+    def arguments: Seq[String]
+    /** Encryption instance. */
+    def encryption: Encryption
+    /** Encryption key. */
+    def key: Option[String]
   }
 }

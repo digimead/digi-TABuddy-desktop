@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphOpen
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.ui.dialog.GraphSelectionDialog
 import org.digimead.tabuddy.desktop.logic.ui.view
 import org.digimead.tabuddy.model.Model

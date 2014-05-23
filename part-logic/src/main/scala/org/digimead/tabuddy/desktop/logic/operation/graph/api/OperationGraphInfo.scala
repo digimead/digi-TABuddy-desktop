@@ -41,51 +41,54 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.behaviour
+package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.eclipse.core.runtime.jobs.Job
-import scala.language.implicitConversions
+import java.net.URI
+import org.digimead.tabuddy.desktop.core.definition.api
 
-class CloseGraphWhenLastViewIsClosed extends Loggable {
-  def run() {
-    log.debug("Check for last view.")
-    val allOpened = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.markerIsValid && m.graphIsOpen()).toSet
-    val allExists = UI.viewMap.flatMap(_._2.getContext().flatMap(context ⇒ Option(context.getActive(classOf[GraphMarker])))).toSet
-    val diff = allOpened.diff(allExists)
-    if (diff.isEmpty)
-      return
-    log.debug(s"Close unbinded ${diff.mkString(",")}.")
-    diff.foreach { marker ⇒
-      OperationGraphClose(marker.safeRead(_.graph), false).foreach { operation ⇒
-        operation.getExecuteJob() match {
-          case Some(job) ⇒
-            job.setPriority(Job.LONG)
-            job.schedule()
-          case None ⇒
-            throw new RuntimeException(s"Unable to create job for ${operation}.")
-        }
-      }
-    }
-  }
-}
-
-object CloseGraphWhenLastViewIsClosed {
-  implicit def class2implementation(c: CloseGraphWhenLastViewIsClosed.type): CloseGraphWhenLastViewIsClosed = c.inner
-
-  /** CloseGraphWhenLastViewIsClosed implementation. */
-  def inner = DI.implementation
+/**
+ * OperationGraphInfo base trait.
+ */
+trait OperationGraphInfo {
+  checkSubclass()
 
   /**
-   * Dependency injection routines.
+   * Get information about graph.
+   *
+   * @param origin graph origin
+   * @param location source with imported graph
+   * @param publicKey key for graph if needed
+   * @return information about graph
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** CloseGraphWhenLastViewIsClosed implementation. */
-    lazy val implementation = injectOptional[CloseGraphWhenLastViewIsClosed] getOrElse new CloseGraphWhenLastViewIsClosed
-  }
+  def apply(origin: Symbol, location: URI, pgpPublicKey: Option[AnyRef]): OperationGraphInfo.Info
+  /**
+   * Create 'Graph info' operation.
+   *
+   * @param origin graph origin
+   * @param location source with imported graph
+   * @param publicKey key for graph if needed
+   * @return 'Graph info' operation
+   */
+  def operation(origin: Symbol, location: URI, pgpPublicKey: Option[AnyRef]): api.Operation[OperationGraphInfo.Info]
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphInfo instead.")
+}
+
+object OperationGraphInfo {
+  case class Info(origin: Symbol)
 }

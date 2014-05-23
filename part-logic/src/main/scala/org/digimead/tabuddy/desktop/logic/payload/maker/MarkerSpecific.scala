@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.maker
+package org.digimead.tabuddy.desktop.logic.payload.marker
 
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, File, FileInputStream, FileOutputStream }
 import java.util.Properties
@@ -54,6 +54,7 @@ import org.eclipse.core.resources.IResource
  */
 trait MarkerSpecific {
   this: GraphMarker ⇒
+
   /** The validation flag indicating whether the marker is consistent. */
   def markerIsValid: Boolean = state.safeUpdate { state ⇒
     try {
@@ -69,7 +70,7 @@ trait MarkerSpecific {
     }
   }
   /** Marker last access timestamp. */
-  def markerLastAccessed: Long = getValueFromGraphProperties { p ⇒ p.getProperty(GraphMarker.fieldLastAccessed).toLong }
+  def markerLastAccessed: Long = graphProperties { p ⇒ p.getProperty(GraphMarker.fieldLastAccessed).toLong }
   /** Load marker properties. */
   def markerLoad() = state.safeWrite { state ⇒
     assertState()

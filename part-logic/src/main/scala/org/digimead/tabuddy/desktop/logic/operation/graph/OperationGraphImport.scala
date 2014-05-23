@@ -52,7 +52,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
@@ -103,14 +103,13 @@ class OperationGraphImport extends api.OperationGraphImport with Loggable {
       (origin getOrElse { throw new IllegalArgumentException("Unable to non interactively import graph without origin.") },
         location getOrElse { throw new IllegalArgumentException("Unable to non interactively import graph without location.") })
     }
-    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphLocation)) match {
+    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphLocation)) match {
       case Some(graph) ⇒
         val localGraphPath = if (graphLocation.getScheme() != new File(".").toURI().getScheme()) {
           // this is remote graph
           // create local copy
           val destination = new File(Logic.graphContainer, graph.model.eId.name)
-          Serialization.freeze(graph,
-            storages = Some(Serialization.ExplicitStorages(Seq(destination.toURI()), Serialization.ExplicitStorages.ModeAppend)))
+          Serialization.freeze(graph, destination.toURI())
           destination
         } else
           new File(graphLocation)

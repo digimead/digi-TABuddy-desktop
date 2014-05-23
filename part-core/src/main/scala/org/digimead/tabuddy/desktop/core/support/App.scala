@@ -93,6 +93,7 @@ class App extends Loggable with app.Akka with app.Context with app.Thread with a
 object App {
   implicit def app2implementation(l: App.type): App = inner
 
+  /** App implementation. */
   def inner(): App = DI.implementation
   /** Event thread delay in ms. */
   def eventThreadDelay = DI.eventThreadDelay

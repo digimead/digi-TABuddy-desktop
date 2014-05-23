@@ -51,7 +51,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.Serialization
@@ -90,8 +90,8 @@ class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
           data.clear()
           data(GraphMarker) = newMarker
         }
-        g.storages = g.storages.filterNot(_ == localStorageURI)
-        g.storages = g.storages :+ newMarker.graphPath.toURI()
+//        g.storages = g.storages.filterNot(_ == localStorageURI)
+//        g.storages = g.storages :+ newMarker.graphPath.toURI()
       })
       state.payloadObject = Option(marker.safeRead(_.payload))
     })

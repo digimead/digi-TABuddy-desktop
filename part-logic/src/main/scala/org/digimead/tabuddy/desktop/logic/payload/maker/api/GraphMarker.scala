@@ -41,15 +41,14 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.maker.api
+package org.digimead.tabuddy.desktop.logic.payload.marker.api
 
 import java.io.File
+import java.net.URI
 import java.util.UUID
 import org.digimead.tabuddy.desktop.logic.payload.api
-import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.Serialization
+import org.digimead.tabuddy.model.serialization.{ Serialization, digest, signature }
 import scala.collection.immutable
 
 /**
@@ -64,6 +63,12 @@ trait GraphMarker {
 
   /** Assert marker state. */
   def assertState()
+  /** Get digest settings. */
+  def digest: GraphMarker.Digest
+  /** Get container encryption settings. */
+  def containerEncryption: GraphMarker.Encryption
+  /** Get content encryption settings. */
+  def contentEncryption: GraphMarker.Encryption
   /** Load the specific graph from the predefined directory ${location}/id/ */
   def graphAcquire(reload: Boolean = false)
   /** Close the loaded graph. */
@@ -96,4 +101,27 @@ trait GraphMarker {
   def markerSave()
   /** Save type schemas to the local storage. */
   def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema])
+  /** Get signature settings. */
+  def signature: GraphMarker.Signature
+}
+
+object GraphMarker {
+  /**
+   * Digest parameters.
+   *
+   * @param acquire - Digest.Key.acquire
+   * @param freeze - Digest.Key.freeze
+   */
+  case class Digest(acquire: Option[Boolean], freeze: Option[Map[URI, digest.Mechanism.Parameters]])
+  /**
+   * Encryption parameters.
+   */
+  case class Encryption(val encryption: Map[URI, org.digimead.tabuddy.desktop.logic.payload.marker.api.Encryption.Parameters])
+  /**
+   * Signature parameters.
+   *
+   * @param acquire - Signature.Key.acquire: UUID of function Option[PublicKey] ⇒ Boolean
+   * @param freeze - Signature.Key.freeze
+   */
+  case class Signature(acquire: Option[UUID], freeze: Option[Map[URI, signature.Mechanism.Parameters]])
 }

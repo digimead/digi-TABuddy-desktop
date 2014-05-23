@@ -50,7 +50,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.Serialization
@@ -90,10 +90,9 @@ class OperationGraphExport extends api.OperationGraphExport with Loggable {
         throw new IOException("Destination directory is already exists.")
     val currentURI = Serialization.normalizeURI(marker.graphPath.toURI())
     val copy = graph.copy() { g ⇒
-      g.storages = g.storages.filterNot(_ == currentURI)
+//      g.storages = g.storages.filterNot(_ == currentURI)
     }
-    Serialization.freeze(copy,
-      storages = Some(Serialization.ExplicitStorages(Seq(destination.toURI()), Serialization.ExplicitStorages.ModeAppend)))
+    Serialization.freeze(copy, destination.toURI())
   }
   /**
    * Create 'Export graph' operation.

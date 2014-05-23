@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Default
 import org.digimead.tabuddy.desktop.logic.payload.{ PredefinedElements, PropertyType }
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
 import scala.collection.mutable

@@ -41,51 +41,20 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.behaviour
+package org.digimead.tabuddy.desktop.logic.payload.marker.serialization
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.eclipse.core.runtime.jobs.Job
-import scala.language.implicitConversions
+import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.Encryption
 
-class CloseGraphWhenLastViewIsClosed extends Loggable {
-  def run() {
-    log.debug("Check for last view.")
-    val allOpened = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.markerIsValid && m.graphIsOpen()).toSet
-    val allExists = UI.viewMap.flatMap(_._2.getContext().flatMap(context ⇒ Option(context.getActive(classOf[GraphMarker])))).toSet
-    val diff = allOpened.diff(allExists)
-    if (diff.isEmpty)
-      return
-    log.debug(s"Close unbinded ${diff.mkString(",")}.")
-    diff.foreach { marker ⇒
-      OperationGraphClose(marker.safeRead(_.graph), false).foreach { operation ⇒
-        operation.getExecuteJob() match {
-          case Some(job) ⇒
-            job.setPriority(Job.LONG)
-            job.schedule()
-          case None ⇒
-            throw new RuntimeException(s"Unable to create job for ${operation}.")
-        }
-      }
-    }
-  }
-}
-
-object CloseGraphWhenLastViewIsClosed {
-  implicit def class2implementation(c: CloseGraphWhenLastViewIsClosed.type): CloseGraphWhenLastViewIsClosed = c.inner
-
-  /** CloseGraphWhenLastViewIsClosed implementation. */
-  def inner = DI.implementation
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** CloseGraphWhenLastViewIsClosed implementation. */
-    lazy val implementation = injectOptional[CloseGraphWhenLastViewIsClosed] getOrElse new CloseGraphWhenLastViewIsClosed
-  }
+package object encryption {
+  lazy val default = new NewBindingModule(module ⇒ {
+    module.bind[Encryption] identifiedBy ("Payload.Encryption.Base") toSingle { new Base() }
+    module.bind[Encryption] identifiedBy ("Payload.Encryption.XOR") toSingle { new XOR() }
+    module.bind[Encryption] identifiedBy ("Payload.Encryption.DES") toSingle { new DES() }
+    module.bind[Encryption] identifiedBy ("Payload.Encryption.AES") toSingle { new AES() }
+    module.bind[Encryption] identifiedBy ("Payload.Encryption.Blowfish") toSingle { new Blowfish() }
+    module.bind[Encryption] identifiedBy ("Payload.Encryption.GOST28147") toSingle { new GOST28147() }
+    DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.Encryption$DI$")
+  })
 }

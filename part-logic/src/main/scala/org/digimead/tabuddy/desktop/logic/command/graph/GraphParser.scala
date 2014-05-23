@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.logic.command.graph
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import scala.language.implicitConversions
 import scala.util.DynamicVariable
 

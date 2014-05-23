@@ -41,51 +41,48 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.behaviour
+package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
 
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.eclipse.core.runtime.jobs.Job
-import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.logic.payload.marker.api
 
-class CloseGraphWhenLastViewIsClosed extends Loggable {
-  def run() {
-    log.debug("Check for last view.")
-    val allOpened = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.markerIsValid && m.graphIsOpen()).toSet
-    val allExists = UI.viewMap.flatMap(_._2.getContext().flatMap(context ⇒ Option(context.getActive(classOf[GraphMarker])))).toSet
-    val diff = allOpened.diff(allExists)
-    if (diff.isEmpty)
-      return
-    log.debug(s"Close unbinded ${diff.mkString(",")}.")
-    diff.foreach { marker ⇒
-      OperationGraphClose(marker.safeRead(_.graph), false).foreach { operation ⇒
-        operation.getExecuteJob() match {
-          case Some(job) ⇒
-            job.setPriority(Job.LONG)
-            job.schedule()
-          case None ⇒
-            throw new RuntimeException(s"Unable to create job for ${operation}.")
-        }
-      }
-    }
-  }
-}
+/**
+ * Container for all available encryption implementations.
+ */
+object Encryption extends Loggable {
+  type Identifier = api.Encryption.Identifier
 
-object CloseGraphWhenLastViewIsClosed {
-  implicit def class2implementation(c: CloseGraphWhenLastViewIsClosed.type): CloseGraphWhenLastViewIsClosed = c.inner
-
-  /** CloseGraphWhenLastViewIsClosed implementation. */
-  def inner = DI.implementation
+  /** Map of all available encryption implementations. */
+  def perIdentifier = DI.perIdentifier
 
   /**
-   * Dependency injection routines.
+   * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    /** CloseGraphWhenLastViewIsClosed implementation. */
-    lazy val implementation = injectOptional[CloseGraphWhenLastViewIsClosed] getOrElse new CloseGraphWhenLastViewIsClosed
+    /**
+     * Per identifier encryptions map.
+     *
+     * Each collected encryption must be:
+     *  1. an instance of api.GraphMarker.Encryption.Parameters
+     *  2. has name that starts with "Payload.Encryption."
+     */
+    lazy val perIdentifier: Map[Encryption.Identifier, api.Encryption] = {
+      val encryptions = bindingModule.bindings.filter {
+        case (key, value) ⇒ classOf[api.Encryption].isAssignableFrom(key.m.runtimeClass)
+      }.map {
+        case (key, value) ⇒
+          key.name match {
+            case Some(name) if name.startsWith("Payload.Encryption.") ⇒
+              log.debug(s"'${name}' loaded.")
+              bindingModule.injectOptional(key).asInstanceOf[Option[api.Encryption]]
+            case _ ⇒
+              log.debug(s"'${key.name.getOrElse("Unnamed")}' signature mechanism skipped.")
+              None
+          }
+      }.flatten.toSeq
+      assert(encryptions.distinct.size == encryptions.size, "Encryptions contain duplicated entities in " + encryptions)
+      Map(encryptions.map(m ⇒ m.identifier -> m): _*)
+    }
   }
 }

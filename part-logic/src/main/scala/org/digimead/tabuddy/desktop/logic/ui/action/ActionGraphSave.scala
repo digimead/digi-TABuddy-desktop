@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSave
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.graph.{ Event ⇒ GraphEvent }
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active

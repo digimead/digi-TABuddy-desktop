@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.ui.WindowWatcher
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
@@ -322,7 +322,7 @@ object Logic {
      * Infrastructure wide container name that required for minimization of resources complexity.
      * It is IProject singleton label.
      */
-    lazy val infrastructureWideProjectName = "tabuddy"
+    lazy val infrastructureWideProjectName = injectOptional[String]("Logic.Container") getOrElse "TABuddyLogic"
     /** Default location of user data. */
     lazy val graphContainer = injectOptional[File]("Graph.Location") getOrElse new File(App.data, "graph")
   }

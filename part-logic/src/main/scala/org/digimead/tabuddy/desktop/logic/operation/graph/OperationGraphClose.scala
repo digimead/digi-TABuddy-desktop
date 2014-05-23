@@ -49,7 +49,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.logic.payload.maker.{ GraphMarker, api ⇒ graphapi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.{ GraphMarker, api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
@@ -90,7 +90,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
           }
           if (shell.isEmpty) {
             // Close graph
-            if (graph.stored.isEmpty) {
+            if (graph.storages.isEmpty) {
               marker.graphClose()
               log.info(s"$graph is closed.")
               return GraphMarker.deleteFromWorkspace(marker) // newly created graph is unsaved, clean and

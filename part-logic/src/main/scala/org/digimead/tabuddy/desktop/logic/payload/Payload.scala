@@ -50,7 +50,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.{ WritableMap, WritableValue }
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.model.serialization.Serialization
 

@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
 import org.digimead.tabuddy.desktop.core.definition.api
-import org.digimead.tabuddy.desktop.logic.payload.maker.{ api ⇒ graphapi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.{ api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 

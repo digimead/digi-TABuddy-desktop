@@ -41,7 +41,7 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.maker
+package org.digimead.tabuddy.desktop.logic.payload.marker
 
 import java.io.File
 import org.digimead.digi.lib.aop.log
@@ -53,6 +53,7 @@ import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.Serialization
+import org.digimead.tabuddy.model.serialization.SData
 
 /**
  * Part of the graph marker that contains graph specific logic.
@@ -78,7 +79,7 @@ trait GraphSpecific {
          */
         // try to create model because we are unable to load it
         Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒
-          g.storages = g.storages :+ this.graphPath.toURI()
+          //g.storages = g.storages :+ this.graphPath.toURI()
         }
       }
       graph.withData(_(GraphMarker) = GraphSpecific.this)
@@ -101,7 +102,7 @@ trait GraphSpecific {
     App.publish(App.Message.Close(this, None))
   }
   /** Graph creation timestamp. */
-  def graphCreated: Element.Timestamp = getValueFromGraphProperties { p ⇒
+  def graphCreated: Element.Timestamp = graphProperties { p ⇒
     Element.Timestamp(p.getProperty(GraphMarker.fieldCreatedMillis).toLong, p.getProperty(GraphMarker.fieldCreatedNanos).toLong)
   }
   /** Store the graph to the predefined directory ${location}/id/ */
@@ -111,13 +112,18 @@ trait GraphSpecific {
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     saveTypeSchemas(App.execNGet { state.payload.typeSchemas.values.toSet })
-    Serialization.freeze(state.graph, storages = storages)
+    storages match {
+      case Some(storages) ⇒
+        Serialization.freeze(state.graph, SData(SData.Key.explicitStorages -> storages))
+      case None ⇒
+        Serialization.freeze(state.graph)
+    }
     App.publish(App.Message.Save(this, None))
   }
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean = graphIsOpen && !safeRead { state ⇒
     val ts = state.graph.modified
-    state.graph.stored.contains(ts)
+    state.graph.retrospective.last == Some(ts)
   }
   /** Check whether the graph is loaded. */
   def graphIsOpen(): Boolean = safeRead { state ⇒
@@ -130,11 +136,11 @@ trait GraphSpecific {
     Symbol(graphPath.getName)
   }
   /** Origin of the graph. */
-  def graphOrigin: Symbol = getValueFromGraphProperties { p ⇒ Symbol(p.getProperty(GraphMarker.fieldOrigin)) }
+  def graphOrigin: Symbol = graphProperties { p ⇒ Symbol(p.getProperty(GraphMarker.fieldOrigin)) }
   /** Path to the graph: base directory and graph directory name. */
-  def graphPath: File = getValueFromGraphProperties { p ⇒ new File(p.getProperty(GraphMarker.fieldPath)) }
+  def graphPath: File = graphProperties { p ⇒ new File(p.getProperty(GraphMarker.fieldPath)) }
   /** Graph last save timestamp. */
-  def graphStored: Element.Timestamp = getValueFromGraphProperties { p ⇒
+  def graphStored: Element.Timestamp = graphProperties { p ⇒
     Element.Timestamp(p.getProperty(GraphMarker.fieldSavedMillis).toLong, p.getProperty(GraphMarker.fieldSavedNanos).toLong)
   }
 
@@ -143,7 +149,7 @@ trait GraphSpecific {
   protected def loadGraph(takeItEasy: Boolean = false): Option[Graph[_ <: Model.Like]] = try {
     if (!markerIsValid)
       return None
-    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphOrigin, graphPath.toURI))
+    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphPath.toURI))
   } catch {
     case e: Throwable ⇒
       if (takeItEasy)

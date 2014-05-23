@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchemaList
 import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 

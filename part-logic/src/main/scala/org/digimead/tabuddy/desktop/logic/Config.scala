@@ -99,6 +99,7 @@ class Config(implicit val bindingModule: BindingModule) extends api.Config with 
 object Config extends Loggable {
   implicit def config2implementation(c: Config.type): api.Config = c.inner
 
+  /** Get config implementation. */
   def inner = DI.implementation
 
   /**

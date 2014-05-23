@@ -47,7 +47,7 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.maker.{ GraphMarker, api ⇒ graphapi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.{ GraphMarker, api ⇒ graphapi }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
