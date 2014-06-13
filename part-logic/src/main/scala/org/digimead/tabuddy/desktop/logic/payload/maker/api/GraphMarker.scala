@@ -70,13 +70,15 @@ trait GraphMarker {
   /** Get content encryption settings. */
   def contentEncryption: GraphMarker.Encryption
   /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(reload: Boolean = false)
+  def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false)
+  /** Get the bunch of additional storages where the left part is a write storage and the right part is a read one. */
+  def graphAdditionalStorages: Set[Either[URI, URI]]
   /** Close the loaded graph. */
   def graphClose()
   /** Graph creation timestamp. */
   def graphCreated: Element.Timestamp
   /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None)
+  def graphFreeze(storages: Option[Serialization.Storages] = None)
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean
   /** Check whether the graph is loaded. */
@@ -87,20 +89,21 @@ trait GraphMarker {
   def graphOrigin: Symbol
   /** Path to the graph: base directory and graph directory name. */
   def graphPath: File
-  /** Graph last save timestamp. */
+  /** The latest graph modified timestamp that was saved to storages. */
+  // This value is modified only if there is a valid local copy.
   def graphStored: Element.Timestamp
   /** Load type schemas from local storage. */
-  def loadTypeSchemas(): immutable.HashSet[api.TypeSchema]
+  def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[api.TypeSchema]
   /** The validation flag indicating whether the marker is consistent. */
   def markerIsValid: Boolean
-  /** Marker last access timestamp. */
+  /** Marker last access/last load timestamp. */
   def markerLastAccessed: Long
   /** Load marker properties. */
   def markerLoad()
   /** Save marker properties. */
   def markerSave()
   /** Save type schemas to the local storage. */
-  def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema])
+  def saveTypeSchemas(schemas: immutable.Set[api.TypeSchema], storages: Option[Serialization.Storages] = None)
   /** Get signature settings. */
   def signature: GraphMarker.Signature
 }

@@ -56,6 +56,7 @@ import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import org.eclipse.jface.window.Window
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.MessageBox
+import org.digimead.tabuddy.model.element.Element
 
 /** 'Close graph' operation. */
 class OperationGraphClose extends api.OperationGraphClose with Loggable {
@@ -90,10 +91,13 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
           }
           if (shell.isEmpty) {
             // Close graph
-            if (graph.storages.isEmpty) {
+            if (marker.graphStored == GraphMarker.TimestampNil) {
+              // There is no a local copy.
+              // Newly created graph is unsaved
+              // Remove current marker.
               marker.graphClose()
-              log.info(s"$graph is closed.")
-              return GraphMarker.deleteFromWorkspace(marker) // newly created graph is unsaved, clean and
+              log.info(s"$graph is closed. Delete unused marker.")
+              return GraphMarker.deleteFromWorkspace(marker)
             } else {
               // Returns the same marker
               marker.graphClose()

@@ -44,16 +44,15 @@
 package org.digimead.tabuddy.desktop.core.keyring
 
 import akka.actor.{ Inbox, PoisonPill, Terminated }
-import org.digimead.digi.lib.log.api.Loggable
+import java.security.Security
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.digimead.digi.lib.{ DependencyInjection, Disposable }
+import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.support.{ App, Timeout }
 import org.osgi.framework.{ BundleActivator, BundleContext }
 import scala.concurrent.Future
 import scala.ref.WeakReference
-import java.security.Security
-import org.bouncycastle.jce.provider.BouncyCastleProvider
 
 /**
  * OSGi entry point.

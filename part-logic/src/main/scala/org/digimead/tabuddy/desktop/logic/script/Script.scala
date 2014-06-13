@@ -161,7 +161,7 @@ object Script {
   /** Get Script implementation. */
   def inner = DI.implementation
   /** Get unique identificator for script. */
-  def unique(script: String) = new BigInteger(1, digest.digest(script.getBytes)).toString(36)
+  def unique(script: String) = new BigInteger(1, digest.digest(script.getBytes(io.Codec.UTF8.charSet))).toString(36)
 
   /**
    * Class loader for finding classes compiled by Compiler.

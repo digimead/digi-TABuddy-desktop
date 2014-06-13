@@ -43,17 +43,21 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.marker
 
-import java.io.File
+import java.io.{ File, InputStream, OutputStream }
+import java.net.URI
 import org.digimead.digi.lib.aop.log
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, TypeSchema }
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
+import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.Serialization
-import org.digimead.tabuddy.model.serialization.SData
+import org.digimead.tabuddy.model.serialization.{ SData, Serialization }
+import org.digimead.tabuddy.model.serialization.digest.Digest
+import org.digimead.tabuddy.model.serialization.signature.Signature
+import org.digimead.tabuddy.model.serialization.transport.Transport
+import scala.{ Left, Right }
 
 /**
  * Part of the graph marker that contains graph specific logic.
@@ -62,13 +66,13 @@ trait GraphSpecific {
   this: GraphMarker ⇒
 
   /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(reload: Boolean = false): Unit = state.safeWrite { state ⇒
+  def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false): Unit = state.safeWrite { state ⇒
     assertState()
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     if (reload || state.graphObject.isEmpty) {
-      val graph = loadGraph(takeItEasy = true) getOrElse {
+      val graph = loadGraph(modified = modified, takeItEasy = takeItEasy) getOrElse {
         log.info("Create new empty graph " + graphModelId)
         /**
          * TABuddy - global TA Buddy space
@@ -78,14 +82,73 @@ trait GraphSpecific {
          *     +-Templates - predefined TA Buddy element templates
          */
         // try to create model because we are unable to load it
-        Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒
-          //g.storages = g.storages :+ this.graphPath.toURI()
-        }
+        Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒ }
       }
       graph.withData(_(GraphMarker) = GraphSpecific.this)
       state.graphObject = Option(graph)
       state.payloadObject = Option(initializePayload())
+      // Update properties.
+      // Update graphAdditionalStorages.
+      val storages = graph.storages.toSet
+      val additionalStorages = graphAdditionalStorages
+      if (storages.size != additionalStorages.size)
+        graphAdditionalStorages = graphAdditionalStorages ++ {
+          if (Payload.isUnknownStoragesRW)
+            storages.map(Left(_)) ++ storages.map(Right(_)) // add new read/write storage to additional storages
+          else
+            storages.map(Right(_)) // add new read only storage to additional storages
+        }
+      // Update graphStored value.
+      graphStored match {
+        case GraphMarker.TimestampNil ⇒
+        case timestamp if timestamp < graph.modified ⇒ graphPropertiesUpdate { p ⇒
+          p.setProperty(GraphMarker.fieldSavedMillis, graph.modified.milliseconds.toString)
+          p.setProperty(GraphMarker.fieldSavedNanos, graph.modified.nanoShift.toString)
+        }
+        case _ ⇒
+      }
       App.publish(App.Message.Open(this, None))
+    }
+  }
+  /** Get the bunch of additional storages where the left part is a write storage and the right part is a read one. */
+  def graphAdditionalStorages: Set[Either[URI, URI]] = graphProperties { p ⇒
+    val localPath = graphPath.toURI().toString()
+    val size = try p.getProperty(GraphMarker.fieldAdditionalStorages, "0").toInt catch { case _: Throwable ⇒ 0 }
+    if (size == 0)
+      return Set()
+
+    {
+      for (i ← 0 until size)
+        yield p.getProperty(s"${GraphMarker.fieldAdditionalStorages}_${i}") match {
+        case null ⇒
+          throw new IllegalStateException(s"There is 'null' value in additional storages values.")
+        case location if location.drop(2).startsWith(localPath) ⇒
+          None // filter graphPath
+        case location if location.startsWith("R_") ⇒
+          Some(Right(new URI(location.drop(2))))
+        case location if location.startsWith("W_") ⇒
+          Some(Left(new URI(location.drop(2))))
+        case unknown ⇒
+          throw new IllegalStateException(s"There is unknown '${unknown}' value in additional storages.")
+      }
+    }.flatten.toSet
+  }
+  /** Set the bunch of additional storages where the left part is a write storage and the right part is a read one. */
+  def graphAdditionalStorages_=(rawStorages: Set[Either[URI, URI]]): Unit = graphPropertiesUpdate { p ⇒
+    val storages = rawStorages.map {
+      case Left(uri) ⇒ Left(Serialization.inner.addTrailingSlash(uri))
+      case Right(uri) ⇒ Right(Serialization.inner.addTrailingSlash(uri))
+    }
+    if (storages == graphAdditionalStorages)
+      return
+    p.setProperty(GraphMarker.fieldAdditionalStorages, storages.size.toString())
+    var i = 0
+    for { storage ← storages } {
+      storage match {
+        case Left(uri) ⇒ p.setProperty(s"${GraphMarker.fieldAdditionalStorages}_${i}", s"W_${uri.toString}")
+        case Right(uri) ⇒ p.setProperty(s"${GraphMarker.fieldAdditionalStorages}_${i}", s"R_${uri.toString}")
+      }
+      i += 1
     }
   }
   /** Close the loaded graph. */
@@ -106,18 +169,85 @@ trait GraphSpecific {
     Element.Timestamp(p.getProperty(GraphMarker.fieldCreatedMillis).toLong, p.getProperty(GraphMarker.fieldCreatedNanos).toLong)
   }
   /** Store the graph to the predefined directory ${location}/id/ */
-  def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = state.safeWrite { state ⇒
+  def graphFreeze(storages: Option[Serialization.Storages] = None): Unit = state.safeWrite { state ⇒
     assertState()
     log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     saveTypeSchemas(App.execNGet { state.payload.typeSchemas.values.toSet })
-    storages match {
-      case Some(storages) ⇒
-        Serialization.freeze(state.graph, SData(SData.Key.explicitStorages -> storages))
+    // Additional storages
+    val sDataNStorages = storages match {
+      case Some(parameter) ⇒
+        SData(SData.Key.explicitStorages ->
+          Serialization.Storages(parameter.seq :+ Serialization.Storages.Real(graphPath.toURI)))
       case None ⇒
-        Serialization.freeze(state.graph)
+        val additionalStorages = graphAdditionalStorages
+        if (additionalStorages.isEmpty) {
+          log.debug("Graph haven't any active additional locations.")
+          // freeze local copy that is hidden from anyone
+          // with updated list of storages
+          SData(SData.Key.explicitStorages -> Serialization.Storages(
+            state.graph.storages.map(Serialization.Storages.Public) :+
+              Serialization.Storages.Real(graphPath.toURI)))
+        } else {
+          // list with read only locations and list with write only locations
+          val (additionalPublicStorages, additionalRealStorages) = {
+            val (read, write) = additionalStorages.partition(_.isRight)
+            (read.map(value ⇒ Serialization.Storages.Public(value.right.get)),
+              write.map(value ⇒ Serialization.Storages.Real(value.left.get)))
+          }
+          SData(SData.Key.explicitStorages -> Serialization.Storages(
+            state.graph.storages.map(Serialization.Storages.Public) ++
+              additionalPublicStorages ++ additionalRealStorages :+
+              Serialization.Storages.Real(graphPath.toURI)))
+        }
     }
+    // Digest
+    val sDataNDigest = digest.freeze match {
+      case Some(parameters) ⇒
+        sDataNStorages.updated(Digest.Key.freeze, parameters)
+      case None ⇒
+        sDataNStorages
+    }
+    // Signature
+    val sDataNSignature = signature.freeze match {
+      case Some(parameters) ⇒
+        sDataNDigest.updated(Signature.Key.freeze, parameters)
+      case None ⇒
+        sDataNDigest
+    }
+    // Container encryption
+    val containerEncryptionMap = containerEncryption.encryption
+    val sDataNContainerEncryption = sDataNDigest.updated(SData.Key.convertURI,
+      // encode
+      ((name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
+        case Some(parameters) ⇒
+          parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters))
+        case None ⇒
+          name
+      },
+        // decode
+        (name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
+          case Some(parameters) ⇒
+            new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)
+          case None ⇒
+            name
+        }))
+    // Content encryption
+    val contentEncryptionMap = contentEncryption.encryption
+    val sDataNContentEncryption = sDataNContainerEncryption.updated(SData.Key.writeFilter, ((os: OutputStream, uri: URI, transport: Transport, sData: SData) ⇒
+      contentEncryptionMap.get(sData(SData.Key.storageURI)) match {
+        case Some(parameters) ⇒ parameters.encryption.encrypt(os, parameters)
+        case None ⇒ os
+      }))
+    // Freeze
+    Serialization.freeze(state.graph, sDataNContentEncryption)
+    if (graphPath.listFiles().nonEmpty)
+      graphPropertiesUpdate { p ⇒
+        // Modify this fields only if there are local files.
+        p.setProperty(GraphMarker.fieldSavedMillis, state.graph.modified.milliseconds.toString())
+        p.setProperty(GraphMarker.fieldSavedNanos, state.graph.modified.nanoShift.toString())
+      }
     App.publish(App.Message.Save(this, None))
   }
   /** Check whether the graph is modified. */
@@ -126,9 +256,11 @@ trait GraphSpecific {
     state.graph.retrospective.last == Some(ts)
   }
   /** Check whether the graph is loaded. */
-  def graphIsOpen(): Boolean = safeRead { state ⇒
+  def graphIsOpen(): Boolean = try safeRead { state ⇒
     assertState()
     state.asInstanceOf[GraphMarker.ThreadUnsafeState].graphObject.nonEmpty
+  } catch {
+    case e: IllegalStateException if e.getMessage.endsWith(" points to disposed data.") ⇒ false
   }
   /** Model ID. */
   def graphModelId: Symbol = {
@@ -139,23 +271,62 @@ trait GraphSpecific {
   def graphOrigin: Symbol = graphProperties { p ⇒ Symbol(p.getProperty(GraphMarker.fieldOrigin)) }
   /** Path to the graph: base directory and graph directory name. */
   def graphPath: File = graphProperties { p ⇒ new File(p.getProperty(GraphMarker.fieldPath)) }
-  /** Graph last save timestamp. */
+  /** The latest graph modified timestamp that was saved to storages. */
   def graphStored: Element.Timestamp = graphProperties { p ⇒
     Element.Timestamp(p.getProperty(GraphMarker.fieldSavedMillis).toLong, p.getProperty(GraphMarker.fieldSavedNanos).toLong)
   }
 
   /** Load the graph. */
   @log
-  protected def loadGraph(takeItEasy: Boolean = false): Option[Graph[_ <: Model.Like]] = try {
+  protected def loadGraph(modified: Option[Element.Timestamp], takeItEasy: Boolean): Option[Graph[_ <: Model.Like]] = try {
     if (!markerIsValid)
       return None
-    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphPath.toURI))
+
+    // Digest
+    val sDataNDigest = digest.acquire match {
+      case Some(parameters) ⇒
+        SData(Digest.Key.acquire -> parameters)
+      case None ⇒
+        SData()
+    }
+    // Signature
+    val sDataNSignature = signature.acquire match {
+      case Some(validatorId) ⇒
+        // TODO replace Signature.acceptAll with loadFromSomeWhere(validatorId)
+        sDataNDigest.updated(Signature.Key.acquire, Signature.acceptAll)
+      case None ⇒
+        sDataNDigest
+    }
+    // Container encryption
+    val containerEncryptionMap = containerEncryption.encryption
+    val sDataNContainerEncryption = sDataNDigest.updated(SData.Key.convertURI,
+      // encode
+      ((name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
+        case Some(parameters) ⇒
+          parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters))
+        case None ⇒
+          name
+      },
+        // decode
+        (name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
+          case Some(parameters) ⇒
+            new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)
+          case None ⇒
+            name
+        }))
+    // Content encryption
+    val contentEncryptionMap = contentEncryption.encryption
+    val sDataNContentEncryption = sDataNContainerEncryption.updated(SData.Key.readFilter, ((is: InputStream, uri: URI, transport: Transport, sData: SData) ⇒
+      contentEncryptionMap.get(sData(SData.Key.storageURI)) match {
+        case Some(parameters) ⇒ parameters.encryption.decrypt(is, parameters)
+        case None ⇒ is
+      }))
+    // Acquire
+    val loader = Serialization.acquireLoader(graphPath.toURI, sDataNContentEncryption)
+    Option[Graph[_ <: Model.Like]](loader.load())
   } catch {
-    case e: Throwable ⇒
-      if (takeItEasy)
-        log.debug(s"Unable to load graph ${graphOrigin} from $graphPath: " + e.getMessage())
-      else
-        log.error(s"Unable to load graph ${graphOrigin} from $graphPath: " + e.getMessage(), e)
+    case e: Throwable if takeItEasy ⇒
+      log.debug(s"Unable to load graph ${graphOrigin} from $graphPath: " + e.getMessage())
       None
   }
 }

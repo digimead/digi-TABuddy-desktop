@@ -43,6 +43,9 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.marker.api
 
+import java.io.OutputStream
+import java.io.InputStream
+
 /**
  * Base encryption interface.
  */
@@ -54,10 +57,18 @@ trait Encryption {
 
   /** Get encryption parameters. */
   def apply(key: Option[String], args: String*): Encryption.Parameters
-  /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: Encryption.Parameters): Array[Byte]
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: Encryption.Parameters): Array[Byte]
+  /** Decrypt input stream. */
+  def decrypt(inputStream: InputStream, parameters: Encryption.Parameters): InputStream
+  /** Encrypt data. */
+  def encrypt(data: Array[Byte], parameters: Encryption.Parameters): Array[Byte]
+  /** Encrypt output stearm. */
+  def encrypt(outputStream: OutputStream, parameters: Encryption.Parameters): OutputStream
+  /** Convert from string. */
+  def fromString(data: String): Array[Byte]
+  /** Convert to string. */
+  def toString(data: Array[Byte]): String
 }
 
 object Encryption {

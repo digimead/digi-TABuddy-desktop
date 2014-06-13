@@ -165,11 +165,14 @@ class Payload(val marker: GraphMarker) extends Loggable {
  * - Records, binded to Model
  */
 object Payload extends Loggable {
-  /** The local origin. */
-  def origin = DI.origin
-  def serialization() = DI.serialization
-  /** File extension for the graph descriptor. */
+  /** Get file extension for the graph descriptor. */
   def extensionGraph = DI.extensionGraph
+  /** Get local origin. */
+  def origin = DI.origin
+  /** Get serialization mechanism. */
+  def serialization() = DI.serialization
+  /** Get flag for unknown storages (by default 'read only' or 'read write') */
+  def isUnknownStoragesRW = DI.isUnknownStoragesRW
 
   trait YAMLProcessor[T] {
     /** Convert YAML to object */
@@ -181,13 +184,15 @@ object Payload extends Loggable {
    * Dependency injection routines
    */
   private object DI extends DependencyInjection.PersistentInjectable {
+    /** UUID of the default TypeSchema. */
+    lazy val default = inject[UUID]("Payload.TypeSchema.Default")
     /** File extension for the graph descriptor. */
     lazy val extensionGraph = injectOptional[Symbol]("Payload.Extension.Graph") getOrElse "graph"
     /** The local origin. */
     lazy val origin = injectOptional[Symbol]("Origin") getOrElse 'default
-    /** UUID of the default TypeSchema. */
-    lazy val default = inject[UUID]("Payload.TypeSchema.Default")
-    /** Serialization. */
+    /** Flag for unknown storages (by default 'read only' or 'read write') */
+    lazy val isUnknownStoragesRW = injectOptional[Boolean]("Payload.Serialization.UnknownStoragesRW") getOrElse false
+    /** Serialization mechanism. */
     lazy val serialization = inject[Serialization.Identifier]("Payload.Serialization")
   }
 }

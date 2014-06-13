@@ -102,11 +102,11 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
     else {
       val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(location.get, name.get),
         Element.timestamp(), Payload.origin)
-      if (!marker.markerIsValid)
-        throw new IllegalStateException(marker + " is not valid.")
+      marker.markerLoad()
       marker
     }
-    marker.graphAcquire()
+    // There will be FileNotFoundException. Take it easy.
+    marker.graphAcquire(takeItEasy = true)
     marker.safeRead(_.graph)
   }
   /**

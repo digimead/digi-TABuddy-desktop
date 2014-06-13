@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.logic.payload.marker
 import com.google.common.base.Charsets
 import com.google.common.io.Files
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, File, FileFilter, IOException }
+import java.net.URI
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.{ Properties, UUID }
 import org.digimead.digi.lib.aop.log
@@ -57,23 +58,18 @@ import org.digimead.tabuddy.desktop.core.{ Core, Report }
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.SerializationSpecific
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.serialization.SData
 import org.digimead.tabuddy.model.serialization.Serialization
+import org.digimead.tabuddy.model.{ Model, Record }
 import org.eclipse.core.internal.utils.Policy
-import org.eclipse.core.resources.IFile
-import org.eclipse.core.resources.IResource
+import org.eclipse.core.resources.{ IFile, IResource }
 import org.eclipse.swt.widgets.{ Composite, Shell }
 import scala.collection.{ immutable, mutable }
-import org.digimead.tabuddy.model.serialization.digest.Digest
-import java.net.URI
-import scala.collection.JavaConverters._
-import org.digimead.tabuddy.model.serialization.signature.Signature
-import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.SerializationSpecific
 
 /**
  * Graph marker is an object that holds an association between real graph at client
@@ -94,6 +90,8 @@ class GraphMarker(
   val autoload: Boolean = true) extends api.GraphMarker with MarkerSpecific with GraphSpecific with SerializationSpecific with Loggable {
   /** Type schemas folder name. */
   val folderTypeSchemas = "typeSchemas"
+  /** Resources index file name. */
+  val index = "index"
   /** Get container resource */
   lazy val resource: IFile = {
     val resourceName = uuid.toString + "." + Payload.extensionGraph
@@ -110,28 +108,48 @@ class GraphMarker(
 
   /** Load type schemas from local storage. */
   @log
-  def loadTypeSchemas(): immutable.HashSet[payloadapi.TypeSchema] = safeRead { state ⇒
+  def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[payloadapi.TypeSchema] = safeRead { state ⇒
     assertState()
-    val typeSchemasStorage = new File(graphPath, folderTypeSchemas)
-    log.debug(s"Load type schemas from $typeSchemasStorage")
-    if (!typeSchemasStorage.exists())
-      return immutable.HashSet()
-    val prefix = graphPath.getCanonicalPath().size + 1
+    val containerEncryptionMap = containerEncryption.encryption
+    val contentEncryptionMap = contentEncryption.encryption
+    val storageURI = storage getOrElse graphPath.toURI()
     var schemas = immutable.HashSet[payloadapi.TypeSchema]()
-    typeSchemasStorage.listFiles(new FileFilter { def accept(file: File) = file.isFile() && file.getName().endsWith(".yaml") }).foreach { file ⇒
-      try {
-        log.debug("Load ... " + file.getCanonicalPath().substring(prefix))
-        val yaml = Files.toString(file, Charsets.UTF_8)
-        try {
+    Serialization.perScheme.get(storageURI.getScheme()) match {
+      case Some(transport) ⇒
+        val sData = SData(SData.Key.storageURI -> storageURI)
+        val encode = containerEncryptionMap.get(storageURI) match {
+          case Some(parameters) ⇒
+            ((name: String) ⇒ parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters)))
+          case None ⇒
+            ((name: String) ⇒ name)
+        }
+        val decrypt = contentEncryptionMap.get(storageURI) match {
+          case Some(parameters) ⇒
+            ((content: Array[Byte]) ⇒ parameters.encryption.decrypt(content, parameters))
+          case None ⇒
+            ((content: Array[Byte]) ⇒ content)
+        }
+        val typeSchemasStorageBase = transport.append(storageURI, encode(folderTypeSchemas))
+        log.debug(s"Load type schemas from $typeSchemasStorageBase")
+        // Acquire.
+        val schemaIndexURI = transport.append(typeSchemasStorageBase, encode(index))
+        val ids = try new String(decrypt(transport.read(schemaIndexURI, sData)), io.Codec.UTF8.charSet).split("\n").map(UUID.fromString)
+        catch {
+          case e: IOException ⇒
+            log.debug(s"Unable to load type schema index ${schemaIndexURI}: " + e.getMessage()); Array.empty[UUID]
+          case e: Throwable ⇒
+            log.error(s"Unable to load type schema index ${schemaIndexURI}: " + e.getMessage(), e); Array.empty[UUID]
+        }
+        for (schemaId ← ids) try {
+          val schemaURI = transport.append(typeSchemasStorageBase, encode(schemaId.toString() + ".yaml"))
+          val yaml = new String(decrypt(transport.read(schemaURI, sData)), io.Codec.UTF8.charSet)
           TypeSchema.YAML.from(yaml).foreach(schema ⇒ schemas = schemas + schema)
         } catch {
-          case e: Throwable ⇒
-            log.error("Unable to load type schema %s: %s".format(file.getName(), e), e)
+          case e: IOException ⇒
+            log.error(s"Unable to load type schema ${schemaId.toString}.yaml:" + e.getMessage(), e)
         }
-      } catch {
-        case e: IOException ⇒
-          log.error("Unable to load type schema %s: %s".format(file.getName(), e))
-      }
+      case None ⇒
+        throw new IllegalArgumentException(s"Unable to load type schemas from URI with unknown scheme ${storageURI.getScheme}.")
     }
     schemas
   }
@@ -147,19 +165,61 @@ class GraphMarker(
   def safeUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.safeUpdate(f)
   /** Save type schemas to the local storage. */
   @log
-  def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema]) = state.safeWrite { state ⇒
+  def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema], storages: Option[Serialization.Storages] = None) = state.safeWrite { state ⇒
     assertState()
-    val typeSchemasStorage = new File(graphPath, folderTypeSchemas)
-    log.debug(s"Save type schemas to $typeSchemasStorage")
-    if (!typeSchemasStorage.exists())
-      if (!typeSchemasStorage.mkdirs())
-        throw new RuntimeException("Unable to create type schemas storage at " + typeSchemasStorage.getAbsolutePath())
-    typeSchemasStorage.listFiles(new FileFilter { def accept(file: File) = file.isFile() && file.getName().endsWith(".yaml") }).foreach(_.delete())
-    schemas.foreach(schema ⇒
-      Files.write(TypeSchema.YAML.to(schema), new File(typeSchemasStorage, schema.id.toString() + ".yaml"), Charsets.UTF_8))
+    // Storages.
+    val typeSchemasStorages = storages match {
+      case Some(parameter) ⇒
+        parameter.seq.flatMap(_.real).toSet + graphPath.toURI
+      case None ⇒
+        val additionalStorages = graphAdditionalStorages
+        if (additionalStorages.isEmpty) {
+          log.debug("Graph haven't any active additional locations.")
+          // there is only a local copy that is hidden from anyone
+          Set(graphPath.toURI)
+        } else {
+          // build set with write only locations
+          additionalStorages.flatMap(_ match {
+            case Left(write) ⇒ Some(write)
+            case _ ⇒ None
+          }) + graphPath.toURI
+        }
+    }
+    val containerEncryptionMap = containerEncryption.encryption
+    val contentEncryptionMap = contentEncryption.encryption
+    // Freeze schemas.
+    for (storageURI ← typeSchemasStorages) Serialization.perScheme.get(storageURI.getScheme()) match {
+      case Some(transport) ⇒
+        val sData = SData(SData.Key.storageURI -> storageURI)
+        val encode = containerEncryptionMap.get(storageURI) match {
+          case Some(parameters) ⇒
+            ((name: String) ⇒ parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters)))
+          case None ⇒
+            ((name: String) ⇒ name)
+        }
+        val encrypt = contentEncryptionMap.get(storageURI) match {
+          case Some(parameters) ⇒
+            ((content: Array[Byte]) ⇒ parameters.encryption.encrypt(content, parameters))
+          case None ⇒
+            ((content: Array[Byte]) ⇒ content)
+        }
+        val typeSchemasStorageBase = transport.append(storageURI, encode(folderTypeSchemas))
+        log.debug(s"Save type schemas to $typeSchemasStorageBase")
+        // Clear folder.
+        transport.delete(typeSchemasStorageBase, sData)
+        // Freeze.
+        val schemaIndexURI = transport.append(typeSchemasStorageBase, encode(index))
+        transport.write(schemaIndexURI, encrypt(schemas.map(_.id.toString).mkString("\n").getBytes(io.Codec.UTF8.charSet)), sData)
+        schemas.foreach { schema ⇒
+          val schemaURI = transport.append(typeSchemasStorageBase, encode(schema.id.toString() + ".yaml"))
+          transport.write(schemaURI, encrypt(TypeSchema.YAML.to(schema).getBytes(io.Codec.UTF8.charSet)), sData)
+        }
+      case None ⇒
+        throw new IllegalArgumentException(s"Unable to save type schemas to URI with unknown scheme ${storageURI.getScheme}.")
+    }
   }
 
-  /** Get value from graph properties with double checking. */
+  /** Get values from graph properties with double checking. */
   protected def graphProperties[A](f: Properties ⇒ A): A =
     safeRead { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒
       assertState()
@@ -171,6 +231,17 @@ class GraphMarker(
           state.graphProperties.map(f) getOrElse { throw new IOException("Unable to read graph properties.") }
         }
       }
+    }
+  /** Update values of graph properties. */
+  protected def graphPropertiesUpdate[A](f: Properties ⇒ A): A =
+    safeUpdate { state: GraphMarker.ThreadUnsafeStateReadOnly ⇒
+      assertState()
+      val result = state.graphProperties.map(f) getOrElse {
+        require(state, true)
+        state.graphProperties.map(f) getOrElse { throw new IOException("Unable to read graph properties.") }
+      }
+      markerSave()
+      result
     }
   protected def initializePayload(): Payload = state.safeWrite { state ⇒
     log.info(s"Initialize payload for marker ${this}.")
@@ -261,7 +332,7 @@ class GraphMarker(
   protected def require(state: GraphMarker.ThreadUnsafeStateReadOnly, throwError: Boolean, updateViaSave: Boolean = true): Unit =
     if (autoload && state.graphProperties.isEmpty) {
       markerLoad()
-      // and update last access time via
+      // and update last access time via markerSave()
       if (updateViaSave) markerSave()
     } else {
       if (throwError && state.graphProperties.isEmpty)
@@ -318,19 +389,38 @@ class GraphMarker(
 }
 
 object GraphMarker extends Loggable {
+  /**
+   * Field that contains map of graph additional storages except local one.
+   * Value is indicating whether the location is available or not.
+   */
+  val fieldAdditionalStorages = "additionalStorages"
+  /** Long field that contains graph marker creation time. */
   val fieldCreatedMillis = "createdMillis"
+  /** Long field that contains graph marker creation time. */
   val fieldCreatedNanos = "createdNanos"
+  /** Composite field that contains digestAcquire parameters. */
   val fieldDigestAcquire = "digestAcquire"
+  /** Composite field that contains digestFreeze parameters. */
   val fieldDigestFreeze = "digestFreeze"
+  /** Composite field that contains containerEncryption parameters. */
   val fieldContainerEncryption = "containerEncryption"
+  /** Composite field that contains contentEncryption parameters. */
   val fieldContentEncryption = "contentEncryption"
+  /** Long field that contains graph marker last accessed time. */
   val fieldLastAccessed = "lastAccessed"
+  /** Field that contains graph origin. */
   val fieldOrigin = "origin"
-  val fieldPath = "path"
+  /** Field that contains path to the local copy of graph. */
+  val fieldPath = "localStorage"
+  /** Field that contains graph marker UUID. */
   val fieldResourceId = "resourceId"
+  /** Long field that contains graph store time. */
   val fieldSavedMillis = "savedMillis"
+  /** Long field that contains graph store time. */
   val fieldSavedNanos = "savedNanos"
+  /** Composite field that contains signatureAcquire parameters. */
   val fieldSignatureAcquire = "signatureAcquire"
+  /** Composite field that contains signatureFreeze parameters. */
   val fieldSignatureFreeze = "signatureFreeze"
   /** GraphMarker lock */
   /*
@@ -387,13 +477,14 @@ object GraphMarker extends Loggable {
           throw new IOException("Unable to create graph storage at " + fullPath.getAbsolutePath())
       val resourceContent = new Properties
       resourceContent.setProperty(fieldPath, fullPath.getCanonicalPath())
-      resourceContent.setProperty(GraphMarker.fieldLastAccessed, created.milliseconds.toString)
+      resourceContent.setProperty(fieldAdditionalStorages, 0.toString())
+      resourceContent.setProperty(fieldLastAccessed, created.milliseconds.toString)
       resourceContent.setProperty(fieldCreatedMillis, created.milliseconds.toString)
       resourceContent.setProperty(fieldCreatedNanos, created.nanoShift.toString)
       resourceContent.setProperty(fieldResourceId, resourceUUID.toString)
       resourceContent.setProperty(fieldOrigin, origin.name)
-      resourceContent.setProperty(fieldSavedMillis, created.milliseconds.toString)
-      resourceContent.setProperty(fieldSavedNanos, created.nanoShift.toString)
+      resourceContent.setProperty(fieldSavedMillis, 0.toString)
+      resourceContent.setProperty(fieldSavedNanos, 0.toString)
       val output = new ByteArrayOutputStream()
       Report.info match {
         case Some(info) ⇒ resourceContent.store(output, info.toString)
@@ -411,8 +502,8 @@ object GraphMarker extends Loggable {
     try {
       marker.safeUpdate {
         case state: ThreadUnsafeState ⇒
-          val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphCreated, marker.graphModelId,
-            marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed,
+          val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphAdditionalStorages, marker.graphCreated,
+            marker.graphModelId, marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed,
             marker.digest, marker.containerEncryption, marker.contentEncryption, marker.signature)
           if (!FileUtil.deleteFile(marker.graphPath))
             log.fatal("Unable to delete " + marker)
@@ -577,8 +668,13 @@ object GraphMarker extends Loggable {
     def payloadObject_=(arg: Option[Payload]) = payloadObjectContainer = arg
     override def toString() = s"GraphMarker.State($graphObject, $graphProperties, $payloadObject)"
   }
+  /**
+   * Nil timestamp
+   */
+  object TimestampNil extends Element.Timestamp(0, 0)
   /** Read only marker. */
-  class ReadOnlyGraphMarker(val uuid: UUID, val graphCreated: Element.Timestamp, val graphModelId: Symbol,
+  class ReadOnlyGraphMarker(val uuid: UUID, val graphAdditionalStorages: Set[Either[URI, URI]],
+    val graphCreated: Element.Timestamp, val graphModelId: Symbol,
     val graphOrigin: Symbol, val graphPath: File, val graphStored: Element.Timestamp, val markerLastAccessed: Long,
     val digest: api.GraphMarker.Digest, val containerEncryption: api.GraphMarker.Encryption,
     val contentEncryption: api.GraphMarker.Encryption, val signature: api.GraphMarker.Signature)
@@ -589,17 +685,19 @@ object GraphMarker extends Loggable {
     /** Assert marker state. */
     def assertState() {}
     /** Load the specific graph from the predefined directory ${location}/id/ */
-    def graphAcquire(reload: Boolean = false) = throw new UnsupportedOperationException()
+    def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false) =
+      throw new UnsupportedOperationException()
     /** Close the loaded graph. */
     def graphClose() = throw new UnsupportedOperationException()
     /** Store the graph to the predefined directory ${location}/id/ */
-    def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = throw new UnsupportedOperationException()
+    def graphFreeze(storages: Option[Serialization.Storages] = None): Unit = throw new UnsupportedOperationException()
     /** Check whether the graph is modified. */
     def graphIsDirty(): Boolean = false
     /** Check whether the graph is loaded. */
     def graphIsOpen(): Boolean = false
     /** Load type schemas from local storage. */
-    def loadTypeSchemas(): immutable.HashSet[payloadapi.TypeSchema] = throw new UnsupportedOperationException()
+    def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[payloadapi.TypeSchema] =
+      throw new UnsupportedOperationException()
     /**
      * Lock this marker for reading.
      */
@@ -615,7 +713,8 @@ object GraphMarker extends Loggable {
     /** Save marker properties. */
     def markerSave() = throw new UnsupportedOperationException()
     /** Save type schemas to the local storage. */
-    def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema]) = throw new UnsupportedOperationException()
+    def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema], storages: Option[Serialization.Storages] = None) =
+      throw new UnsupportedOperationException()
 
     def canEqual(other: Any) = other.isInstanceOf[ReadOnlyGraphMarker]
     override def equals(other: Any) = other match {
@@ -649,13 +748,14 @@ object GraphMarker extends Loggable {
     /** Set content encryption settings. */
     override def contentEncryption_=(settings: api.GraphMarker.Encryption) = throw new UnsupportedOperationException()
     /** Load the specific graph from the predefined directory ${location}/id/ */
-    override def graphAcquire(reload: Boolean = false) = throw new UnsupportedOperationException()
+    override def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false) =
+      throw new UnsupportedOperationException()
     /** Graph creation timestamp. */
     override def graphCreated: Element.Timestamp = graph.created
     /** Close the loaded graph. */
     override def graphClose() = throw new UnsupportedOperationException()
     /** Store the graph to the predefined directory ${location}/id/ */
-    override def graphFreeze(storages: Option[Serialization.ExplicitStorages] = None): Unit = throw new UnsupportedOperationException()
+    override def graphFreeze(storages: Option[Serialization.Storages] = None): Unit = throw new UnsupportedOperationException()
     /** Check whether the graph is modified. */
     override def graphIsDirty(): Boolean = true
     /** Check whether the graph is loaded. */
@@ -666,10 +766,11 @@ object GraphMarker extends Loggable {
     override def graphOrigin: Symbol = graph.origin
     /** Path to the graph: base directory and graph directory name. */
     override def graphPath: File = throw new UnsupportedOperationException()
-    /** Graph last save timestamp. */
+    /** The latest graph modified timestamp that was saved to storages. */
     override def graphStored: Element.Timestamp = graph.created
     /** Load type schemas from local storage. */
-    override def loadTypeSchemas(): immutable.HashSet[payloadapi.TypeSchema] = throw new UnsupportedOperationException()
+    override def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[payloadapi.TypeSchema] =
+      throw new UnsupportedOperationException()
     /** Register marker state. */
     def register() = GraphMarker.state.get(uuid) match {
       case Some(marker) ⇒
@@ -686,7 +787,8 @@ object GraphMarker extends Loggable {
     /** Save marker properties. */
     override def markerSave() = throw new UnsupportedOperationException()
     /** Save type schemas to the local storage. */
-    override def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema]) = throw new UnsupportedOperationException()
+    override def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema], storages: Option[Serialization.Storages] = None) =
+      throw new UnsupportedOperationException()
     /** Get signature settings. */
     override def signature: api.GraphMarker.Signature = api.GraphMarker.Signature(None, None)
     /** Set signature settings. */

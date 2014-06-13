@@ -43,6 +43,10 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
 
+import com.google.common.io.BaseEncoding
+import java.io.{ InputStream, OutputStream }
+import org.bouncycastle.crypto.{ CipherParameters, DataLengthException, OutputLengthException, StreamCipher }
+import org.bouncycastle.crypto.io.{ CipherInputStream, CipherOutputStream }
 import org.digimead.tabuddy.desktop.logic.payload.marker.api
 
 /**
@@ -59,26 +63,44 @@ class XOR extends api.Encryption {
     case Nil ⇒ XORParameters(key)
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
-  /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
-    case XORParameters(Some(key)) ⇒
-      xorWithKey(data, key.getBytes())
-    case _ ⇒
-      throw new IllegalArgumentException("Incorrect parameters " + parameters)
-  }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
     case XORParameters(Some(key)) ⇒
-      xorWithKey(data, key.getBytes())
+      xorWithKey(data, key.getBytes(io.Codec.UTF8.charSet))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
+  /** Decrypt input stream. */
+  def decrypt(inputStream: InputStream, parameters: api.Encryption.Parameters): InputStream = parameters match {
+    case XORParameters(Some(key)) ⇒
+      new CipherInputStream(inputStream, new XStreamCipher(key.getBytes(io.Codec.UTF8.charSet)))
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Encrypt data. */
+  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+    case XORParameters(Some(key)) ⇒
+      xorWithKey(data, key.getBytes(io.Codec.UTF8.charSet))
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Encrypt output stearm. */
+  def encrypt(outputStream: OutputStream, parameters: api.Encryption.Parameters): OutputStream = parameters match {
+    case XORParameters(Some(key)) ⇒
+      new CipherOutputStream(outputStream, new XStreamCipher(key.getBytes(io.Codec.UTF8.charSet)))
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Convert from string. */
+  def fromString(data: String): Array[Byte] = BaseEncoding.base64().decode(data)
+  /** Convert to string. */
+  def toString(data: Array[Byte]): String = BaseEncoding.base64().encode(data)
 
   /** XOR data. */
-  protected def xorWithKey(a: Array[Byte], key: Array[Byte]): Array[Byte] = {
+  protected def xorWithKey(a: Array[Byte], key: Array[Byte], shift: Int = 0): Array[Byte] = {
     val out = new Array[Byte](a.length)
     for (i ← 0 until a.length)
-      out(i) = (a(i) ^ key(i % key.length)).toByte
+      out(i) = (a(i) ^ key((i + shift) % key.length)).toByte
     out
   }
 
@@ -93,6 +115,32 @@ class XOR extends api.Encryption {
 
     /** XOR parameters as sequence of strings. */
     def arguments: Seq[String] = Seq.empty
+  }
+
+  /**
+   * XOR Decrypt StreamCipher
+   */
+  class XStreamCipher(key: Array[Byte]) extends StreamCipher {
+    /** Key shift. */
+    var shift = 0
+
+    /** Initialise the cipher. */
+    def init(forEncryption: Boolean, params: CipherParameters) {}
+    /** Return the name of the algorithm the cipher implements. */
+    def getAlgorithmName() = "Base64"
+    /** Encrypt/decrypt a single byte returning the result. */
+    def returnByte(in: Byte): Byte = xorWithKey(Array(in), key).head
+    /** Process a block of bytes from in putting the result into out. */
+    def processBytes(in: Array[Byte], inOff: Int, len: Int, out: Array[Byte], outOff: Int) = synchronized {
+      if ((inOff + len) > in.length)
+        throw new DataLengthException("Input buffer too short")
+      if ((outOff + len) > out.length)
+        throw new OutputLengthException("Output buffer too short")
+      System.arraycopy(xorWithKey(in.drop(inOff).take(len), key, shift), 0, out, outOff, len)
+      shift = (shift + len) % key.length
+    }
+    /** Reset the cipher. */
+    def reset() {}
   }
 }
 

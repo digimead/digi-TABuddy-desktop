@@ -140,7 +140,7 @@ object TypeSchema extends Loggable {
   def load(marker: GraphMarker): Set[api.TypeSchema] = marker.safeRead { state ⇒
     log.debug("Load schema list for graph " + state.graph)
     val schemas = try {
-      marker.loadTypeSchemas
+      marker.loadTypeSchemas()
     } catch {
       case e: Throwable ⇒
         log.error("Unable to load type schemas: " + e, e)

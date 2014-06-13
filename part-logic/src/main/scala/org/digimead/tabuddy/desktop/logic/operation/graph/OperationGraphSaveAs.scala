@@ -90,11 +90,14 @@ class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
           data.clear()
           data(GraphMarker) = newMarker
         }
-//        g.storages = g.storages.filterNot(_ == localStorageURI)
-//        g.storages = g.storages :+ newMarker.graphPath.toURI()
       })
       state.payloadObject = Option(marker.safeRead(_.payload))
     })
+    newMarker.graphAdditionalStorages = marker.graphAdditionalStorages
+    newMarker.digest = marker.digest //
+    newMarker.containerEncryption = marker.containerEncryption
+    newMarker.contentEncryption = marker.contentEncryption
+    newMarker.signature = marker.signature
     if (!newMarker.markerIsValid)
       throw new IllegalStateException(marker + " is not valid.")
     val newGraph = newMarker.safeRead(_.graph)

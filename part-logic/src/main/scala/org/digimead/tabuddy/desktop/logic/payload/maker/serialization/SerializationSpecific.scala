@@ -109,7 +109,7 @@ trait SerializationSpecific {
     api.GraphMarker.Digest(acquireSetting, Some(Map(freezeSettings: _*)))
   }
   /** Store digest settings to java.util.Properties. */
-  def digest_=(settings: api.GraphMarker.Digest) = graphProperties { p ⇒
+  def digest_=(settings: api.GraphMarker.Digest) = graphPropertiesUpdate { p ⇒
     // acquire
     settings.acquire match {
       case Some(true) ⇒ p.setProperty(GraphMarker.fieldDigestAcquire, "required")
@@ -206,7 +206,7 @@ trait SerializationSpecific {
     api.GraphMarker.Signature(acquireSetting, Some(Map(freezeSettings: _*)))
   }
   /** Store signature settings to java.util.Properties. */
-  def signature_=(settings: api.GraphMarker.Signature) = graphProperties { p ⇒
+  def signature_=(settings: api.GraphMarker.Signature) = graphPropertiesUpdate { p ⇒
     // acquire
     settings.acquire match {
       case Some(validatorId) ⇒ p.setProperty(GraphMarker.fieldSignatureAcquire, validatorId.toString())
@@ -266,7 +266,7 @@ trait SerializationSpecific {
       val key = Option(p.getProperty(s"${field}_${i}_key")).map { encBase64Bytes ⇒
         val secretKey = ID.inner.thisSecretEncryptionKey
         val encBytes = Base64.decode(encBase64Bytes)
-        new String(KeyRing.decrypt(secretKey, KeyRing.defaultPassPhrase)(encBytes))
+        new String(KeyRing.decrypt(secretKey, KeyRing.defaultPassPhrase)(encBytes), io.Codec.UTF8.charSet)
       }
       val parameters = Encryption.perIdentifier.find(_._1.name == name) match {
         case Some((identifier, encryption)) ⇒
@@ -285,7 +285,7 @@ trait SerializationSpecific {
     api.GraphMarker.Encryption(Map(encryptionSettings: _*))
   }
   /** Store encryption settings. */
-  protected def encryptionStore(settings: api.GraphMarker.Encryption, field: String, typeName: String): Unit = graphProperties { p ⇒
+  protected def encryptionStore(settings: api.GraphMarker.Encryption, field: String, typeName: String): Unit = graphPropertiesUpdate { p ⇒
     p.stringPropertyNames().asScala.filter(_.startsWith(field)).foreach(p.remove)
     if (settings.encryption.isEmpty) {
       p.setProperty(field, 0.toString)
@@ -298,9 +298,9 @@ trait SerializationSpecific {
           p.setProperty(s"${field}_${index}_name", parameters.encryption.identifier.name)
           parameters.key.foreach { key ⇒
             val publicKey = ID.inner.thisPublicEncryptionKey
-            val encBytes = KeyRing.encrypt(publicKey)(key.getBytes())
+            val encBytes = KeyRing.encrypt(publicKey)(key.getBytes(io.Codec.UTF8.charSet))
             val encBase64Bytes = Base64.encode(encBytes)
-            p.setProperty(s"${field}_${index}_key", new String(encBase64Bytes))
+            p.setProperty(s"${field}_${index}_key", new String(encBase64Bytes, io.Codec.UTF8.charSet))
           }
           // store arguments
           val arguments = parameters.arguments

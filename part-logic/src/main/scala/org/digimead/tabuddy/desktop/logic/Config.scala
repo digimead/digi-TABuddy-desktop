@@ -86,7 +86,7 @@ class Config(implicit val bindingModule: BindingModule) extends api.Config with 
       location.getParentFile().mkdirs()
     val data = Configgy.toConfigString
     val f = new FileOutputStream(location)
-    f.write(data.getBytes)
+    f.write(data.getBytes(io.Codec.UTF8.charSet))
     f.close
   }
   def stop(context: BundleContext) = modificationLock.synchronized {

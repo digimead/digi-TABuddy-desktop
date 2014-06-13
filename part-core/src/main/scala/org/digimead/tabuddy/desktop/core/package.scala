@@ -43,10 +43,10 @@
 
 package org.digimead.tabuddy.desktop
 
-import java.io.File
-import org.digimead.digi.lib.util.Util
 import com.escalatesoft.subcut.inject.NewBindingModule
+import java.io.File
 import org.digimead.digi.lib.DependencyInjection
+import org.digimead.digi.lib.util.Util
 
 /**
  * This is the core bundle of the TA Buddy desktop application.

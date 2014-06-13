@@ -43,11 +43,14 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
 
+import com.google.common.io.BaseEncoding
+import java.io.{ InputStream, OutputStream }
 import java.nio.ByteBuffer
 import org.bouncycastle.crypto.PBEParametersGenerator
 import org.bouncycastle.crypto.digests.SHA1Digest
 import org.bouncycastle.crypto.engines.{ DESEngine, DESedeEngine }
 import org.bouncycastle.crypto.generators.PKCS12ParametersGenerator
+import org.bouncycastle.crypto.io.{ CipherInputStream, CipherOutputStream }
 import org.bouncycastle.crypto.modes.CBCBlockCipher
 import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher
 import org.bouncycastle.crypto.params.{ ParametersWithIV, ParametersWithRandom }
@@ -67,38 +70,9 @@ class DES extends api.Encryption {
 
   /** Get encryption parameters. */
   def apply(key: Option[String], args: String*): DESParameters = args match {
-    case Seq("false", salt: String) ⇒ DESParameters(key, DES.StrengthSimple, Base64.decode(salt.getBytes()))
-    case Seq("true", salt: String) ⇒ DESParameters(key, DES.StrengthTriple, Base64.decode(salt.getBytes()))
+    case Seq("false", salt: String) ⇒ DESParameters(key, DES.StrengthSimple, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+    case Seq("true", salt: String) ⇒ DESParameters(key, DES.StrengthTriple, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
-  }
-  /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
-    case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
-      val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
-      val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
-      pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
-      val paramsWithIV = pGen.generateDerivedParameters(64, 64).asInstanceOf[ParametersWithIV]
-      cipher.init(true, new ParametersWithRandom(paramsWithIV, KeyRing.random))
-      val buffer = new Array[Byte](cipher.getOutputSize(data.length))
-      var resultLength = cipher.processBytes(data, 0, data.length, buffer, 0)
-      resultLength += cipher.doFinal(buffer, resultLength)
-      val result = new Array[Byte](resultLength)
-      System.arraycopy(buffer, 0, result, 0, result.length)
-      result
-    case DESParameters(Some(key), DES.StrengthTriple, salt) ⇒
-      val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESedeEngine))
-      val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
-      pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
-      val paramsWithIV = pGen.generateDerivedParameters(192, 64).asInstanceOf[ParametersWithIV]
-      cipher.init(true, new ParametersWithRandom(paramsWithIV, KeyRing.random))
-      val buffer = new Array[Byte](cipher.getOutputSize(data.length))
-      var resultLength = cipher.processBytes(data, 0, data.length, buffer, 0)
-      resultLength += cipher.doFinal(buffer, resultLength)
-      val result = new Array[Byte](resultLength)
-      System.arraycopy(buffer, 0, result, 0, result.length)
-      result
-    case _ ⇒
-      throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
@@ -129,6 +103,78 @@ class DES extends api.Encryption {
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
+  /** Decrypt input stream. */
+  def decrypt(inputStream: InputStream, parameters: api.Encryption.Parameters): InputStream = parameters match {
+    case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
+      val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
+      val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
+      pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
+      val paramsWithIV = pGen.generateDerivedParameters(64, 64).asInstanceOf[ParametersWithIV]
+      cipher.init(false, new ParametersWithRandom(paramsWithIV, KeyRing.random))
+      new CipherInputStream(inputStream, cipher)
+    case DESParameters(Some(key), DES.StrengthTriple, salt) ⇒
+      val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESedeEngine))
+      val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
+      pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
+      val paramsWithIV = pGen.generateDerivedParameters(192, 64).asInstanceOf[ParametersWithIV]
+      cipher.init(false, new ParametersWithRandom(paramsWithIV, KeyRing.random))
+      new CipherInputStream(inputStream, cipher)
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Encrypt data. */
+  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+    case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
+      val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
+      val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
+      pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
+      val paramsWithIV = pGen.generateDerivedParameters(64, 64).asInstanceOf[ParametersWithIV]
+      cipher.init(true, new ParametersWithRandom(paramsWithIV, KeyRing.random))
+      val buffer = new Array[Byte](cipher.getOutputSize(data.length))
+      var resultLength = cipher.processBytes(data, 0, data.length, buffer, 0)
+      resultLength += cipher.doFinal(buffer, resultLength)
+      val result = new Array[Byte](resultLength)
+      System.arraycopy(buffer, 0, result, 0, result.length)
+      result
+    case DESParameters(Some(key), DES.StrengthTriple, salt) ⇒
+      val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESedeEngine))
+      val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
+      pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
+      val paramsWithIV = pGen.generateDerivedParameters(192, 64).asInstanceOf[ParametersWithIV]
+      cipher.init(true, new ParametersWithRandom(paramsWithIV, KeyRing.random))
+      val buffer = new Array[Byte](cipher.getOutputSize(data.length))
+      var resultLength = cipher.processBytes(data, 0, data.length, buffer, 0)
+      resultLength += cipher.doFinal(buffer, resultLength)
+      val result = new Array[Byte](resultLength)
+      System.arraycopy(buffer, 0, result, 0, result.length)
+      result
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Encrypt output stearm. */
+  def encrypt(outputStream: OutputStream, parameters: api.Encryption.Parameters): OutputStream = parameters match {
+    case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
+      val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
+      val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
+      pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
+      val paramsWithIV = pGen.generateDerivedParameters(64, 64).asInstanceOf[ParametersWithIV]
+      cipher.init(true, new ParametersWithRandom(paramsWithIV, KeyRing.random))
+      new CipherOutputStream(outputStream, cipher)
+    case DESParameters(Some(key), DES.StrengthTriple, salt) ⇒
+      val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESedeEngine))
+      val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
+      pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
+      val paramsWithIV = pGen.generateDerivedParameters(192, 64).asInstanceOf[ParametersWithIV]
+      cipher.init(true, new ParametersWithRandom(paramsWithIV, KeyRing.random))
+      new CipherOutputStream(outputStream, cipher)
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Convert from string. */
+  def fromString(data: String): Array[Byte] = BaseEncoding.base64().decode(data)
+  /** Convert to string. */
+  def toString(data: Array[Byte]): String = BaseEncoding.base64().encode(data)
+
   /**
    * DES encryption parameters.
    */
@@ -139,7 +185,7 @@ class DES extends api.Encryption {
     lazy val encryption = DES.this
 
     /** DES encryption parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(strength.triple.toString, new String(Base64.encode(salt)))
+    def arguments: Seq[String] = Seq(strength.triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
 
     def canEqual(other: Any) = other.isInstanceOf[DESParameters]
     override def equals(other: Any) = other match {
@@ -161,7 +207,7 @@ object DES {
   def apply(key: String, triple: Boolean,
     salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): api.Encryption.Parameters =
     Encryption.perIdentifier.get(Identifier) match {
-      case Some(encryption: DES) ⇒ encryption(Some(key), triple.toString, new String(Base64.encode(salt)))
+      case Some(encryption: DES) ⇒ encryption(Some(key), triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("DES encryption is not available.")
     }
 

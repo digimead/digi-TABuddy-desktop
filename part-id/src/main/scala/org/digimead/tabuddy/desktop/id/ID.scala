@@ -44,7 +44,6 @@
 package org.digimead.tabuddy.desktop.id
 
 import java.io.ByteArrayInputStream
-import java.nio.charset.StandardCharsets
 import org.bouncycastle.openpgp.{ PGPPublicKey, PGPPublicKeyRing, PGPSecretKey, PGPSecretKeyRing }
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
@@ -311,7 +310,7 @@ veJ0gKLsrlvLjLBVU0VinVrIrUn2SAF8gor5FaLPF1BN9Xg=
 
   /** Universe public key. */
   lazy val thatPublicKey: PGPPublicKey =
-    KeyRing.importPGPPublicKey(new ByteArrayInputStream(universePublicKey.getBytes(StandardCharsets.UTF_8)))
+    KeyRing.importPGPPublicKey(new ByteArrayInputStream(universePublicKey.getBytes(io.Codec.UTF8.charSet)))
   /** Encryption public key of fuzzy group.*/
   lazy val thisPublicEncryptionKey: PGPPublicKey = {
     val encryptionKey = thisSecretKeyRing.getPublicKey(instanceEncryptionKeyID)
@@ -325,7 +324,7 @@ veJ0gKLsrlvLjLBVU0VinVrIrUn2SAF8gor5FaLPF1BN9Xg=
   }
   /** Public key ring of fuzzy group. */
   lazy val thisPublicKeyRing: PGPPublicKeyRing = {
-    val publicKeyRing = KeyRing.importPGPPublicKeyRing(new ByteArrayInputStream(instancePublicKeyRing.getBytes(StandardCharsets.UTF_8)))
+    val publicKeyRing = KeyRing.importPGPPublicKeyRing(new ByteArrayInputStream(instancePublicKeyRing.getBytes(io.Codec.UTF8.charSet)))
     val keys = publicKeyRing.getPublicKeys().asInstanceOf[java.util.Iterator[PGPPublicKey]].asScala.partition(_.isMasterKey())
     val masterKeys = keys._1.toIndexedSeq
     val subKeys = keys._2.toIndexedSeq
@@ -365,7 +364,7 @@ veJ0gKLsrlvLjLBVU0VinVrIrUn2SAF8gor5FaLPF1BN9Xg=
   }
   /** Secret key ring of fuzzy group. */
   lazy val thisSecretKeyRing: PGPSecretKeyRing = {
-    val secretKeyRing = KeyRing.importPGPSecretKeyRing(new ByteArrayInputStream(instanceSecretKeyRing.getBytes(StandardCharsets.UTF_8)))
+    val secretKeyRing = KeyRing.importPGPSecretKeyRing(new ByteArrayInputStream(instanceSecretKeyRing.getBytes(io.Codec.UTF8.charSet)))
     val keys = secretKeyRing.getSecretKeys().asInstanceOf[java.util.Iterator[PGPSecretKey]].asScala.toIndexedSeq
     keys.foreach { secretKey ⇒
       if (thisPublicKeyRing.getPublicKey(secretKey.getKeyID()) == null)

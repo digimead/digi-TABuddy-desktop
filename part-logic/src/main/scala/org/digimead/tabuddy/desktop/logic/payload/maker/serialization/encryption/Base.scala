@@ -43,7 +43,9 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
 
-import org.bouncycastle.util.encoders.Base64
+import com.google.common.base.CharMatcher
+import com.google.common.io.BaseEncoding
+import java.io.{ InputStream, InputStreamReader, OutputStream, OutputStreamWriter }
 import org.digimead.tabuddy.desktop.logic.payload.marker.api
 
 /**
@@ -64,20 +66,38 @@ class Base extends api.Encryption {
       case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
     }
   }
-  /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
-    case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
-      Base64.encode(data)
-    case _ ⇒
-      throw new IllegalArgumentException("Incorrect parameters " + parameters)
-  }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
     case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
-      Base64.decode(data)
+      BaseEncoding.base64().decode(CharMatcher.WHITESPACE.removeFrom(new String(data, io.Codec.UTF8.charSet)))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
+  /** Decrypt input stream. */
+  def decrypt(inputStream: InputStream, parameters: api.Encryption.Parameters): InputStream = parameters match {
+    case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
+      BaseEncoding.base64().decodingStream(new InputStreamReader(inputStream, io.Codec.UTF8.charSet))
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Encrypt data. */
+  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+    case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
+      BaseEncoding.base64().encode(data).getBytes(io.Codec.UTF8.charSet)
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Encrypt output stearm. */
+  def encrypt(outputStream: OutputStream, parameters: api.Encryption.Parameters): OutputStream = parameters match {
+    case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
+      BaseEncoding.base64().encodingStream(new OutputStreamWriter(outputStream, io.Codec.UTF8.charSet))
+    case _ ⇒
+      throw new IllegalArgumentException("Incorrect parameters " + parameters)
+  }
+  /** Convert from string. */
+  def fromString(data: String): Array[Byte] = data.getBytes(io.Codec.UTF8.charSet)
+  /** Convert to string. */
+  def toString(data: Array[Byte]): String = new String(data, io.Codec.UTF8.charSet)
 
   /**
    * Base encryption parameters.

@@ -59,7 +59,7 @@ trait MarkerSpecific {
   def markerIsValid: Boolean = state.safeUpdate { state ⇒
     try {
       assertState()
-      graphPath.exists() && resource.exists() && {
+      resource.exists() && graphPath.exists() && {
         if (autoload && state.graphProperties.isEmpty)
           markerLoad()
         true
@@ -69,7 +69,7 @@ trait MarkerSpecific {
         false
     }
   }
-  /** Marker last access timestamp. */
+  /** Marker last access/last load timestamp. */
   def markerLastAccessed: Long = graphProperties { p ⇒ p.getProperty(GraphMarker.fieldLastAccessed).toLong }
   /** Load marker properties. */
   def markerLoad() = state.safeWrite { state ⇒
