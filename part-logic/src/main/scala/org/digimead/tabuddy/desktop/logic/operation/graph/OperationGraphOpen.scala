@@ -51,6 +51,7 @@ import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
@@ -61,7 +62,7 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
    *
    * @param markerId marker Id with graph to open
    */
-  def apply(markerId: UUID): Graph[_ <: Model.Like] = {
+  def apply(markerId: UUID, modified: Option[Element.Timestamp] = None): Graph[_ <: Model.Like] = {
     val marker = GraphMarker(markerId)
     if (!marker.markerIsValid)
       throw new IllegalStateException(marker + " is not valid.")
@@ -71,7 +72,7 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
     val graph = marker.safeUpdate { state ⇒
       if (marker.graphIsOpen())
         throw new IllegalStateException("Graph is already opened.")
-      marker.graphAcquire()
+      marker.graphAcquire(modified)
       state.graph
     }
     graph
@@ -82,8 +83,8 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
    * @param markerId marker Id with graph to open
    * @return 'Open graph' operation
    */
-  def operation(markerId: UUID) =
-    new Implemetation(markerId)
+  def operation(markerId: UUID, modified: Option[Element.Timestamp] = None) =
+    new Implemetation(markerId, modified)
 
   /**
    * Checks that this class can be subclassed.
@@ -101,8 +102,8 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(markerId: UUID)
-    extends OperationGraphOpen.Abstract(markerId) with Loggable {
+  class Implemetation(markerId: UUID, modified: Option[Element.Timestamp])
+    extends OperationGraphOpen.Abstract(markerId, modified) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -114,7 +115,7 @@ class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
       require(canExecute, "Execution is disabled.")
       val marker = GraphMarker(markerId)
       try {
-        val result = Option[Graph[_ <: Model.Like]](OperationGraphOpen.this(markerId))
+        val result = Option[Graph[_ <: Model.Like]](OperationGraphOpen.this(markerId, modified))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
@@ -146,8 +147,11 @@ object OperationGraphOpen extends Loggable {
     Some(operation.operation(markerId))
 
   /** Bridge between abstract api.Operation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
-  abstract class Abstract(val markerId: UUID)
-    extends Operation[Graph[_ <: Model.Like]](s"Open graph for marker with Id $markerId.") {
+  abstract class Abstract(val markerId: UUID, modified: Option[Element.Timestamp])
+    extends Operation[Graph[_ <: Model.Like]](modified match {
+      case Some(modified) ⇒ s"Open graph for marker with Id $markerId and modification ${modified}."
+      case None ⇒ s"Open graph for marker with Id $markerId."
+    }) {
     this: Loggable ⇒
   }
   /**

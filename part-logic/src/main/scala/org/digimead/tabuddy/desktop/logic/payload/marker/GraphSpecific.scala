@@ -110,6 +110,52 @@ trait GraphSpecific {
       App.publish(App.Message.Open(this, None))
     }
   }
+  /** Acquire graph loader. */
+  @log
+  def graphAcquireLoader(modified: Option[Element.Timestamp] = None): Serialization.Loader = {
+    // Digest
+    val sDataNDigest = digest.acquire match {
+      case Some(parameters) ⇒
+        SData(Digest.Key.acquire -> parameters)
+      case None ⇒
+        SData()
+    }
+    // Signature
+    val sDataNSignature = signature.acquire match {
+      case Some(validatorId) ⇒
+        // TODO replace Signature.acceptAll with loadFromSomeWhere(validatorId)
+        sDataNDigest.updated(Signature.Key.acquire, Signature.acceptAll)
+      case None ⇒
+        sDataNDigest
+    }
+    // Container encryption
+    val containerEncryptionMap = containerEncryption.encryption
+    val sDataNContainerEncryption = sDataNDigest.updated(SData.Key.convertURI,
+      // encode
+      ((name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
+        case Some(parameters) ⇒
+          parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters))
+        case None ⇒
+          name
+      },
+        // decode
+        (name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
+          case Some(parameters) ⇒
+            new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)
+          case None ⇒
+            name
+        }))
+    // Content encryption
+    val contentEncryptionMap = contentEncryption.encryption
+    val sDataNContentEncryption = sDataNContainerEncryption.updated(SData.Key.readFilter, ((is: InputStream, uri: URI, transport: Transport, sData: SData) ⇒
+      contentEncryptionMap.get(sData(SData.Key.storageURI)) match {
+        case Some(parameters) ⇒ parameters.encryption.decrypt(is, parameters)
+        case None ⇒ is
+      }))
+    // Acquire
+    Serialization.acquireLoader(graphPath.toURI, modified, sDataNContentEncryption)
+  }
+
   /** Get the bunch of additional storages where the left part is a write storage and the right part is a read one. */
   def graphAdditionalStorages: Set[Either[URI, URI]] = graphProperties { p ⇒
     val localPath = graphPath.toURI().toString()
@@ -282,47 +328,7 @@ trait GraphSpecific {
     if (!markerIsValid)
       return None
 
-    // Digest
-    val sDataNDigest = digest.acquire match {
-      case Some(parameters) ⇒
-        SData(Digest.Key.acquire -> parameters)
-      case None ⇒
-        SData()
-    }
-    // Signature
-    val sDataNSignature = signature.acquire match {
-      case Some(validatorId) ⇒
-        // TODO replace Signature.acceptAll with loadFromSomeWhere(validatorId)
-        sDataNDigest.updated(Signature.Key.acquire, Signature.acceptAll)
-      case None ⇒
-        sDataNDigest
-    }
-    // Container encryption
-    val containerEncryptionMap = containerEncryption.encryption
-    val sDataNContainerEncryption = sDataNDigest.updated(SData.Key.convertURI,
-      // encode
-      ((name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
-        case Some(parameters) ⇒
-          parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters))
-        case None ⇒
-          name
-      },
-        // decode
-        (name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
-          case Some(parameters) ⇒
-            new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)
-          case None ⇒
-            name
-        }))
-    // Content encryption
-    val contentEncryptionMap = contentEncryption.encryption
-    val sDataNContentEncryption = sDataNContainerEncryption.updated(SData.Key.readFilter, ((is: InputStream, uri: URI, transport: Transport, sData: SData) ⇒
-      contentEncryptionMap.get(sData(SData.Key.storageURI)) match {
-        case Some(parameters) ⇒ parameters.encryption.decrypt(is, parameters)
-        case None ⇒ is
-      }))
-    // Acquire
-    val loader = Serialization.acquireLoader(graphPath.toURI, sDataNContentEncryption)
+    val loader = graphAcquireLoader(modified)
     Option[Graph[_ <: Model.Like]](loader.load())
   } catch {
     case e: Throwable if takeItEasy ⇒

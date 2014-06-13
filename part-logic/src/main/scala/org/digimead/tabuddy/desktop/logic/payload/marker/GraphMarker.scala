@@ -687,6 +687,9 @@ object GraphMarker extends Loggable {
     /** Load the specific graph from the predefined directory ${location}/id/ */
     def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false) =
       throw new UnsupportedOperationException()
+    /** Acquire graph loader. */
+    def graphAcquireLoader(modified: Option[Element.Timestamp] = None): Serialization.Loader =
+      throw new UnsupportedOperationException()
     /** Close the loaded graph. */
     def graphClose() = throw new UnsupportedOperationException()
     /** Store the graph to the predefined directory ${location}/id/ */
@@ -749,6 +752,9 @@ object GraphMarker extends Loggable {
     override def contentEncryption_=(settings: api.GraphMarker.Encryption) = throw new UnsupportedOperationException()
     /** Load the specific graph from the predefined directory ${location}/id/ */
     override def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false) =
+      throw new UnsupportedOperationException()
+    /** Acquire graph loader. */
+    override def graphAcquireLoader(modified: Option[Element.Timestamp] = None): Serialization.Loader =
       throw new UnsupportedOperationException()
     /** Graph creation timestamp. */
     override def graphCreated: Element.Timestamp = graph.created

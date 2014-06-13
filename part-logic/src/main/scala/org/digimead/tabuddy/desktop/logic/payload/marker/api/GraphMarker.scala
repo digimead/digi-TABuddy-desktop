@@ -71,6 +71,8 @@ trait GraphMarker {
   def contentEncryption: GraphMarker.Encryption
   /** Load the specific graph from the predefined directory ${location}/id/ */
   def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false)
+  /** Acquire graph loader. */
+  def graphAcquireLoader(modified: Option[Element.Timestamp] = None): Serialization.Loader
   /** Get the bunch of additional storages where the left part is a write storage and the right part is a read one. */
   def graphAdditionalStorages: Set[Either[URI, URI]]
   /** Close the loaded graph. */

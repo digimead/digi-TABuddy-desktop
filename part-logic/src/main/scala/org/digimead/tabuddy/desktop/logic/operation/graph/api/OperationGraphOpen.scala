@@ -45,8 +45,9 @@ package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api
-import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationGraphOpen base trait.
@@ -59,14 +60,14 @@ trait OperationGraphOpen {
    *
    * @param markerId marker Id with graph to open
    */
-  def apply(markerId: UUID): Graph[_ <: Model.Like]
+  def apply(markerId: UUID, modified: Option[Element.Timestamp] = None): Graph[_ <: Model.Like]
   /**
    * Create 'Open graph' operation.
    *
    * @param markerId marker Id with graph to open
    * @return 'Open graph' operation
    */
-  def operation(markerId: UUID): api.Operation[Graph[_ <: Model.Like]]
+  def operation(markerId: UUID, modified: Option[Element.Timestamp] = None): api.Operation[Graph[_ <: Model.Like]]
 
   /**
    * Checks that this class can be subclassed.
