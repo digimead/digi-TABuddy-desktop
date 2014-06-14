@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -51,7 +51,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.operation.OperationInfo
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.{ Messages, Report }
@@ -68,7 +68,7 @@ object CommandInfo extends Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Console converter. */
-  lazy val converter: PartialFunction[(Descriptor, Any), String] = {
+  lazy val converter: PartialFunction[(XCommand.Descriptor, Any), String] = {
     case (this.descriptor, Some(report)) ⇒ report match {
       case info: Report.Info ⇒
         s"""report path: ${Report.service.map(_.asInstanceOf[{ val path: File }].path.toString()).getOrElse("UNKNOWN")}

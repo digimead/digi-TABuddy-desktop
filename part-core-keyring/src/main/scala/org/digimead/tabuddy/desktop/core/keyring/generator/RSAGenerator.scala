@@ -50,6 +50,7 @@ import org.bouncycastle.crypto.generators.RSAKeyPairGenerator
 import org.bouncycastle.crypto.params.RSAKeyGenerationParameters
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
+import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
 
 /**
  * RSA PGP keyring generator.
@@ -65,10 +66,10 @@ class RSAGenerator extends Generator with Loggable {
   val signAlgorithm: Int = PublicKeyAlgorithmTags.RSA_GENERAL
 
   /** Create new PGP secret keyring. */
-  def apply(args: AnyRef*): api.Generator.AsymmetricCipherKeyPairGenerator = args match {
+  def apply(args: AnyRef*): XGenerator.AsymmetricCipherKeyPairGenerator = args match {
     case Seq(strength: Integer) ⇒
       if (strength == 1024 || strength == 2048 || strength == 4096)
-        api.Generator.AsymmetricCipherKeyPairGenerator(signAlgorithm, encAlgorithm, createACKPGenerator(strength))
+        XGenerator.AsymmetricCipherKeyPairGenerator(signAlgorithm, encAlgorithm, createACKPGenerator(strength))
       else
         throw new IllegalArgumentException("Illegal key size argument (must be 1024, 2048 or 4096): " + args)
     case _ ⇒
@@ -86,5 +87,5 @@ object RSAGenerator {
   /**
    * RSAGenerator identifier.
    */
-  object Identifier extends api.Generator.Identifier { val name = "BouncyCastleRSA" }
+  object Identifier extends XGenerator.Identifier { val name = "BouncyCastleRSA" }
 }

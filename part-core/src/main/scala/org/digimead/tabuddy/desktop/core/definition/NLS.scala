@@ -48,7 +48,7 @@ import java.security.{ AccessController, PrivilegedAction }
 import java.util.Locale
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.api.Translation
+import org.digimead.tabuddy.desktop.core.api.XTranslation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.osgi.util.tracker.ServiceTracker
@@ -60,7 +60,7 @@ import scala.concurrent.duration.Duration
 /**
  * Apply translation to singleton.
  */
-abstract class NLS extends Translation.NLS {
+abstract class NLS extends XTranslation.NLS {
   this: Loggable ⇒
   val T = new TranslationImplementation {}
   log.debug(this + " NLS singleton is alive")
@@ -153,7 +153,7 @@ object NLS {
   /** NLS consolidated messages cache. */
   @volatile private var cache: Option[immutable.ListMap[String, String]] = None
   /** Translation service tracker. */
-  @volatile private var translationServiceTracker: Option[ServiceTracker[Translation, Translation]] = None
+  @volatile private var translationServiceTracker: Option[ServiceTracker[XTranslation, XTranslation]] = None
   /** All registered NLS singletons. */
   private val registry = mutable.WeakHashMap[NLS, Seq[String]]()
   /** Translation service. */
@@ -185,7 +185,7 @@ object NLS {
 
   /** Trait that provides access to translationServiceTracker. */
   trait Initializer {
-    def setTranslationServiceTracker(arg: Option[ServiceTracker[Translation, Translation]]) = {
+    def setTranslationServiceTracker(arg: Option[ServiceTracker[XTranslation, XTranslation]]) = {
       translationServiceTracker = arg
       // Get translation service in the separate thread.
       Future { translationService }

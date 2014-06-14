@@ -45,11 +45,12 @@ package org.digimead.tabuddy.desktop.core.keyring
 
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 import java.util.{ ArrayList, Date }
-import org.bouncycastle.bcpg.{ HashAlgorithmTags, PublicKeyAlgorithmTags, SymmetricKeyAlgorithmTags }
 import org.bouncycastle.bcpg.sig.{ Features, KeyFlags }
-import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPPublicKeyRingCollection, PGPSecretKeyRingCollection, PGPSignature, PGPSignatureSubpacketGenerator }
+import org.bouncycastle.bcpg.{ HashAlgorithmTags, PublicKeyAlgorithmTags, SymmetricKeyAlgorithmTags }
 import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyEncryptorBuilder, BcPGPContentSignerBuilder, BcPGPDigestCalculatorProvider, BcPGPKeyPair }
+import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPPublicKeyRingCollection, PGPSecretKeyRingCollection, PGPSignature, PGPSignatureSubpacketGenerator }
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
 import org.digimead.tabuddy.desktop.core.keyring.generator.{ Generator, api }
 import org.eclipse.core.runtime.NullProgressMonitor
 
@@ -71,19 +72,19 @@ trait KeyRingGeneral {
   def createPGPKeyRingGenerator(userID: String): PGPKeyRingGenerator =
     createPGPKeyRingGenerator(Generator.default, userID, KeyRing.defaultPassPhrase, 0xc0, new Date)
   /** Create new PGP keyring generator. */
-  def createPGPKeyRingGenerator(userID: String, generator: api.Generator.AsymmetricCipherKeyPairGenerator): PGPKeyRingGenerator =
+  def createPGPKeyRingGenerator(userID: String, generator: XGenerator.AsymmetricCipherKeyPairGenerator): PGPKeyRingGenerator =
     createPGPKeyRingGenerator(generator, userID, KeyRing.defaultPassPhrase, 0xc0, new Date)
   /** Create new PGP keyring generator. */
   def createPGPKeyRingGenerator(userID: String, passPrase: String): PGPKeyRingGenerator =
     createPGPKeyRingGenerator(Generator.default, userID, passPrase, 0xc0, new Date)
   /** Create new PGP keyring generator. */
-  def createPGPKeyRingGenerator(userID: String, passPrase: String, generator: api.Generator.AsymmetricCipherKeyPairGenerator): PGPKeyRingGenerator =
+  def createPGPKeyRingGenerator(userID: String, passPrase: String, generator: XGenerator.AsymmetricCipherKeyPairGenerator): PGPKeyRingGenerator =
     createPGPKeyRingGenerator(generator, userID, passPrase, 0xc0, new Date)
   /** Create new PGP keyring generator. */
   def createPGPKeyRingGenerator(userID: String, passPrase: String, now: Date): PGPKeyRingGenerator =
     createPGPKeyRingGenerator(Generator.default, userID, passPrase, 0xc0, now)
   /** Create new PGP keyring generator. */
-  def createPGPKeyRingGenerator(userID: String, passPrase: String, now: Date, generator: api.Generator.AsymmetricCipherKeyPairGenerator): PGPKeyRingGenerator =
+  def createPGPKeyRingGenerator(userID: String, passPrase: String, now: Date, generator: XGenerator.AsymmetricCipherKeyPairGenerator): PGPKeyRingGenerator =
     createPGPKeyRingGenerator(generator, userID, passPrase, 0xc0, now)
   /** Create new PGP keyring generator. */
   // Note: s2kcount is a number between 0 and 0xff that controls the
@@ -98,7 +99,7 @@ trait KeyRingGeneral {
   // or about 1 million iterations. The maximum you can go to is
   // 0xff, or about 2 million iterations.  We may use 0xc0 as a
   // default -- about 130,000 iterations.
-  def createPGPKeyRingGenerator(generator: api.Generator.AsymmetricCipherKeyPairGenerator, userID: String,
+  def createPGPKeyRingGenerator(generator: XGenerator.AsymmetricCipherKeyPairGenerator, userID: String,
     passPrase: String = KeyRing.defaultPassPhrase, s2kcount: Int = 0xc0, now: Date = new Date): PGPKeyRingGenerator = {
     // First create the master (signing) key with the generator.
     val masterKeyForSign = new BcPGPKeyPair(generator.signAlgorithm, generator.ackpg.generateKeyPair(), now)
@@ -138,7 +139,7 @@ trait KeyRingGeneral {
       sha1Calc, signSSGen.generate, null, keySignerBuilder, keyEncryptor)
   }
   /** Create new PGP encryption subkey. */
-  def createPGPEncriptionSubKey(generator: api.Generator.AsymmetricCipherKeyPairGenerator = Generator.default,
+  def createPGPEncriptionSubKey(generator: XGenerator.AsymmetricCipherKeyPairGenerator = Generator.default,
     now: Date = new Date): (BcPGPKeyPair, PGPSignatureSubpacketGenerator) = {
     // Then an encryption subkey.
     val subKeyForEnc = new BcPGPKeyPair(generator.encAlgorithm, generator.ackpg.generateKeyPair(), now)

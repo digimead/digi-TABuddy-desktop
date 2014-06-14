@@ -46,9 +46,10 @@ package org.digimead.tabuddy.desktop.logic.payload
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.desktop.logic.Default
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.core.ui.support.Validator
+import org.digimead.tabuddy.desktop.logic.Default
+import org.digimead.tabuddy.desktop.logic.payload.api.XPropertyType
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.element.Element
@@ -65,7 +66,7 @@ import scala.collection.immutable
  * Base class of the handler for the property of the particular type
  * The equality is based on id: Symbol
  */
-trait PropertyType[T <: AnySRef] extends api.PropertyType[T] {
+trait PropertyType[T <: AnySRef] extends XPropertyType[T] {
   /** The property that determines that enumeration is supported */
   val enumerationSupported: Boolean
   /** The property type name */
@@ -120,7 +121,7 @@ object PropertyType extends Loggable {
   type genericEditor = Editor[AnySRef]
 
   /** Get the default type class (for new element property, for example) */
-  def defaultType(): api.PropertyType[_ <: AnySRef] = DI.types.get('String).getOrElse(DI.types.head._2)
+  def defaultType(): XPropertyType[_ <: AnySRef] = DI.types.get('String).getOrElse(DI.types.head._2)
   /** Get type wrapper map */
   def container = DI.types
   /** Get type wrapper of the specific type */
@@ -129,7 +130,7 @@ object PropertyType extends Loggable {
   /**
    * Element property adapter
    */
-  abstract class Adapter[A <: AnySRef] extends api.PropertyType.Adapter[A] {
+  abstract class Adapter[A <: AnySRef] extends XPropertyType.Adapter[A] {
     /** Cell label provider singleton with limited API for proxy use case */
     val cellLabelProvider: CellLabelProviderAdapter[A]
     /** Label provider singleton with limited API for proxy use case */
@@ -147,7 +148,7 @@ object PropertyType extends Loggable {
   /**
    * Element property trait that provides an editor widget
    */
-  trait Editor[T <: AnySRef] extends Viewer[T] with api.PropertyType.Editor[T] {
+  trait Editor[T <: AnySRef] extends Viewer[T] with XPropertyType.Editor[T] {
     /** An actual value */
     val data: WritableValue[T]
     /** An actual value container */
@@ -173,7 +174,7 @@ object PropertyType extends Loggable {
   /**
    * Element property trait that provides a viewer widget
    */
-  trait Viewer[T <: AnySRef] extends api.PropertyType.Viewer[T] {
+  trait Viewer[T <: AnySRef] extends XPropertyType.Viewer[T] {
     /** The property representing the UI control value */
     val data: WritableValue[T]
     /** An actual value container */
@@ -275,21 +276,21 @@ object PropertyType extends Loggable {
      *  1. an instance of api.PropertyType
      *  2. has name that starts with "PropertyType."
      */
-    private def injectTypes(): immutable.HashMap[Symbol, api.PropertyType[_ <: AnySRef]] = {
+    private def injectTypes(): immutable.HashMap[Symbol, XPropertyType[_ <: AnySRef]] = {
       val types = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[api.PropertyType[_ <: AnySRef]].isAssignableFrom(key.m.runtimeClass)
+        case (key, value) ⇒ classOf[XPropertyType[_ <: AnySRef]].isAssignableFrom(key.m.runtimeClass)
       }.map {
         case (key, value) ⇒
           key.name match {
             case Some(name) if name.startsWith("PropertyType.") ⇒
               log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[api.PropertyType[_ <: AnySRef]]]
+              bindingModule.injectOptional(key).asInstanceOf[Option[XPropertyType[_ <: AnySRef]]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' property type skipped.")
               None
           }
       }.flatten.toSeq
-      val result = immutable.HashMap[Symbol, api.PropertyType[_ <: AnySRef]](types.map(n ⇒ (n.id, n)): _*)
+      val result = immutable.HashMap[Symbol, XPropertyType[_ <: AnySRef]](types.map(n ⇒ (n.id, n)): _*)
       assert(result.nonEmpty, "Unable to start application with empty properyTypes map.")
 
       result.values.foreach(ptype ⇒ try {

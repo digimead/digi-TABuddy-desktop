@@ -45,11 +45,12 @@ package org.digimead.tabuddy.desktop.core.console
 
 import java.util.concurrent.Exchanger
 import java.util.concurrent.TimeUnit
+import org.digimead.tabuddy.desktop.core.console.api.XConsole
 
 /**
  * Projection is a base trait for the specific console interface.
  */
-trait Projection extends api.Console.Projection {
+trait Projection extends XConsole.Projection {
   /** The input stream from which commands come. */
   protected var in: Option[Reader] = None
   /** Last input from user. */

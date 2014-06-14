@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,10 +45,11 @@ package org.digimead.tabuddy.desktop.logic.filter
 
 import java.util.UUID
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
+import org.digimead.tabuddy.desktop.logic.filter.api.XFilter
+import org.digimead.tabuddy.desktop.logic.payload.api.XPropertyType
 import org.digimead.tabuddy.model.element.Element
 
-class ByPropertyText extends api.Filter[ByPropertyTextArgument] with Loggable {
+class ByPropertyText extends XFilter[ByPropertyTextArgument] with Loggable {
   val id = UUID.fromString("74db4f4c-261c-443c-b014-fae7d864357b")
   val name = "By property text"
   val description = "Compare two element's properties via text representation"
@@ -61,7 +62,7 @@ class ByPropertyText extends api.Filter[ByPropertyTextArgument] with Loggable {
   /** Check whether filtering is available */
   def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
   /** Filter element property */
-  def filter[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e: Element, argument: Option[ByPropertyTextArgument]): Boolean =
+  def filter[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: XPropertyType[T], e: Element, argument: Option[ByPropertyTextArgument]): Boolean =
     argument match {
       case Some(argument) ⇒
         val text = e.eGet(propertyId, ptype.typeSymbol).map(value ⇒ ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
@@ -74,6 +75,6 @@ class ByPropertyText extends api.Filter[ByPropertyTextArgument] with Loggable {
   def stringToArgument(argument: String): Option[ByPropertyTextArgument] = Some(ByPropertyTextArgument(argument.trim()))
 }
 
-sealed case class ByPropertyTextArgument(val value: String) extends api.Filter.Argument
+sealed case class ByPropertyTextArgument(val value: String) extends XFilter.Argument
 
 object ByPropertyText extends ByPropertyText

@@ -45,10 +45,11 @@ package org.digimead.tabuddy.desktop.core
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
+import org.digimead.tabuddy.desktop.core.keyring.random.api.XSecureRandom
 
 package object keyring {
   lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[random.api.SecureRandom] toSingle { new random.SimpleRandom }
+    module.bind[XSecureRandom] toSingle { new random.SimpleRandom }
   }) ~ org.digimead.tabuddy.desktop.core.keyring.generator.default
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.keyring.KeyRing$DI$")
 }

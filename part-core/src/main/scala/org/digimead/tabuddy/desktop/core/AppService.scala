@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,6 +48,7 @@ import com.typesafe.config.ConfigFactory
 import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.api.XMain
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.core.runtime.Platform
@@ -62,7 +63,7 @@ import scala.language.implicitConversions
 /**
  * Application entry point for Digi Launcher
  */
-class AppService extends api.Main with Disposable.Default with Loggable {
+class AppService extends XMain with Disposable.Default with Loggable {
   /** Application context timeout. */
   protected val applicationContextTimeout = Timeout.long
   /** Weak reference with manager for disposable marker. */

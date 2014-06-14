@@ -50,7 +50,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.keyring.random.SimpleRandom
-import org.digimead.tabuddy.desktop.core.keyring.random.api.SecureRandom
+import org.digimead.tabuddy.desktop.core.keyring.random.api.XSecureRandom
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.core.resources.ResourcesPlugin
@@ -252,7 +252,7 @@ object KeyRing {
     /** Public keyring resource name. */
     lazy val publicKeyRingName = injectOptional[String]("KeyRing.Container.Public") getOrElse "tabuddy.pkr"
     /** KeyRing random implementation. */
-    lazy val random = injectOptional[SecureRandom] getOrElse new SimpleRandom()
+    lazy val random = injectOptional[XSecureRandom] getOrElse new SimpleRandom()
     /** Secret keyring resource name. */
     lazy val secretKeyRingName = injectOptional[String]("KeyRing.Container.Secret") getOrElse "tabuddy.skr"
   }

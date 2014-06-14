@@ -53,13 +53,14 @@ import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
-import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
+import org.digimead.tabuddy.desktop.core.ui.block.api.XConfiguration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.core.ui.operation.api.XOperationViewCreate
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
 /** 'Create view' operation. */
-class OperationViewCreate extends api.OperationViewCreate with Loggable {
+class OperationViewCreate extends XOperationViewCreate with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -146,7 +147,7 @@ object OperationViewCreate extends Loggable {
   def apply(windowId: UUID, viewConfiguration: Configuration.CView): Option[Abstract] =
     Some(operation.operation(windowId, viewConfiguration))
 
-  /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
+  /** Bridge between abstract XOperation[UUID] and concrete Operation[UUID] */
   abstract class Abstract(val windowId: UUID, val viewConfiguration: Configuration.CView)
     extends Operation[UUID](s"Create ${viewConfiguration} in AppWindow[%08X].".format(windowId.hashCode())) {
     this: Loggable ⇒
@@ -155,6 +156,6 @@ object OperationViewCreate extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationViewCreate] getOrElse new OperationViewCreate
+    lazy val operation = injectOptional[XOperationViewCreate] getOrElse new OperationViewCreate
   }
 }

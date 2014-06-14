@@ -45,13 +45,13 @@ package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encrypti
 
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.marker.api
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 
 /**
  * Container for all available encryption implementations.
  */
 object Encryption extends Loggable {
-  type Identifier = api.Encryption.Identifier
+  type Identifier = XEncryption.Identifier
 
   /** Map of all available encryption implementations. */
   def perIdentifier = DI.perIdentifier
@@ -67,15 +67,15 @@ object Encryption extends Loggable {
      *  1. an instance of api.GraphMarker.Encryption.Parameters
      *  2. has name that starts with "Payload.Encryption."
      */
-    lazy val perIdentifier: Map[Encryption.Identifier, api.Encryption] = {
+    lazy val perIdentifier: Map[Encryption.Identifier, XEncryption] = {
       val encryptions = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[api.Encryption].isAssignableFrom(key.m.runtimeClass)
+        case (key, value) ⇒ classOf[XEncryption].isAssignableFrom(key.m.runtimeClass)
       }.map {
         case (key, value) ⇒
           key.name match {
             case Some(name) if name.startsWith("Payload.Encryption.") ⇒
               log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[api.Encryption]]
+              bindingModule.injectOptional(key).asInstanceOf[Option[XEncryption]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' signature mechanism skipped.")
               None

@@ -56,7 +56,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
+import org.digimead.tabuddy.desktop.core.ui.block.api.XConfiguration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, SCompositeTab, VComposite, VEmpty, WComposite }
 import org.eclipse.swt.custom.ScrolledComposite

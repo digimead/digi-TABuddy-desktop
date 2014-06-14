@@ -50,6 +50,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.eclipse.e4.core.contexts.{ ContextFunction, IEclipseContext, RunAndTrack }
 import org.eclipse.jface.fieldassist.{ ContentProposal, IContentProposal, IContentProposalProvider }
 import scala.collection.{ immutable, mutable }
@@ -256,7 +257,7 @@ object Command extends Loggable {
   case class ContextInformation private[Command] (val parserId: UUID, val contextParser: Command.parser.Parser[Any], val context: Context)
   /** Command descriptor where callback is (active context, parser context, parser result) => Unit */
   case class Descriptor(val parserId: UUID)(val name: String, val shortDescription: String, val longDescription: String, val callback: (Context, Context, Any) ⇒ Future[Any])
-    extends api.Command.Descriptor {
+    extends XCommand.Descriptor {
     override lazy val toString = s"Command.Descriptor(${name}, ${parserId})"
   }
   /** Command parser that wraps base parser combinator with 'phrase' sentence. */

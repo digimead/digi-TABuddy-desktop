@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,14 +47,15 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema
+import org.digimead.tabuddy.desktop.logic.operation.api.XOperationModifyTypeSchemaList
+import org.digimead.tabuddy.desktop.logic.payload.api.XTypeSchema
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyTypeSchemaList base trait.
  */
-trait OperationModifyTypeSchemaList extends api.OperationModifyTypeSchemaList {
+trait OperationModifyTypeSchemaList extends XOperationModifyTypeSchemaList {
   /**
    * Create 'Modify a type schema list' operation.
    *
@@ -63,7 +64,7 @@ trait OperationModifyTypeSchemaList extends api.OperationModifyTypeSchemaList {
    * @param activeSchema the active type schema
    * @return 'Modify a type schema list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema], activeSchema: TypeSchema): OperationModifyTypeSchemaList.Abstract
+  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[XTypeSchema], activeSchema: XTypeSchema): OperationModifyTypeSchemaList.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -98,7 +99,7 @@ object OperationModifyTypeSchemaList extends Loggable {
    * @return 'Modify a type schema list' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema], activeSchema: TypeSchema): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[XTypeSchema], activeSchema: XTypeSchema): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, schemaList, activeSchema))
@@ -107,14 +108,14 @@ object OperationModifyTypeSchemaList extends Loggable {
         None
     }
 
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val before: Set[TypeSchema], val active: TypeSchema)
-    extends Operation[(Set[TypeSchema], TypeSchema)](s"Edit type schema list for graph $graph.") {
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val before: Set[XTypeSchema], val active: XTypeSchema)
+    extends Operation[(Set[XTypeSchema], XTypeSchema)](s"Edit type schema list for graph $graph.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationModifyTypeSchemaList]
+    lazy val operation = injectOptional[XOperationModifyTypeSchemaList]
   }
 }

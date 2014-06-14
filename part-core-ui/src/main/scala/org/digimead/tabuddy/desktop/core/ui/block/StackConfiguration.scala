@@ -50,7 +50,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
-import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
+import org.digimead.tabuddy.desktop.core.ui.block.api.XConfiguration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeHSash, SCompositeTab, SCompositeVSash, VComposite, VEmpty }
 import org.digimead.tabuddy.desktop.core.ui.view.defaultv
 import org.eclipse.swt.widgets.{ Composite, Shell, Widget }

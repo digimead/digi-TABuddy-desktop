@@ -57,12 +57,12 @@ import org.bouncycastle.crypto.params.{ ParametersWithIV, ParametersWithRandom }
 import org.bouncycastle.util.encoders.Base64
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import org.digimead.tabuddy.desktop.id.ID
-import org.digimead.tabuddy.desktop.logic.payload.marker.api
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 
 /**
  * AES encryption implementation.
  */
-class AES extends api.Encryption {
+class AES extends XEncryption {
   /** Encryption description. */
   val description: String = "Advanced Encryption Standard symmetric-key block cipher."
   /** Unique encryption identifier. */
@@ -76,7 +76,7 @@ class AES extends api.Encryption {
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
-  def decrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case AESParameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
@@ -93,7 +93,7 @@ class AES extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Decrypt input stream. */
-  def decrypt(inputStream: InputStream, parameters: api.Encryption.Parameters): InputStream = parameters match {
+  def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
     case AESParameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
@@ -105,7 +105,7 @@ class AES extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case AESParameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
@@ -122,7 +122,7 @@ class AES extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt output stearm. */
-  def encrypt(outputStream: OutputStream, parameters: api.Encryption.Parameters): OutputStream = parameters match {
+  def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
     case AESParameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
@@ -141,7 +141,7 @@ class AES extends api.Encryption {
   /**
    * AES encryption parameters.
    */
-  case class AESParameters(val key: Option[String], val keyLength: AES.LengthParameter, val salt: Array[Byte]) extends api.Encryption.Parameters {
+  case class AESParameters(val key: Option[String], val keyLength: AES.LengthParameter, val salt: Array[Byte]) extends XEncryption.Parameters {
     if (key.isEmpty)
       throw new IllegalArgumentException("Encryption key is not defined")
     /** Encryption instance. */
@@ -168,7 +168,7 @@ object AES {
 
   /** Get AES encryption parameters. */
   def apply(key: String, keyLength: AES.LengthParameter,
-    salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): api.Encryption.Parameters =
+    salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): XEncryption.Parameters =
     Encryption.perIdentifier.get(Identifier) match {
       case Some(encryption: AES) ⇒ encryption(Some(key), keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("AES encryption is not available.")
@@ -177,7 +177,7 @@ object AES {
   /**
    * AES encryption identifier.
    */
-  object Identifier extends api.Encryption.Identifier { val name = "AES" }
+  object Identifier extends XEncryption.Identifier { val name = "AES" }
   /**
    * Encryption key length.
    */

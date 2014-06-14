@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.logic.filter
 
 import java.util.UUID
 import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.filter.api.XFilter
 import scala.collection.immutable
 
 /** Application wide filters that is available for consumer. */
@@ -61,6 +62,6 @@ object AvailableFilters {
     /** Filter item that is selected by default. */
     lazy val defaultFilter = map(inject[UUID]("Logic.Filter.Default"))
     /** Map of filters that is available for application. */
-    lazy val map = inject[immutable.HashMap[UUID, _ <: api.Filter[_ <: api.Filter.Argument]]]
+    lazy val map = inject[immutable.HashMap[UUID, _ <: XFilter[_ <: XFilter.Argument]]]
   }
 }

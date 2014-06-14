@@ -75,27 +75,27 @@ object CommandGraphImport {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case ~(~(origin: Symbol, _), location: URI) ⇒
-          val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-          OperationGraphImport(Some(origin), Some(location), false).foreach { operation ⇒
-            operation.getExecuteJob() match {
-              case Some(job) ⇒
-                job.setPriority(Job.LONG)
-                job.onComplete(exchanger.exchange).schedule()
-              case None ⇒
-                throw new RuntimeException(s"Unable to create job for ${operation}.")
-            }
-          }
-          exchanger.exchange(null) match {
-            case Operation.Result.OK(result, message) ⇒
-              log.info(s"Operation completed successfully.")
-              result
-            case Operation.Result.Cancel(message) ⇒
-              throw new CancellationException(s"Operation canceled, reason: ${message}.")
-            case err: Operation.Result.Error[_] ⇒
-              throw err
-            case other ⇒
-              throw new RuntimeException(s"Unable to complete operation: ${other}.")
-          }
+//          val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
+//          OperationGraphImport(Some(origin), Some(location), false).foreach { operation ⇒
+//            operation.getExecuteJob() match {
+//              case Some(job) ⇒
+//                job.setPriority(Job.LONG)
+//                job.onComplete(exchanger.exchange).schedule()
+//              case None ⇒
+//                throw new RuntimeException(s"Unable to create job for ${operation}.")
+//            }
+//          }
+//          exchanger.exchange(null) match {
+//            case Operation.Result.OK(result, message) ⇒
+//              log.info(s"Operation completed successfully.")
+//              result
+//            case Operation.Result.Cancel(message) ⇒
+//              throw new CancellationException(s"Operation canceled, reason: ${message}.")
+//            case err: Operation.Result.Error[_] ⇒
+//              throw err
+//            case other ⇒
+//              throw new RuntimeException(s"Unable to complete operation: ${other}.")
+//          }
       }
     })
   /** Command parser. */

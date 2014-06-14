@@ -50,13 +50,14 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.NLS
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.payload.api.{ XTypeSchema, XTypeSchemaEntity }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.yaml.snakeyaml.{ DumperOptions, Yaml }
 import org.yaml.snakeyaml.constructor.{ AbstractConstruct, Constructor }
 import org.yaml.snakeyaml.error.YAMLException
 import org.yaml.snakeyaml.nodes.{ MappingNode, Node, NodeTuple, SequenceNode, Tag }
 import org.yaml.snakeyaml.representer.{ Represent, Representer }
-import scala.collection.JavaConversions._
+import scala.collection.JavaConversions.{ asScalaBuffer, seqAsJavaList }
 import scala.collection.immutable
 
 /**
@@ -71,20 +72,20 @@ class TypeSchema(
   /** The type schema description. */
   val description: String,
   /** Type schema entities. */
-  val entity: immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]) extends api.TypeSchema {
+  val entity: immutable.HashMap[Symbol, XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]) extends XTypeSchema {
   assert(entity.nonEmpty, "Type schema contain no entities")
 
   /** The copy constructor. */
   def copy(id: UUID = this.id,
     name: String = this.name,
     description: String = this.description,
-    entity: immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]] = this.entity) =
+    entity: immutable.HashMap[Symbol, XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]] = this.entity) =
     new TypeSchema(id, name, description, entity).asInstanceOf[this.type]
 
   def canEqual(other: Any) =
-    other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema]
+    other.isInstanceOf[XTypeSchema]
   override def equals(other: Any) = other match {
-    case that: org.digimead.tabuddy.desktop.logic.payload.api.TypeSchema ⇒
+    case that: XTypeSchema ⇒
       (this eq that) || {
         that.canEqual(this) &&
           id == that.id
@@ -101,18 +102,18 @@ class TypeSchema(
  */
 object TypeSchema extends Loggable {
   /** TypeSchema apply. */
-  def apply(id: UUID, name: String, description: String, entities: immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]) =
+  def apply(id: UUID, name: String, description: String, entities: immutable.HashMap[Symbol, XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]) =
     new TypeSchema(id, name, description, entities)
   /** The deep comparison of two schemas. */
-  def compareDeep(a: api.TypeSchema, b: api.TypeSchema): Boolean =
+  def compareDeep(a: XTypeSchema, b: XTypeSchema): Boolean =
     (a eq b) || (a.id == b.id && a.name == b.name && a.description == b.description && (a.entity, b.entity).zipped.forall((a, b) ⇒ compareDeep(a._2, b._2)))
   /** The deep comparison of two entities. */
-  def compareDeep(a: api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable], b: api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]): Boolean =
+  def compareDeep(a: XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable], b: XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]): Boolean =
     (a eq b) || (a.ptypeId == b.ptypeId && a.alias == b.alias && a.availability == b.availability && a.description == b.description)
   /** Get default type schema. */
   def default = predefined.find(_.id == DI.default).getOrElse { throw new IllegalStateException("Unable to find default type shema.") }
   /** Get entities set */
-  def entities = immutable.HashSet[api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]](
+  def entities = immutable.HashSet[XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]](
     PropertyType.container.values.toSeq.map(ptype ⇒ new TypeSchema.Entity(ptype.id, "", true,
       Messages.typeSchemaDefaultDescription_text.format(getEntityTranslation(ptype.id, "")))): _*)
   /** Get translation by alias. */
@@ -137,14 +138,14 @@ object TypeSchema extends Loggable {
     }
   }
   /** Get all schemas for the current graph. */
-  def load(marker: GraphMarker): Set[api.TypeSchema] = marker.safeRead { state ⇒
+  def load(marker: GraphMarker): Set[XTypeSchema] = marker.safeRead { state ⇒
     log.debug("Load schema list for graph " + state.graph)
     val schemas = try {
       marker.loadTypeSchemas()
     } catch {
       case e: Throwable ⇒
         log.error("Unable to load type schemas: " + e, e)
-        Set[api.TypeSchema]()
+        Set[XTypeSchema]()
     }
     schemas.map { schema ⇒
       val lostEntities = TypeSchema.entities &~ schema.entity.values.toSet
@@ -155,10 +156,10 @@ object TypeSchema extends Loggable {
     } ++ TypeSchema.predefined.filter(predefined ⇒ !schemas.exists(_.id == predefined.id))
   }
   /** Get predefined type schemas that are available for this application. */
-  def predefined: Seq[api.TypeSchema] = DI.predefinedTypeSchemas
+  def predefined: Seq[XTypeSchema] = DI.predefinedTypeSchemas
   /** Update only modified type schemas. */
   @log
-  def save(marker: GraphMarker, schemas: Set[api.TypeSchema]) = marker.safeRead { state ⇒
+  def save(marker: GraphMarker, schemas: Set[XTypeSchema]) = marker.safeRead { state ⇒
     log.debug("Save type schema list for graph " + state.graph)
     val oldSchemas = App.execNGet { state.payload.typeSchemas.values.toSet }
     val deleted = oldSchemas.filterNot(oldSchema ⇒ schemas.exists(compareDeep(_, oldSchema)))
@@ -173,7 +174,7 @@ object TypeSchema extends Loggable {
     }
   }
   /** TypeSchema unapply. */
-  def unapply(schema: api.TypeSchema): Option[(UUID, String, String, immutable.HashMap[Symbol, api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]])] =
+  def unapply(schema: XTypeSchema): Option[(UUID, String, String, immutable.HashMap[Symbol, XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]])] =
     Some(schema.id, schema.name, schema.description, schema.entity)
 
   /**
@@ -188,7 +189,7 @@ object TypeSchema extends Loggable {
     /** Availability flag for user (some types may exists, but not involved in new element template creation) */
     val availability: Boolean,
     /** The entity description */
-    val description: String) extends api.TypeSchemaEntity[T] {
+    val description: String) extends XTypeSchemaEntity[T] {
     /** The type schema entity user's representation */
     lazy val view: String = TypeSchema.getEntityTranslation(ptypeId, alias)
 
@@ -199,10 +200,9 @@ object TypeSchema extends Loggable {
       description: String = this.description): this.type =
       new Entity(ptypeId, alias, availability, description).asInstanceOf[this.type]
 
-    def canEqual(other: Any) =
-      other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.api.TypeSchemaEntity[_]]
+    def canEqual(other: Any) = other.isInstanceOf[XTypeSchemaEntity[_]]
     override def equals(other: Any) = other match {
-      case that: org.digimead.tabuddy.desktop.logic.payload.api.TypeSchemaEntity[_] ⇒
+      case that: XTypeSchemaEntity[_] ⇒
         (this eq that) || {
           that.canEqual(this) &&
             ptypeId == that.ptypeId
@@ -211,22 +211,22 @@ object TypeSchema extends Loggable {
     }
     override def hashCode() = ptypeId.hashCode
   }
-  object YAML extends Payload.YAMLProcessor[api.TypeSchema] {
+  object YAML extends Payload.YAMLProcessor[XTypeSchema] {
     /** Convert JSON to the object */
-    def from(data: String): Option[api.TypeSchema] = {
+    def from(data: String): Option[XTypeSchema] = {
       val yaml = new Yaml(new TypeSchemaConstructor)
-      Option(yaml.load(data).asInstanceOf[api.TypeSchema])
+      Option(yaml.load(data).asInstanceOf[XTypeSchema])
     }
     /** Convert the object to JSON */
-    def to(value: api.TypeSchema): String = {
+    def to(value: XTypeSchema): String = {
       val options = new DumperOptions()
       options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK)
       val yaml = new Yaml(new TypeSchemaRepresenter, new DumperOptions())
       yaml.dump(value)
     }
 
-    class TypeSchemaConstructor extends Constructor(classOf[api.TypeSchema]) {
-      val interfaceTag = new Tag(classOf[api.TypeSchema])
+    class TypeSchemaConstructor extends Constructor(classOf[XTypeSchema]) {
+      val interfaceTag = new Tag(classOf[XTypeSchema])
       val entityTag = new Tag(classOf[Entity[_]])
       this.yamlConstructors.put(interfaceTag, new InterfaceConstruct())
       this.yamlConstructors.put(entityTag, new EntityConstruct())
@@ -244,7 +244,7 @@ object TypeSchema extends Loggable {
             var id: Option[String] = None
             var name: Option[String] = None
             var description: Option[String] = None
-            var entities: scala.collection.mutable.Buffer[api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]] = new scala.collection.mutable.ArrayBuffer
+            var entities: scala.collection.mutable.Buffer[XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]] = new scala.collection.mutable.ArrayBuffer
             for (value ← node.getValue())
               constructObject(value.getKeyNode()) match {
                 case "id" ⇒ id = safeConstruct[String](value)
@@ -255,7 +255,7 @@ object TypeSchema extends Loggable {
                     case seq: SequenceNode ⇒
                       entities = (for (value ← seq.getValue()) yield {
                         value.setTag(entityTag)
-                        Option(constructObject(value)).asInstanceOf[Option[api.TypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]]
+                        Option(constructObject(value)).asInstanceOf[Option[XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]]
                       }).flatten
                     case unknown ⇒ throw new YAMLException("Unexpected api.TypeSchema 'entities' type " + unknown.getClass())
                   }
@@ -308,7 +308,7 @@ object TypeSchema extends Loggable {
     }
 
     class TypeSchemaRepresenter extends Representer {
-      multiRepresenters.put(classOf[api.TypeSchema], new InterfaceRepresent)
+      multiRepresenters.put(classOf[XTypeSchema], new InterfaceRepresent)
       multiRepresenters.put(classOf[Entity[_]], new EntityRepresent)
 
       class InterfaceRepresent extends Represent {
@@ -353,14 +353,14 @@ object TypeSchema extends Loggable {
      *  1. an instance of api.TypeSchema
      *  2. has name that starts with "Schema."
      */
-    lazy val predefinedTypeSchemas: Seq[api.TypeSchema] = bindingModule.bindings.filter {
-      case (key, value) ⇒ classOf[api.TypeSchema].isAssignableFrom(key.m.runtimeClass)
+    lazy val predefinedTypeSchemas: Seq[XTypeSchema] = bindingModule.bindings.filter {
+      case (key, value) ⇒ classOf[XTypeSchema].isAssignableFrom(key.m.runtimeClass)
     }.map {
       case (key, value) ⇒
         key.name match {
           case Some(name) if name.startsWith("Schema.") ⇒
             log.debug(s"Type schema '${name}' loaded.")
-            bindingModule.injectOptional(key).asInstanceOf[Option[api.TypeSchema]]
+            bindingModule.injectOptional(key).asInstanceOf[Option[XTypeSchema]]
           case _ ⇒
             log.debug(s"'${key.name.getOrElse("Unnamed")}' type schema skipped.")
             None

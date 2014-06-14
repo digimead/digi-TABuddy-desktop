@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
-import org.digimead.tabuddy.desktop.core.ui.block.api.Configuration.CPlaceHolder
+import org.digimead.tabuddy.desktop.core.ui.block.api.XConfiguration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.SComposite
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite

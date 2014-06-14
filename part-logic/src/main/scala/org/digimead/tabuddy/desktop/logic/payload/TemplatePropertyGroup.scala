@@ -44,8 +44,9 @@
 package org.digimead.tabuddy.desktop.logic.payload
 
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.payload.api.XTemplatePropertyGroup
 
-case class TemplatePropertyGroup(val id: Symbol, val label: String, val priority: Int) extends api.TemplatePropertyGroup with Loggable {
+case class TemplatePropertyGroup(val id: Symbol, val label: String, val priority: Int) extends XTemplatePropertyGroup with Loggable {
   log.debug(s"property group '${id.name}' alive")
 
   override def toString() = id.name

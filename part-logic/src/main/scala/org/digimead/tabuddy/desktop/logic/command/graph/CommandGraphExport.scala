@@ -73,35 +73,35 @@ object CommandGraphExport extends Loggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case ~(arg, ~(marker: GraphMarker, destination: File)) ⇒
-          val exchanger = new Exchanger[Operation.Result[Unit]]()
-          val shouldCloseAfterComplete = !marker.graphIsOpen()
-          marker.graphAcquire()
-          OperationGraphExport(marker.safeRead(_.graph), Some(destination), arg == Some(forceArg), false).foreach { operation ⇒
-            operation.getExecuteJob() match {
-              case Some(job) ⇒
-                job.setPriority(Job.LONG)
-                job.onComplete(exchanger.exchange).schedule()
-              case None ⇒
-                throw new RuntimeException(s"Unable to create job for ${operation}.")
-            }
-          }
-          exchanger.exchange(null) match {
-            case Operation.Result.OK(result, message) ⇒
-              log.info(s"Operation completed successfully.")
-              val graph = marker.safeRead(_.graph)
-              if (shouldCloseAfterComplete)
-                OperationGraphClose.operation(graph, false)
-              result match {
-                case Some(_) ⇒ s"$graph exported successfully to $destination"
-                case None ⇒ s"$graph export failed due to an unexpected error"
-              }
-            case Operation.Result.Cancel(message) ⇒
-              throw new CancellationException(s"Operation canceled, reason: ${message}.")
-            case err: Operation.Result.Error[_] ⇒
-              throw err
-            case other ⇒
-              throw new RuntimeException(s"Unable to complete operation: ${other}.")
-          }
+//          val exchanger = new Exchanger[Operation.Result[Unit]]()
+//          val shouldCloseAfterComplete = !marker.graphIsOpen()
+//          marker.graphAcquire()
+//          OperationGraphExport(marker.safeRead(_.graph), Some(destination), arg == Some(forceArg), false).foreach { operation ⇒
+//            operation.getExecuteJob() match {
+//              case Some(job) ⇒
+//                job.setPriority(Job.LONG)
+//                job.onComplete(exchanger.exchange).schedule()
+//              case None ⇒
+//                throw new RuntimeException(s"Unable to create job for ${operation}.")
+//            }
+//          }
+//          exchanger.exchange(null) match {
+//            case Operation.Result.OK(result, message) ⇒
+//              log.info(s"Operation completed successfully.")
+//              val graph = marker.safeRead(_.graph)
+//              if (shouldCloseAfterComplete)
+//                OperationGraphClose.operation(graph, false)
+//              result match {
+//                case Some(_) ⇒ s"$graph exported successfully to $destination"
+//                case None ⇒ s"$graph export failed due to an unexpected error"
+//              }
+//            case Operation.Result.Cancel(message) ⇒
+//              throw new CancellationException(s"Operation canceled, reason: ${message}.")
+//            case err: Operation.Result.Error[_] ⇒
+//              throw err
+//            case other ⇒
+//              throw new RuntimeException(s"Unable to complete operation: ${other}.")
+//          }
       }
     })
   /** Command parser. */

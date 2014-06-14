@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -49,11 +49,11 @@ import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.api.Main
+import org.digimead.tabuddy.desktop.core.api.XMain
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
 import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.definition.api.OperationApprover
+import org.digimead.tabuddy.desktop.core.definition.api.XOperationApprover
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.core.commands.CommandManager
 import org.eclipse.core.commands.contexts.ContextManager
@@ -87,7 +87,7 @@ class Core extends akka.actor.Actor with Loggable {
   /** Inconsistent elements. */
   protected var inconsistentSet = Set[AnyRef](Console, Core)
   /** Application entry point registration. */
-  @volatile protected var mainRegistration: Option[ServiceRegistration[api.Main]] = None
+  @volatile protected var mainRegistration: Option[ServiceRegistration[XMain]] = None
   /** Start/stop initialization lock. */
   private val initializationLock = new Object
   log.debug("Start actor " + self.path)
@@ -185,7 +185,7 @@ class Core extends akka.actor.Actor with Loggable {
     log.debug("OSGi stabilization is achieved.")
     context.removeBundleListener(listener)
     // Start "main" service
-    mainRegistration = Option(context.registerService(classOf[api.Main], AppService, null))
+    mainRegistration = Option(context.registerService(classOf[XMain], AppService, null))
     mainRegistration match {
       case Some(service) ⇒ log.debug("Register TA Buddy Desktop application entry point service as: " + service)
       case None ⇒ log.error("Unable to register TA Buddy Desktop application entry point service.")
@@ -411,7 +411,7 @@ object Core extends Loggable {
      *  2. has name that starts with "Approver."
      */
     lazy val approvers = bindingModule.bindings.filter {
-      case (key, value) ⇒ classOf[org.digimead.tabuddy.desktop.core.definition.api.OperationApprover].isAssignableFrom(key.m.runtimeClass)
+      case (key, value) ⇒ classOf[XOperationApprover].isAssignableFrom(key.m.runtimeClass)
     }.map {
       case (key, value) ⇒
         key.name match {

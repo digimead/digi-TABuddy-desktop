@@ -48,7 +48,7 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.{ Core, Messages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 import scala.concurrent.Future
@@ -62,7 +62,7 @@ object CommandContextList extends Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Console converter. */
-  lazy val converter: PartialFunction[(Descriptor, Any), String] = {
+  lazy val converter: PartialFunction[(XCommand.Descriptor, Any), String] = {
     case (this.descriptor, Left(seq)) ⇒
       // brief list
       seq.asInstanceOf[Seq[EclipseContext]].sortBy(ctx ⇒ Context.getName(ctx).getOrElse("")).map { context ⇒

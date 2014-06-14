@@ -49,8 +49,8 @@ import java.util.UUID
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
-import org.digimead.tabuddy.desktop.logic.payload.template.Predefined
-import org.digimead.tabuddy.desktop.logic.payload.template.{ StringType, TextType }
+import org.digimead.tabuddy.desktop.logic.payload.api.{ XElementTemplate, XPropertyType, XTypeSchema }
+import org.digimead.tabuddy.desktop.logic.payload.template.{ Predefined, StringType, TextType }
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.{ Serialization, YAMLSerialization }
 import org.digimead.tabuddy.model.{ Model, Record }
@@ -64,22 +64,22 @@ package object payload {
     }
     module.bind[Serialization.Identifier] identifiedBy "Payload.Serialization" toSingle { YAMLSerialization.Identifier }
     /** The map of the application property types (UI factories). */
-    module.bind[api.PropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.String" toSingle { StringType }
-    module.bind[api.PropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Text" toSingle { TextType }
+    module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.String" toSingle { StringType }
+    module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Text" toSingle { TextType }
     /** The predefined template for Record element. */
-    module.bind[api.ElementTemplate.Builder] identifiedBy "Template.Record" toSingle {
-      new api.ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.record(container) }
+    module.bind[XElementTemplate.Builder] identifiedBy "Template.Record" toSingle {
+      new XElementTemplate.Builder { def apply(container: Record.Like) = Predefined.record(container) }
     }
     /** The predefined template for Note element. */
-    module.bind[api.ElementTemplate.Builder] identifiedBy "Template.Note" toSingle {
-      new api.ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.note(container) }
+    module.bind[XElementTemplate.Builder] identifiedBy "Template.Note" toSingle {
+      new XElementTemplate.Builder { def apply(container: Record.Like) = Predefined.note(container) }
     }
     /** The predefined template for Task element. */
-    module.bind[api.ElementTemplate.Builder] identifiedBy "Template.Task" toSingle {
-      new api.ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.task(container) }
+    module.bind[XElementTemplate.Builder] identifiedBy "Template.Task" toSingle {
+      new XElementTemplate.Builder { def apply(container: Record.Like) = Predefined.task(container) }
     }
     /** The default predefined type schema. */
-    module.bind[api.TypeSchema] identifiedBy "Schema.Default" toSingle {
+    module.bind[XTypeSchema] identifiedBy "Schema.Default" toSingle {
       // add simple localized type schema
       TypeSchema(UUID.fromString("4ce08a80-6f10-11e2-bcfd-0800200c9a66"),
         Messages.localizedTypeSchemaName_text,

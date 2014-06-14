@@ -55,6 +55,7 @@ import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.marker.{ api ⇒ graphapi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
@@ -71,7 +72,7 @@ object CommandGraphClose extends Loggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case Some((Some(marker: GraphMarker), _, _, _)) ⇒
-          val exchanger = new Exchanger[Operation.Result[graphapi.GraphMarker]]()
+          val exchanger = new Exchanger[Operation.Result[XGraphMarker]]()
           val graph = marker.safeRead(_.graph)
           OperationGraphClose(graph, true).foreach { operation ⇒
             operation.getExecuteJob() match {

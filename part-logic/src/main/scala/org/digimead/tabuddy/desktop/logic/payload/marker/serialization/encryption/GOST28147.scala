@@ -57,12 +57,12 @@ import org.bouncycastle.crypto.params.{ ParametersWithIV, ParametersWithRandom }
 import org.bouncycastle.util.encoders.Base64
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import org.digimead.tabuddy.desktop.id.ID
-import org.digimead.tabuddy.desktop.logic.payload.marker.api
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 
 /**
  * GOST28147 encryption implementation.
  */
-class GOST28147 extends api.Encryption {
+class GOST28147 extends XEncryption {
   /** Encryption description. */
   val description: String = "Block cipher, defined in the standard GOST 28147-89."
   /** Unique encryption identifier. */
@@ -74,7 +74,7 @@ class GOST28147 extends api.Encryption {
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
-  def decrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case GOST28147Parameters(Some(key), salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new GOST28147Engine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
@@ -91,7 +91,7 @@ class GOST28147 extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Decrypt input stream. */
-  def decrypt(inputStream: InputStream, parameters: api.Encryption.Parameters): InputStream = parameters match {
+  def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
     case GOST28147Parameters(Some(key), salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new GOST28147Engine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
@@ -103,7 +103,7 @@ class GOST28147 extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case GOST28147Parameters(Some(key), salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new GOST28147Engine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
@@ -120,7 +120,7 @@ class GOST28147 extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt output stearm. */
-  def encrypt(outputStream: OutputStream, parameters: api.Encryption.Parameters): OutputStream = parameters match {
+  def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
     case GOST28147Parameters(Some(key), salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new GOST28147Engine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
@@ -139,7 +139,7 @@ class GOST28147 extends api.Encryption {
   /**
    * GOST28147 encryption parameters.
    */
-  case class GOST28147Parameters(val key: Option[String], val salt: Array[Byte]) extends api.Encryption.Parameters {
+  case class GOST28147Parameters(val key: Option[String], val salt: Array[Byte]) extends XEncryption.Parameters {
     if (key.isEmpty)
       throw new IllegalArgumentException("Encryption key is not defined")
     /** Encryption instance. */
@@ -163,7 +163,7 @@ class GOST28147 extends api.Encryption {
 object GOST28147 {
   /** Get GOST28147 encryption parameters. */
   def apply(key: String,
-    salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): api.Encryption.Parameters =
+    salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): XEncryption.Parameters =
     Encryption.perIdentifier.get(Identifier) match {
       case Some(encryption: GOST28147) ⇒ encryption(Some(key), new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("GOST28147 encryption is not available.")
@@ -172,5 +172,5 @@ object GOST28147 {
   /**
    * GOST 28147 encryption identifier.
    */
-  object Identifier extends api.Encryption.Identifier { val name = "GOST 28147-89" }
+  object Identifier extends XEncryption.Identifier { val name = "GOST 28147-89" }
 }

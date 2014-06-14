@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,13 +47,14 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.operation.api.XOperationCreateElementFromTemplate
+import org.digimead.tabuddy.desktop.logic.payload.api.XElementTemplate
 import org.digimead.tabuddy.model.element.Element
 
 /**
  * OperationCreateElementFromTemplate base trait.
  */
-trait OperationCreateElementFromTemplate extends api.OperationCreateElementFromTemplate {
+trait OperationCreateElementFromTemplate extends XOperationCreateElementFromTemplate {
   /**
    * Create 'Create a new element from template' operation.
    *
@@ -61,7 +62,7 @@ trait OperationCreateElementFromTemplate extends api.OperationCreateElementFromT
    * @param container container for the new element
    * @return 'Create a new element from template' operation
    */
-  override def operation(template: ElementTemplate, container: Element): OperationCreateElementFromTemplate.Abstract
+  override def operation(template: XElementTemplate, container: Element): OperationCreateElementFromTemplate.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -95,7 +96,7 @@ object OperationCreateElementFromTemplate extends Loggable {
    * @return 'Create a new element from template' operation
    */
   @log
-  def apply(template: ElementTemplate, container: Element): Option[Abstract] =
+  def apply(template: XElementTemplate, container: Element): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(template, container))
@@ -104,8 +105,8 @@ object OperationCreateElementFromTemplate extends Loggable {
         None
     }
 
-  /** Bridge between abstract api.Operation[Element] and concrete Operation[Element] */
-  abstract class Abstract(val template: ElementTemplate, val container: Element)
+  /** Bridge between abstract XOperation[Element] and concrete Operation[Element] */
+  abstract class Abstract(val template: XElementTemplate, val container: Element)
     extends Operation[Element](s"Create a new element from $template for $container.") {
     this: Loggable ⇒
   }
@@ -113,6 +114,6 @@ object OperationCreateElementFromTemplate extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationCreateElementFromTemplate]
+    lazy val operation = injectOptional[XOperationCreateElementFromTemplate]
   }
 }

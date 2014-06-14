@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,14 +47,15 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.operation.api.XOperationModifyElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload.api.XElementTemplate
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyElementTemplate base trait.
  */
-trait OperationModifyElementTemplate extends api.OperationModifyElementTemplate {
+trait OperationModifyElementTemplate extends XOperationModifyElementTemplate {
   /**
    * Create 'Modify filter' operation.
    *
@@ -63,7 +64,7 @@ trait OperationModifyElementTemplate extends api.OperationModifyElementTemplate 
    * @param filterList the list of exists filters
    * @return 'Modify filter' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], template: ElementTemplate, templateList: Set[ElementTemplate]): OperationModifyElementTemplate.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], template: XElementTemplate, templateList: Set[XElementTemplate]): OperationModifyElementTemplate.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -98,7 +99,7 @@ object OperationModifyElementTemplate extends Loggable {
    * @return 'Modify an element template' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], template: ElementTemplate, templateList: Set[ElementTemplate]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], template: XElementTemplate, templateList: Set[XElementTemplate]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, template, templateList))
@@ -107,15 +108,15 @@ object OperationModifyElementTemplate extends Loggable {
         None
     }
 
-  /** Bridge between abstract api.Operation[ElementTemplate] and concrete Operation[ElementTemplate] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val template: ElementTemplate, val templateList: Set[ElementTemplate])
-    extends Operation[ElementTemplate](s"Edit $template for graph $graph.") {
+  /** Bridge between abstract XOperation[ElementTemplate] and concrete Operation[ElementTemplate] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val template: XElementTemplate, val templateList: Set[XElementTemplate])
+    extends Operation[XElementTemplate](s"Edit $template for graph $graph.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationModifyElementTemplate]
+    lazy val operation = injectOptional[XOperationModifyElementTemplate]
   }
 }

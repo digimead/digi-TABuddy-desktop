@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,13 +47,14 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.logic.operation.api.XOperationDeleteElement
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 
 /**
  * OperationDeleteElement base trait.
  */
-trait OperationDeleteElement extends api.OperationDeleteElement {
+trait OperationDeleteElement extends XOperationDeleteElement {
   /**
    * Create 'Delete the element' operation.
    *
@@ -104,7 +105,7 @@ object OperationDeleteElement extends Loggable {
         None
     }
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val element: Element, val interactive: Boolean)
     extends Operation[Unit](s"Delete $element.") {
     this: Loggable ⇒
@@ -113,6 +114,6 @@ object OperationDeleteElement extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationDeleteElement]
+    lazy val operation = injectOptional[XOperationDeleteElement]
   }
 }

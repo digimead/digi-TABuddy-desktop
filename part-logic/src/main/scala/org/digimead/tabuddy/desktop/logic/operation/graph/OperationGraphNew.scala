@@ -45,14 +45,13 @@ package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.{ CancellationException, ExecutionException }
+import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.{ UI, Wizards }
 import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphNew
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
@@ -61,50 +60,21 @@ import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'New graph' operation. */
-class OperationGraphNew extends api.OperationGraphNew with Loggable {
+class OperationGraphNew extends XOperationGraphNew with Loggable {
   /**
    * Create new graph.
    *
-   * @param name initial model name if any
-   * @param location initial graph location if any
-   * @param interactive show graph creation wizard
+   * @param name initial model name
+   * @param location initial graph location
    * @return graph marker
    */
-  def apply(name: Option[String], location: Option[File], interactive: Boolean): Graph[_ <: Model.Like] = {
+  def apply(name: String, location: File): Graph[_ <: Model.Like] = {
     log.info(s"Create new graph with initial name ${name}.")
-    if (interactive && !App.isUIAvailable)
-      throw new IllegalArgumentException("Unable to create graph interactively without UI.")
-    if (!interactive && name.isEmpty)
-      throw new IllegalArgumentException("Unable to non interactively create new graph without name.")
-    if (!interactive && location.isEmpty)
-      throw new IllegalArgumentException("Unable to non interactively create new graph without location.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    val marker = if (interactive)
-      UI.getActiveShell match {
-        case Some(shell) ⇒
-          try App.execNGet {
-            Wizards.open("org.digimead.tabuddy.desktop.logic.ui.wizard.WizardGraphNew", shell, Some(name, location)) match {
-              case marker: GraphMarker ⇒
-                if (!marker.markerIsValid)
-                  throw new IllegalStateException(marker + " is not valid.")
-                marker
-              case other if other == org.eclipse.jface.window.Window.CANCEL ⇒
-                throw new CancellationException("Unable to create new graph. Operation canceled.")
-              case other ⇒
-                throw new IllegalStateException(s"Unable to create new graph. Result ${other}.")
-            }
-          }(App.LongRunnable)
-          catch { case e: ExecutionException if e.getCause() != null ⇒ throw e.getCause() }
-        case None ⇒
-          throw new IllegalStateException("Unable to create new graph dialog without parent shell.")
-      }
-    else {
-      val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(location.get, name.get),
-        Element.timestamp(), Payload.origin)
-      marker.markerLoad()
-      marker
-    }
+    val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(location, name),
+      Element.timestamp(), Payload.origin)
+    marker.markerLoad()
     // There will be FileNotFoundException. Take it easy.
     marker.graphAcquire(takeItEasy = true)
     marker.safeRead(_.graph)
@@ -112,13 +82,12 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
   /**
    * Create 'New graph' operation.
    *
-   * @param name initial model name if any
-   * @param location initial graph location if any
-   * @param interactive show graph creation wizard
+   * @param name initial model name
+   * @param location initial graph location
    * @return 'New graph' operation
    */
-  def operation(name: Option[String], location: Option[File], interactive: Boolean) =
-    new Implemetation(name, location, interactive)
+  def operation(name: String, location: File) =
+    new Implemetation(name, location)
 
   /**
    * Checks that this class can be subclassed.
@@ -136,8 +105,8 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(name: Option[String], location: Option[File], interactive: Boolean)
-    extends OperationGraphNew.Abstract(name, location, interactive) with Loggable {
+  class Implemetation(name: String, location: File)
+    extends OperationGraphNew.Abstract(name, location) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -147,7 +116,7 @@ class OperationGraphNew extends api.OperationGraphNew with Loggable {
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option[Graph[_ <: Model.Like]](OperationGraphNew.this(name, location, interactive))
+        val result = Option[Graph[_ <: Model.Like]](OperationGraphNew.this(name, location))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
@@ -176,11 +145,11 @@ object OperationGraphNew extends Loggable {
    * @return 'New graph' operation
    */
   @log
-  def apply(name: Option[String], location: Option[File], interactive: Boolean): Option[Abstract] =
-    Some(operation.operation(name, location, interactive))
+  def apply(name: String, location: File): Option[Abstract] =
+    Some(operation.operation(name, location))
 
-  /** Bridge between abstract api.Operation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
-  abstract class Abstract(val name: Option[String], val location: Option[File], val interactive: Boolean)
+  /** Bridge between abstract XOperation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
+  abstract class Abstract(val name: String, val location: File)
     extends Operation[Graph[_ <: Model.Like]](s"Create new graph with initial name ${name}.") {
     this: Loggable ⇒
   }
@@ -188,6 +157,6 @@ object OperationGraphNew extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphNew] getOrElse new OperationGraphNew
+    lazy val operation = injectOptional[XOperationGraphNew] getOrElse new OperationGraphNew
   }
 }

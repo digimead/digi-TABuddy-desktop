@@ -47,15 +47,12 @@ import java.util.UUID
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate.Builder
+import org.digimead.tabuddy.desktop.logic.payload.api.{ XElementTemplate, XEnumeration, XPropertyType, XTemplateProperty, XTemplatePropertyGroup }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Record
+import org.digimead.tabuddy.model.{ Model, Record }
 import org.digimead.tabuddy.model.dsl.DSLType
-import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Value
-import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.graph.Node
+import org.digimead.tabuddy.model.element.{ Element, Value }
+import org.digimead.tabuddy.model.graph.{ Graph, Node }
 import org.digimead.tabuddy.model.serialization.StubSerialization
 import scala.collection.immutable
 
@@ -67,7 +64,7 @@ class ElementTemplate(
   /** Fn thats do something before the instance initialization */
   preinitialization: ElementTemplate ⇒ Unit = _ ⇒ {}) extends ElementTemplate.Interface with Loggable {
   def this(element: Element#RelativeType, factory: (Element, Symbol, Symbol) ⇒ Element,
-    initialName: String, initialAvailability: Boolean, initialProperties: api.ElementTemplate.propertyMap) = {
+    initialName: String, initialAvailability: Boolean, initialProperties: XElementTemplate.propertyMap) = {
     this(element, factory, (template) ⇒ {
       // This code is invoked before availability, name and properties fields initialization
       if (template.element.eGet[java.lang.Boolean](template.getFieldIDAvailability).map(_.get) != Some(initialAvailability))
@@ -95,7 +92,7 @@ class ElementTemplate(
   /** The template id */
   val id = element.eId
   /** Template properties */
-  val properties: api.ElementTemplate.propertyMap = getProperties()
+  val properties: XElementTemplate.propertyMap = getProperties()
 
   /** The copy constructor */
   def copy(availability: Boolean = this.availability,
@@ -103,7 +100,7 @@ class ElementTemplate(
     element: Element#RelativeType = this.element,
     factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
     id: Symbol = this.id,
-    properties: api.ElementTemplate.propertyMap = this.properties) =
+    properties: XElementTemplate.propertyMap = this.properties) =
     if (id == this.id)
       new ElementTemplate(element, factory, name, availability, properties).asInstanceOf[this.type]
     else {
@@ -118,14 +115,14 @@ class ElementTemplate(
       }
     }
 
-  protected def getProperties(): api.ElementTemplate.propertyMap =
+  protected def getProperties(): XElementTemplate.propertyMap =
     immutable.HashMap(getPropertyArray().map {
       case (id, ptypeID, typeSymbol) ⇒
         PropertyType.container.get(ptypeID) match {
           case Some(ptype) if ptype.typeSymbol == typeSymbol ⇒
             Some(getProperty(GraphMarker(element.eGraph), id, ptype)(Manifest.classType(ptype.typeClass))).
               // as common TemplateProperty
-              asInstanceOf[Option[(api.TemplatePropertyGroup, api.TemplateProperty[_ <: AnyRef with java.io.Serializable])]]
+              asInstanceOf[Option[(XTemplatePropertyGroup, XTemplateProperty[_ <: AnyRef with java.io.Serializable])]]
           case None ⇒
             log.fatal("unable to get property %s with unknown type wrapper id %s".format(id, ptypeID))
             None
@@ -137,7 +134,7 @@ class ElementTemplate(
         t._2.map(_._2).sortBy(_.id.name))).toSeq: _*)
   /** Get property map */
   protected def getProperty[T <: AnyRef with java.io.Serializable: Manifest](marker: GraphMarker, id: Symbol,
-    ptype: api.PropertyType[T]): (TemplatePropertyGroup, TemplateProperty[T]) = marker.safeRead { state ⇒
+    ptype: XPropertyType[T]): (TemplatePropertyGroup, TemplateProperty[T]) = marker.safeRead { state ⇒
     // get the default field
     val defaultField = element.eGet[T](getFieldIDPropertyDefault(id))
     // get enumeration field
@@ -151,7 +148,7 @@ class ElementTemplate(
     val elementPropertyEnumeration = enumerationField.flatMap { idRaw ⇒
       val id = Symbol(idRaw)
       App.execNGet {
-        val enumeration = state.payload.enumerations.get(id).find(_.ptype == ptype).asInstanceOf[Option[api.Enumeration[T]]]
+        val enumeration = state.payload.enumerations.get(id).find(_.ptype == ptype).asInstanceOf[Option[XEnumeration[T]]]
         if (enumeration.isEmpty)
           log.error(s"Unable to load an unknown enumeration $idRaw")
         enumeration
@@ -176,7 +173,7 @@ class ElementTemplate(
     properties.map(arr ⇒ Tuple3(arr(0), arr(1), arr(2))).toArray
   }
   /** Set property map */
-  protected def setProperty(id: Symbol, ptype: api.PropertyType[_], group: api.TemplatePropertyGroup, data: Option[api.TemplateProperty[_ <: AnyRef with java.io.Serializable]]) {
+  protected def setProperty(id: Symbol, ptype: XPropertyType[_], group: XTemplatePropertyGroup, data: Option[XTemplateProperty[_ <: AnyRef with java.io.Serializable]]) {
     val properties = getPropertyArray()
     data match {
       case Some(elementProperty) ⇒
@@ -224,10 +221,10 @@ object ElementTemplate extends Loggable {
    * The deep comparison of two element templates
    * Comparison is not includes check for element and factory equality
    */
-  def compareDeep(a: api.ElementTemplate, b: api.ElementTemplate): Boolean =
+  def compareDeep(a: XElementTemplate, b: XElementTemplate): Boolean =
     (a eq b) || ((a == b) && ElementTemplate.compareDeep(a.properties, b.properties))
   /** The deep comparison of two property maps */
-  def compareDeep(a: api.ElementTemplate.propertyMap, b: api.ElementTemplate.propertyMap): Boolean = (a eq b) || {
+  def compareDeep(a: XElementTemplate.propertyMap, b: XElementTemplate.propertyMap): Boolean = (a eq b) || {
     val aKeys = a.keys.toList.sortBy(_.id.name)
     val bKeys = b.keys.toList.sortBy(_.id.name)
     if (!aKeys.sameElements(bKeys)) return false
@@ -239,7 +236,7 @@ object ElementTemplate extends Loggable {
     }
   }
   /** Get all element templates. */
-  def load(marker: GraphMarker): (Set[api.ElementTemplate], Set[api.ElementTemplate]) = marker.safeRead { state ⇒
+  def load(marker: GraphMarker): (Set[XElementTemplate], Set[XElementTemplate]) = marker.safeRead { state ⇒
     log.debug("Load element template list for graph " + state.graph)
     // Renew/update original templates
     val tempGraph = {
@@ -257,7 +254,7 @@ object ElementTemplate extends Loggable {
         val temporaryTemplates = builders.map { builder ⇒ (builder(temp.absolute), builder) }
         // Update original templates
         // Only add new templates, but keep the old ones and skip unknown.
-        val originalTemplates: Set[api.ElementTemplate] = originalTemplatesContainer.eNode.freezeWrite { node ⇒
+        val originalTemplates: Set[XElementTemplate] = originalTemplatesContainer.eNode.freezeWrite { node ⇒
           val original = node.children.map(_.rootBox.e.eRelative)
           temporaryTemplates.map {
             case (example, builder) ⇒
@@ -278,7 +275,7 @@ object ElementTemplate extends Loggable {
         }
         // Update user templates
         // Only add new templates, but keep the old ones and skip unknown.
-        val userTemplates: Set[api.ElementTemplate] = userTemplatesContainer.eNode.freezeWrite { node ⇒
+        val userTemplates: Set[XElementTemplate] = userTemplatesContainer.eNode.freezeWrite { node ⇒
           val user = node.children.map(_.rootBox.e.eRelative)
           val templatesBasedOnOriginalSet = temporaryTemplates.map {
             case (example, builder) ⇒
@@ -317,7 +314,7 @@ object ElementTemplate extends Loggable {
     } finally tempMarker.unregister()
   }
   /** Update only modified element templates. */
-  def save(marker: GraphMarker, templates: Set[api.ElementTemplate]) = marker.safeRead { state ⇒
+  def save(marker: GraphMarker, templates: Set[XElementTemplate]) = marker.safeRead { state ⇒
     log.debug("Save element template list for graph " + state.graph)
     val oldTemplates = App.execNGet { state.payload.elementTemplates.values.toSet }
     val deleted = oldTemplates.filterNot(oldTemplate ⇒ templates.exists(compareDeep(_, oldTemplate)))
@@ -337,7 +334,7 @@ object ElementTemplate extends Loggable {
   /**
    * model.Element from the application point of view
    */
-  private[ElementTemplate] trait Interface extends api.ElementTemplate {
+  private[ElementTemplate] trait Interface extends XElementTemplate {
     /** Availability flag for user (some template may exists, but not involved in new element creation) */
     val availability: Boolean
     /** The template name */
@@ -353,7 +350,7 @@ object ElementTemplate extends Loggable {
      * or map of form fields from the application point of view
      * Key - property group, Value - sequence of element properties
      */
-    val properties: api.ElementTemplate.propertyMap
+    val properties: XElementTemplate.propertyMap
 
     /** The copy constructor */
     def copy(availability: Boolean = this.availability,
@@ -361,7 +358,7 @@ object ElementTemplate extends Loggable {
       element: Element#RelativeType = this.element,
       factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
       id: Symbol = this.id,
-      properties: api.ElementTemplate.propertyMap = this.properties): this.type
+      properties: XElementTemplate.propertyMap = this.properties): this.type
     /** Returns an ID for the availability field */
     def getFieldIDAvailability() = 'availability
     /** Returns an ID for the name field */
@@ -383,10 +380,9 @@ object ElementTemplate extends Loggable {
     /** Returns a new ElementTemplate with the updated id */
     def updated(id: Symbol): this.type = copy(id = id)
 
-    def canEqual(other: Any) =
-      other.isInstanceOf[org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate]
+    def canEqual(other: Any) = other.isInstanceOf[XElementTemplate]
     override def equals(other: Any) = other match {
-      case that: org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate ⇒
+      case that: XElementTemplate ⇒
         (this eq that) || {
           that.canEqual(this) &&
             availability == that.availability &&
@@ -420,13 +416,13 @@ object ElementTemplate extends Loggable {
      *  2. has name that starts with "Template."
      */
     lazy val builders = bindingModule.bindings.filter {
-      case (key, value) ⇒ classOf[api.ElementTemplate.Builder].isAssignableFrom(key.m.runtimeClass)
+      case (key, value) ⇒ classOf[XElementTemplate.Builder].isAssignableFrom(key.m.runtimeClass)
     }.map {
       case (key, value) ⇒
         key.name match {
           case Some(name) if name.startsWith("Template.") ⇒
             log.debug(s"Element template builder '${name}' loaded.")
-            bindingModule.injectOptional(key).asInstanceOf[Option[Record.Like ⇒ api.ElementTemplate]]
+            bindingModule.injectOptional(key).asInstanceOf[Option[Record.Like ⇒ XElementTemplate]]
           case _ ⇒
             log.debug(s"'${key.name.getOrElse("Unnamed")}' element template builder skipped.")
             None

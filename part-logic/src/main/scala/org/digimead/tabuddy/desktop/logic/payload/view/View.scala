@@ -50,6 +50,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.PredefinedElements
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XView
 import org.digimead.tabuddy.model.element.Element
 import scala.collection.mutable
 
@@ -71,7 +72,7 @@ class View(
   /** View filters (visible filters). */
   val filters: mutable.LinkedHashSet[UUID],
   /** View sortings (visible sortings). */
-  val sortings: mutable.LinkedHashSet[UUID]) extends api.View {
+  val sortings: mutable.LinkedHashSet[UUID]) extends XView {
   /** Element id symbol. */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
@@ -86,9 +87,9 @@ class View(
     new View(id, name, description, availability, fields, filters, sortings).asInstanceOf[this.type]
 
   def canEqual(other: Any) =
-    other.isInstanceOf[api.View]
+    other.isInstanceOf[XView]
   override def equals(other: Any) = other match {
-    case that: api.View ⇒
+    case that: XView ⇒
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId
@@ -106,7 +107,7 @@ object View extends Loggable {
   val collectionMaximum = 10000
 
   /** Add view element. */
-  def add(marker: GraphMarker, view: api.View) = marker.safeUpdate { state ⇒
+  def add(marker: GraphMarker, view: XView) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewDefinition(state.graph)
     val element = (container | RecordLocation(view.elementId)).eRelative
     element.eRemoveAll()
@@ -140,7 +141,7 @@ object View extends Loggable {
     } element.eSet[String](getFieldIDSorting(i), sorting.toString())
   }
   /** The deep comparison of two sortings */
-  def compareDeep(a: api.View, b: api.View): Boolean =
+  def compareDeep(a: XView, b: XView): Boolean =
     (a eq b) || (a == b && a.description == b.description && a.availability == b.availability && a.name == b.name &&
       // fields sequence order is important
       a.fields.sameElements(b.fields) &&
@@ -229,7 +230,7 @@ object View extends Loggable {
     if (result.contains(View.displayName)) result else result + View.displayName
   }
   /** Update only modified view definitions. */
-  def save(marker: GraphMarker, views: Set[api.View]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, views: Set[XView]) = marker.safeUpdate { state ⇒
     log.debug("Save view definition list for graph " + state.graph)
     val oldViews = App.execNGet { state.payload.viewDefinitions.values }
     val newViews = views - displayName
@@ -247,7 +248,7 @@ object View extends Loggable {
     }
   }
   /** Remove view element. */
-  def remove(marker: GraphMarker, view: api.View) = marker.safeUpdate { state ⇒
+  def remove(marker: GraphMarker, view: XView) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewDefinition(state.graph)
     container.eNode.safeWrite { node ⇒ node.children.find(_.rootBox.e.eId == view.elementId).foreach(node -= _) }
   }

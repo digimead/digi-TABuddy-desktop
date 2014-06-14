@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplateList
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload.api.XElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
@@ -72,7 +72,7 @@ object CommandModifyElementTemplateList extends Loggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case marker: GraphMarker ⇒
-          val exchanger = new Exchanger[Operation.Result[Set[ElementTemplate]]]()
+          val exchanger = new Exchanger[Operation.Result[Set[XElementTemplate]]]()
           marker.safeRead { state ⇒
             OperationModifyElementTemplateList(state.graph, App.execNGet { state.payload.elementTemplates.values.toSet }).foreach { operation ⇒
               operation.getExecuteJob() match {

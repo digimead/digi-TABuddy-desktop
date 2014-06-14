@@ -49,17 +49,17 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.logic.payload.marker.{ GraphMarker, api ⇒ graphapi }
+import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphClose
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
-import org.eclipse.jface.window.Window
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.MessageBox
-import org.digimead.tabuddy.model.element.Element
 
 /** 'Close graph' operation. */
-class OperationGraphClose extends api.OperationGraphClose with Loggable {
+class OperationGraphClose extends XOperationGraphClose with Loggable {
   /**
    * Close graph.
    *
@@ -67,7 +67,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
    * @param force close graph without saving
    * @return the same marker or read only marker if current one is deleted
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): graphapi.GraphMarker = {
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): XGraphMarker = {
     @volatile var closeApproved = force
     val marker = GraphMarker(graph)
     while (true) {
@@ -161,7 +161,7 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] = {
       require(canExecute, "Execution is disabled.")
       try {
         val result = Option(OperationGraphClose.this(graph, force))
@@ -172,9 +172,9 @@ class OperationGraphClose extends api.OperationGraphClose with Loggable {
           Operation.Result.Error(s"Unable to close $graph.", e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
       throw new UnsupportedOperationException
   }
 }
@@ -194,15 +194,15 @@ object OperationGraphClose extends Loggable {
   def apply(graph: Graph[_ <: Model.Like], force: Boolean): Option[Abstract] =
     Some(operation.operation(graph, force))
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean)
-    extends Operation[graphapi.GraphMarker](s"Close $graph.") {
+    extends Operation[XGraphMarker](s"Close $graph.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphClose] getOrElse new OperationGraphClose
+    lazy val operation = injectOptional[XOperationGraphClose] getOrElse new OperationGraphClose
   }
 }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,14 +47,15 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
+import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifyFilter
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XFilter
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyFilter base trait.
  */
-trait OperationModifyFilter extends api.OperationModifyFilter {
+trait OperationModifyFilter extends XOperationModifyFilter {
   /**
    * Create 'Modify filter' operation.
    *
@@ -63,7 +64,7 @@ trait OperationModifyFilter extends api.OperationModifyFilter {
    * @param filterList the list of exists filters
    * @return 'Modify filter' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], filter: Filter, filterList: Set[Filter]): OperationModifyFilter.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], filter: XFilter, filterList: Set[XFilter]): OperationModifyFilter.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -98,7 +99,7 @@ object OperationModifyFilter extends Loggable {
    * @return 'Modify filter' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], filter: Filter, filterList: Set[Filter]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], filter: XFilter, filterList: Set[XFilter]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, filter, filterList))
@@ -107,15 +108,15 @@ object OperationModifyFilter extends Loggable {
         None
     }
 
-  /** Bridge between abstract api.Operation[Filter] and concrete Operation[Filter] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val filter: Filter, val filterList: Set[Filter])
-    extends Operation[Filter](s"Edit filter $filter for graph $graph.") {
+  /** Bridge between abstract XOperation[XFilter] and concrete Operation[XFilter] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val filter: XFilter, val filterList: Set[XFilter])
+    extends Operation[XFilter](s"Edit filter $filter for graph $graph.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationModifyFilter]
+    lazy val operation = injectOptional[XOperationModifyFilter]
   }
 }

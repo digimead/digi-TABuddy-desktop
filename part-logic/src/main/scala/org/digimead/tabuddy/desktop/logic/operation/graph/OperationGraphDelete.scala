@@ -47,13 +47,15 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.marker.{ GraphMarker, api ⇒ graphapi }
+import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphDelete
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Delete graph' operation. */
-class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
+class OperationGraphDelete extends XOperationGraphDelete with Loggable {
   protected val operationLock = new Object()
   /**
    * Delete graph.
@@ -62,7 +64,7 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
    * @param askBefore askUser before delete
    * @return deleted graph read only marker
    */
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): graphapi.GraphMarker = {
+  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): XGraphMarker = {
     GraphMarker.globalRWL.writeLock().lock()
     try {
       val marker = GraphMarker(graph)
@@ -112,7 +114,7 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] = {
       require(canExecute, "Execution is disabled.")
       try {
         val result = Option(OperationGraphDelete.this(graph, askBefore))
@@ -123,9 +125,9 @@ class OperationGraphDelete extends api.OperationGraphDelete with Loggable {
           Operation.Result.Error(s"Unable to delete $graph.", e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[graphapi.GraphMarker] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
       throw new UnsupportedOperationException
   }
 }
@@ -145,15 +147,15 @@ object OperationGraphDelete extends Loggable {
   def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): Option[Abstract] =
     Some(operation.operation(graph, askBefore).asInstanceOf[Abstract])
 
-  /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
+  /** Bridge between abstract XOperation[UUID] and concrete Operation[UUID] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val askBefore: Boolean)
-    extends Operation[graphapi.GraphMarker](s"Delete $graph.") {
+    extends Operation[XGraphMarker](s"Delete $graph.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphDelete] getOrElse new OperationGraphDelete
+    lazy val operation = injectOptional[XOperationGraphDelete] getOrElse new OperationGraphDelete
   }
 }

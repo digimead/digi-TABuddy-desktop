@@ -45,10 +45,11 @@ package org.digimead.tabuddy.desktop.core.keyring
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
+import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
 
 package object generator {
   lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[api.Generator] identifiedBy ("KeyRing.Generator." + RSAGenerator.Identifier) toSingle { new RSAGenerator }
+    module.bind[XGenerator] identifiedBy ("KeyRing.Generator." + RSAGenerator.Identifier) toSingle { new RSAGenerator }
   })
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.keyring.generator.Generator$DI$")
 }

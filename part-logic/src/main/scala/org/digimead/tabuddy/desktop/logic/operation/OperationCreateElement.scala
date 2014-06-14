@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,12 +47,13 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.logic.operation.api.XOperationCreateElement
 import org.digimead.tabuddy.model.element.Element
 
 /**
  * OperationCreateElement base trait.
  */
-trait OperationCreateElement extends api.OperationCreateElement {
+trait OperationCreateElement extends XOperationCreateElement {
   /**
    * Create 'Create a new element' operation.
    *
@@ -101,7 +102,7 @@ object OperationCreateElement extends Loggable {
         None
     }
 
-  /** Bridge between abstract api.Operation[Element] and concrete Operation[Element] */
+  /** Bridge between abstract XOperation[Element] and concrete Operation[Element] */
   abstract class Abstract(val container: Element)
     extends Operation[Element](s"Create a new element for $container.") {
     this: Loggable ⇒
@@ -110,6 +111,6 @@ object OperationCreateElement extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationCreateElement]
+    lazy val operation = injectOptional[XOperationCreateElement]
   }
 }

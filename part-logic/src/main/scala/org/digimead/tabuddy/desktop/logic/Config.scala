@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,10 +48,11 @@ import java.io.{ File, FileOutputStream }
 import org.digimead.configgy.Configgy
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.logic.api.XConfig
 import org.osgi.framework.BundleContext
 import scala.language.implicitConversions
 
-class Config(implicit val bindingModule: BindingModule) extends api.Config with Loggable with Injectable {
+class Config(implicit val bindingModule: BindingModule) extends XConfig with Loggable with Injectable {
   @volatile var ready = false
   val location = inject[File]("Config")
   private val modificationLock = new Object
@@ -97,7 +98,7 @@ class Config(implicit val bindingModule: BindingModule) extends api.Config with 
 }
 
 object Config extends Loggable {
-  implicit def config2implementation(c: Config.type): api.Config = c.inner
+  implicit def config2implementation(c: Config.type): XConfig = c.inner
 
   /** Get config implementation. */
   def inner = DI.implementation
@@ -107,6 +108,6 @@ object Config extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Config implementation. */
-    lazy val implementation = inject[api.Config]
+    lazy val implementation = inject[XConfig]
   }
 }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,16 +44,16 @@
 package org.digimead.tabuddy.desktop.core.operation
 
 import java.util.concurrent.CancellationException
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.operation.api.XOperationTest
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
 
 /** 'Returns test message' operation. */
-class OperationTest extends api.OperationTest with Loggable {
+class OperationTest extends XOperationTest with Loggable {
   /**
    * Returns test message.
    */
@@ -107,7 +107,7 @@ object OperationTest extends Loggable {
   @log
   def apply(): Option[Abstract] = Some(operation.operation())
 
-  /** Bridge between abstract api.Operation[String] and concrete Operation[String] */
+  /** Bridge between abstract XOperation[String] and concrete Operation[String] */
   abstract class Abstract() extends Operation[String](s"Returns test message.") {
     this: Loggable ⇒
   }
@@ -115,6 +115,6 @@ object OperationTest extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationTest] getOrElse new OperationTest
+    lazy val operation = injectOptional[XOperationTest] getOrElse new OperationTest
   }
 }

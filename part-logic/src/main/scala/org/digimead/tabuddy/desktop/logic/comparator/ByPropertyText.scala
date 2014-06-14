@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,29 +45,30 @@ package org.digimead.tabuddy.desktop.logic.comparator
 
 import java.util.UUID
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.logic.payload.api.PropertyType
+import org.digimead.tabuddy.desktop.logic.comparator.api.XComparator
+import org.digimead.tabuddy.desktop.logic.payload.api.XPropertyType
 import org.digimead.tabuddy.model.element.Element
 
-class ByPropertyText extends api.Comparator[api.Comparator.Argument] with Loggable {
+class ByPropertyText extends XComparator[XComparator.Argument] with Loggable {
   val id = UUID.fromString("84b24863-145a-40a7-aade-e25547c52b41")
   val name = "By property text"
   val description = "Compare two element's properties via text representation"
   val isArgumentSupported = false
 
   /** Convert Argument trait to the serialized string */
-  def argumentToString(argument: api.Comparator.Argument): String = ""
+  def argumentToString(argument: XComparator.Argument): String = ""
   /** Convert Argument trait to the text representation for the user */
-  def argumentToText(argument: api.Comparator.Argument): String = ""
+  def argumentToText(argument: XComparator.Argument): String = ""
   /** Check whether comparation is available */
   def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
   /** Compare two element's properties */
-  def compare[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e1: Element, e2: Element, argument: Option[api.Comparator.Argument]): Int = {
+  def compare[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: XPropertyType[T], e1: Element, e2: Element, argument: Option[XComparator.Argument]): Int = {
     val text1 = e1.eGet(propertyId, ptype.typeSymbol).map(value ⇒ ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
     val text2 = e2.eGet(propertyId, ptype.typeSymbol).map(value ⇒ ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
     text1.compareTo(text2)
   }
   /** Convert the serialized argument to Argument trait */
-  def stringToArgument(argument: String): Option[api.Comparator.Argument] = None
+  def stringToArgument(argument: String): Option[XComparator.Argument] = None
 }
 
 object ByPropertyText extends ByPropertyText

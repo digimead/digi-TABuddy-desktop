@@ -48,13 +48,14 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphSave
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Save graph' operation. */
-class OperationGraphSave extends api.OperationGraphSave with Loggable {
+class OperationGraphSave extends XOperationGraphSave with Loggable {
   /**
    * Save graph.
    *
@@ -136,7 +137,7 @@ object OperationGraphSave extends Loggable {
   @log
   def apply(graph: Graph[_ <: Model.Like], force: Boolean): Option[Abstract] = Some(operation.operation(graph, force))
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean) extends Operation[Unit](s"Save $graph with ${graph.model.eBox.serialization}.") {
     this: Loggable ⇒
   }
@@ -144,6 +145,6 @@ object OperationGraphSave extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphSave] getOrElse new OperationGraphSave
+    lazy val operation = injectOptional[XOperationGraphSave] getOrElse new OperationGraphSave
   }
 }

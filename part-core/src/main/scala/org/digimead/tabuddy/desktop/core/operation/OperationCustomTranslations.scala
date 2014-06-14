@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,9 +46,9 @@ package org.digimead.tabuddy.desktop.core.operation
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.api.Translation.NLS
+import org.digimead.tabuddy.desktop.core.api.XTranslation
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.desktop.core.operation.api.XOperationCustomTranslations
 
 /**
  * Manage user translations. Returns selected translation: key, value, singleton
@@ -56,23 +56,23 @@ import org.digimead.tabuddy.model.element.Element
 object OperationCustomTranslations extends Loggable {
   @log
   def apply(): Option[Abstract] = {
-    DI.jobFactory.asInstanceOf[Option[() => Abstract]] match {
-      case Some(factory) =>
+    DI.jobFactory.asInstanceOf[Option[() ⇒ Abstract]] match {
+      case Some(factory) ⇒
         Option(factory())
-      case None =>
+      case None ⇒
         log.error("OperationCustomTranslations implementation is not defined.")
         None
     }
   }
 
   abstract class Abstract()
-    extends Operation[(String, String, NLS)](s"Translations.") with api.OperationCustomTranslations {
-    this: Loggable =>
+    extends Operation[(String, String, XTranslation.NLS)](s"Translations.") with XOperationCustomTranslations {
+    this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val jobFactory = injectOptional[() => api.OperationCustomTranslations]
+    lazy val jobFactory = injectOptional[() ⇒ XOperationCustomTranslations]
   }
 }

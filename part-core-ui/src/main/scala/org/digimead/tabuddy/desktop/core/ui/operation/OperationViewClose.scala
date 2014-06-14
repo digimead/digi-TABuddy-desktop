@@ -53,11 +53,12 @@ import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.core.ui.operation.api.XOperationViewClose
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
 /** 'Close view' operation. */
-class OperationViewClose extends api.OperationViewClose with Loggable {
+class OperationViewClose extends XOperationViewClose with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -132,7 +133,7 @@ object OperationViewClose extends Loggable {
   @log
   def apply(vCompositeId: UUID): Option[Abstract] = Some(operation.operation(vCompositeId))
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(vCompositeId: UUID)
     extends Operation[Unit]("Close VComposite{...}[%08X].".format(vCompositeId.hashCode())) {
     this: Loggable ⇒
@@ -141,6 +142,6 @@ object OperationViewClose extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationViewClose] getOrElse new OperationViewClose
+    lazy val operation = injectOptional[XOperationViewClose] getOrElse new OperationViewClose
   }
 }

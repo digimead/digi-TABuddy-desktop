@@ -75,7 +75,7 @@ object CommandGraphNew extends Loggable {
       parserResult match {
         case ~(graphName: String, graphContainer: File) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-          OperationGraphNew(Some(graphName), Some(graphContainer), false).foreach { operation ⇒
+          OperationGraphNew(graphName, graphContainer).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)

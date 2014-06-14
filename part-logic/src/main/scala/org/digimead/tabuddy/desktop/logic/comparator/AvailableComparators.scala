@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.logic.comparator
 
 import java.util.UUID
 import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.comparator.api.XComparator
 import scala.collection.immutable
 
 /** Application wide comparators that is available for consumer. */
@@ -61,6 +62,6 @@ object AvailableComparators {
     /** Comparator item that is selected by default. */
     lazy val defaultComparator = map(inject[UUID]("Logic.Comparator.Default"))
     /** Predefined comparators that are available for this application */
-    lazy val map = inject[immutable.HashMap[UUID, _ <: api.Comparator[_ <: api.Comparator.Argument]]]
+    lazy val map = inject[immutable.HashMap[UUID, _ <: XComparator[_ <: XComparator.Argument]]]
   }
 }

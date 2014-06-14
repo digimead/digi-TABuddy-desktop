@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.core.definition
 
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.api.XOperation
 import org.eclipse.core.commands.operations.AbstractOperation
 import org.eclipse.core.commands.operations.OperationHistoryFactory
 import org.eclipse.core.runtime.IAdaptable
@@ -55,7 +56,7 @@ import org.eclipse.core.runtime.jobs.JobChangeAdapter
 /**
  * Operation base class.
  */
-abstract class Operation[A](label: String) extends AbstractOperation(label) with api.Operation[A] {
+abstract class Operation[A](label: String) extends AbstractOperation(label) with XOperation[A] {
   this: Loggable ⇒
 
   override protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[A]

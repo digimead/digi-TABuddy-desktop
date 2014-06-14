@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,17 +44,16 @@
 package org.digimead.tabuddy.desktop.core.operation
 
 import java.util.concurrent.CancellationException
-
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.EventLoop
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.eclipse.core.runtime.IAdaptable
-import org.eclipse.core.runtime.IProgressMonitor
+import org.digimead.tabuddy.desktop.core.operation.api.XOperationExit
+import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Shutdown application' operation. */
-class OperationExit extends api.OperationExit with Loggable {
+class OperationExit extends XOperationExit with Loggable {
   /**
    * Shutdown application.
    */
@@ -108,7 +107,7 @@ object OperationExit extends Loggable {
   @log
   def apply(): Option[Abstract] = Some(operation.operation())
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract() extends Operation[Unit](s"Shutdown application.") {
     this: Loggable ⇒
   }
@@ -116,6 +115,6 @@ object OperationExit extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationExit] getOrElse new OperationExit
+    lazy val operation = injectOptional[XOperationExit] getOrElse new OperationExit
   }
 }

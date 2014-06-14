@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.operation.OperationCommands
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.core.runtime.jobs.Job
@@ -66,7 +66,7 @@ object CommandHelp extends Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Console converter. */
-  lazy val converter: PartialFunction[(Descriptor, Any), String] = {
+  lazy val converter: PartialFunction[(XCommand.Descriptor, Any), String] = {
     case (this.descriptor, Seq()) ⇒
       "There are no commands"
     case (this.descriptor, descriptors @ Seq(_*)) ⇒

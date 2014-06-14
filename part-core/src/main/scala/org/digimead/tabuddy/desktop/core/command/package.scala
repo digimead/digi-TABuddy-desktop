@@ -44,12 +44,12 @@
 package org.digimead.tabuddy.desktop.core
 
 import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 
 package object command {
   lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[PartialFunction[(Command.Descriptor, Any), String]] identifiedBy "Console.Converter.CommandHelp" toSingle { CommandHelp.converter }
-    module.bind[PartialFunction[(Command.Descriptor, Any), String]] identifiedBy "Console.Converter.CommandInfo" toSingle { CommandInfo.converter }
-    module.bind[PartialFunction[(Command.Descriptor, Any), String]] identifiedBy "Console.Converter.CommandContextList" toSingle { context.CommandContextList.converter }
+    module.bind[PartialFunction[(XCommand.Descriptor, Any), String]] identifiedBy "Console.Converter.CommandHelp" toSingle { CommandHelp.converter }
+    module.bind[PartialFunction[(XCommand.Descriptor, Any), String]] identifiedBy "Console.Converter.CommandInfo" toSingle { CommandInfo.converter }
+    module.bind[PartialFunction[(XCommand.Descriptor, Any), String]] identifiedBy "Console.Converter.CommandContextList" toSingle { context.CommandContextList.converter }
   })
 }

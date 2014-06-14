@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,9 +44,10 @@
 package org.digimead.tabuddy.desktop.core.definition
 
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.definition.api.XOperationApprover
 import org.eclipse.core.commands.operations.IOperationApprover2
 
-abstract class OperationApprover extends IOperationApprover2 with api.OperationApprover {
+abstract class OperationApprover extends IOperationApprover2 with XOperationApprover {
   this: Loggable =>
   /**
    * Checks that this class can be subclassed.

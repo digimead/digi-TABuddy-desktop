@@ -47,12 +47,12 @@ import com.google.common.io.BaseEncoding
 import java.io.{ InputStream, OutputStream }
 import org.bouncycastle.crypto.{ CipherParameters, DataLengthException, OutputLengthException, StreamCipher }
 import org.bouncycastle.crypto.io.{ CipherInputStream, CipherOutputStream }
-import org.digimead.tabuddy.desktop.logic.payload.marker.api
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 
 /**
  * Simple XOR encryption implementation.
  */
-class XOR extends api.Encryption {
+class XOR extends XEncryption {
   /** Encryption description. */
   val description: String = "Simple XOR transformation."
   /** Unique encryption identifier. */
@@ -64,28 +64,28 @@ class XOR extends api.Encryption {
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
-  def decrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case XORParameters(Some(key)) ⇒
       xorWithKey(data, key.getBytes(io.Codec.UTF8.charSet))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Decrypt input stream. */
-  def decrypt(inputStream: InputStream, parameters: api.Encryption.Parameters): InputStream = parameters match {
+  def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
     case XORParameters(Some(key)) ⇒
       new CipherInputStream(inputStream, new XStreamCipher(key.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case XORParameters(Some(key)) ⇒
       xorWithKey(data, key.getBytes(io.Codec.UTF8.charSet))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt output stearm. */
-  def encrypt(outputStream: OutputStream, parameters: api.Encryption.Parameters): OutputStream = parameters match {
+  def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
     case XORParameters(Some(key)) ⇒
       new CipherOutputStream(outputStream, new XStreamCipher(key.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒
@@ -107,7 +107,7 @@ class XOR extends api.Encryption {
   /**
    * XOR encryption parameters.
    */
-  case class XORParameters(val key: Option[String]) extends api.Encryption.Parameters {
+  case class XORParameters(val key: Option[String]) extends XEncryption.Parameters {
     if (key.isEmpty)
       throw new IllegalArgumentException("Encryption key is not defined")
     /** Encryption instance. */
@@ -146,7 +146,7 @@ class XOR extends api.Encryption {
 
 object XOR {
   /** Get XOR encryption parameters. */
-  def apply(key: String): api.Encryption.Parameters =
+  def apply(key: String): XEncryption.Parameters =
     Encryption.perIdentifier.get(Identifier) match {
       case Some(encryption: XOR) ⇒ encryption(Some(key))
       case _ ⇒ throw new IllegalStateException("XOR encryption is not available.")
@@ -155,5 +155,5 @@ object XOR {
   /**
    * XOR encryption identifier.
    */
-  object Identifier extends api.Encryption.Identifier { val name = "XOR" }
+  object Identifier extends XEncryption.Identifier { val name = "XOR" }
 }

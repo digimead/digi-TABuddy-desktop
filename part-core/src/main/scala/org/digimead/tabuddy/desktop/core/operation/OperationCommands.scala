@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,14 +47,15 @@ import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
+import org.digimead.tabuddy.desktop.core.operation.api.XOperationCommands
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
-import org.digimead.tabuddy.desktop.core.Core
 
 /** 'Get commands' operation. */
-class OperationCommands extends api.OperationCommands with Loggable {
+class OperationCommands extends XOperationCommands with Loggable {
   /**
    * Get commands.
    */
@@ -68,7 +69,7 @@ class OperationCommands extends api.OperationCommands with Loggable {
   /**
    * Create 'Get commands' operation.
    */
-  def operation(onlyAvailable: Boolean) = new Implemetation(onlyAvailable).asInstanceOf[Operation[Seq[Descriptor]]]
+  def operation(onlyAvailable: Boolean) = new Implemetation(onlyAvailable).asInstanceOf[Operation[Seq[XCommand.Descriptor]]]
 
   /**
    * Checks that this class can be subclassed.
@@ -114,7 +115,7 @@ object OperationCommands {
   @log
   def apply(onlyAvailable: Boolean): Option[Abstract] = Some(operation.operation(onlyAvailable).asInstanceOf[Abstract])
 
-  /** Bridge between abstract api.Operation[Seq[api.Descriptor]] and concrete Operation[Seq[Command.Descriptor]] */
+  /** Bridge between abstract XOperation[Seq[api.Descriptor]] and concrete Operation[Seq[Command.Descriptor]] */
   abstract class Abstract() extends Operation[Seq[Command.Descriptor]](s"Get commands.") {
     this: Loggable ⇒
   }
@@ -122,6 +123,6 @@ object OperationCommands {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationCommands] getOrElse new OperationCommands
+    lazy val operation = injectOptional[XOperationCommands] getOrElse new OperationCommands
   }
 }

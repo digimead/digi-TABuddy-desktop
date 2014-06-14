@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,10 +46,11 @@ package org.digimead.tabuddy.desktop
 import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.logic.Config
+import org.digimead.tabuddy.desktop.logic.api.XConfig
 
 package object logic {
   lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[api.Config] toModuleSingle { implicit module ⇒ new Config }
+    module.bind[XConfig] toModuleSingle { implicit module ⇒ new Config }
   }) ~
     ui.default ~
     command.default ~

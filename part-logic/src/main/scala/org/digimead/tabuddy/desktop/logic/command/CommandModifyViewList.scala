@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyViewList
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.View
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XView
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
@@ -72,7 +72,7 @@ object CommandModifyViewList extends Loggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case marker: GraphMarker ⇒
-          val exchanger = new Exchanger[Operation.Result[Set[View]]]()
+          val exchanger = new Exchanger[Operation.Result[Set[XView]]]()
           marker.safeRead { state ⇒
             OperationModifyViewList(state.graph, App.execNGet { state.payload.viewDefinitions.values.toSet }).foreach { operation ⇒
               operation.getExecuteJob() match {

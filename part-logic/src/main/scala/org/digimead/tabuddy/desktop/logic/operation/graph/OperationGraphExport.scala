@@ -43,30 +43,39 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
-import java.io.{ File, IOException }
+import java.io.IOException
+import java.net.URI
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphExport
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.Serialization
+import org.digimead.tabuddy.model.serialization.{ Serialization, digest, signature }
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Export graph' operation. */
-class OperationGraphExport extends api.OperationGraphExport with Loggable {
+class OperationGraphExport extends XOperationGraphExport with Loggable {
   /**
    * Export graph.
    *
    * @param graph graph to export
    * @param location target directory
-   * @param interactive show graph export wizard
+   * @param containerEncParameters container encription parameters
+   * @param contentEncParameters content encription parameters
+   * @param dParameters digest parameters
+   * @param sParameters signature parameters
+   * @param serialization type of the serialization
    */
-  def apply(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean) = GraphMarker(graph).safeUpdate { _ ⇒
-    log.info(location match {
+  def apply(graph: Graph[_ <: Model.Like], location: URI, overwrite: Boolean,
+    containerEncParameters: Option[XEncryption.Parameters],
+    contentEncParameters: Option[XEncryption.Parameters],
+    dParameters: Option[digest.Mechanism.Parameters], sParameters: Option[signature.Mechanism.Parameters],
+    serialization: Option[Serialization.Identifier]) = GraphMarker(graph).safeUpdate { _ ⇒
+    /*    log.info(location match {
       case Some(location) ⇒ s"Export ${graph} to ${location}."
       case None ⇒ s"Export ${graph}."
     })
@@ -92,18 +101,26 @@ class OperationGraphExport extends api.OperationGraphExport with Loggable {
     val copy = graph.copy() { g ⇒
 //      g.storages = g.storages.filterNot(_ == currentURI)
     }
-    Serialization.freeze(copy, destination.toURI())
+    Serialization.freeze(copy, destination.toURI())*/
   }
   /**
    * Create 'Export graph' operation.
    *
    * @param graph graph to export
    * @param location target directory
-   * @param interactive show graph export wizard
+   * @param containerEncParameters container encription parameters
+   * @param contentEncParameters content encription parameters
+   * @param dParameters digest parameters
+   * @param sParameters signature parameters
+   * @param serialization type of the serialization
    * @return 'Export graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean) =
-    new Implemetation(graph, location, overwrite, interactive)
+  def operation(graph: Graph[_ <: Model.Like], location: URI, overwrite: Boolean,
+    containerEncParameters: Option[XEncryption.Parameters],
+    contentEncParameters: Option[XEncryption.Parameters],
+    dParameters: Option[digest.Mechanism.Parameters], sParameters: Option[signature.Mechanism.Parameters],
+    serialization: Option[Serialization.Identifier]) =
+    new Implemetation(graph, location, overwrite, containerEncParameters, contentEncParameters, dParameters, sParameters, serialization)
 
   /**
    * Checks that this class can be subclassed.
@@ -121,8 +138,13 @@ class OperationGraphExport extends api.OperationGraphExport with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean)
-    extends OperationGraphExport.Abstract(graph, location, overwrite, interactive) with Loggable {
+  class Implemetation(graph: Graph[_ <: Model.Like], location: URI, overwrite: Boolean,
+    containerEncParameters: Option[XEncryption.Parameters],
+    contentEncParameters: Option[XEncryption.Parameters],
+    dParameters: Option[digest.Mechanism.Parameters], sParameters: Option[signature.Mechanism.Parameters],
+    serialization: Option[Serialization.Identifier])
+    extends OperationGraphExport.Abstract(graph, location, overwrite,
+      containerEncParameters, contentEncParameters, dParameters, sParameters, serialization) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -132,7 +154,8 @@ class OperationGraphExport extends api.OperationGraphExport with Loggable {
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option(OperationGraphExport.this(graph, location, overwrite, interactive))
+        val result = Option(OperationGraphExport.this(graph, location, overwrite,
+          containerEncParameters, contentEncParameters, dParameters, sParameters, serialization))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
@@ -158,25 +181,34 @@ object OperationGraphExport extends Loggable {
    *
    * @param graph graph to export
    * @param location target directory
-   * @param interactive show graph export wizard
+   * @param containerEncParameters container encription parameters
+   * @param contentEncParameters content encription parameters
+   * @param dParameters digest parameters
+   * @param sParameters signature parameters
+   * @param serialization type of the serialization
    * @return 'Export graph' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], location: Option[File], overwrite: Boolean, interactive: Boolean): Option[Abstract] =
-    Some(operation.operation(graph, location, overwrite, interactive))
+  def apply(graph: Graph[_ <: Model.Like], location: URI, overwrite: Boolean,
+    containerEncParameters: Option[XEncryption.Parameters],
+    contentEncParameters: Option[XEncryption.Parameters],
+    dParameters: Option[digest.Mechanism.Parameters], sParameters: Option[signature.Mechanism.Parameters],
+    serialization: Option[Serialization.Identifier]): Option[Abstract] =
+    Some(operation.operation(graph, location, overwrite,
+      containerEncParameters, contentEncParameters, dParameters, sParameters, serialization))
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val location: Option[File], val overwrite: Boolean,
-    val interactive: Boolean) extends Operation[Unit](location match {
-    case Some(location) ⇒ s"Export ${graph} to ${location}."
-    case None ⇒ s"Export ${graph}."
-  }) {
+  /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val location: URI, val overwrite: Boolean,
+    val containerEncParameters: Option[XEncryption.Parameters],
+    val contentEncParameters: Option[XEncryption.Parameters],
+    val dParameters: Option[digest.Mechanism.Parameters], val sParameters: Option[signature.Mechanism.Parameters],
+    val serialization: Option[Serialization.Identifier]) extends Operation[Unit](s"Export ${graph} to ${location}.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphExport] getOrElse new OperationGraphExport
+    lazy val operation = injectOptional[XOperationGraphExport] getOrElse new OperationGraphExport
   }
 }

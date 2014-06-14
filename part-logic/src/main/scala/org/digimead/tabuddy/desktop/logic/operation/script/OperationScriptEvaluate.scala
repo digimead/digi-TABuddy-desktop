@@ -49,14 +49,15 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.script.{ Cache, Loader }
+import org.digimead.tabuddy.desktop.logic.operation.script.api.XOperationScriptEvaluate
 import org.digimead.tabuddy.desktop.logic.script.Script
+import org.digimead.tabuddy.desktop.logic.script.{ Cache, Loader }
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /**
  * 'Evaluate the script' operation.
  */
-class OperationScriptEvaluate extends api.OperationScriptEvaluate with Loggable {
+class OperationScriptEvaluate extends XOperationScriptEvaluate with Loggable {
   /**
    * Evaluate the script.
    *
@@ -139,7 +140,7 @@ object OperationScriptEvaluate extends Loggable {
   def apply[T](script: Either[File, String], verbose: Boolean): Option[Abstract[T]] =
     Some(operation.operation(script, verbose))
 
-  /** Bridge between abstract api.Operation[T] and concrete Operation[T] */
+  /** Bridge between abstract XOperation[T] and concrete Operation[T] */
   abstract class Abstract[T](val script: Either[File, String], val verbose: Boolean)
     extends Operation[T](script match {
       case Left(file) ⇒ s"Evaluate ${file}."
@@ -151,6 +152,6 @@ object OperationScriptEvaluate extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationScriptEvaluate] getOrElse new OperationScriptEvaluate
+    lazy val operation = injectOptional[XOperationScriptEvaluate] getOrElse new OperationScriptEvaluate
   }
 }

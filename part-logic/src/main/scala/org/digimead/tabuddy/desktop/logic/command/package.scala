@@ -44,10 +44,10 @@
 package org.digimead.tabuddy.desktop.logic
 
 import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 
 package object command {
   lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[PartialFunction[(Command.Descriptor, Any), String]] identifiedBy "Console.Converter.GraphList" toSingle { graph.CommandGraphList.converter }
+    module.bind[PartialFunction[(XCommand.Descriptor, Any), String]] identifiedBy "Console.Converter.GraphList" toSingle { graph.CommandGraphList.converter }
   })
 }

@@ -53,11 +53,12 @@ import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.operation.api.XOperationWindowClose
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
 /** 'Close window' operation. */
-class OperationWindowClose extends api.OperationWindowClose with Loggable {
+class OperationWindowClose extends XOperationWindowClose with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -141,7 +142,7 @@ object OperationWindowClose extends Loggable {
   def apply(windowId: UUID, saveOnClose: Boolean): Option[Abstract] =
     Some(operation.operation(windowId, saveOnClose))
 
-  /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
+  /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val windowId: UUID, val saveOnClose: Boolean)
     extends Operation[Unit]({
       if (saveOnClose)
@@ -155,6 +156,6 @@ object OperationWindowClose extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationWindowClose] getOrElse new OperationWindowClose
+    lazy val operation = injectOptional[XOperationWindowClose] getOrElse new OperationWindowClose
   }
 }

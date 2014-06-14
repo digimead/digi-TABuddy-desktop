@@ -45,16 +45,16 @@ package org.digimead.tabuddy.desktop.logic.payload.marker.serialization
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.Encryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 
 package object encryption {
   lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[Encryption] identifiedBy ("Payload.Encryption.Base") toSingle { new Base() }
-    module.bind[Encryption] identifiedBy ("Payload.Encryption.XOR") toSingle { new XOR() }
-    module.bind[Encryption] identifiedBy ("Payload.Encryption.DES") toSingle { new DES() }
-    module.bind[Encryption] identifiedBy ("Payload.Encryption.AES") toSingle { new AES() }
-    module.bind[Encryption] identifiedBy ("Payload.Encryption.Blowfish") toSingle { new Blowfish() }
-    module.bind[Encryption] identifiedBy ("Payload.Encryption.GOST28147") toSingle { new GOST28147() }
+    module.bind[XEncryption] identifiedBy ("Payload.Encryption.Base") toSingle { new Base() }
+    module.bind[XEncryption] identifiedBy ("Payload.Encryption.XOR") toSingle { new XOR() }
+    module.bind[XEncryption] identifiedBy ("Payload.Encryption.DES") toSingle { new DES() }
+    module.bind[XEncryption] identifiedBy ("Payload.Encryption.AES") toSingle { new AES() }
+    module.bind[XEncryption] identifiedBy ("Payload.Encryption.Blowfish") toSingle { new Blowfish() }
+    module.bind[XEncryption] identifiedBy ("Payload.Encryption.GOST28147") toSingle { new GOST28147() }
     DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.Encryption$DI$")
   })
 }

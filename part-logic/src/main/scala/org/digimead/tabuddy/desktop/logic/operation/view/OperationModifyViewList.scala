@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,14 +47,15 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.view.api.View
+import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifyViewList
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XView
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyViewList base trait.
  */
-trait OperationModifyViewList extends api.OperationModifyViewList {
+trait OperationModifyViewList extends XOperationModifyViewList {
   /**
    * Create 'Modify view list' operation.
    *
@@ -62,7 +63,7 @@ trait OperationModifyViewList extends api.OperationModifyViewList {
    * @param viewList exists views
    * @return 'Modify view list' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], viewList: Set[View]): OperationModifyViewList.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], viewList: Set[XView]): OperationModifyViewList.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -96,7 +97,7 @@ object OperationModifyViewList extends Loggable {
    * @return 'Modify view list' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], viewList: Set[View]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], viewList: Set[XView]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, viewList))
@@ -105,15 +106,15 @@ object OperationModifyViewList extends Loggable {
         None
     }
 
-  /** Bridge between abstract api.Operation[Set[View]] and concrete Operation[Set[View]] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val viewList: Set[View])
-    extends Operation[Set[View]](s"Edit view list for graph $graph.") {
+  /** Bridge between abstract XOperation[Set[XView]] and concrete Operation[Set[XView]] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val viewList: Set[XView])
+    extends Operation[Set[XView]](s"Edit view list for graph $graph.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationModifyViewList]
+    lazy val operation = injectOptional[XOperationModifyViewList]
   }
 }

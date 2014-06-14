@@ -49,9 +49,10 @@ import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Default
-import org.digimead.tabuddy.desktop.logic.payload.{ PredefinedElements, PropertyType }
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XSorting
+import org.digimead.tabuddy.desktop.logic.payload.{ PredefinedElements, PropertyType }
 import org.digimead.tabuddy.model.Record
 import org.digimead.tabuddy.model.element.Element
 import scala.collection.mutable
@@ -71,7 +72,7 @@ class Sorting(
   /** Availability flag for user (some sortings may exists, but not involved in element representation). */
   val availability: Boolean,
   /** Sorting definitions. */
-  val definitions: mutable.LinkedHashSet[api.Sorting.Definition]) extends api.Sorting {
+  val definitions: mutable.LinkedHashSet[XSorting.Definition]) extends XSorting {
   /** Element id symbol. */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
@@ -80,13 +81,13 @@ class Sorting(
     name: String = this.name,
     description: String = this.description,
     availability: Boolean = this.availability,
-    definitions: mutable.LinkedHashSet[api.Sorting.Definition] = this.definitions): this.type =
+    definitions: mutable.LinkedHashSet[XSorting.Definition] = this.definitions): this.type =
     new Sorting(id, name, description, availability, definitions).asInstanceOf[this.type]
 
   def canEqual(other: Any): Boolean =
-    other.isInstanceOf[api.Sorting]
+    other.isInstanceOf[XSorting]
   override def equals(other: Any) = other match {
-    case that: api.Sorting ⇒
+    case that: XSorting ⇒
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId // elementId == UUID
@@ -104,7 +105,7 @@ object Sorting extends Loggable {
   val collectionMaximum = 100
 
   /** Add sorting element. */
-  def add(marker: GraphMarker, sorting: api.Sorting) = marker.safeUpdate { state ⇒
+  def add(marker: GraphMarker, sorting: XSorting) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewSorting(state.graph)
     val element = (container | RecordLocation(sorting.elementId)).eRelative
     // remove all element properties
@@ -128,7 +129,7 @@ object Sorting extends Loggable {
     }
   }
   /** The deep comparison of two sortings */
-  def compareDeep(a: api.Sorting, b: api.Sorting): Boolean =
+  def compareDeep(a: XSorting, b: XSorting): Boolean =
     (a eq b) || (a == b && a.description == b.description && a.availability == b.availability && a.name == b.name &&
       // definition sequence order is important
       a.definitions.sameElements(b.definitions))
@@ -158,7 +159,7 @@ object Sorting extends Loggable {
           for {
             comparator ← comparator
             propertyType ← propertyType if (PropertyType.container.isDefinedAt(Symbol(propertyType)))
-          } yield api.Sorting.Definition(Symbol(property), Symbol(propertyType), direction, comparator, argument)
+          } yield XSorting.Definition(Symbol(property), Symbol(propertyType), direction, comparator, argument)
         case None ⇒
           next = false
           None
@@ -195,7 +196,7 @@ object Sorting extends Loggable {
     if (result.contains(Sorting.simpleSorting)) result else result + Sorting.simpleSorting
   }
   /** Update only modified view sortings */
-  def save(marker: GraphMarker, sortings: Set[api.Sorting]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, sortings: Set[XSorting]) = marker.safeUpdate { state ⇒
     log.debug("Save view sorting list for graph " + state.graph)
     val oldSortings = App.execNGet { state.payload.viewSortings.values }
     val newSortings = sortings - simpleSorting
@@ -213,7 +214,7 @@ object Sorting extends Loggable {
     }
   }
   /** Remove sorting element. */
-  def remove(marker: GraphMarker, sorting: api.Sorting) = marker.safeUpdate { state ⇒
+  def remove(marker: GraphMarker, sorting: XSorting) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewSorting(state.graph)
     container.eNode.safeWrite { node ⇒ node.children.find(_.rootBox.e.eId == sorting.elementId).foreach(node -= _) }
   }

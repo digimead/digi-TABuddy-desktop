@@ -48,12 +48,13 @@ import java.nio.ByteBuffer
 import org.bouncycastle.crypto.Digest
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.prng.DigestRandomGenerator
+import org.digimead.tabuddy.desktop.core.keyring.random.api.XSecureRandom
 import scala.util.Random
 
 /**
  * Simple SecureRandom implementation.
  */
-class SimpleRandom(digest: Digest = new SHA256Digest(), seed: Array[Byte] = Array()) extends api.SecureRandom {
+class SimpleRandom(digest: Digest = new SHA256Digest(), seed: Array[Byte] = Array()) extends XSecureRandom {
   def this(seed: Array[Byte]) = this(new SHA256Digest(), seed)
   lazy val generator = {
     val generator = new DigestRandomGenerator(digest: Digest)

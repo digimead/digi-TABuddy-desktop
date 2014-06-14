@@ -44,19 +44,20 @@
 package org.digimead.tabuddy.desktop.core.keyring.generator
 
 import java.util.Date
-import org.bouncycastle.bcpg.{ HashAlgorithmTags, SymmetricKeyAlgorithmTags }
 import org.bouncycastle.bcpg.sig.{ Features, KeyFlags }
+import org.bouncycastle.bcpg.{ HashAlgorithmTags, SymmetricKeyAlgorithmTags }
 import org.bouncycastle.crypto.AsymmetricCipherKeyPairGenerator
-import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPSignature, PGPSignatureSubpacketGenerator }
 import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyEncryptorBuilder, BcPGPContentSignerBuilder, BcPGPDigestCalculatorProvider, BcPGPKeyPair }
+import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPSignature, PGPSignatureSubpacketGenerator }
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
+import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
 
 /**
  * PGP keyring generator base class.
  */
-abstract class Generator extends api.Generator {
+abstract class Generator extends XGenerator {
   this: Loggable ⇒
   /** PublicKeyAlgorithmTags for encryption keys. */
   val encAlgorithm: Int
@@ -64,7 +65,7 @@ abstract class Generator extends api.Generator {
   val signAlgorithm: Int
 
   /** Create new asymmetric key pair generator. */
-  def apply(args: AnyRef*): api.Generator.AsymmetricCipherKeyPairGenerator
+  def apply(args: AnyRef*): XGenerator.AsymmetricCipherKeyPairGenerator
 }
 
 object Generator extends Loggable {
@@ -78,17 +79,17 @@ object Generator extends Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** Default generator algorithm. */
-    lazy val default = injectOptional[api.Generator.AsymmetricCipherKeyPairGenerator]("KeyRing.Generator.Default") getOrElse (new RSAGenerator)(4096: Integer)
+    lazy val default = injectOptional[XGenerator.AsymmetricCipherKeyPairGenerator]("KeyRing.Generator.Default") getOrElse (new RSAGenerator)(4096: Integer)
     /**
      * Per identifier generators map.
      *
      * Each collected mechanism must be:
-     *  1. an instance of api.Generator
+     *  1. an instance of XGenerator
      *  2. has name that starts with "KeyRing.Generator."
      */
-    lazy val perIdentifier: Map[api.Generator.Identifier, Generator] = {
+    lazy val perIdentifier: Map[XGenerator.Identifier, Generator] = {
       val generators = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[api.Generator].isAssignableFrom(key.m.runtimeClass)
+        case (key, value) ⇒ classOf[XGenerator].isAssignableFrom(key.m.runtimeClass)
       }.map {
         case (key, value) ⇒
           key.name match {

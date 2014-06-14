@@ -47,9 +47,10 @@ import java.util.UUID
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.payload.{PredefinedElements, PropertyType}
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XFilter
+import org.digimead.tabuddy.desktop.logic.payload.{ PredefinedElements, PropertyType }
 import org.digimead.tabuddy.model.element.Element
 import scala.collection.mutable
 
@@ -69,7 +70,7 @@ class Filter(
   /** Availability flag for user (some filters may exists, but not involved in element representation) */
   val availability: Boolean,
   /** Filter rules, sorted by hash code */
-  val rules: mutable.LinkedHashSet[api.Filter.Rule]) extends api.Filter {
+  val rules: mutable.LinkedHashSet[XFilter.Rule]) extends XFilter {
   /** Element id symbol */
   val elementId = Symbol(id.toString.replaceAll("-", "_"))
 
@@ -78,13 +79,13 @@ class Filter(
     name: String = this.name,
     description: String = this.description,
     availability: Boolean = this.availability,
-    rules: mutable.LinkedHashSet[api.Filter.Rule] = this.rules): this.type =
+    rules: mutable.LinkedHashSet[XFilter.Rule] = this.rules): this.type =
     new Filter(id, name, description, availability, rules).asInstanceOf[this.type]
 
   def canEqual(other: Any) =
-    other.isInstanceOf[api.Filter]
+    other.isInstanceOf[XFilter]
   override def equals(other: Any) = other match {
-    case that: api.Filter ⇒
+    case that: XFilter ⇒
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId // elementId == UUID
@@ -101,7 +102,7 @@ object Filter extends Loggable {
   val collectionMaximum = 100
 
   /** Add filter element. */
-  def add(marker: GraphMarker, filter: api.Filter) = marker.safeUpdate { state ⇒
+  def add(marker: GraphMarker, filter: XFilter) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewFilter(state.graph)
     val element = (container | RecordLocation(filter.elementId)).eRelative
     // remove all element properties
@@ -125,7 +126,7 @@ object Filter extends Loggable {
     }
   }
   /** The deep comparison of two filters */
-  def compareDeep(a: api.Filter, b: api.Filter): Boolean =
+  def compareDeep(a: XFilter, b: XFilter): Boolean =
     (a eq b) || (a == b && a.description == b.description && a.availability == b.availability && a.name == b.name &&
       a.rules.size == b.rules.size && a.rules.toSeq.sortBy(_.hashCode).sameElements(b.rules.toSeq.sortBy(_.hashCode)))
   /** Load filter from element */
@@ -152,7 +153,7 @@ object Filter extends Loggable {
           for {
             filter ← filter
             propertyType ← propertyType if (PropertyType.container.isDefinedAt(Symbol(propertyType)))
-          } yield api.Filter.Rule(Symbol(property), Symbol(propertyType), not, filter, argument)
+          } yield XFilter.Rule(Symbol(property), Symbol(propertyType), not, filter, argument)
         case None ⇒
           next = false
           None
@@ -189,7 +190,7 @@ object Filter extends Loggable {
     if (result.contains(Filter.allowAllFilter)) result else result + Filter.allowAllFilter
   }
   /** Update only modified view filters. */
-  def save(marker: GraphMarker, filters: Set[api.Filter]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, filters: Set[XFilter]) = marker.safeUpdate { state ⇒
     log.debug("Save view filter list for graph " + state.graph)
     val oldFilters = App.execNGet { state.payload.viewFilters.values }
     val newFilters = filters - allowAllFilter
@@ -207,7 +208,7 @@ object Filter extends Loggable {
     }
   }
   /** Remove filter element. */
-  def remove(marker: GraphMarker, filter: api.Filter) = marker.safeUpdate { state ⇒
+  def remove(marker: GraphMarker, filter: XFilter) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewFilter(state.graph)
     container.eNode.safeWrite { node ⇒ node.children.find(_.rootBox.e.eId == filter.elementId).foreach(node -= _) }
   }

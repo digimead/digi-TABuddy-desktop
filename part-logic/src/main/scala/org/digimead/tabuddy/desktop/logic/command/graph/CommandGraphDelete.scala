@@ -54,6 +54,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphDelete
 import org.digimead.tabuddy.desktop.logic.payload.marker.{ GraphMarker, api ⇒ graphapi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
@@ -70,7 +71,7 @@ object CommandGraphDelete extends Loggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case (Some(marker: GraphMarker), _, _, _) ⇒
-          val exchanger = new Exchanger[Operation.Result[graphapi.GraphMarker]]()
+          val exchanger = new Exchanger[Operation.Result[XGraphMarker]]()
           OperationGraphDelete(marker.safeRead(_.graph), false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒

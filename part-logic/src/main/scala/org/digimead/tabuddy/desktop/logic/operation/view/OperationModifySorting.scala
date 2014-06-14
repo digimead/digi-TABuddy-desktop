@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,14 +47,15 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.logic.payload.view.api.Sorting
+import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifySorting
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XSorting
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifySorting base trait.
  */
-trait OperationModifySorting extends api.OperationModifySorting {
+trait OperationModifySorting extends XOperationModifySorting {
   /**
    * Create 'Modify sorting' operation.
    *
@@ -63,7 +64,7 @@ trait OperationModifySorting extends api.OperationModifySorting {
    * @param sortingList the list of exists sortings
    * @return 'Modify sorting' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], sorting: Sorting, sortingList: Set[Sorting]): OperationModifySorting.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], sorting: XSorting, sortingList: Set[XSorting]): OperationModifySorting.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -98,7 +99,7 @@ object OperationModifySorting extends Loggable {
    * @return 'Modify sorting' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], sorting: Sorting, sortingList: Set[Sorting]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], sorting: XSorting, sortingList: Set[XSorting]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, sorting, sortingList))
@@ -107,15 +108,15 @@ object OperationModifySorting extends Loggable {
         None
     }
 
-  /** Bridge between abstract api.Operation[Sorting] and concrete Operation[Sorting] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val sorting: Sorting, val sortingList: Set[Sorting])
-    extends Operation[Sorting](s"Edit sorting $sorting for graph $graph.") {
+  /** Bridge between abstract XOperation[XSorting] and concrete Operation[XSorting] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val sorting: XSorting, val sortingList: Set[XSorting])
+    extends Operation[XSorting](s"Edit sorting $sorting for graph $graph.") {
     this: Loggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationModifySorting]
+    lazy val operation = injectOptional[XOperationModifySorting]
   }
 }

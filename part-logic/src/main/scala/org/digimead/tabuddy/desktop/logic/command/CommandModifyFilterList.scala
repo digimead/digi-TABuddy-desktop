@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilterList
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XFilter
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
@@ -72,7 +72,7 @@ object CommandModifyFilterList extends Loggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case marker: GraphMarker ⇒
-          val exchanger = new Exchanger[Operation.Result[Set[Filter]]]()
+          val exchanger = new Exchanger[Operation.Result[Set[XFilter]]]()
           marker.safeRead { state ⇒
             OperationModifyFilterList(state.graph, App.execNGet { state.payload.viewFilters.values.toSet }).foreach { operation ⇒
               operation.getExecuteJob() match {

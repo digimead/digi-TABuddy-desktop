@@ -58,9 +58,11 @@ import org.digimead.tabuddy.desktop.core.{ Core, Report }
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
+import org.digimead.tabuddy.desktop.logic.payload.api.XTypeSchema
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.SerializationSpecific
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
-import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PredefinedElements, TypeSchema, api ⇒ payloadapi }
+import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PredefinedElements, TypeSchema }
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.SData
@@ -87,7 +89,7 @@ class GraphMarker(
   /** Container IResource unique id. */
   val uuid: UUID,
   /** Autoload property file if suitable information needed. */
-  val autoload: Boolean = true) extends api.GraphMarker with MarkerSpecific with GraphSpecific with SerializationSpecific with Loggable {
+  val autoload: Boolean = true) extends XGraphMarker with MarkerSpecific with GraphSpecific with SerializationSpecific with Loggable {
   /** Type schemas folder name. */
   val folderTypeSchemas = "typeSchemas"
   /** Resources index file name. */
@@ -108,12 +110,12 @@ class GraphMarker(
 
   /** Load type schemas from local storage. */
   @log
-  def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[payloadapi.TypeSchema] = safeRead { state ⇒
+  def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[XTypeSchema] = safeRead { state ⇒
     assertState()
     val containerEncryptionMap = containerEncryption.encryption
     val contentEncryptionMap = contentEncryption.encryption
     val storageURI = storage getOrElse graphPath.toURI()
-    var schemas = immutable.HashSet[payloadapi.TypeSchema]()
+    var schemas = immutable.HashSet[XTypeSchema]()
     Serialization.perScheme.get(storageURI.getScheme()) match {
       case Some(transport) ⇒
         val sData = SData(SData.Key.storageURI -> storageURI)
@@ -165,7 +167,7 @@ class GraphMarker(
   def safeUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.safeUpdate(f)
   /** Save type schemas to the local storage. */
   @log
-  def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema], storages: Option[Serialization.Storages] = None) = state.safeWrite { state ⇒
+  def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], storages: Option[Serialization.Storages] = None) = state.safeWrite { state ⇒
     assertState()
     // Storages.
     val typeSchemasStorages = storages match {
@@ -676,9 +678,9 @@ object GraphMarker extends Loggable {
   class ReadOnlyGraphMarker(val uuid: UUID, val graphAdditionalStorages: Set[Either[URI, URI]],
     val graphCreated: Element.Timestamp, val graphModelId: Symbol,
     val graphOrigin: Symbol, val graphPath: File, val graphStored: Element.Timestamp, val markerLastAccessed: Long,
-    val digest: api.GraphMarker.Digest, val containerEncryption: api.GraphMarker.Encryption,
-    val contentEncryption: api.GraphMarker.Encryption, val signature: api.GraphMarker.Signature)
-    extends api.GraphMarker {
+    val digest: XGraphMarker.Digest, val containerEncryption: XGraphMarker.Encryption,
+    val contentEncryption: XGraphMarker.Encryption, val signature: XGraphMarker.Signature)
+    extends XGraphMarker {
     /** Autoload property file if suitable information needed. */
     val autoload = false
 
@@ -699,7 +701,7 @@ object GraphMarker extends Loggable {
     /** Check whether the graph is loaded. */
     def graphIsOpen(): Boolean = false
     /** Load type schemas from local storage. */
-    def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[payloadapi.TypeSchema] =
+    def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[XTypeSchema] =
       throw new UnsupportedOperationException()
     /**
      * Lock this marker for reading.
@@ -716,7 +718,7 @@ object GraphMarker extends Loggable {
     /** Save marker properties. */
     def markerSave() = throw new UnsupportedOperationException()
     /** Save type schemas to the local storage. */
-    def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema], storages: Option[Serialization.Storages] = None) =
+    def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], storages: Option[Serialization.Storages] = None) =
       throw new UnsupportedOperationException()
 
     def canEqual(other: Any) = other.isInstanceOf[ReadOnlyGraphMarker]
@@ -739,17 +741,17 @@ object GraphMarker extends Loggable {
     /** Assert marker state. */
     override def assertState() {}
     /** Get digest settings. */
-    override def digest: api.GraphMarker.Digest = api.GraphMarker.Digest(None, None)
+    override def digest: XGraphMarker.Digest = XGraphMarker.Digest(None, None)
     /** Set digest settings. */
-    override def digest_=(settings: api.GraphMarker.Digest) = throw new UnsupportedOperationException()
+    override def digest_=(settings: XGraphMarker.Digest) = throw new UnsupportedOperationException()
     /** Get container encryption settings. */
-    override def containerEncryption: api.GraphMarker.Encryption = api.GraphMarker.Encryption(Map())
+    override def containerEncryption: XGraphMarker.Encryption = XGraphMarker.Encryption(Map())
     /** Set container encryption settings. */
-    override def containerEncryption_=(settings: api.GraphMarker.Encryption) = throw new UnsupportedOperationException()
+    override def containerEncryption_=(settings: XGraphMarker.Encryption) = throw new UnsupportedOperationException()
     /** Get content encryption settings. */
-    override def contentEncryption: api.GraphMarker.Encryption = api.GraphMarker.Encryption(Map())
+    override def contentEncryption: XGraphMarker.Encryption = XGraphMarker.Encryption(Map())
     /** Set content encryption settings. */
-    override def contentEncryption_=(settings: api.GraphMarker.Encryption) = throw new UnsupportedOperationException()
+    override def contentEncryption_=(settings: XGraphMarker.Encryption) = throw new UnsupportedOperationException()
     /** Load the specific graph from the predefined directory ${location}/id/ */
     override def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false) =
       throw new UnsupportedOperationException()
@@ -775,7 +777,7 @@ object GraphMarker extends Loggable {
     /** The latest graph modified timestamp that was saved to storages. */
     override def graphStored: Element.Timestamp = graph.created
     /** Load type schemas from local storage. */
-    override def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[payloadapi.TypeSchema] =
+    override def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[XTypeSchema] =
       throw new UnsupportedOperationException()
     /** Register marker state. */
     def register() = GraphMarker.state.get(uuid) match {
@@ -793,12 +795,12 @@ object GraphMarker extends Loggable {
     /** Save marker properties. */
     override def markerSave() = throw new UnsupportedOperationException()
     /** Save type schemas to the local storage. */
-    override def saveTypeSchemas(schemas: immutable.Set[payloadapi.TypeSchema], storages: Option[Serialization.Storages] = None) =
+    override def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], storages: Option[Serialization.Storages] = None) =
       throw new UnsupportedOperationException()
     /** Get signature settings. */
-    override def signature: api.GraphMarker.Signature = api.GraphMarker.Signature(None, None)
+    override def signature: XGraphMarker.Signature = XGraphMarker.Signature(None, None)
     /** Set signature settings. */
-    override def signature_=(settings: api.GraphMarker.Signature) = throw new UnsupportedOperationException()
+    override def signature_=(settings: XGraphMarker.Signature) = throw new UnsupportedOperationException()
     /** Unregister marker state. */
     def unregister() = GraphMarker.state.get(uuid) match {
       case Some(marker) ⇒

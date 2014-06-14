@@ -49,6 +49,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphOpen
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
@@ -56,7 +57,7 @@ import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Open graph' operation. */
-class OperationGraphOpen extends api.OperationGraphOpen with Loggable {
+class OperationGraphOpen extends XOperationGraphOpen with Loggable {
   /**
    * Open graph for graph marker.
    *
@@ -146,8 +147,8 @@ object OperationGraphOpen extends Loggable {
   def apply(markerId: UUID): Option[Abstract] =
     Some(operation.operation(markerId))
 
-  /** Bridge between abstract api.Operation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
-  abstract class Abstract(val markerId: UUID, modified: Option[Element.Timestamp])
+  /** Bridge between abstract XOperation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
+  abstract class Abstract(val markerId: UUID, val modified: Option[Element.Timestamp])
     extends Operation[Graph[_ <: Model.Like]](modified match {
       case Some(modified) ⇒ s"Open graph for marker with Id $markerId and modification ${modified}."
       case None ⇒ s"Open graph for marker with Id $markerId."
@@ -158,6 +159,6 @@ object OperationGraphOpen extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphOpen] getOrElse new OperationGraphOpen
+    lazy val operation = injectOptional[XOperationGraphOpen] getOrElse new OperationGraphOpen
   }
 }

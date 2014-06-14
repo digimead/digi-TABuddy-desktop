@@ -48,7 +48,8 @@ import java.util.UUID
 import org.bouncycastle.util.encoders.Base64
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import org.digimead.tabuddy.desktop.id.ID
-import org.digimead.tabuddy.desktop.logic.payload.marker.{ GraphMarker, api }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.Encryption
 import org.digimead.tabuddy.model.serialization.digest.Digest
 import org.digimead.tabuddy.model.serialization.signature.Signature
@@ -60,7 +61,7 @@ import scala.collection.JavaConverters.asScalaSetConverter
 trait SerializationSpecific {
   this: GraphMarker ⇒
   /** Load digest settings from java.util.Properties. */
-  def digest: api.GraphMarker.Digest = graphProperties { p ⇒
+  def digest: XGraphMarker.Digest = graphProperties { p ⇒
     // acquire
     val acquireSetting = p.getProperty(GraphMarker.fieldDigestAcquire) match {
       case "required" ⇒ Some(true)
@@ -70,11 +71,11 @@ trait SerializationSpecific {
     // freeze
     val URIArgumentsLength = Option(p.getProperty(GraphMarker.fieldDigestFreeze)) match {
       case Some(length) if length == "0" ⇒
-        return api.GraphMarker.Digest(acquireSetting, Some(Map()))
+        return XGraphMarker.Digest(acquireSetting, Some(Map()))
       case Some(length) ⇒
         length.toInt
       case None ⇒
-        return api.GraphMarker.Digest(acquireSetting, None)
+        return XGraphMarker.Digest(acquireSetting, None)
     }
     if (URIArgumentsLength < 0)
       throw new IllegalStateException("Digest URI arguments length must be greater than zero.")
@@ -106,10 +107,10 @@ trait SerializationSpecific {
       }
       location -> parameters
     }
-    api.GraphMarker.Digest(acquireSetting, Some(Map(freezeSettings: _*)))
+    XGraphMarker.Digest(acquireSetting, Some(Map(freezeSettings: _*)))
   }
   /** Store digest settings to java.util.Properties. */
-  def digest_=(settings: api.GraphMarker.Digest) = graphPropertiesUpdate { p ⇒
+  def digest_=(settings: XGraphMarker.Digest) = graphPropertiesUpdate { p ⇒
     // acquire
     settings.acquire match {
       case Some(true) ⇒ p.setProperty(GraphMarker.fieldDigestAcquire, "required")
@@ -146,19 +147,19 @@ trait SerializationSpecific {
     }
   }
   /** Load container encryption settings from java.util.Properties. */
-  def containerEncryption: api.GraphMarker.Encryption =
+  def containerEncryption: XGraphMarker.Encryption =
     encryptionLoad(GraphMarker.fieldContainerEncryption, "container")
   /** Store container encryption settings to java.util.Properties. */
-  def containerEncryption_=(settings: api.GraphMarker.Encryption) =
+  def containerEncryption_=(settings: XGraphMarker.Encryption) =
     encryptionStore(settings, GraphMarker.fieldContainerEncryption, "container")
   /** Load content encryption settings from java.util.Properties. */
-  def contentEncryption: api.GraphMarker.Encryption =
+  def contentEncryption: XGraphMarker.Encryption =
     encryptionLoad(GraphMarker.fieldContentEncryption, "content")
   /** Store content encryption settings to java.util.Properties. */
-  def contentEncryption_=(settings: api.GraphMarker.Encryption) =
+  def contentEncryption_=(settings: XGraphMarker.Encryption) =
     encryptionStore(settings, GraphMarker.fieldContentEncryption, "content")
   /** Load signature settings from java.util.Properties. */
-  def signature: api.GraphMarker.Signature = graphProperties { p ⇒
+  def signature: XGraphMarker.Signature = graphProperties { p ⇒
     // acquire
     val acquireSetting = p.getProperty(GraphMarker.fieldSignatureAcquire) match {
       case null ⇒ None
@@ -167,11 +168,11 @@ trait SerializationSpecific {
     // freeze
     val URIArgumentsLength = Option(p.getProperty(GraphMarker.fieldSignatureFreeze)) match {
       case Some(length) if length == "0" ⇒
-        return api.GraphMarker.Signature(acquireSetting, Some(Map()))
+        return XGraphMarker.Signature(acquireSetting, Some(Map()))
       case Some(length) ⇒
         length.toInt
       case None ⇒
-        return api.GraphMarker.Signature(acquireSetting, None)
+        return XGraphMarker.Signature(acquireSetting, None)
     }
     if (URIArgumentsLength < 0)
       throw new IllegalStateException("Signature URI arguments length must be greater than zero.")
@@ -203,10 +204,10 @@ trait SerializationSpecific {
       }
       location -> parameters
     }
-    api.GraphMarker.Signature(acquireSetting, Some(Map(freezeSettings: _*)))
+    XGraphMarker.Signature(acquireSetting, Some(Map(freezeSettings: _*)))
   }
   /** Store signature settings to java.util.Properties. */
-  def signature_=(settings: api.GraphMarker.Signature) = graphPropertiesUpdate { p ⇒
+  def signature_=(settings: XGraphMarker.Signature) = graphPropertiesUpdate { p ⇒
     // acquire
     settings.acquire match {
       case Some(validatorId) ⇒ p.setProperty(GraphMarker.fieldSignatureAcquire, validatorId.toString())
@@ -243,13 +244,13 @@ trait SerializationSpecific {
   }
 
   /** Load encryption settings. */
-  protected def encryptionLoad(field: String, typeName: String): api.GraphMarker.Encryption = graphProperties { p ⇒
+  protected def encryptionLoad(field: String, typeName: String): XGraphMarker.Encryption = graphProperties { p ⇒
     lazy val typeNameTitle = typeName.capitalize
     val URIArgumentsLength = Option(p.getProperty(field)) match {
       case Some(length) if length != "0" ⇒
         length.toInt
       case _ ⇒
-        return api.GraphMarker.Encryption(Map())
+        return XGraphMarker.Encryption(Map())
     }
     if (URIArgumentsLength < 0)
       throw new IllegalStateException(s"${typeNameTitle} URI arguments length must be greater than zero.")
@@ -282,10 +283,10 @@ trait SerializationSpecific {
       }
       location -> parameters
     }
-    api.GraphMarker.Encryption(Map(encryptionSettings: _*))
+    XGraphMarker.Encryption(Map(encryptionSettings: _*))
   }
   /** Store encryption settings. */
-  protected def encryptionStore(settings: api.GraphMarker.Encryption, field: String, typeName: String): Unit = graphPropertiesUpdate { p ⇒
+  protected def encryptionStore(settings: XGraphMarker.Encryption, field: String, typeName: String): Unit = graphPropertiesUpdate { p ⇒
     p.stringPropertyNames().asScala.filter(_.startsWith(field)).foreach(p.remove)
     if (settings.encryption.isEmpty) {
       p.setProperty(field, 0.toString)

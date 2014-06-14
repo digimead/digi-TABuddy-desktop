@@ -47,7 +47,7 @@ import java.util.UUID
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.Command.Descriptor
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
@@ -62,7 +62,7 @@ object CommandGraphList extends Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Console converter. */
-  lazy val converter: PartialFunction[(Descriptor, Any), String] = {
+  lazy val converter: PartialFunction[(XCommand.Descriptor, Any), String] = {
     case (this.descriptor, (true, Seq())) ⇒
       "There are no binded graphs"
     case (this.descriptor, (false, Seq())) ⇒

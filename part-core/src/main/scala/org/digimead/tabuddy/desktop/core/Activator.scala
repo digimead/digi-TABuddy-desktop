@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.core
 import akka.actor.{ Inbox, PoisonPill, Terminated }
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.digi.lib.{ DependencyInjection, Disposable }
-import org.digimead.tabuddy.desktop.core.api.Translation
+import org.digimead.tabuddy.desktop.core.api.XTranslation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -62,7 +62,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   @volatile protected var reportServiceTracker: Option[ServiceTracker[AnyRef, AnyRef]] = None
-  @volatile protected var translationServiceTracker: Option[ServiceTracker[api.Translation, api.Translation]] = None
+  @volatile protected var translationServiceTracker: Option[ServiceTracker[XTranslation, XTranslation]] = None
 
   /** Start bundle. */
   def start(context: BundleContext) = Activator.startStopLock.synchronized {
@@ -74,7 +74,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     reportServiceTracker.open()
     this.reportServiceTracker = Some(reportServiceTracker)
     // Subscribe for translation service
-    val translationServiceTracker = new ServiceTracker[api.Translation, api.Translation](context, classOf[api.Translation], null)
+    val translationServiceTracker = new ServiceTracker[XTranslation, XTranslation](context, classOf[XTranslation], null)
     translationServiceTracker.open()
     this.translationServiceTracker = Some(translationServiceTracker)
     // Setup DI for this bundle

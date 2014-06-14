@@ -53,11 +53,12 @@ import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
+import org.digimead.tabuddy.desktop.core.ui.operation.api.XOperationWindowOpen
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
 /** 'Open window' operation. */
-class OperationWindowOpen extends api.OperationWindowOpen with Loggable {
+class OperationWindowOpen extends XOperationWindowOpen with Loggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -152,7 +153,7 @@ object OperationWindowOpen extends Loggable {
   def apply(windowId: Option[UUID]): Option[Abstract] =
     Some(operation.operation(windowId))
 
-  /** Bridge between abstract api.Operation[UUID] and concrete Operation[UUID] */
+  /** Bridge between abstract XOperation[UUID] and concrete Operation[UUID] */
   abstract class Abstract(val windowId: Option[UUID]) extends Operation[UUID](windowId match {
     case Some(windowId) ⇒ s"Open specific AppWindow[%08X] with id %s".format(windowId.hashCode(), windowId)
     case None ⇒ s"Open new window."
@@ -163,6 +164,6 @@ object OperationWindowOpen extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationWindowOpen] getOrElse new OperationWindowOpen
+    lazy val operation = injectOptional[XOperationWindowOpen] getOrElse new OperationWindowOpen
   }
 }

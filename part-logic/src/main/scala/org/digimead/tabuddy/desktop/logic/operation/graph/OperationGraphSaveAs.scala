@@ -50,6 +50,7 @@ import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphSaveAs
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
@@ -58,7 +59,7 @@ import org.digimead.tabuddy.model.serialization.Serialization
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Save graph as ...' operation. */
-class OperationGraphSaveAs extends api.OperationGraphSaveAs with Loggable {
+class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
   /**
    * Save graph.
    *
@@ -172,7 +173,7 @@ object OperationGraphSaveAs extends Loggable {
   def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Option[Abstract] =
     Some(operation.operation(graph, name, path, serialization))
 
-  /** Bridge between abstract api.Operation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
+  /** Bridge between abstract XOperation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val path: File, val name: String, val serialization: Option[Serialization.Identifier])
     extends Operation[Graph[_ <: Model.Like]](s"Save $graph as $name to $path with ${serialization getOrElse graph.model.eBox.serialization}.") {
     this: Loggable ⇒
@@ -181,6 +182,6 @@ object OperationGraphSaveAs extends Loggable {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationGraphSaveAs] getOrElse new OperationGraphSaveAs
+    lazy val operation = injectOptional[XOperationGraphSaveAs] getOrElse new OperationGraphSaveAs
   }
 }

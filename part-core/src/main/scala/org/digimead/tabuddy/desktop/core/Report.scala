@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,7 +48,7 @@ import java.text.{ DateFormat, SimpleDateFormat }
 import java.util.Date
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.api.Info.Component
+import org.digimead.tabuddy.desktop.core.api.XInfo
 import org.digimead.tabuddy.desktop.core.support.App
 import org.osgi.framework.{ BundleContext, ServiceReference }
 import org.osgi.util.tracker.ServiceTrackerCustomizer
@@ -95,7 +95,7 @@ class Report(context: BundleContext) extends ServiceTrackerCustomizer[AnyRef, An
         asInstanceOf[{ val component: Seq[AnyRef]; val os: String; val arch: String; val platform: String }]
       Some(Report.Info(infoFromOutside.component.map { c ⇒
         val component = c.asInstanceOf[{ val name: String; val version: String; val build: Date; val rawBuild: String; val bundleSymbolicName: String }]
-        Component(component.name, component.version, component.build, component.rawBuild, component.bundleSymbolicName)
+        XInfo.Component(component.name, component.version, component.build, component.rawBuild, component.bundleSymbolicName)
       }, infoFromOutside.os, infoFromOutside.arch, infoFromOutside.platform))
     } catch {
       case e: Throwable ⇒
@@ -123,7 +123,7 @@ object Report {
   /**
    * Application information acquired from launcher via OSGi service.
    */
-  case class Info(val component: Seq[Component], os: String, arch: String, platform: String) extends api.Info {
+  case class Info(val component: Seq[XInfo.Component], os: String, arch: String, platform: String) extends XInfo {
     def header() = """=== TA-Buddy desktop (if you have a question or suggestion, email ezh@ezh.msk.ru) ===""" +
       toString + """=====================================================================================\n\n"""
     override def toString() = s"""report path: ${inner.service.map(_.asInstanceOf[{ val path: File }].path.toString()).getOrElse("UNKNOWN")}

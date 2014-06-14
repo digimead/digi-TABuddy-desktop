@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,12 +46,13 @@ package org.digimead.tabuddy.desktop.logic
 import com.escalatesoft.subcut.inject.NewBindingModule
 import java.util.UUID
 import org.digimead.digi.lib.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.comparator.api.XComparator
 import scala.collection.immutable
 
 package object comparator {
   lazy val default = new NewBindingModule(module ⇒ {
     module.bind[UUID] identifiedBy "Logic.Comparator.Default" toSingle { ByPropertyText.id }
-    module.bind[immutable.HashMap[UUID, _ <: api.Comparator[_ <: api.Comparator.Argument]]] toSingle {
+    module.bind[immutable.HashMap[UUID, _ <: XComparator[_ <: XComparator.Argument]]] toSingle {
       immutable.HashMap(ByPropertyText.id -> ByPropertyText)
     }
   })

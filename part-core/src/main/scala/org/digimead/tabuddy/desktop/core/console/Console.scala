@@ -48,9 +48,10 @@ import java.util.Properties
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Core
+import org.digimead.tabuddy.desktop.core.console.api.XConsole
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.{ api ⇒ cmdapi }
+import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.{ Messages, Report }
 import scala.language.implicitConversions
@@ -84,11 +85,11 @@ class Console extends Actor with Loggable {
     Core ! App.Message.Consistent(Console, self)
   }
   def receive = {
-    case message @ App.Message.Close(console: api.Console.Projection, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Close(console: XConsole.Projection, _, _) ⇒ App.traceMessage(message) {
       consoles = consoles - console
     }
 
-    case message @ App.Message.Open(console: api.Console.Projection, _, _) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Open(console: XConsole.Projection, _, _) ⇒ App.traceMessage(message) {
       consoles = consoles + console
       console.start()
       if (promptEnabled)
@@ -122,7 +123,7 @@ class Console extends Actor with Loggable {
   }
 
   /** Run one command submitted by the user. */
-  protected def command(line: String, from: Option[api.Console.Projection], sender: ActorRef) = try {
+  protected def command(line: String, from: Option[XConsole.Projection], sender: ActorRef) = try {
     Command.parse(line) match {
       case Command.Success(contextParserId, result) ⇒
         Command.getContextParserInfo(contextParserId) match {
@@ -176,15 +177,15 @@ class Console extends Actor with Loggable {
       Console.log.error(e.getMessage(), e)
   }
   /** Command error. */
-  protected def commandOnError(line: String, message: String, from: Option[api.Console.Projection]) {
+  protected def commandOnError(line: String, message: String, from: Option[XConsole.Projection]) {
     from.foreach(_.echo(Console.msgWarning.format(message) + Console.RESET))
   }
   /** Command is incorrect. */
-  protected def commandOnIncorrect(line: String, from: Option[api.Console.Projection]) {
+  protected def commandOnIncorrect(line: String, from: Option[XConsole.Projection]) {
     from.foreach(_.echo(Console.msgWarning.format(s"Command '${line}' isn't correct.") + Console.RESET))
   }
   /** Command future is failed. */
-  protected def commandOnFailure(commandDescriptor: Command.Descriptor, error: Throwable, line: String, from: Option[api.Console.Projection]) =
+  protected def commandOnFailure(commandDescriptor: Command.Descriptor, error: Throwable, line: String, from: Option[XConsole.Projection]) =
     error match {
       case Operation.Result.Error(message, _, _) ⇒
         from.foreach(_.echo(Console.msgAlert.format(s"${commandDescriptor.name} is failed. " + message) + Console.RESET))
@@ -192,7 +193,7 @@ class Console extends Actor with Loggable {
         from.foreach(_.echo(Console.msgAlert.format(s"${commandDescriptor.name} is failed. " + error) + Console.RESET))
     }
   /** Command future is successful completed. */
-  protected def commandOnSuccess(commandDescriptor: Command.Descriptor, result: Any, from: Option[api.Console.Projection]) {
+  protected def commandOnSuccess(commandDescriptor: Command.Descriptor, result: Any, from: Option[XConsole.Projection]) {
     val message = Console.convert(commandDescriptor, result) match {
       case "" ⇒ s"""Command "${commandDescriptor.name}" is completed."""
       case result ⇒ s"""Command "${commandDescriptor.name}" is completed:\r\n""" + Console.RESET + result
@@ -203,7 +204,7 @@ class Console extends Actor with Loggable {
   protected def echo(msg: String) = consoles.foreach(_.echo(msg + Console.RESET))
 }
 
-object Console extends api.Console with Loggable {
+object Console extends XConsole with Loggable {
   implicit def console2actorRef(c: Console.type): ActorRef = c.actor
   implicit def console2actorSRef(c: Console.type): ScalaActorRef = c.actor
   /** Console actor reference. */
@@ -223,7 +224,7 @@ object Console extends api.Console with Loggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Default command results converter. */
-  val defaultCommandResultsConverter: PartialFunction[(cmdapi.Command.Descriptor, Any), String] = {
+  val defaultCommandResultsConverter: PartialFunction[(XCommand.Descriptor, Any), String] = {
     case (_, ()) ⇒ ""
     case (_, result: AnyRef) ⇒ result.toString()
     case (_, result) ⇒ String.valueOf(result)
@@ -300,15 +301,15 @@ object Console extends api.Console with Loggable {
    */
   private object DI extends DependencyInjection.PersistentInjectable {
     /** List of application consoles. */
-    lazy val consoleList: Seq[api.Console.Projection] = {
+    lazy val consoleList: Seq[XConsole.Projection] = {
       bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[api.Console.Projection].isAssignableFrom(key.m.runtimeClass)
+        case (key, value) ⇒ classOf[XConsole.Projection].isAssignableFrom(key.m.runtimeClass)
       }.map {
         case (key, value) ⇒
           key.name match {
             case Some(name) if name.startsWith("Console.") ⇒
               log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[api.Console.Projection]]
+              bindingModule.injectOptional(key).asInstanceOf[Option[XConsole.Projection]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' console skipped.")
               None
@@ -316,15 +317,15 @@ object Console extends api.Console with Loggable {
       }.flatten.toSeq
     }
     /** Converter that transforms command result to text. */
-    lazy val converter: PartialFunction[(cmdapi.Command.Descriptor, Any), String] = {
+    lazy val converter: PartialFunction[(XCommand.Descriptor, Any), String] = {
       val converters = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[PartialFunction[(cmdapi.Command.Descriptor, Any), String]].isAssignableFrom(key.m.runtimeClass)
+        case (key, value) ⇒ classOf[PartialFunction[(XCommand.Descriptor, Any), String]].isAssignableFrom(key.m.runtimeClass)
       }.map {
         case (key, value) ⇒
           key.name match {
             case Some(name) if name.startsWith("Console.Converter.") ⇒
               log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[PartialFunction[(cmdapi.Command.Descriptor, Any), String]]]
+              bindingModule.injectOptional(key).asInstanceOf[Option[PartialFunction[(XCommand.Descriptor, Any), String]]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' console skipped.")
               None
@@ -333,7 +334,7 @@ object Console extends api.Console with Loggable {
       (converters ++ Iterator(defaultConverter)).reduceLeft(_ orElse _)
     }
     /** Default converter that transforms command result to text. */
-    lazy val defaultConverter = injectOptional[PartialFunction[(cmdapi.Command.Descriptor, Any), String]]("Console.DefaultConverter") getOrElse Console.defaultCommandResultsConverter
+    lazy val defaultConverter = injectOptional[PartialFunction[(XCommand.Descriptor, Any), String]]("Console.DefaultConverter") getOrElse Console.defaultCommandResultsConverter
     /** Hint to text converter. */
     lazy val defaultHintToText = injectOptional[(String, Option[String], String) ⇒ String] getOrElse Console.defaultHintToText
     /** History file name. */

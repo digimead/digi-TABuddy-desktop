@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,12 +48,14 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.Report
-import org.digimead.tabuddy.desktop.core.api.Info
+import org.digimead.tabuddy.desktop.core.api.XInfo
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.definition.api.XOperation
+import org.digimead.tabuddy.desktop.core.operation.api.XOperationInfo
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Get information' operation. */
-class OperationInfo extends api.OperationInfo with Loggable {
+class OperationInfo extends XOperationInfo with Loggable {
   /**
    * Get information.
    */
@@ -64,7 +66,7 @@ class OperationInfo extends api.OperationInfo with Loggable {
   /**
    * Create 'Get information' operation.
    */
-  def operation() = new Implemetation().asInstanceOf[Operation[Info]]
+  def operation() = new Implemetation().asInstanceOf[XOperation[XInfo]]
 
   /**
    * Checks that this class can be subclassed.
@@ -110,7 +112,7 @@ object OperationInfo {
   @log
   def apply(): Option[Abstract] = Some(operation.operation().asInstanceOf[Abstract])
 
-  /** Bridge between abstract api.Operation[api.Info] and concrete Operation[Report.Info] */
+  /** Bridge between abstract XOperation[api.Info] and concrete Operation[Report.Info] */
   abstract class Abstract() extends Operation[Report.Info](s"Get information.") {
     this: Loggable ⇒
   }
@@ -118,6 +120,6 @@ object OperationInfo {
    * Dependency injection routines.
    */
   private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationInfo] getOrElse new OperationInfo
+    lazy val operation = injectOptional[XOperationInfo] getOrElse new OperationInfo
   }
 }

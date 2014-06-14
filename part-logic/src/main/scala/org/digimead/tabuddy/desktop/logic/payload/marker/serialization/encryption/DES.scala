@@ -57,12 +57,12 @@ import org.bouncycastle.crypto.params.{ ParametersWithIV, ParametersWithRandom }
 import org.bouncycastle.util.encoders.Base64
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import org.digimead.tabuddy.desktop.id.ID
-import org.digimead.tabuddy.desktop.logic.payload.marker.api
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 
 /**
  * DES encryption implementation.
  */
-class DES extends api.Encryption {
+class DES extends XEncryption {
   /** Encryption description. */
   val description: String = "Data Encryption Algorithm symmetric-key block cipher."
   /** Unique encryption identifier. */
@@ -75,7 +75,7 @@ class DES extends api.Encryption {
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
-  def decrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
@@ -104,7 +104,7 @@ class DES extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Decrypt input stream. */
-  def decrypt(inputStream: InputStream, parameters: api.Encryption.Parameters): InputStream = parameters match {
+  def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
     case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
@@ -123,7 +123,7 @@ class DES extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
@@ -152,7 +152,7 @@ class DES extends api.Encryption {
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt output stearm. */
-  def encrypt(outputStream: OutputStream, parameters: api.Encryption.Parameters): OutputStream = parameters match {
+  def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
     case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
@@ -178,7 +178,7 @@ class DES extends api.Encryption {
   /**
    * DES encryption parameters.
    */
-  case class DESParameters(val key: Option[String], val strength: DES.StrengthParameter, val salt: Array[Byte]) extends api.Encryption.Parameters {
+  case class DESParameters(val key: Option[String], val strength: DES.StrengthParameter, val salt: Array[Byte]) extends XEncryption.Parameters {
     if (key.isEmpty)
       throw new IllegalArgumentException("Encryption key is not defined")
     /** Encryption instance. */
@@ -205,7 +205,7 @@ object DES {
 
   /** Get DES encryption parameters. */
   def apply(key: String, triple: Boolean,
-    salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): api.Encryption.Parameters =
+    salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): XEncryption.Parameters =
     Encryption.perIdentifier.get(Identifier) match {
       case Some(encryption: DES) ⇒ encryption(Some(key), triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("DES encryption is not available.")
@@ -214,7 +214,7 @@ object DES {
   /**
    * DES encryption identifier.
    */
-  object Identifier extends api.Encryption.Identifier { val name = "DES" }
+  object Identifier extends XEncryption.Identifier { val name = "DES" }
   /**
    * Encryption strength.
    */

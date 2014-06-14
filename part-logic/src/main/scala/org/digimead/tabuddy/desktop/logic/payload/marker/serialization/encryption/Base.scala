@@ -46,12 +46,12 @@ package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encrypti
 import com.google.common.base.CharMatcher
 import com.google.common.io.BaseEncoding
 import java.io.{ InputStream, InputStreamReader, OutputStream, OutputStreamWriter }
-import org.digimead.tabuddy.desktop.logic.payload.marker.api
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 
 /**
  * Base encryption implementation.
  */
-class Base extends api.Encryption {
+class Base extends XEncryption {
   /** Encryption description. */
   val description: String = "Simple base transformation."
   /** Unique encryption identifier. */
@@ -67,28 +67,28 @@ class Base extends api.Encryption {
     }
   }
   /** Decrypt data. */
-  def decrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
       BaseEncoding.base64().decode(CharMatcher.WHITESPACE.removeFrom(new String(data, io.Codec.UTF8.charSet)))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Decrypt input stream. */
-  def decrypt(inputStream: InputStream, parameters: api.Encryption.Parameters): InputStream = parameters match {
+  def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
     case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
       BaseEncoding.base64().decodingStream(new InputStreamReader(inputStream, io.Codec.UTF8.charSet))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: api.Encryption.Parameters): Array[Byte] = parameters match {
+  def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
     case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
       BaseEncoding.base64().encode(data).getBytes(io.Codec.UTF8.charSet)
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt output stearm. */
-  def encrypt(outputStream: OutputStream, parameters: api.Encryption.Parameters): OutputStream = parameters match {
+  def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
     case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
       BaseEncoding.base64().encodingStream(new OutputStreamWriter(outputStream, io.Codec.UTF8.charSet))
     case _ ⇒
@@ -102,7 +102,7 @@ class Base extends api.Encryption {
   /**
    * Base encryption parameters.
    */
-  case class BaseParameters(dictionaryLength: Base.LengthParameter) extends api.Encryption.Parameters {
+  case class BaseParameters(dictionaryLength: Base.LengthParameter) extends XEncryption.Parameters {
     // Encryption key is not supported.
     val key = None
     /** Encryption instance. */
@@ -115,7 +115,7 @@ class Base extends api.Encryption {
 
 object Base {
   /** Get Base encryption parameters. */
-  def apply(dictionaryLength: Base.LengthParameter): api.Encryption.Parameters =
+  def apply(dictionaryLength: Base.LengthParameter): XEncryption.Parameters =
     Encryption.perIdentifier.get(Identifier) match {
       case Some(encryption: Base) ⇒ encryption(None, dictionaryLength.length.toString)
       case _ ⇒ throw new IllegalStateException("Base encryption is not available.")
@@ -124,7 +124,7 @@ object Base {
   /**
    * Base encryption identifier.
    */
-  object Identifier extends api.Encryption.Identifier { val name = "Base" }
+  object Identifier extends XEncryption.Identifier { val name = "Base" }
   /**
    * Encryption dictionary length.
    */
