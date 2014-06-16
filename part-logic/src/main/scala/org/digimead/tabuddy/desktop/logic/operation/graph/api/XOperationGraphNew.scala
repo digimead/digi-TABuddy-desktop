@@ -47,6 +47,7 @@ import java.io.File
 import org.digimead.tabuddy.desktop.core.definition.api.XOperation
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.serialization.Serialization
 
 /**
  * OperationGraphNew base trait.
@@ -59,17 +60,19 @@ trait XOperationGraphNew {
    *
    * @param name initial model name
    * @param location initial graph location
+   * @param serialization type of the serialization
    * @return new graph
    */
-  def apply(name: String, location: File): Graph[_ <: Model.Like]
+  def apply(name: String, location: File, serialization: Serialization.Identifier): Graph[_ <: Model.Like]
   /**
    * Create 'New graph' operation.
    *
    * @param name initial model name
    * @param location initial graph location
+   * @param serialization type of the serialization
    * @return 'New graph' operation
    */
-  def operation(name: String, location: File): XOperation[Graph[_ <: Model.Like]]
+  def operation(name: String, location: File, serialization: Serialization.Identifier): XOperation[Graph[_ <: Model.Like]]
 
   /**
    * Checks that this class can be subclassed.

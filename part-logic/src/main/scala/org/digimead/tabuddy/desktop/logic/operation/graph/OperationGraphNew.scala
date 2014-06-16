@@ -57,6 +57,7 @@ import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.serialization.Serialization
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'New graph' operation. */
@@ -66,14 +67,15 @@ class OperationGraphNew extends XOperationGraphNew with Loggable {
    *
    * @param name initial model name
    * @param location initial graph location
+   * @param serialization type of the serialization
    * @return graph marker
    */
-  def apply(name: String, location: File): Graph[_ <: Model.Like] = {
+  def apply(name: String, location: File, serialization: Serialization.Identifier): Graph[_ <: Model.Like] = {
     log.info(s"Create new graph with initial name ${name}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(location, name),
-      Element.timestamp(), Payload.origin)
+      Element.timestamp(), Payload.origin, serialization)
     marker.markerLoad()
     // There will be FileNotFoundException. Take it easy.
     marker.graphAcquire(takeItEasy = true)
@@ -84,10 +86,11 @@ class OperationGraphNew extends XOperationGraphNew with Loggable {
    *
    * @param name initial model name
    * @param location initial graph location
+   * @param serialization type of the serialization
    * @return 'New graph' operation
    */
-  def operation(name: String, location: File) =
-    new Implemetation(name, location)
+  def operation(name: String, location: File, serialization: Serialization.Identifier) =
+    new Implemetation(name, location, serialization)
 
   /**
    * Checks that this class can be subclassed.
@@ -105,8 +108,8 @@ class OperationGraphNew extends XOperationGraphNew with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(name: String, location: File)
-    extends OperationGraphNew.Abstract(name, location) with Loggable {
+  class Implemetation(name: String, location: File, serialization: Serialization.Identifier)
+    extends OperationGraphNew.Abstract(name, location, serialization) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -116,7 +119,7 @@ class OperationGraphNew extends XOperationGraphNew with Loggable {
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option[Graph[_ <: Model.Like]](OperationGraphNew.this(name, location))
+        val result = Option[Graph[_ <: Model.Like]](OperationGraphNew.this(name, location, serialization))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
@@ -145,11 +148,11 @@ object OperationGraphNew extends Loggable {
    * @return 'New graph' operation
    */
   @log
-  def apply(name: String, location: File): Option[Abstract] =
-    Some(operation.operation(name, location))
+  def apply(name: String, location: File, serialization: Serialization.Identifier): Option[Abstract] =
+    Some(operation.operation(name, location, serialization))
 
   /** Bridge between abstract XOperation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
-  abstract class Abstract(val name: String, val location: File)
+  abstract class Abstract(val name: String, val location: File, val serialization: Serialization.Identifier)
     extends Operation[Graph[_ <: Model.Like]](s"Create new graph with initial name ${name}.") {
     this: Loggable ⇒
   }

@@ -52,6 +52,7 @@ import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
+import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.model.Model
@@ -75,7 +76,7 @@ object CommandGraphNew extends Loggable {
       parserResult match {
         case ~(graphName: String, graphContainer: File) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-          OperationGraphNew(graphName, graphContainer).foreach { operation ⇒
+          OperationGraphNew(graphName, graphContainer, Payload.defaultSerialization).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)

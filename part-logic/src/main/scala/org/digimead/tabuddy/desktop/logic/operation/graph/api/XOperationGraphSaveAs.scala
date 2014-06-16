@@ -61,20 +61,18 @@ trait XOperationGraphSaveAs {
    * @param graph graph to save
    * @param path directory of the graph container
    * @param name name of the graph
-   * @param serialization type of the serialization
    * @return copy of the graph
    */
-  def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Graph[_ <: Model.Like]
+  def apply(graph: Graph[_ <: Model.Like], name: String, path: File): Graph[_ <: Model.Like]
   /**
    * Create 'Save graph as ...' operation.
    *
    * @param graph graph to save
    * @param path directory of the graph container
    * @param name name of the graph
-   * @param serialization type of the serialization
    * @return 'Save graph as ...' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): XOperation[Graph[_ <: Model.Like]]
+  def operation(graph: Graph[_ <: Model.Like], name: String, path: File): XOperation[Graph[_ <: Model.Like]]
 
   /**
    * Checks that this class can be subclassed.

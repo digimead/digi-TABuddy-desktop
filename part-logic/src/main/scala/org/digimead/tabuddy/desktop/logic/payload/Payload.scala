@@ -171,8 +171,8 @@ object Payload extends Loggable {
   def extensionGraph = DI.extensionGraph
   /** Get local origin. */
   def origin = DI.origin
-  /** Get serialization mechanism. */
-  def serialization() = DI.serialization
+  /** Get default serialization mechanism. */
+  def defaultSerialization = DI.defaultSerialization
   /** Get flag for unknown storages (by default 'read only' or 'read write') */
   def isUnknownStoragesRW = DI.isUnknownStoragesRW
 
@@ -188,13 +188,13 @@ object Payload extends Loggable {
   private object DI extends DependencyInjection.PersistentInjectable {
     /** UUID of the default TypeSchema. */
     lazy val default = inject[UUID]("Payload.TypeSchema.Default")
+    /** Default serialization mechanism. */
+    lazy val defaultSerialization = inject[Serialization.Identifier]("Payload.Serialization")
     /** File extension for the graph descriptor. */
     lazy val extensionGraph = injectOptional[Symbol]("Payload.Extension.Graph") getOrElse "graph"
     /** The local origin. */
     lazy val origin = injectOptional[Symbol]("Origin") getOrElse 'default
     /** Flag for unknown storages (by default 'read only' or 'read write') */
     lazy val isUnknownStoragesRW = injectOptional[Boolean]("Payload.Serialization.UnknownStoragesRW") getOrElse false
-    /** Serialization mechanism. */
-    lazy val serialization = inject[Serialization.Identifier]("Payload.Serialization")
   }
 }

@@ -43,18 +43,22 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
-import java.io.IOException
+import java.io.{ IOException, OutputStream }
 import java.net.URI
-import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphExport
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.{ Serialization, digest, signature }
+import org.digimead.tabuddy.model.serialization.digest.Digest
+import org.digimead.tabuddy.model.serialization.signature.Signature
+import org.digimead.tabuddy.model.serialization.transport.Transport
+import org.digimead.tabuddy.model.serialization.{ SData, Serialization, digest, signature }
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Export graph' operation. */
@@ -74,15 +78,8 @@ class OperationGraphExport extends XOperationGraphExport with Loggable {
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[digest.Mechanism.Parameters], sParameters: Option[signature.Mechanism.Parameters],
-    serialization: Option[Serialization.Identifier]) = GraphMarker(graph).safeUpdate { _ ⇒
-    /*    log.info(location match {
-      case Some(location) ⇒ s"Export ${graph} to ${location}."
-      case None ⇒ s"Export ${graph}."
-    })
-    if (interactive && !App.isUIAvailable)
-      throw new IllegalArgumentException("Unable to import interactively without UI.")
-    if (!interactive && location.isEmpty)
-      throw new IllegalArgumentException("Unable to non interactively import graph without location.")
+    serialization: Option[Serialization.Identifier]) = GraphMarker(graph).safeUpdate { state ⇒
+    log.info(s"Export ${graph} to ${location}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     val marker = GraphMarker(graph)
@@ -90,18 +87,57 @@ class OperationGraphExport extends XOperationGraphExport with Loggable {
       throw new IllegalStateException(marker + " is not valid.")
     if (!marker.graphIsOpen())
       throw new IllegalStateException(s"$graph is closed.")
-    val destination = new File(location.get, marker.graphModelId.name)
-    if (destination.exists())
-      if (overwrite) {
-        log.info("Clean " + destination)
-        App.processRecursive(destination)(_.delete())
-      } else
-        throw new IOException("Destination directory is already exists.")
-    val currentURI = Serialization.normalizeURI(marker.graphPath.toURI())
-    val copy = graph.copy() { g ⇒
-//      g.storages = g.storages.filterNot(_ == currentURI)
+
+    val locationURI = Serialization.normalizeURI(location)
+    // Additional storages
+    val sDataNStorages = SData(SData.Key.explicitStorages ->
+      Serialization.Storages(Serialization.Storages.Real(locationURI)))
+    // Digest
+    val sDataNDigest = dParameters match {
+      case Some(parameters) ⇒
+        sDataNStorages.updated(Digest.Key.freeze, Map(locationURI -> parameters))
+      case None ⇒
+        sDataNStorages
     }
-    Serialization.freeze(copy, destination.toURI())*/
+    // Signature
+    val sDataNSignature = sParameters match {
+      case Some(parameters) ⇒
+        sDataNDigest.updated(Signature.Key.freeze, Map(locationURI -> parameters))
+      case None ⇒
+        sDataNDigest
+    }
+    // Container encryption
+    val sDataNContainerEncryption = containerEncParameters match {
+      case Some(parameters) ⇒
+        sDataNSignature.updated(SData.Key.convertURI,
+          // encode
+          ((name: String, sData: SData) ⇒
+            parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters)),
+            // decode
+            (name: String, sData: SData) ⇒
+              new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)))
+      case None ⇒
+        sDataNSignature
+    }
+    // Content encryption
+    val sDataNContentEncryption = contentEncParameters match {
+      case Some(parameters) ⇒
+        sDataNContainerEncryption.updated(SData.Key.writeFilter, ((os: OutputStream, uri: URI, transport: Transport, sData: SData) ⇒
+          parameters.encryption.encrypt(os, parameters)))
+      case None ⇒
+        sDataNContainerEncryption
+    }
+    // Element's data serialization type
+    val sDataNSerialization = serialization match {
+      case Some(identifier) ⇒
+        sDataNContentEncryption.updated(SData.Key.explicitSerializationType, identifier)
+      case None ⇒
+        sDataNContentEncryption
+    }
+
+    val copy = graph.copy() { g ⇒ }
+    marker.saveTypeSchemas(App.execNGet { state.payload.typeSchemas.values.toSet }, sDataNSerialization)
+    Serialization.freeze(copy, sDataNSerialization)
   }
   /**
    * Create 'Export graph' operation.

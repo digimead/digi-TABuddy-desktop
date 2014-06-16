@@ -77,7 +77,7 @@ object CommandGraphSaveAs extends Loggable {
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
           val shouldCloseAfterComplete = !marker.graphIsOpen()
           marker.graphAcquire()
-          OperationGraphSaveAs(marker.safeRead(_.graph), name, path, None).foreach { operation ⇒
+          OperationGraphSaveAs(marker.safeRead(_.graph), name, path).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)

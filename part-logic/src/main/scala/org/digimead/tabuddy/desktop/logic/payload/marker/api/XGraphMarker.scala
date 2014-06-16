@@ -48,7 +48,7 @@ import java.net.URI
 import java.util.UUID
 import org.digimead.tabuddy.desktop.logic.payload.api.XTypeSchema
 import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.serialization.{ Serialization, digest, signature }
+import org.digimead.tabuddy.model.serialization.{ Serialization, SData, digest, signature }
 import scala.collection.immutable
 
 /**
@@ -63,6 +63,8 @@ trait XGraphMarker {
 
   /** Assert marker state. */
   def assertState()
+  /** Get default serialization identifier. */
+  def defaultSerialization: Serialization.Identifier
   /** Get digest settings. */
   def digest: XGraphMarker.Digest
   /** Get container encryption settings. */
@@ -105,7 +107,7 @@ trait XGraphMarker {
   /** Save marker properties. */
   def markerSave()
   /** Save type schemas to the local storage. */
-  def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], storages: Option[Serialization.Storages] = None)
+  def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], sData: SData)
   /** Get signature settings. */
   def signature: XGraphMarker.Signature
 }

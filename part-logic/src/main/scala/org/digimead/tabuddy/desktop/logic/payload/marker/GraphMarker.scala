@@ -167,12 +167,12 @@ class GraphMarker(
   def safeUpdate[A](f: GraphMarker.ThreadUnsafeStateReadOnly ⇒ A): A = state.safeUpdate(f)
   /** Save type schemas to the local storage. */
   @log
-  def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], storages: Option[Serialization.Storages] = None) = state.safeWrite { state ⇒
+  def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], sData: SData) = state.safeWrite { state ⇒
     assertState()
     // Storages.
-    val typeSchemasStorages = storages match {
-      case Some(parameter) ⇒
-        parameter.seq.flatMap(_.real).toSet + graphPath.toURI
+    val typeSchemasStorages = sData.get(SData.Key.explicitStorages) match {
+      case Some(storages) ⇒
+        storages.seq.flatMap(_.real).toSet
       case None ⇒
         val additionalStorages = graphAdditionalStorages
         if (additionalStorages.isEmpty) {
@@ -187,34 +187,22 @@ class GraphMarker(
           }) + graphPath.toURI
         }
     }
-    val containerEncryptionMap = containerEncryption.encryption
-    val contentEncryptionMap = contentEncryption.encryption
+
     // Freeze schemas.
     for (storageURI ← typeSchemasStorages) Serialization.perScheme.get(storageURI.getScheme()) match {
       case Some(transport) ⇒
-        val sData = SData(SData.Key.storageURI -> storageURI)
-        val encode = containerEncryptionMap.get(storageURI) match {
-          case Some(parameters) ⇒
-            ((name: String) ⇒ parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters)))
-          case None ⇒
-            ((name: String) ⇒ name)
-        }
-        val encrypt = contentEncryptionMap.get(storageURI) match {
-          case Some(parameters) ⇒
-            ((content: Array[Byte]) ⇒ parameters.encryption.encrypt(content, parameters))
-          case None ⇒
-            ((content: Array[Byte]) ⇒ content)
-        }
-        val typeSchemasStorageBase = transport.append(storageURI, encode(folderTypeSchemas))
+        val sDataForStorageURI = sData.updated(SData.Key.storageURI, storageURI)
+        val typeSchemasStorageBase = transport.append(storageURI, folderTypeSchemas)
+        val typeSchemasStorageBaseEncoded = Serialization.inner.encode(typeSchemasStorageBase, sDataForStorageURI)
         log.debug(s"Save type schemas to $typeSchemasStorageBase")
         // Clear folder.
-        transport.delete(typeSchemasStorageBase, sData)
+        transport.delete(typeSchemasStorageBase, sDataForStorageURI)
         // Freeze.
-        val schemaIndexURI = transport.append(typeSchemasStorageBase, encode(index))
-        transport.write(schemaIndexURI, encrypt(schemas.map(_.id.toString).mkString("\n").getBytes(io.Codec.UTF8.charSet)), sData)
+        val schemaIndexURI = Serialization.inner.encode(transport.append(typeSchemasStorageBase, index), sDataForStorageURI)
+        transport.write(schemaIndexURI, schemas.map(_.id.toString).mkString("\n").getBytes(io.Codec.UTF8.charSet), sDataForStorageURI)
         schemas.foreach { schema ⇒
-          val schemaURI = transport.append(typeSchemasStorageBase, encode(schema.id.toString() + ".yaml"))
-          transport.write(schemaURI, encrypt(TypeSchema.YAML.to(schema).getBytes(io.Codec.UTF8.charSet)), sData)
+          val schemaURI = Serialization.inner.encode(transport.append(typeSchemasStorageBase, schema.id.toString() + ".yaml"), sDataForStorageURI)
+          transport.write(schemaURI, TypeSchema.YAML.to(schema).getBytes(io.Codec.UTF8.charSet), sDataForStorageURI)
         }
       case None ⇒
         throw new IllegalArgumentException(s"Unable to save type schemas to URI with unknown scheme ${storageURI.getScheme}.")
@@ -400,6 +388,8 @@ object GraphMarker extends Loggable {
   val fieldCreatedMillis = "createdMillis"
   /** Long field that contains graph marker creation time. */
   val fieldCreatedNanos = "createdNanos"
+  /** String field that contains default serialization extension. */
+  val fieldDefaultSerialization = "defaultSerializationExtension"
   /** Composite field that contains digestAcquire parameters. */
   val fieldDigestAcquire = "digestAcquire"
   /** Composite field that contains digestFreeze parameters. */
@@ -454,15 +444,16 @@ object GraphMarker extends Loggable {
     finally globalRWL.readLock().unlock()
   }
   /**
-   * Create new graph marker in the workspace.
+   * Create new graph marker in the workspace
    *
-   * @param uuid container IResource unique id.
-   * @param fullPath path to model with model directory name.
-   * @param created graph creation timestamp.
-   * @param origin graph owner that launch creation process.
+   * @param uuid container IResource unique id
+   * @param fullPath path to model with model directory name
+   * @param created graph creation timestamp
+   * @param origin graph owner that launch creation process
+   * @param serialization type of the serialization
    * @return graph marker
    */
-  def createInTheWorkspace(resourceUUID: UUID, fullPath: File, created: Element.Timestamp, origin: Symbol): GraphMarker = {
+  def createInTheWorkspace(resourceUUID: UUID, fullPath: File, created: Element.Timestamp, origin: Symbol, serialization: Serialization.Identifier): GraphMarker = {
     globalRWL.writeLock().lock()
     try {
       if (!Logic.container.isOpen())
@@ -483,6 +474,7 @@ object GraphMarker extends Loggable {
       resourceContent.setProperty(fieldLastAccessed, created.milliseconds.toString)
       resourceContent.setProperty(fieldCreatedMillis, created.milliseconds.toString)
       resourceContent.setProperty(fieldCreatedNanos, created.nanoShift.toString)
+      resourceContent.setProperty(fieldDefaultSerialization, serialization.extension)
       resourceContent.setProperty(fieldResourceId, resourceUUID.toString)
       resourceContent.setProperty(fieldOrigin, origin.name)
       resourceContent.setProperty(fieldSavedMillis, 0.toString)
@@ -506,7 +498,7 @@ object GraphMarker extends Loggable {
         case state: ThreadUnsafeState ⇒
           val readOnlyMarker = new ReadOnlyGraphMarker(marker.uuid, marker.graphAdditionalStorages, marker.graphCreated,
             marker.graphModelId, marker.graphOrigin, marker.graphPath, marker.graphStored, marker.markerLastAccessed,
-            marker.digest, marker.containerEncryption, marker.contentEncryption, marker.signature)
+            marker.defaultSerialization, marker.digest, marker.containerEncryption, marker.contentEncryption, marker.signature)
           if (!FileUtil.deleteFile(marker.graphPath))
             log.fatal("Unable to delete " + marker)
           marker.resource.delete(true, false, Policy.monitorFor(null))
@@ -678,7 +670,7 @@ object GraphMarker extends Loggable {
   class ReadOnlyGraphMarker(val uuid: UUID, val graphAdditionalStorages: Set[Either[URI, URI]],
     val graphCreated: Element.Timestamp, val graphModelId: Symbol,
     val graphOrigin: Symbol, val graphPath: File, val graphStored: Element.Timestamp, val markerLastAccessed: Long,
-    val digest: XGraphMarker.Digest, val containerEncryption: XGraphMarker.Encryption,
+    val defaultSerialization: Serialization.Identifier, val digest: XGraphMarker.Digest, val containerEncryption: XGraphMarker.Encryption,
     val contentEncryption: XGraphMarker.Encryption, val signature: XGraphMarker.Signature)
     extends XGraphMarker {
     /** Autoload property file if suitable information needed. */
@@ -718,7 +710,7 @@ object GraphMarker extends Loggable {
     /** Save marker properties. */
     def markerSave() = throw new UnsupportedOperationException()
     /** Save type schemas to the local storage. */
-    def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], storages: Option[Serialization.Storages] = None) =
+    def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], sData: SData) =
       throw new UnsupportedOperationException()
 
     def canEqual(other: Any) = other.isInstanceOf[ReadOnlyGraphMarker]
@@ -740,6 +732,8 @@ object GraphMarker extends Loggable {
   class TemporaryGraphMarker(graph: Graph[_ <: Model]) extends GraphMarker(UUID.randomUUID(), false) {
     /** Assert marker state. */
     override def assertState() {}
+    /** Get default serialization identifier. */
+    override def defaultSerialization: Serialization.Identifier = graph.model.eBox.serialization
     /** Get digest settings. */
     override def digest: XGraphMarker.Digest = XGraphMarker.Digest(None, None)
     /** Set digest settings. */
@@ -795,7 +789,7 @@ object GraphMarker extends Loggable {
     /** Save marker properties. */
     override def markerSave() = throw new UnsupportedOperationException()
     /** Save type schemas to the local storage. */
-    override def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], storages: Option[Serialization.Storages] = None) =
+    override def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], sData: SData) =
       throw new UnsupportedOperationException()
     /** Get signature settings. */
     override def signature: XGraphMarker.Signature = XGraphMarker.Signature(None, None)

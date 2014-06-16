@@ -91,7 +91,7 @@ class WizardGraphNew extends Wizard with INewWizard with Loggable {
    */
   @log
   def performFinish() = try {
-    val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), one.getModelLocation(), Element.timestamp(), Payload.origin)
+    val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), one.getModelLocation(), Element.timestamp(), Payload.origin, Payload.defaultSerialization)
     if (!marker.markerIsValid) {
       val status = new Status(IStatus.ERROR, Messages.wizardGraphNewPageOneTitle_text, Messages.creationError_text)
       ErrorDialog.openError(one.getShell(), CoreMessages.error_text + ".", Messages.creationError_text, status)

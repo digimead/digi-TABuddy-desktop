@@ -48,9 +48,11 @@ import java.util.UUID
 import org.bouncycastle.util.encoders.Base64
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import org.digimead.tabuddy.desktop.id.ID
+import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.Encryption
+import org.digimead.tabuddy.model.serialization.Serialization
 import org.digimead.tabuddy.model.serialization.digest.Digest
 import org.digimead.tabuddy.model.serialization.signature.Signature
 import scala.collection.JavaConverters.asScalaSetConverter
@@ -60,6 +62,29 @@ import scala.collection.JavaConverters.asScalaSetConverter
  */
 trait SerializationSpecific {
   this: GraphMarker ⇒
+  /** Load container encryption settings from java.util.Properties. */
+  def containerEncryption: XGraphMarker.Encryption =
+    encryptionLoad(GraphMarker.fieldContainerEncryption, "container")
+  /** Store container encryption settings to java.util.Properties. */
+  def containerEncryption_=(settings: XGraphMarker.Encryption) =
+    encryptionStore(settings, GraphMarker.fieldContainerEncryption, "container")
+  /** Load content encryption settings from java.util.Properties. */
+  def contentEncryption: XGraphMarker.Encryption =
+    encryptionLoad(GraphMarker.fieldContentEncryption, "content")
+  /** Store content encryption settings to java.util.Properties. */
+  def contentEncryption_=(settings: XGraphMarker.Encryption) =
+    encryptionStore(settings, GraphMarker.fieldContentEncryption, "content")
+  /** Load default serialization identifier value from java.util.Properties. */
+  def defaultSerialization: Serialization.Identifier = graphProperties { p ⇒
+    Option(p.getProperty(GraphMarker.fieldDefaultSerialization)).map(serializationExtension ⇒
+      Serialization.perIdentifier.find(_._1.extension == serializationExtension) match {
+        case Some((identifier, mechanism)) ⇒
+          identifier
+        case None ⇒
+          log.error(s"Unable to find serialization mechanism with extension '${serializationExtension}', use default ${Payload.defaultSerialization}")
+          Payload.defaultSerialization
+      }) getOrElse Payload.defaultSerialization
+  }
   /** Load digest settings from java.util.Properties. */
   def digest: XGraphMarker.Digest = graphProperties { p ⇒
     // acquire
@@ -146,18 +171,6 @@ trait SerializationSpecific {
       }
     }
   }
-  /** Load container encryption settings from java.util.Properties. */
-  def containerEncryption: XGraphMarker.Encryption =
-    encryptionLoad(GraphMarker.fieldContainerEncryption, "container")
-  /** Store container encryption settings to java.util.Properties. */
-  def containerEncryption_=(settings: XGraphMarker.Encryption) =
-    encryptionStore(settings, GraphMarker.fieldContainerEncryption, "container")
-  /** Load content encryption settings from java.util.Properties. */
-  def contentEncryption: XGraphMarker.Encryption =
-    encryptionLoad(GraphMarker.fieldContentEncryption, "content")
-  /** Store content encryption settings to java.util.Properties. */
-  def contentEncryption_=(settings: XGraphMarker.Encryption) =
-    encryptionStore(settings, GraphMarker.fieldContentEncryption, "content")
   /** Load signature settings from java.util.Properties. */
   def signature: XGraphMarker.Signature = graphProperties { p ⇒
     // acquire

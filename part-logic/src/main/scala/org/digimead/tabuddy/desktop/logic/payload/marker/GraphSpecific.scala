@@ -82,7 +82,7 @@ trait GraphSpecific {
          *     +-Templates - predefined TA Buddy element templates
          */
         // try to create model because we are unable to load it
-        Graph[Model](graphModelId, graphOrigin, Model.scope, Payload.serialization, uuid, graphCreated) { g ⇒ }
+        Graph[Model](graphModelId, graphOrigin, Model.scope, defaultSerialization, uuid, graphCreated) { g ⇒ }
       }
       graph.withData(_(GraphMarker) = GraphSpecific.this)
       state.graphObject = Option(graph)
@@ -220,7 +220,6 @@ trait GraphSpecific {
     log.info(s"Freeze '${state.graph}'.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    saveTypeSchemas(App.execNGet { state.payload.typeSchemas.values.toSet })
     // Additional storages
     val sDataNStorages = storages match {
       case Some(parameter) ⇒
@@ -287,6 +286,7 @@ trait GraphSpecific {
         case None ⇒ os
       }))
     // Freeze
+    saveTypeSchemas(App.execNGet { state.payload.typeSchemas.values.toSet }, sDataNContentEncryption)
     Serialization.freeze(state.graph, sDataNContentEncryption)
     if (graphPath.listFiles().nonEmpty)
       graphPropertiesUpdate { p ⇒

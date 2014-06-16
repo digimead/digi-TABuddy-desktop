@@ -55,7 +55,6 @@ import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.Serialization
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Save graph as ...' operation. */
@@ -66,10 +65,9 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
    * @param graph graph to save
    * @param path directory of the graph container
    * @param name name of the graph
-   * @param serialization type of the serialization
    * @return copy of the graph
    */
-  def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Graph[_ <: Model.Like] = GraphMarker(graph).safeUpdate { _ ⇒
+  def apply(graph: Graph[_ <: Model.Like], name: String, path: File): Graph[_ <: Model.Like] = GraphMarker(graph).safeUpdate { _ ⇒
     log.info(s"Save $graph as $name.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
@@ -84,7 +82,7 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
     if (newGraphDescriptor.exists())
       throw new IOException(newGraphDescriptor + " descriptor is already exists.")
     val newMarker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), new File(path, name),
-      marker.graphCreated, marker.graphOrigin)
+      marker.graphCreated, marker.graphOrigin, marker.defaultSerialization)
     newMarker.safeUpdate(_.safeWrite { state ⇒
       state.graphObject = Some(graph.copy() { g ⇒
         g.withData { data ⇒
@@ -111,11 +109,10 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
    * @param graph graph to save
    * @param path directory of the graph container
    * @param name name of the graph
-   * @param serialization type of the serialization
    * @return 'Save graph as ...' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]) =
-    new Implemetation(graph, path, name, serialization)
+  def operation(graph: Graph[_ <: Model.Like], name: String, path: File) =
+    new Implemetation(graph, path, name)
 
   /**
    * Checks that this class can be subclassed.
@@ -133,8 +130,8 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(graph: Graph[_ <: Model.Like], path: File, name: String, serialization: Option[Serialization.Identifier])
-    extends OperationGraphSaveAs.Abstract(graph, path, name, serialization) with Loggable {
+  class Implemetation(graph: Graph[_ <: Model.Like], path: File, name: String)
+    extends OperationGraphSaveAs.Abstract(graph, path, name) with Loggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -144,7 +141,7 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option[Graph[_ <: Model.Like]](OperationGraphSaveAs.this(graph, name, path, serialization))
+        val result = Option[Graph[_ <: Model.Like]](OperationGraphSaveAs.this(graph, name, path))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
@@ -167,15 +164,17 @@ object OperationGraphSaveAs extends Loggable {
    * Build a new 'Save graph as ...' operation.
    *
    * @param graph graph to save
+   * @param path directory of the graph container
+   * @param name name of the graph
    * @return 'Save graph as ...' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], name: String, path: File, serialization: Option[Serialization.Identifier]): Option[Abstract] =
-    Some(operation.operation(graph, name, path, serialization))
+  def apply(graph: Graph[_ <: Model.Like], name: String, path: File): Option[Abstract] =
+    Some(operation.operation(graph, name, path))
 
   /** Bridge between abstract XOperation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val path: File, val name: String, val serialization: Option[Serialization.Identifier])
-    extends Operation[Graph[_ <: Model.Like]](s"Save $graph as $name to $path with ${serialization getOrElse graph.model.eBox.serialization}.") {
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val path: File, val name: String)
+    extends Operation[Graph[_ <: Model.Like]](s"Save $graph as $name to $path.") {
     this: Loggable ⇒
   }
   /**
