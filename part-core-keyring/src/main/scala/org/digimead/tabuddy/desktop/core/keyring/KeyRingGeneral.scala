@@ -45,13 +45,13 @@ package org.digimead.tabuddy.desktop.core.keyring
 
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream }
 import java.util.{ ArrayList, Date }
-import org.bouncycastle.bcpg.sig.{ Features, KeyFlags }
 import org.bouncycastle.bcpg.{ HashAlgorithmTags, PublicKeyAlgorithmTags, SymmetricKeyAlgorithmTags }
-import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyEncryptorBuilder, BcPGPContentSignerBuilder, BcPGPDigestCalculatorProvider, BcPGPKeyPair }
-import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPPublicKeyRingCollection, PGPSecretKeyRingCollection, PGPSignature, PGPSignatureSubpacketGenerator }
+import org.bouncycastle.bcpg.sig.{ Features, KeyFlags }
+import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPPrivateKey, PGPPublicKeyRingCollection, PGPSecretKey, PGPSecretKeyRingCollection, PGPSignature, PGPSignatureSubpacketGenerator }
+import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyDecryptorBuilder, BcPBESecretKeyEncryptorBuilder, BcPGPContentSignerBuilder, BcPGPDigestCalculatorProvider, BcPGPKeyPair }
 import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.tabuddy.desktop.core.keyring.generator.Generator
 import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
-import org.digimead.tabuddy.desktop.core.keyring.generator.{ Generator, api }
 import org.eclipse.core.runtime.NullProgressMonitor
 
 /**
@@ -149,6 +149,10 @@ trait KeyRingGeneral {
     encSSGen.setKeyFlags(false, KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE)
     (subKeyForEnc, encSSGen)
   }
+  /** Get private key from secret key. */
+  def getPGPPrivateKey(secretKey: PGPSecretKey, passPhrase: String = KeyRing.defaultPassPhrase): PGPPrivateKey =
+    secretKey.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).
+      build(passPhrase.toCharArray()))
   /** Get public key algorithm name. */
   def getPublicKeyAlgorithmName(key: Int) = key match {
     case PublicKeyAlgorithmTags.DIFFIE_HELLMAN ⇒ "Diffie Hellman"

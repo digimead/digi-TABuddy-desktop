@@ -43,24 +43,25 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
-import java.io.File
+import java.io.{ File, InputStream }
 import java.net.URI
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphImport
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.Serialization
+import org.digimead.tabuddy.model.serialization.digest.Digest
+import org.digimead.tabuddy.model.serialization.signature.Signature
+import org.digimead.tabuddy.model.serialization.transport.Transport
+import org.digimead.tabuddy.model.serialization.{ SData, Serialization }
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
-import org.digimead.tabuddy.model.serialization.{ digest, signature }
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
-import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphImport
 
 /** 'Import graph' operation. */
 class OperationGraphImport extends XOperationGraphImport with Loggable {
@@ -78,65 +79,74 @@ class OperationGraphImport extends XOperationGraphImport with Loggable {
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[Boolean], sParameters: Option[UUID]): Graph[_ <: Model.Like] = {
-    //    log.info(location match {
-    //      case Some(location) ⇒ s"Import graph from ${location}."
-    //      case None ⇒ "Import graph."
-    //    })
-    //    if (interactive && !App.isUIAvailable)
-    //      throw new IllegalArgumentException("Unable to import interactively without UI.")
-    //    if (!Logic.container.isOpen())
-    //      throw new IllegalStateException("Workspace is not available.")
-    //
-    //    val (graphOrigin, graphLocation) = if (interactive) {
-    /*      UI.getActiveShell match {
-        case Some(shell) ⇒
-          App.execNGet {
-            Wizards.open("org.digimead.tabuddy.desktop.graph.editor.wizard.ModelCreationWizard", shell, Some(name, location)) match {
-              case marker: GraphMarker ⇒
-                if (!marker.markerIsValid)
-                  throw new IllegalStateException(marker + " is not valid.")
-                marker
-              case other if other == org.eclipse.jface.window.Window.CANCEL ⇒
-                throw new CancellationException("Unable to create new graph. Operation canceled.")
-              case other ⇒
-                throw new IllegalStateException(s"Unable to create new graph. Result ${other}.")
-            }
+    log.info(s"Import graph from ${location}.")
+    if (!Logic.container.isOpen())
+      throw new IllegalStateException("Workspace is not available.")
+
+    val locationURI = Serialization.normalizeURI(location)
+    val sData = SData(SData.Key.force -> true)
+    // Digest
+    val sDataNDigest = dParameters match {
+      case Some(parameters) ⇒
+        sData.updated(Digest.Key.acquire, parameters)
+      case None ⇒
+        sData
+    }
+    // Signature
+    val sDataNSignature = sParameters match {
+      case Some(parameters) ⇒
+        // TODO Signature.acceptSigned replace with sParameters: Option[UUID]
+        sDataNDigest.updated(Signature.Key.acquire, Signature.acceptSigned)
+      case None ⇒
+        sDataNDigest
+    }
+    // Container encryption
+    val sDataNContainerEncryption = containerEncParameters match {
+      case Some(parameters) ⇒
+        sDataNSignature.updated(SData.Key.convertURI,
+          // encode
+          ((name: String, sData: SData) ⇒
+            parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters)),
+            // decode
+            (name: String, sData: SData) ⇒
+              new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)))
+      case None ⇒
+        sDataNSignature
+    }
+    // Content encryption
+    val sDataNContentEncryption = contentEncParameters match {
+      case Some(parameters) ⇒
+        sDataNContainerEncryption.updated(SData.Key.readFilter, ((is: InputStream, uri: URI, transport: Transport, sData: SData) ⇒
+          parameters.encryption.decrypt(is, parameters)))
+      case None ⇒
+        sDataNContainerEncryption
+    }
+
+    Option[Graph[_ <: Model.Like]](Serialization.acquire(locationURI, sDataNContentEncryption)) match {
+      case Some(graph) ⇒
+        val localGraphPath = if (locationURI.getScheme() != new File(".").toURI().getScheme()) {
+          // this is remote graph
+          // create local copy
+          val destination = new File(Logic.graphContainer, graph.model.eId.name)
+          Serialization.freeze(graph, destination.toURI())
+          destination
+        } else
+          new File(locationURI)
+        val uuid = if (GraphMarker.list().contains(graph.node.unique))
+          UUID.randomUUID()
+        else
+          graph.node.unique
+        val newMarker = GraphMarker.createInTheWorkspace(uuid, localGraphPath, Element.timestamp(), graph.origin, graph.model.eBox.serialization)
+        newMarker.safeUpdate(_.safeWrite(_.graphObject = Some(graph.copy() { g ⇒
+          g.withData { data ⇒
+            data(GraphMarker) = newMarker
           }
-        case None ⇒
-          throw new IllegalStateException("Unable to create new graph dialog without parent shell.")
-      }*/
-    // TODO
-    //      throw new UnsupportedOperationException("TODO")
-    //    } else {
-    //      (origin getOrElse { throw new IllegalArgumentException("Unable to non interactively import graph without origin.") },
-    //        location getOrElse { throw new IllegalArgumentException("Unable to non interactively import graph without location.") })
-    //    }
-    //    Option[Graph[_ <: Model.Like]](Serialization.acquire(graphLocation)) match {
-    //      case Some(graph) ⇒
-    //        val localGraphPath = if (graphLocation.getScheme() != new File(".").toURI().getScheme()) {
-    //          // this is remote graph
-    //          // create local copy
-    //          val destination = new File(Logic.graphContainer, graph.model.eId.name)
-    //          Serialization.freeze(graph, destination.toURI())
-    //          destination
-    //        } else
-    //          new File(graphLocation)
-    //        val uuid = if (GraphMarker.list().contains(graph.node.unique))
-    //          UUID.randomUUID()
-    //        else
-    //          graph.node.unique
-    //        val newMarker = GraphMarker.createInTheWorkspace(uuid, localGraphPath, Element.timestamp(), graphOrigin)
-    //        newMarker.safeUpdate(_.safeWrite(_.graphObject = Some(graph.copy() { g ⇒
-    //          g.withData { data ⇒
-    //            data(GraphMarker) = newMarker
-    //          }
-    //        })))
-    //        newMarker.graphAcquire()
-    //        newMarker.safeRead(_.graph)
-    //      case None ⇒
-    //        throw new IllegalStateException(s"Unable to import graph with origin $graphOrigin from " + graphLocation)
-    //    }
-    null
+        })))
+        newMarker.graphAcquire()
+        newMarker.safeRead(_.graph)
+      case None ⇒
+        throw new IllegalStateException(s"Unable to import graph from " + locationURI)
+    }
   }
   /**
    * Create 'Import graph' operation.

@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import java.io.{ IOException, OutputStream }
 import java.net.URI
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.DependencyInjection
 import org.digimead.digi.lib.log.api.Loggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
