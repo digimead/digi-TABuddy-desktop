@@ -46,6 +46,10 @@ package org.digimead.tabuddy.desktop.logic.operation.graph.api
 import java.net.URI
 import org.digimead.tabuddy.desktop.core.definition.api.XOperation
 import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.serialization.{ digest, signature }
 
 /**
  * OperationGraphInfo base trait.
@@ -95,5 +99,7 @@ trait XOperationGraphInfo {
 }
 
 object XOperationGraphInfo {
-  case class Info(origin: Symbol)
+  case class Info(graph: Graph[Model.Like], loaderHistory: Map[Element.Timestamp, Set[URI]],
+    digestHistory: Map[Element.Timestamp, Map[URI, digest.Mechanism.Parameters]],
+    signatureHistory: Map[Element.Timestamp, Map[URI, signature.Mechanism.Parameters]])
 }
