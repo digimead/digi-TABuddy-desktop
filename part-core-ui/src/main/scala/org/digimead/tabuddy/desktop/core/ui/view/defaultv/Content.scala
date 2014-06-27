@@ -58,7 +58,7 @@ import javafx.scene.shape.Rectangle
 import javafx.scene.text.{ Font, FontPosture, FontWeight, Text, TextAlignment, TextBuilder }
 import javafx.util.Duration
 import org.digimead.digi.lib.jfx4swt.FXCanvas
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Report
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.operation.OperationInfo
@@ -73,7 +73,7 @@ import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener }
 /**
  * Default view content.
  */
-class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(parent, style) with Loggable {
+class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(parent, style) with XLoggable {
   /** About composite. */
   val aboutComposite = new FXCanvas(getCompositeAbout(), SWT.NONE, false)
   /** About original size. */
@@ -203,13 +203,18 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
 
   /** Create about composite. */
   protected def createAbout(parent: FXCanvas): Scene = {
-    val text = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.font(Font.font(null, FontWeight.LIGHT, 12))
-      b.textAlignment(TextAlignment.CENTER)
-      b.textOrigin(VPos.TOP)
-      b.fill(Color.DARKGRAY)
-      b.build()
-    }
+    //val text = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+    //  b.font(Font.font(null, FontWeight.LIGHT, 12))
+    //  b.textAlignment(TextAlignment.CENTER)
+    //  b.textOrigin(VPos.TOP)
+    //  b.fill(Color.DARKGRAY)
+    //  b.build()
+    //}
+    val text = new Text()
+    text.setFont(Font.font(null, FontWeight.LIGHT, 12))
+    text.setTextAlignment(TextAlignment.CENTER)
+    text.setTextOrigin(VPos.TOP)
+    text.setFill(Color.DARKGRAY)
 
     text.textProperty().addListener(new ChangeListener[AnyRef]() {
       override def changed(ov: ObservableValue[_ <: AnyRef], t: AnyRef, t1: AnyRef) {
@@ -262,41 +267,59 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
   /** Create quotation composite. */
   protected def createQuotation(parent: FXCanvas): (Scene, FadeTransition, Point) = {
     // I see no reason to translate this in the future.
-    val prePart1 = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.text("A human being should be able ")
-      b.cache(true)
-      b.fill(Color.BLACK)
-      b.font(Font.font(null, FontWeight.BOLD, 4)) // set minimum size
-      b.build()
-    }
-    val prePart2 = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.text("to change a diaper, plan an invasion, butcher a hog, conn a ship,")
-      b.cache(true)
-      b.fill(Color.DARKGRAY)
-      b.build()
-    }
-    val body = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.text("design a building, write a sonnet, balance accounts, build a wall, set a bone, " +
-        "comfort the dying,\ntake orders, give orders, cooperate, act alone, " +
-        "solve equations, analyze a new problem,\npitch manure, program a computer, " +
-        "cook a tasty meal, fight efficiently, die gallantly.")
-      b.cache(true)
-      b.fill(Color.DARKGRAY)
-      b.build()
-    }
-    val post = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.text("Specialization is for insects.")
-      b.cache(true)
-      b.fill(Color.BLACK)
-      b.build()
-    }
-    val signature = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.text("\n    - Robert A. Heinlein")
-      b.cache(true)
-      b.fill(Color.DARKGRAY)
-      b.build()
-    }
-
+    //val prePart1 = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+    //  b.text("A human being should be able ")
+    //  b.cache(true)
+    //  b.fill(Color.BLACK)
+    //  b.font(Font.font(null, FontWeight.BOLD, 4)) // set minimum size
+    //  b.build()
+    //}
+    val prePart1 = new Text("A human being should be able ")
+    prePart1.setCache(true)
+    prePart1.setFill(Color.BLACK)
+    prePart1.setFont(Font.font(null, FontWeight.BOLD, 4)) // set minimum size
+    //val prePart2 = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+    //  b.text("to change a diaper, plan an invasion, butcher a hog, conn a ship,")
+    //  b.cache(true)
+    //  b.fill(Color.DARKGRAY)
+    //  b.build()
+    //}
+    val prePart2 = new Text("to change a diaper, plan an invasion, butcher a hog, conn a ship,")
+    prePart2.setCache(true)
+    prePart2.setFill(Color.DARKGRAY)
+    //val body = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+    //  b.text("design a building, write a sonnet, balance accounts, build a wall, set a bone, " +
+    //    "comfort the dying,\ntake orders, give orders, cooperate, act alone, " +
+    //    "solve equations, analyze a new problem,\npitch manure, program a computer, " +
+    //    "cook a tasty meal, fight efficiently, die gallantly.")
+    //  b.cache(true)
+    //  b.fill(Color.DARKGRAY)
+    //  b.build()
+    //}
+    val body = new Text("design a building, write a sonnet, balance accounts, build a wall, set a bone, " +
+      "comfort the dying,\ntake orders, give orders, cooperate, act alone, " +
+      "solve equations, analyze a new problem,\npitch manure, program a computer, " +
+      "cook a tasty meal, fight efficiently, die gallantly.")
+    body.setCache(true)
+    body.setFill(Color.DARKGRAY)
+    //val post = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+    //  b.text("Specialization is for insects.")
+    //  b.cache(true)
+    //  b.fill(Color.BLACK)
+    //  b.build()
+    //}
+    val post = new Text("Specialization is for insects.")
+    post.setCache(true)
+    post.setFill(Color.BLACK)
+    //val signature = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+    //  b.text("\n    - Robert A. Heinlein")
+    //  b.cache(true)
+    //  b.fill(Color.DARKGRAY)
+    //  b.build()
+    //}
+    val signature = new Text("\n    - Robert A. Heinlein")
+    signature.setCache(true)
+    signature.setFill(Color.DARKGRAY)
     def adjust(size: Int) {
       val italic = Font.font(null, FontPosture.ITALIC, size)
       prePart1.setFont(italic)
@@ -401,16 +424,23 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
     ds.setColor(Color.color(0.4f, 0.4f, 0.4f))
 
     // I see no reason to translate this in the future.
-    val text = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.text("TA Buddy: Desktop")
-      b.font(Font.font(null, FontWeight.BOLD, 100))
-      b.effect(ds)
-      b.cache(true)
-      //b.clip(clip)
-      b.textOrigin(VPos.TOP)
-      b.fill(Color.RED)
-      b.build()
-    }
+    //val text = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
+    //  b.text("TA Buddy: Desktop")
+    //  b.font(Font.font(null, FontWeight.BOLD, 100))
+    //  b.effect(ds)
+    //  b.cache(true)
+    //b.clip(clip)
+    //  b.textOrigin(VPos.TOP)
+    //  b.fill(Color.RED)
+    //  b.build()
+    //}
+    val text = new Text("TA Buddy: Desktop")
+    text.setFont(Font.font(null, FontWeight.BOLD, 100))
+    text.setEffect(ds)
+    text.setCache(true)
+    //text.setclip(clip)
+    text.setTextOrigin(VPos.TOP)
+    text.setFill(Color.RED)
 
     val root = new Pane()
     root.setCache(true)

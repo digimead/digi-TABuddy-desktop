@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,8 +48,8 @@ import java.util.UUID
 import scala.Option.option2Iterable
 import scala.collection.immutable
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
@@ -79,7 +79,7 @@ import org.osgi.framework.BundleActivator
 import org.osgi.framework.BundleContext
 import org.digimead.configgy.Configgy
 
-object Data extends Loggable {
+object Data extends XLoggable {
 
 
   /*// Save type schema value to the current graph at every change.

@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationCreateElementFromTemplate
 import org.digimead.tabuddy.desktop.logic.payload.api.XElementTemplate
@@ -84,7 +84,7 @@ trait OperationCreateElementFromTemplate extends XOperationCreateElementFromTemp
 /**
  * Create a new element from template.
  */
-object OperationCreateElementFromTemplate extends Loggable {
+object OperationCreateElementFromTemplate extends XLoggable {
   /** Stable identifier with OperationCreateElementFromTemplate DI */
   lazy val operation = DI.operation.asInstanceOf[Option[OperationCreateElementFromTemplate]]
 
@@ -108,12 +108,12 @@ object OperationCreateElementFromTemplate extends Loggable {
   /** Bridge between abstract XOperation[Element] and concrete Operation[Element] */
   abstract class Abstract(val template: XElementTemplate, val container: Element)
     extends Operation[Element](s"Create a new element from $template for $container.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationCreateElementFromTemplate]
   }
 }

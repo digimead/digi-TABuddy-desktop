@@ -43,14 +43,14 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.marker
 
-import com.google.common.base.Charsets
-import com.google.common.io.Files
-import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, File, FileFilter, IOException }
+import com.google.common.collect.MapMaker
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, File, IOException }
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.{ Properties, UUID }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.digi.lib.util.FileUtil
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
@@ -65,12 +65,12 @@ import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PredefinedElements, TypeSchema }
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.SData
-import org.digimead.tabuddy.model.serialization.Serialization
+import org.digimead.tabuddy.model.serialization.{ SData, Serialization }
 import org.digimead.tabuddy.model.{ Model, Record }
 import org.eclipse.core.internal.utils.Policy
 import org.eclipse.core.resources.{ IFile, IResource }
 import org.eclipse.swt.widgets.{ Composite, Shell }
+import scala.collection.JavaConverters.mapAsScalaConcurrentMapConverter
 import scala.collection.{ immutable, mutable }
 
 /**
@@ -89,7 +89,7 @@ class GraphMarker(
   /** Container IResource unique id. */
   val uuid: UUID,
   /** Autoload property file if suitable information needed. */
-  val autoload: Boolean = true) extends XGraphMarker with MarkerSpecific with GraphSpecific with SerializationSpecific with Loggable {
+  val autoload: Boolean = true) extends XGraphMarker with MarkerSpecific with GraphSpecific with SerializationSpecific with XLoggable {
   /** Type schemas folder name. */
   val folderTypeSchemas = "typeSchemas"
   /** Resources index file name. */
@@ -378,7 +378,7 @@ class GraphMarker(
   override lazy val toString = s"GraphMarker[${uuid}]"
 }
 
-object GraphMarker extends Loggable {
+object GraphMarker extends XLoggable {
   /**
    * Field that contains map of graph additional storages except local one.
    * Value is indicating whether the location is available or not.
@@ -421,7 +421,7 @@ object GraphMarker extends Loggable {
    */
   val globalRWL = new ReentrantReadWriteLock
   /** Application wide GraphMarker states. */
-  protected val state = new mutable.HashMap[UUID, ThreadSafeState]() with mutable.SynchronizedMap[UUID, ThreadSafeState]
+  protected val state = new ConcurrentHashMap[UUID, ThreadSafeState].asScala
 
   /** Get marker for UUID. */
   def apply(uuid: UUID): GraphMarker = state.get(uuid).flatMap(_.graphMarkerSingleton) getOrElse new GraphMarker(uuid)
@@ -636,7 +636,7 @@ object GraphMarker extends Loggable {
    */
   class ThreadUnsafeState(val graphMarkerSingleton: Option[GraphMarker]) extends ThreadUnsafeStateReadOnly {
     /** Map of marker contexts binded with this graph. */
-    val contextRefs = new mutable.WeakHashMap[Context, Unit] with mutable.SynchronizedMap[Context, Unit]
+    val contextRefs = new MapMaker().weakKeys().makeMap[Context, Unit]().asScala
     /** Graph. */
     private var graphObjectContainer = Option.empty[Graph[_ <: Model.Like]]
     /** Graph properties. */

@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core
 
 import akka.actor.{ Inbox, PoisonPill, Terminated }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.digi.lib.{ DependencyInjection, Disposable }
 import org.digimead.tabuddy.desktop.core.api.XTranslation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
@@ -58,7 +58,7 @@ import scala.ref.WeakReference
 /**
  * OSGi entry point.
  */
-class Activator extends BundleActivator with definition.NLS.Initializer with EventLoop.Initializer with Loggable {
+class Activator extends BundleActivator with definition.NLS.Initializer with EventLoop.Initializer with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   @volatile protected var reportServiceTracker: Option[ServiceTracker[AnyRef, AnyRef]] = None
@@ -70,7 +70,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
       throw new IllegalStateException("Bundle is already disposed. Please reinstall it before activation.")
     log.debug("Start TA Buddy Desktop core.")
     // Subscribe for report service
-    val reportServiceTracker = new ServiceTracker(context, "org.digimead.digi.launcher.report.api.Report", Report)
+    val reportServiceTracker = new ServiceTracker(context, "org.digimead.digi.launcher.report.api.XReport", Report)
     reportServiceTracker.open()
     this.reportServiceTracker = Some(reportServiceTracker)
     // Subscribe for translation service
@@ -78,7 +78,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     translationServiceTracker.open()
     this.translationServiceTracker = Some(translationServiceTracker)
     // Setup DI for this bundle
-    val diReady = Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
+    val diReady = Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.XDependencyInjection])).
       map { currencyServiceRef ⇒ (currencyServiceRef, context.getService(currencyServiceRef)) } match {
         case Some((reference, diService)) ⇒
           diService.getDependencyValidator.foreach { validator ⇒
@@ -177,7 +177,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
 /**
  * Disposable manager. There is always only one singleton per class loader.
  */
-object Activator extends Disposable.Manager with Loggable {
+object Activator extends Disposable.Manager with XLoggable {
   @volatile private var disposable = Seq[WeakReference[Disposable]]()
   private val disposableLock = new Object
   private val startStopLock = new Object

@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic.ui.wizard
 
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.INewWizard
@@ -57,7 +57,7 @@ import org.eclipse.core.runtime.{ IStatus, Status }
 import org.eclipse.jface.dialogs.ErrorDialog
 import org.eclipse.jface.wizard.Wizard
 
-class WizardGraphNew extends Wizard with INewWizard with Loggable {
+class WizardGraphNew extends Wizard with INewWizard with XLoggable {
   /** The only available page. */
   lazy val one = new WizardGraphNewPageOne()
   setWindowTitle(Messages.shellTitleEmpty_text)

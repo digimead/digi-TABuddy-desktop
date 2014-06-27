@@ -43,13 +43,13 @@
 
 package org.digimead.tabuddy.desktop.core.keyring.generator.api
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 
 /**
  * PGP keyring generator public stub class.
  */
 trait XGenerator {
-  this: Loggable ⇒
+  this: XLoggable ⇒
   /** Identifier of the generation mechanism. */
   val identifier: XGenerator.Identifier
 }

@@ -47,8 +47,8 @@ import akka.actor.{ ActorContext, ActorRef }
 import akka.pattern.ask
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
@@ -69,7 +69,7 @@ import scala.language.implicitConversions
 /**
  * Create initial view content.
  */
-class ViewContentBuilder extends VComposite.ContextSetter with Loggable {
+class ViewContentBuilder extends VComposite.ContextSetter with XLoggable {
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
 
@@ -222,7 +222,7 @@ object ViewContentBuilder {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** ViewContentBuilder implementation. */
     lazy val implementation = injectOptional[ViewContentBuilder] getOrElse new ViewContentBuilder
   }

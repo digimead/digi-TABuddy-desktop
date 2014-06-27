@@ -44,15 +44,15 @@
 package org.digimead.tabuddy.desktop.logic.behaviour
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.language.implicitConversions
 
-class CloseGraphWhenLastViewIsClosed extends Loggable {
+class CloseGraphWhenLastViewIsClosed extends XLoggable {
   def run() {
     log.debug("Check for last view.")
     val allOpened = GraphMarker.list().map(GraphMarker(_)).filter(m ⇒ m.markerIsValid && m.graphIsOpen()).toSet
@@ -84,7 +84,7 @@ object CloseGraphWhenLastViewIsClosed {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** CloseGraphWhenLastViewIsClosed implementation. */
     lazy val implementation = injectOptional[CloseGraphWhenLastViewIsClosed] getOrElse new CloseGraphWhenLastViewIsClosed
   }

@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui.block
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.Resources
 import org.digimead.tabuddy.desktop.core.ui.block.api.XConfiguration.CPlaceHolder
@@ -90,7 +90,7 @@ case class Configuration(
   override lazy val toString = s"Configuration(timestamp: ${timestamp}, top stack layer: ${stack})"
 }
 
-object Configuration extends Loggable {
+object Configuration extends XLoggable {
   override def toString = "Configuration[Singleton]"
 
   /** View factory configuration. */

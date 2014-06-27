@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationModifyElement
 import org.digimead.tabuddy.model.element.Element
@@ -82,7 +82,7 @@ trait OperationModifyElement extends XOperationModifyElement {
 /**
  * Modify the element.
  */
-object OperationModifyElement extends Loggable {
+object OperationModifyElement extends XLoggable {
   /** Stable identifier with OperationModifyElement DI */
   lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyElement]]
 
@@ -105,12 +105,12 @@ object OperationModifyElement extends Loggable {
   /** Bridge between abstract XOperation[Element] and concrete Operation[Element] */
   abstract class Abstract(val element: Element)
     extends Operation[Element](s"Modify $element.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationModifyElement]
   }
 }

@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.logic.operation.graph
 import java.io.{ IOException, OutputStream }
 import java.net.URI
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Logic
@@ -63,7 +63,7 @@ import org.digimead.tabuddy.model.serialization.{ SData, Serialization, digest, 
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Export graph' operation. */
-class OperationGraphExport extends XOperationGraphExport with Loggable {
+class OperationGraphExport extends XOperationGraphExport with XLoggable {
   /**
    * Export graph.
    *
@@ -181,7 +181,7 @@ class OperationGraphExport extends XOperationGraphExport with Loggable {
     dParameters: Option[digest.Mechanism.Parameters], sParameters: Option[signature.Mechanism.Parameters],
     serialization: Option[Serialization.Identifier])
     extends OperationGraphExport.Abstract(graph, location, overwrite,
-      containerEncParameters, contentEncParameters, dParameters, sParameters, serialization) with Loggable {
+      containerEncParameters, contentEncParameters, dParameters, sParameters, serialization) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -209,7 +209,7 @@ class OperationGraphExport extends XOperationGraphExport with Loggable {
   }
 }
 
-object OperationGraphExport extends Loggable {
+object OperationGraphExport extends XLoggable {
   /** Stable identifier with OperationGraphExport DI */
   lazy val operation = DI.operation.asInstanceOf[OperationGraphExport]
 
@@ -240,12 +240,12 @@ object OperationGraphExport extends Loggable {
     val contentEncParameters: Option[XEncryption.Parameters],
     val dParameters: Option[digest.Mechanism.Parameters], val sParameters: Option[signature.Mechanism.Parameters],
     val serialization: Option[Serialization.Identifier]) extends Operation[Unit](s"Export ${graph} to ${location}.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationGraphExport] getOrElse new OperationGraphExport
   }
 }

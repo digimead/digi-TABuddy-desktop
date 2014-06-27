@@ -46,14 +46,14 @@ package org.digimead.tabuddy.desktop.core.support
 import akka.actor.{ Actor, actorRef2Scala }
 import akka.event.Logging
 import akka.event.Logging.{ InitializeLogger, LogEvent, LoggerInitialized }
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.slf4j.LoggerFactory
 
 /**
  * Akka log bridge.
  */
-class AkkaLogBridge extends Actor with Loggable {
+class AkkaLogBridge extends Actor with XLoggable {
   override def receive: Receive = {
     case InitializeLogger(_) ⇒ sender ! LoggerInitialized
     case event: LogEvent ⇒ try {
@@ -87,7 +87,7 @@ object AkkaLogBridge {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val logError = injectOptional[Boolean]("Core.AkkaLogBridge.Error") getOrElse true
     lazy val logWarning = injectOptional[Boolean]("Core.AkkaLogBridge.Warning") getOrElse true
     lazy val logInfo = injectOptional[Boolean]("Core.AkkaLogBridge.Info") getOrElse false

@@ -46,12 +46,12 @@ package org.digimead.tabuddy.desktop.core.support.app
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.{ Exchanger, TimeUnit, TimeoutException }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 
 trait Thread {
-  this: Generic with Loggable ⇒
+  this: Generic with XLoggable ⇒
   /** Timestamp with last exec request. */
   protected val eventThreadLastEvent = new AtomicLong(System.currentTimeMillis())
 
@@ -175,7 +175,7 @@ trait Thread {
    * NB This routine block the event thread, so it would be possible to freeze the application for a few hours.
    */
   @throws[TimeoutException]("If the specified waiting time elapses before another thread enters the exchange")
-  def execNGetAsync[T](timeout: Int, unit: TimeUnit = TimeUnit.MILLISECONDS)(f: ⇒ T): T = {
+  def execNGetAsyncWithTimeout[T](timeout: Int, unit: TimeUnit = TimeUnit.MILLISECONDS)(f: ⇒ T): T = {
     if (isEventLoop)
       throw new IllegalStateException("Unable to spawn execNGetAsync runnable with timeout within event thread.")
     val exchanger = new Exchanger[Either[Throwable, T]]()

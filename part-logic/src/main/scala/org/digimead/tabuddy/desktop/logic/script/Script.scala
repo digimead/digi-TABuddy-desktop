@@ -47,20 +47,20 @@ import java.io.File
 import java.math.BigInteger
 import java.net.URI
 import java.security.MessageDigest
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.core.runtime.FileLocator
 import org.osgi.framework.Bundle
 import scala.language.implicitConversions
+import scala.reflect.internal.util.AbstractFileClassLoader
 import scala.reflect.io.VirtualDirectory
 import scala.tools.nsc.Settings
-import scala.tools.nsc.interpreter.AbstractFileClassLoader
 
 /**
  * Code evaluator.
  */
-class Script extends Loggable {
+class Script extends XLoggable {
   /** Evaluation class path. */
   lazy val classPath = buildClassPath(App.bundle(getClass))
   /** Evaluation settings. */
@@ -185,7 +185,7 @@ object Script {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Script implementation. */
     lazy val implementation = injectOptional[Script] getOrElse new Script
     /** Digest algorithm. */

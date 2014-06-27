@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationDeleteElement
 import org.digimead.tabuddy.model.Model
@@ -84,7 +84,7 @@ trait OperationDeleteElement extends XOperationDeleteElement {
 /**
  * Delete the element.
  */
-object OperationDeleteElement extends Loggable {
+object OperationDeleteElement extends XLoggable {
   /** Stable identifier with OperationDeleteElement DI */
   lazy val operation = DI.operation.asInstanceOf[Option[OperationDeleteElement]]
 
@@ -108,12 +108,12 @@ object OperationDeleteElement extends Loggable {
   /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val element: Element, val interactive: Boolean)
     extends Operation[Unit](s"Delete $element.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationDeleteElement]
   }
 }

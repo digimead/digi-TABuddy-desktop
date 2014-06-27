@@ -49,7 +49,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.{ Inject, Named }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
@@ -73,7 +73,7 @@ import scala.language.implicitConversions
  */
 class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: WindowConfiguration, val ref: ActorRef,
   @Named("StackSupervisorActorRef") val supervisorRef: ActorRef, val windowContext: Context, @Optional parentShell: Shell)
-  extends ApplicationWindow(parentShell) with WComposite.ContextSetter with Window.WindowMapDisposer with Loggable {
+  extends ApplicationWindow(parentShell) with WComposite.ContextSetter with Window.WindowMapDisposer with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */

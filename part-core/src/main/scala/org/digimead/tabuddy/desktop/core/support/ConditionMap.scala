@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,13 +43,15 @@
 
 package org.digimead.tabuddy.desktop.core.support
 
-import scala.collection.{ immutable, mutable }
+import java.util.concurrent.ConcurrentHashMap
+import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.collection.immutable
 
 /**
  * Condition map that allow to invoke test F(conditions) after each change.
  */
 trait ConditionMap[T] {
-  protected val conditions = new mutable.HashMap[String, T] with mutable.SynchronizedMap[String, T]
+  protected val conditions = new ConcurrentHashMap[String, T].asScala
   private val testLock = new Object
 
   /** Invoke user test. */

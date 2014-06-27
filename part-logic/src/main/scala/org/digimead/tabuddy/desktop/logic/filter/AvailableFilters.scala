@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.filter
 
 import java.util.UUID
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.tabuddy.desktop.logic.filter.api.XFilter
 import scala.collection.immutable
 
@@ -58,7 +58,7 @@ object AvailableFilters {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Filter item that is selected by default. */
     lazy val defaultFilter = map(inject[UUID]("Logic.Filter.Default"))
     /** Map of filters that is available for application. */

@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.core.ui.command.view
 
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
@@ -61,7 +61,7 @@ import scala.util.DynamicVariable
 /**
  * Create new or select exists view by name.
  */
-object CommandView extends Loggable {
+object CommandView extends XLoggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher

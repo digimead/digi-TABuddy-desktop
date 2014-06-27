@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.core.console
 
 import akka.actor.{ Actor, ActorRef, Props, ScalaActorRef, actorRef2Scala }
 import java.util.Properties
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.api.XConsole
 import org.digimead.tabuddy.desktop.core.definition.Operation
@@ -62,7 +62,7 @@ import scala.util.Success
 /**
  * Console actor of the application.
  */
-class Console extends Actor with Loggable {
+class Console extends Actor with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Set of the consoles. */
@@ -204,7 +204,7 @@ class Console extends Actor with Loggable {
   protected def echo(msg: String) = consoles.foreach(_.echo(msg + Console.RESET))
 }
 
-object Console extends XConsole with Loggable {
+object Console extends XConsole with XLoggable {
   implicit def console2actorRef(c: Console.type): ActorRef = c.actor
   implicit def console2actorSRef(c: Console.type): ScalaActorRef = c.actor
   /** Console actor reference. */
@@ -299,7 +299,7 @@ object Console extends XConsole with Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** List of application consoles. */
     lazy val consoleList: Seq[XConsole.Projection] = {
       bindingModule.bindings.filter {

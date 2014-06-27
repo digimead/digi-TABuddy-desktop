@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,12 +43,12 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.{ ToolBarContributionItem, ToolBarManager }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 
-object WindowToolbar extends Loggable {
+object WindowToolbar extends XLoggable {
   /** ToolBar descriptor. */
   case class Descriptor(val id: String, val factory: () ⇒ ToolBarManager = () ⇒ new ToolBarManager())
   /** Return toolbar with the specific id from the window CoolBarManager. */

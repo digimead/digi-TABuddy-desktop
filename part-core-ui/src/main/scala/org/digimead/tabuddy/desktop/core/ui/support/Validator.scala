@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.support
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.ui.Resources
 import org.eclipse.jface.fieldassist.ControlDecoration
@@ -60,7 +60,7 @@ class Validator private[support] (
   showOnlyOnFocus: Boolean,
   /** Validation callback */
   callback: (Validator, VerifyEvent) ⇒ Any)
-  extends VerifyListener with Loggable {
+  extends VerifyListener with XLoggable {
   withDecoration { decoration ⇒
     val control = decoration.getControl()
     decoration.setShowOnlyOnFocus(true)

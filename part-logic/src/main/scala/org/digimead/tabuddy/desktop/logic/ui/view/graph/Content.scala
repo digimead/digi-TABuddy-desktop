@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.ui.view.graph
 
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableValue
@@ -68,7 +68,7 @@ import org.eclipse.swt.widgets.Composite
 /**
  * Graph content.
  */
-class Content(val context: Context, parent: Composite, style: Int) extends ContentSkel(parent, style) with Loggable {
+class Content(val context: Context, parent: Composite, style: Int) extends ContentSkel(parent, style) with XLoggable {
   ContextInjectionFactory.inject(Content.this, context)
   lazy val delayedMarkerUpdater = WritableValue(System.currentTimeMillis(): java.lang.Long)
 
@@ -224,7 +224,7 @@ class Content(val context: Context, parent: Composite, style: Int) extends Conte
   }
 }
 
-object Content extends Loggable {
+object Content extends XLoggable {
   /** Pass only active elements. */
   object ActiveFilter extends ViewerFilter {
     /** Filters the given elements for the given viewer. The input array is not modified. */

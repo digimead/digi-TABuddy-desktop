@@ -44,13 +44,14 @@
 package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
 import akka.actor.{ ActorRef, actorRef2Scala }
+import com.google.common.collect.MapMaker
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.widgets.Composite
-import scala.collection.mutable
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.ref.WeakReference
 
 /** Window actual content container. */
@@ -76,7 +77,7 @@ class WComposite(val id: UUID, val ref: ActorRef, val window: WeakReference[AppW
 }
 
 object WComposite {
-  protected val contextMap = new mutable.WeakHashMap[WComposite, Context]() with mutable.SynchronizedMap[WComposite, Context]
+  protected val contextMap = new MapMaker().weakKeys().makeMap[WComposite, Context]().asScala
 
   /** Set context for WComposite. */
   trait ContextSetter {

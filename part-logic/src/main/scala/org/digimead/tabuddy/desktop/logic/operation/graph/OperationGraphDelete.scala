@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphDelete
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
@@ -55,7 +55,7 @@ import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Delete graph' operation. */
-class OperationGraphDelete extends XOperationGraphDelete with Loggable {
+class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
   protected val operationLock = new Object()
   /**
    * Delete graph.
@@ -107,7 +107,7 @@ class OperationGraphDelete extends XOperationGraphDelete with Loggable {
   override protected def checkSubclass() {}
 
   class Implementation(graph: Graph[_ <: Model.Like], askBefore: Boolean)
-    extends OperationGraphDelete.Abstract(graph, askBefore) with Loggable {
+    extends OperationGraphDelete.Abstract(graph, askBefore) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -132,7 +132,7 @@ class OperationGraphDelete extends XOperationGraphDelete with Loggable {
   }
 }
 
-object OperationGraphDelete extends Loggable {
+object OperationGraphDelete extends XLoggable {
   /** Stable identifier with OperationGraphDelete DI */
   lazy val operation = DI.operation.asInstanceOf[OperationGraphDelete]
 
@@ -150,12 +150,12 @@ object OperationGraphDelete extends Loggable {
   /** Bridge between abstract XOperation[UUID] and concrete Operation[UUID] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val askBefore: Boolean)
     extends Operation[XGraphMarker](s"Delete $graph.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationGraphDelete] getOrElse new OperationGraphDelete
   }
 }

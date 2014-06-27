@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.core.operation
 
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.operation.api.XOperationCommands
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Get commands' operation. */
-class OperationCommands extends XOperationCommands with Loggable {
+class OperationCommands extends XOperationCommands with XLoggable {
   /**
    * Get commands.
    */
@@ -87,7 +87,7 @@ class OperationCommands extends XOperationCommands with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(onlyAvailable: Boolean) extends OperationCommands.Abstract() with Loggable {
+  class Implemetation(onlyAvailable: Boolean) extends OperationCommands.Abstract() with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -117,12 +117,12 @@ object OperationCommands {
 
   /** Bridge between abstract XOperation[Seq[api.Descriptor]] and concrete Operation[Seq[Command.Descriptor]] */
   abstract class Abstract() extends Operation[Seq[Command.Descriptor]](s"Get commands.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationCommands] getOrElse new OperationCommands
   }
 }

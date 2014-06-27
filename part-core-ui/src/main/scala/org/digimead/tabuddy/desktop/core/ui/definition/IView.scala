@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.core.ui.definition
 import akka.actor.{ Actor, ActorRef, actorRef2Scala }
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block
@@ -59,7 +59,7 @@ import org.eclipse.swt.widgets.{ Composite, Widget }
  * Base trait for view content.
  */
 trait IView {
-  this: Actor with Loggable ⇒
+  this: Actor with XLoggable ⇒
   /** Unique content/view/actor id. */
   val contentId: UUID
   /** View factory. */

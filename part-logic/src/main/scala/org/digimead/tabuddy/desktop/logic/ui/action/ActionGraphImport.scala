@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic.ui.action
 
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.App.app2implementation
@@ -58,7 +58,7 @@ import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.digimead.tabuddy.desktop.logic.ui.dialog.GraphImportDialog
 
-class ActionGraphImport @Inject() (windowContext: Context) extends Action(Messages.importFile_text) with Loggable {
+class ActionGraphImport @Inject() (windowContext: Context) extends Action(Messages.importFile_text) with XLoggable {
   //this.setText(WorkbenchMessages.ImportResourcesAction_text);
   //this.setToolTipText(WorkbenchMessages.ImportResourcesAction_toolTip);
   //PlatformUI.getWorkbench().getHelpSystem().setHelp(this, IWorkbenchHelpContextIds.IMPORT_ACTION)

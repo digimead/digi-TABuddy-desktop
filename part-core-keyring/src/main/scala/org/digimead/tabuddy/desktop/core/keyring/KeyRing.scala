@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.core.keyring
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.keyring.random.SimpleRandom
@@ -60,7 +60,7 @@ import scala.language.implicitConversions
 /**
  * Root actor of the KeyRing(RFC4880) component.
  */
-class KeyRing extends akka.actor.Actor with Loggable {
+class KeyRing extends akka.actor.Actor with XLoggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef](KeyRing)
   /** Current bundle */
@@ -229,7 +229,7 @@ object KeyRing {
    * Keyring implementation.
    */
   class Implementation extends KeyRingExchange with KeyRingGeneral
-    with KeyRingSignature with KeyRingTransform with Loggable
+    with KeyRingSignature with KeyRingTransform with XLoggable
   /**
    * Signature notation. rfc2440 5.2.3.15.
    */
@@ -237,7 +237,7 @@ object KeyRing {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Default pass phrase for all keys. */
     lazy val defaultPassPhrase = injectOptional[String]("KeyRing.DefaultPassPhrase") getOrElse "TABuddyPublicPassPhrase"
     /**

@@ -46,13 +46,11 @@ package org.digimead.tabuddy.desktop.core.definition
 import java.lang.reflect.{ Field, Modifier }
 import java.security.{ AccessController, PrivilegedAction }
 import java.util.Locale
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.api.XTranslation
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.support.{ App, Timeout }
 import org.osgi.util.tracker.ServiceTracker
-import scala.Array.canBuildFrom
 import scala.collection.{ immutable, mutable }
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -61,7 +59,7 @@ import scala.concurrent.duration.Duration
  * Apply translation to singleton.
  */
 abstract class NLS extends XTranslation.NLS {
-  this: Loggable ⇒
+  this: XLoggable ⇒
   val T = new TranslationImplementation {}
   log.debug(this + " NLS singleton is alive")
 
@@ -194,7 +192,7 @@ object NLS {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Translation service registration timeout. */
     lazy val timeout = injectOptional[Duration]("Core.NLS") getOrElse Timeout.short
   }

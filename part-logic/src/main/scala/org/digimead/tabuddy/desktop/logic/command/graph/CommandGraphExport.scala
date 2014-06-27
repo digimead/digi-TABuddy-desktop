@@ -47,7 +47,7 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
@@ -62,7 +62,7 @@ import scala.util.DynamicVariable
 /**
  * Export graph.
  */
-object CommandGraphExport extends Loggable {
+object CommandGraphExport extends XLoggable {
   import Command.parser._
   private val forceArg = "-force"
   /** Akka execution context. */

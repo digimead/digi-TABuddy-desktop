@@ -43,8 +43,8 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block.transform
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackTabBuilder
@@ -55,7 +55,7 @@ import org.eclipse.swt.SWT
 import scala.language.implicitConversions
 
 /** Attach view to tab stack. */
-class TransformAttachView extends Loggable {
+class TransformAttachView extends XLoggable {
   def apply(sl: StackLayer, tabComposite: SCompositeTab, viewConfiguration: Configuration.CView, content: Option[VComposite]): Option[VComposite] = {
     content match {
       case Some(_) ⇒ log.debug(s"Attach exists ${viewConfiguration} to ${tabComposite}.")
@@ -84,7 +84,7 @@ object TransformAttachView {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** TransformAttachView implementation */
     lazy val implementation = injectOptional[TransformAttachView] getOrElse new TransformAttachView
   }

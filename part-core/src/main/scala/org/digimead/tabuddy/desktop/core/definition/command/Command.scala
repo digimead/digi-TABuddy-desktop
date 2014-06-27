@@ -44,16 +44,18 @@
 package org.digimead.tabuddy.desktop.core.definition.command
 
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.eclipse.e4.core.contexts.{ ContextFunction, IEclipseContext, RunAndTrack }
 import org.eclipse.jface.fieldassist.{ ContentProposal, IContentProposal, IContentProposalProvider }
-import scala.collection.{ immutable, mutable }
+import scala.collection.JavaConverters.mapAsScalaMapConverter
+import scala.collection.immutable
 import scala.concurrent.Future
 import scala.language.implicitConversions
 import scala.util.DynamicVariable
@@ -62,16 +64,16 @@ import scala.util.parsing.input.CharSequenceReader
 /**
  * Command supervisor.
  */
-class Command extends Loggable {
+class Command extends XLoggable {
   /**
    * The composite parser from all actual parser combinators over the application.
    * It is based on the current active context branch.
    */
   protected val actualParserCombinators = new AtomicReference[Command.parser.Parser[Any]](Command.parser.stubParser)
   /** Registry with registered commands. Parser id -> command descriptor. */
-  protected val registry = new mutable.HashMap[UUID, Command.Descriptor] with mutable.SynchronizedMap[UUID, Command.Descriptor]
+  protected val registry = new ConcurrentHashMap[UUID, Command.Descriptor].asScala
   /** Registry with information about all active parsers within application contexts. Unique id of parser -> context information. */
-  protected val perContext = new mutable.HashMap[UUID, Command.ContextInformation] with mutable.SynchronizedMap[UUID, Command.ContextInformation]
+  protected val perContext = new ConcurrentHashMap[UUID, Command.ContextInformation].asScala
   /** Run and track active branch context listener. */
   protected lazy val listener = new Command.Listener(actualParserCombinators)
   private val contextCommandsAccessLock = new Object
@@ -133,11 +135,8 @@ class Command extends Loggable {
   def getContextParserInfo(uniqueId: UUID) = perContext.get(uniqueId)
   /** List all registered commands. */
   def registered = registry.values
-  /** Parse input against active parser. */
-  def parse(input: String): Command.Result =
-    parse(actualParserCombinators.get, input)
   /** Parse input. */
-  def parse(parser: Command.parser.Parser[Any], input: String): Command.Result = {
+  def parse(input: String, parser: Command.parser.Parser[Any] = actualParserCombinators.get): Command.Result = {
     val (parserId, proposals, result) = Command.triggeredCmdParserId.withValue(None) {
       Command.completionProposal.withValue(Seq.empty) {
         try {
@@ -228,7 +227,7 @@ class Command extends Loggable {
 /**
  * Monitor all actual commands add provide them with IContentProposalProvider
  */
-object Command extends Loggable {
+object Command extends XLoggable {
   implicit def cmdLine2implementation(c: Command.type): Command = c.inner
   /** Last parsing process completion. */
   val completionProposal = new DynamicVariable(Seq.empty[CommandParsers#MissingCompletionOrFailure])
@@ -312,7 +311,7 @@ object Command extends Loggable {
     def setInput(text: String) = input = text
     /** Return an array of content proposals representing the valid proposals for a field. */
     def getProposals(contents: String, position: Int): Array[IContentProposal] = {
-      Command.parse(actualParserCombinators.get, input) match {
+      Command.parse(input, actualParserCombinators.get) match {
         case Command.Success(uniqueId, result) ⇒
           Array()
         case Command.MissingCompletionOrFailure(hints, message) ⇒
@@ -412,7 +411,7 @@ object Command extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Command implementation. */
     lazy val implementation = injectOptional[Command] getOrElse new Command
     /** Parser implementation. */

@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.core.operation
 
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Report
 import org.digimead.tabuddy.desktop.core.api.XInfo
 import org.digimead.tabuddy.desktop.core.definition.Operation
@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.operation.api.XOperationInfo
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Get information' operation. */
-class OperationInfo extends XOperationInfo with Loggable {
+class OperationInfo extends XOperationInfo with XLoggable {
   /**
    * Get information.
    */
@@ -84,7 +84,7 @@ class OperationInfo extends XOperationInfo with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation() extends OperationInfo.Abstract() with Loggable {
+  class Implemetation() extends OperationInfo.Abstract() with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -114,12 +114,12 @@ object OperationInfo {
 
   /** Bridge between abstract XOperation[api.Info] and concrete Operation[Report.Info] */
   abstract class Abstract() extends Operation[Report.Info](s"Get information.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationInfo] getOrElse new OperationInfo
   }
 }

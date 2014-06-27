@@ -44,18 +44,17 @@
 package org.digimead.tabuddy.desktop.logic.script
 
 import java.util.concurrent.atomic.AtomicInteger
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import scala.collection.mutable
 import scala.reflect.internal.util.{ BatchSourceFile, Position }
-import scala.tools.nsc.io.VirtualDirectory
-import scala.tools.nsc.reporters.AbstractReporter
 import scala.tools.nsc.{ Global, Settings }
-import org.digimead.digi.lib.log.api.Loggable
+import scala.tools.nsc.reporters.AbstractReporter
 
 /**
  * Thread safe compiler implementation with global lock.
  */
-class Compiler(val settings: Settings) extends Loggable {
+class Compiler(val settings: Settings) extends XLoggable {
   /** Compiler state. */
   lazy val global = new Global(settings, reporter)
   /** Synchronization lock. */
@@ -116,7 +115,8 @@ object Compiler {
         try "line " + (pos.line - lineOffset.get())
         catch { case _: Throwable ⇒ "" }
       accumulator += (severityName + lineMessage + ": " + message) :: (if (pos.isDefined)
-        pos.inUltimateSource(pos.source).lineContent.stripLineEnd :: (" " * (pos.column - 1) + "^") :: Nil
+        // DEPRECATED: pos.inUltimateSource(pos.source).lineContent.stripLineEnd :: (" " * (pos.column - 1) + "^") :: Nil
+        pos.lineContent.stripLineEnd :: (" " * (pos.column - 1) + "^") :: Nil
       else
         Nil)
     }
@@ -130,7 +130,7 @@ object Compiler {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Padding in verbose mode. */
     lazy val codePad = injectOptional[Int]("Script.Padding") getOrElse 5
   }

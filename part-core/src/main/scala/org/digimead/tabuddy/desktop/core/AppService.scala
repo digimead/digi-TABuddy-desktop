@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.core
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import org.digimead.digi.lib.Disposable
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.api.XMain
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -63,7 +63,7 @@ import scala.language.implicitConversions
 /**
  * Application entry point for Digi Launcher
  */
-class AppService extends XMain with Disposable.Default with Loggable {
+class AppService extends XMain with Disposable.Default with XLoggable {
   /** Application context timeout. */
   protected val applicationContextTimeout = Timeout.long
   /** Weak reference with manager for disposable marker. */
@@ -102,7 +102,7 @@ class AppService extends XMain with Disposable.Default with Loggable {
    * Application entry point from launcher.
    * @return the return value of the application. IApplication.EXIT_OK, IApplication.EXIT_RESTART or -1
    */
-  def call(): Int = try {
+  def call(): Int = {
     log.info("Run core.")
     // Waiting for IApplicationContext service.
     // Assume that platform is started when IApplicationContext is available.
@@ -309,7 +309,7 @@ class AppService extends XMain with Disposable.Default with Loggable {
   /** Update dependency injections. */
   protected def updateDI() {
     val context = App.bundle(getClass).getBundleContext
-    Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
+    Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.XDependencyInjection])).
       map { currencyServiceRef ⇒ (currencyServiceRef, context.getService(currencyServiceRef)) } match {
         case Some((reference, diService)) ⇒
           // DI is already initialized somewhere.
@@ -329,7 +329,7 @@ class AppService extends XMain with Disposable.Default with Loggable {
   }
 }
 
-object AppService extends Loggable {
+object AppService extends XLoggable {
   implicit def main2implementation(a: AppService.type): AppService = a.inner
   private val disposeableLock = new Object
 
@@ -339,7 +339,7 @@ object AppService extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Main service implementation. */
     lazy val implementation = injectOptional[AppService] getOrElse new AppService()
   }

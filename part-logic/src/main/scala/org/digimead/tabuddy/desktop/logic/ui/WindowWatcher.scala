@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.logic.ui
 
 import akka.actor.{ Actor, ActorRef, Props }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
 import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
@@ -58,7 +58,7 @@ import org.eclipse.jface.action.Separator
  * Register action in new windows.
  * There is no need subscribe to App.Message.Destroyed because SWT dispose will do all job.
  */
-class WindowWatcher extends Actor with Loggable {
+class WindowWatcher extends Actor with XLoggable {
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
@@ -147,7 +147,7 @@ object WindowWatcher {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** WindowWatcher actor reference configuration object. */
     lazy val props = injectOptional[Props]("Logic.WindowWatcher") getOrElse Props[WindowWatcher]
   }

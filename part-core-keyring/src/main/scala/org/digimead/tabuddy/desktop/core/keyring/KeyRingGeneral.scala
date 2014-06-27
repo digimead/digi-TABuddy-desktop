@@ -49,7 +49,7 @@ import org.bouncycastle.bcpg.{ HashAlgorithmTags, PublicKeyAlgorithmTags, Symmet
 import org.bouncycastle.bcpg.sig.{ Features, KeyFlags }
 import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPPrivateKey, PGPPublicKeyRingCollection, PGPSecretKey, PGPSecretKeyRingCollection, PGPSignature, PGPSignatureSubpacketGenerator }
 import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyDecryptorBuilder, BcPBESecretKeyEncryptorBuilder, BcPGPContentSignerBuilder, BcPGPDigestCalculatorProvider, BcPGPKeyPair }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.keyring.generator.Generator
 import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
 import org.eclipse.core.runtime.NullProgressMonitor
@@ -58,7 +58,7 @@ import org.eclipse.core.runtime.NullProgressMonitor
  * General part for keyring implementation.
  */
 trait KeyRingGeneral {
-  this: KeyRing.Implementation with Loggable ⇒
+  this: KeyRing.Implementation with XLoggable ⇒
   /** PublicKeyRingCollection with the latest content. */
   protected var actualPublicKeyRingCollection = new PGPPublicKeyRingCollection(new ArrayList())
   /** SecretKeyRingCollection with the latest content. */

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,14 +44,14 @@
 package org.digimead.tabuddy.desktop.core.ui
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.ui.definition.IWizard
 import org.eclipse.jface.wizard.WizardDialog
 import org.eclipse.swt.widgets.Shell
 import scala.language.implicitConversions
 
-class Wizards extends Loggable {
+class Wizards extends XLoggable {
   private val lock = new Object
 
   /** Show wizard by class. */
@@ -102,7 +102,7 @@ object Wizards {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Wizards implementation */
     lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
   }

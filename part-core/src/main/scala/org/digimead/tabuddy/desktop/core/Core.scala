@@ -47,8 +47,8 @@ import akka.actor.{ ActorRef, Props, ScalaActorRef, UnhandledMessage, actorRef2S
 import java.util.concurrent.atomic.AtomicLong
 import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.api.XMain
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
@@ -81,7 +81,7 @@ import scala.language.implicitConversions
 /**
  * Root actor of the Core component.
  */
-class Core extends akka.actor.Actor with Loggable {
+class Core extends akka.actor.Actor with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Inconsistent elements. */
@@ -209,7 +209,11 @@ class Core extends akka.actor.Actor with Loggable {
         Core.DI.approvers.foreach(Operation.history.addOperationApprover)
       } else
         log.info("Start application without GUI.")
-      try startWorkbench() catch { case e: Throwable ⇒ log.error("Unable to start workbench: " + e.getMessage, e) }
+      try startWorkbench() catch {
+        case e: Throwable ⇒
+          log.error("Unable to start workbench: " + e.getMessage, e)
+          throw e
+      }
       command.Commands.configure()
       Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
       Console ! App.Message.Start(Console, None)
@@ -232,7 +236,7 @@ class Core extends akka.actor.Actor with Loggable {
     }
   }
   /** Start platform workbench. */
-  protected def startWorkbench() = App.execNGet {
+  protected def startWorkbench() = {
     log.debug("Start workbench.")
     /*
      * BLAME FOR PLATFORM DEVELOPERS. KILL'EM ALL :-/ HATE THOSE MONKEYS
@@ -250,8 +254,6 @@ class Core extends akka.actor.Actor with Loggable {
     val instance = classOf[Workbench].getDeclaredField("instance")
     if (!instance.isAccessible())
       instance.setAccessible(true)
-    instance.set(null, null)
-    oldWorkbench.foreach(Disposable.clean)
     // We may but not use E4Application.createDefaultContext() or E4Application.createDefaultHeadlessContext()
     val workbenchContext = Core.context.createChild("workbench")
     val mApplication = new Core.ApplicationStub(workbenchContext)
@@ -268,24 +270,34 @@ class Core extends akka.actor.Actor with Loggable {
     workbenchContext.set(classOf[IPresentationEngine], new Core.PresentationEngineStub())
     workbenchContext.set(classOf[MApplication], mApplication)
     workbenchContext.set(classOf[BindingManager], new BindingManager(workbenchContext.get(classOf[ContextManager]), workbenchContext.get(classOf[CommandManager])))
-    val workbench = constructor.newInstance(App.display, new WorkbenchAdvisor {
-      def getInitialWindowPerspectiveId() = ""
-    }, mApplication, workbenchContext)
-    instance.set(null, workbench)
+    val workbench = App.execNGet {
+      instance.set(null, null)
+      oldWorkbench.foreach(Disposable.clean)
+      Core.DI.beforeWorkbenchCreate.foreach(_())
+      val workbench = constructor.newInstance(App.display, new WorkbenchAdvisor {
+        def getInitialWindowPerspectiveId() = ""
+      }, mApplication, workbenchContext)
+      instance.set(null, workbench)
+      workbench
+    }
     // init
     val initMethod = classOf[Workbench].getDeclaredMethod("init")
     if (!initMethod.isAccessible())
       initMethod.setAccessible(true)
-    initMethod.invoke(workbench)
-    // adjust
-    workbench.getService(classOf[ISourceProviderService]) match {
-      case sourceProviderService: SourceProviderService ⇒
-        val providers = sourceProviderService.getSourceProviders()
-        providers.foreach { provider ⇒
-          sourceProviderService.unregisterProvider(provider)
-          provider.dispose()
-        }
-      case _ ⇒
+    App.execNGet {
+      Core.DI.beforeWorkbenchInit.foreach(_())
+      initMethod.invoke(workbench)
+      // adjust
+      workbench.getService(classOf[ISourceProviderService]) match {
+        case sourceProviderService: SourceProviderService ⇒
+          val providers = sourceProviderService.getSourceProviders()
+          providers.foreach { provider ⇒
+            sourceProviderService.unregisterProvider(provider)
+            provider.dispose()
+          }
+        case _ ⇒
+      }
+      Core.DI.afterWorkbenchInit.foreach(_())
     }
     assert(PlatformUI.isWorkbenchRunning())
   }
@@ -307,7 +319,7 @@ class Core extends akka.actor.Actor with Loggable {
   }
 }
 
-object Core extends Loggable {
+object Core extends XLoggable {
   implicit def core2actorRef(c: Core.type): ActorRef = c.actor
   implicit def core2actorSRef(c: Core.type): ScalaActorRef = c.actor
   /** Core actor reference. */
@@ -402,7 +414,9 @@ object Core extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
+    /** Hook method that is invoked after a workbench is initialized. */
+    lazy val afterWorkbenchInit = injectOptional[Function0[Unit]]("AfterWorkbenchInit")
     /**
      * Collection of operation approvers.
      *
@@ -423,6 +437,10 @@ object Core extends Loggable {
             None
         }
     }.flatten
+    /** Hook method that is invoked before a workbench is created. */
+    lazy val beforeWorkbenchCreate = injectOptional[Function0[Unit]]("BeforeWorkbenchCreate")
+    /** Hook method that is invoked before a workbench is initialized. */
+    lazy val beforeWorkbenchInit = injectOptional[Function0[Unit]]("BeforeWorkbenchInit")
     /** Core Akka factory. */
     lazy val props = injectOptional[Props]("Core") getOrElse Props[Core]
   }

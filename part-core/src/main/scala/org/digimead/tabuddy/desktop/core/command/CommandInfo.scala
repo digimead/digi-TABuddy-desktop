@@ -47,7 +47,7 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
@@ -63,7 +63,7 @@ import scala.language.reflectiveCalls
 /**
  * Info command that starts 'Get information' operation.
  */
-object CommandInfo extends Loggable {
+object CommandInfo extends XLoggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher

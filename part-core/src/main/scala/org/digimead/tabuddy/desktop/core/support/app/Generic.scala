@@ -48,7 +48,7 @@ import java.io.File
 import java.io.{ PrintWriter, StringWriter }
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.EventLoop
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.eclipse.core.runtime.preferences.InstanceScope
@@ -62,7 +62,7 @@ import scala.annotation.tailrec
 import scala.language.reflectiveCalls
 
 trait Generic extends EventLoop.Consumer {
-  this: Loggable with Context with Thread with Watch ⇒
+  this: XLoggable with Context with Thread with Watch ⇒
   /** Flag indicating whether debug methods is enabled. */
   val debug = debugMode
   /** Application preference store. */

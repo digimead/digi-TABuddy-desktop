@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.ui.dialog
 
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.swt.custom.StackLayout
@@ -74,7 +74,7 @@ class GraphImportDialog @Inject() (
   /** This dialog context. */
   val context: IEclipseContext,
   /** Parent shell. */
-  val parentShell: Shell) extends GraphImportDialogSkel(parentShell) with Dialog with Loggable {
+  val parentShell: Shell) extends GraphImportDialogSkel(parentShell) with Dialog with XLoggable {
   /** File transfer instance. */
   lazy val fileTransfer = FileTransfer.getInstance()
   /** Text transfer instance. */

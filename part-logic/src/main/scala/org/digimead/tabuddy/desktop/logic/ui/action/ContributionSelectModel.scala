@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.logic.action
 import scala.collection.mutable
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.Resources
 import org.digimead.tabuddy.desktop.core.Resources.resources2implementation
@@ -89,7 +89,7 @@ import org.eclipse.swt.widgets.Control
 import org.eclipse.swt.widgets.Label
 import org.eclipse.swt.widgets.Widget
 
-class ContributionSelectModel extends ControlContribution(ContributionSelectModel.id) with Loggable {
+class ContributionSelectModel extends ControlContribution(ContributionSelectModel.id) with XLoggable {
   val id = getClass.getName
   @volatile protected var combo: Option[ComboViewer] = None
   @volatile protected var label: Option[Label] = None

@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.payload
 
 import java.util.UUID
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.{ WritableMap, WritableValue }
@@ -62,7 +62,7 @@ import org.digimead.tabuddy.model.serialization.Serialization
 /*
  * Most of lazy fields of this class is initialized from event loop at GraphMarker.initializePayload
  */
-class Payload(val marker: GraphMarker) extends Loggable {
+class Payload(val marker: GraphMarker) extends XLoggable {
   /** The property representing all available element templates for user, contains at least one predefined element. */
   lazy val elementTemplates = WritableMap[Symbol, XElementTemplate]
   /** The property representing original element templates. */
@@ -166,7 +166,7 @@ class Payload(val marker: GraphMarker) extends Loggable {
  * - Model, binded to current device with unique ID
  * - Records, binded to Model
  */
-object Payload extends Loggable {
+object Payload extends XLoggable {
   /** Get file extension for the graph descriptor. */
   def extensionGraph = DI.extensionGraph
   /** Get local origin. */
@@ -185,7 +185,7 @@ object Payload extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** UUID of the default TypeSchema. */
     lazy val default = inject[UUID]("Payload.TypeSchema.Default")
     /** Default serialization mechanism. */

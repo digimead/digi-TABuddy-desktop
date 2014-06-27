@@ -47,7 +47,7 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
@@ -60,7 +60,7 @@ import scala.concurrent.Future
 /**
  * Evaluate script.
  */
-object CommandScriptRun extends Loggable {
+object CommandScriptRun extends XLoggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher

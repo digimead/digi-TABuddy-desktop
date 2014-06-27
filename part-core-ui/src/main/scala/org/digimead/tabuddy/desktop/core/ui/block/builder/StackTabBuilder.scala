@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.core.ui.block.builder
 
 import akka.actor.ActorRef
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
@@ -59,7 +59,7 @@ import org.eclipse.ui.internal.WorkbenchImages
 import scala.language.implicitConversions
 
 /** Build tab layer and allocate N tab items for views. */
-class StackTabBuilder extends Loggable {
+class StackTabBuilder extends XLoggable {
   def apply(configuration: Configuration.Stack.CTab, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeTab, Seq[ScrolledComposite]) = {
     log.debug(s"Build content for ${configuration}.")
     App.assertEventThread()
@@ -132,7 +132,7 @@ object StackTabBuilder {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** StackTabBuilder implementation. */
     lazy val implementation = injectOptional[StackTabBuilder] getOrElse new StackTabBuilder
   }

@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.logic.operation.script
 
 import java.io.File
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.script.api.XOperationScriptEvaluate
@@ -57,7 +57,7 @@ import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 /**
  * 'Evaluate the script' operation.
  */
-class OperationScriptEvaluate extends XOperationScriptEvaluate with Loggable {
+class OperationScriptEvaluate extends XOperationScriptEvaluate with XLoggable {
   /**
    * Evaluate the script.
    *
@@ -101,7 +101,7 @@ class OperationScriptEvaluate extends XOperationScriptEvaluate with Loggable {
   override protected def checkSubclass() {}
 
   class Implemetation[T](script: Either[File, String], verbose: Boolean)
-    extends OperationScriptEvaluate.Abstract[T](script, verbose) with Loggable {
+    extends OperationScriptEvaluate.Abstract[T](script, verbose) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -126,7 +126,7 @@ class OperationScriptEvaluate extends XOperationScriptEvaluate with Loggable {
   }
 }
 
-object OperationScriptEvaluate extends Loggable {
+object OperationScriptEvaluate extends XLoggable {
   /** Stable identifier with OperationScriptEvaluate DI */
   lazy val operation = DI.operation.asInstanceOf[OperationScriptEvaluate]
 
@@ -146,12 +146,12 @@ object OperationScriptEvaluate extends Loggable {
       case Left(file) ⇒ s"Evaluate ${file}."
       case Right(inline) ⇒ s"Evaluate (inline)."
     }) {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationScriptEvaluate] getOrElse new OperationScriptEvaluate
   }
 }

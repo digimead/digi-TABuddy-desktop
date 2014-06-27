@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
 import akka.actor.{ ActorRef, actorRef2Scala }
+import com.google.common.collect.MapMaker
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
@@ -52,7 +53,7 @@ import org.eclipse.e4.core.di.InjectionException
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.widgets.Composite
-import scala.collection.mutable
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 
 /**
  * View composite that contains additional reference to content actor.
@@ -87,7 +88,7 @@ class VComposite(val id: UUID, val ref: ActorRef, val contentRef: ActorRef, val 
 }
 
 object VComposite {
-  protected val contextMap = new mutable.WeakHashMap[VComposite, Context]() with mutable.SynchronizedMap[VComposite, Context]
+  protected val contextMap = new MapMaker().weakKeys().makeMap[VComposite, Context]().asScala
 
   /** Set context for VComposite. */
   trait ContextSetter {

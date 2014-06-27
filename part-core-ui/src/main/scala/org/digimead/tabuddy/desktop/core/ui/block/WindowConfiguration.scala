@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.core.ui.block
 import java.io.{ File, FileInputStream, FileOutputStream, FilenameFilter, IOException, ObjectOutputStream }
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
 import org.eclipse.swt.graphics.Rectangle
@@ -71,7 +71,7 @@ case class WindowConfiguration(
   val timestamp = System.currentTimeMillis()
 }
 
-object WindowConfiguration extends Loggable {
+object WindowConfiguration extends XLoggable {
   implicit def windowConfiguration2implementation(c: WindowConfiguration.type): Implementation = c.inner
 
   /** Window configuration file extension. */
@@ -83,7 +83,7 @@ object WindowConfiguration extends Loggable {
 
   override def toString = "WindowConfiguration[Singleton]"
 
-  class Implementation extends Loggable {
+  class Implementation extends XLoggable {
     /** Persistent storage. */
     lazy val configurationContainer = {
       val container = new File(DI.location.getParentFile(), DI.configurationName)
@@ -167,7 +167,7 @@ object WindowConfiguration extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Name of the storage container for window configurations. */
     lazy val configurationName = injectOptional[String]("Core.UI.WindowConfiguration.Name") getOrElse "WindowConfiguration"
     /** Extension for stored configurations. */

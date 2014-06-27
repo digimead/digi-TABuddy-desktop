@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.payload.view
 
 import java.util.UUID
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Default
@@ -97,7 +97,7 @@ class Sorting(
   override def hashCode() = elementId.hashCode
 }
 
-object Sorting extends Loggable {
+object Sorting extends XLoggable {
   /** Predefined default sort */
   val simpleSorting = new Sorting(UUID.fromString("da7303d6-d432-49bd-9634-48d1638c2775"), Messages.default_text,
     "default sort order", true, mutable.LinkedHashSet())
@@ -222,7 +222,7 @@ object Sorting extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     org.digimead.digi.lib.DependencyInjection.assertDynamic[Record.Like]("eViewSorting")
     /** Get or create dynamically eViewSorting container inside current active model. */
     def definition = inject[Record.Like]("eViewSorting")

@@ -46,14 +46,14 @@ package org.digimead.tabuddy.desktop.core.keyring
 import org.bouncycastle.bcpg.HashAlgorithmTags
 import org.bouncycastle.openpgp.{ PGPPublicKey, PGPSecretKey, PGPSignature, PGPSignatureGenerator, PGPSignatureSubpacketGenerator }
 import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyDecryptorBuilder, BcPGPContentSignerBuilder, BcPGPContentVerifierBuilderProvider, BcPGPDigestCalculatorProvider }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import scala.collection.JavaConverters.asScalaIteratorConverter
 
 /**
  * Signature part for keyring implementation.
  */
 trait KeyRingSignature {
-  this: KeyRing.Implementation with Loggable ⇒
+  this: KeyRing.Implementation with XLoggable ⇒
 
   /** Sign public key with secret key. */
   def signMasterKey[T](secretKey: PGPSecretKey, secretKeyPass: String, masterKeyToBeSigned: PGPPublicKey,

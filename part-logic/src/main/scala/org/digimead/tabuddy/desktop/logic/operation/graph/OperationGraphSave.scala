@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphSave
@@ -55,7 +55,7 @@ import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Save graph' operation. */
-class OperationGraphSave extends XOperationGraphSave with Loggable {
+class OperationGraphSave extends XOperationGraphSave with XLoggable {
   /**
    * Save graph.
    *
@@ -99,7 +99,7 @@ class OperationGraphSave extends XOperationGraphSave with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(graph: Graph[_ <: Model.Like], force: Boolean) extends OperationGraphSave.Abstract(graph, force) with Loggable {
+  class Implemetation(graph: Graph[_ <: Model.Like], force: Boolean) extends OperationGraphSave.Abstract(graph, force) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -124,7 +124,7 @@ class OperationGraphSave extends XOperationGraphSave with Loggable {
   }
 }
 
-object OperationGraphSave extends Loggable {
+object OperationGraphSave extends XLoggable {
   /** Stable identifier with OperationGraphSave DI */
   lazy val operation = DI.operation.asInstanceOf[OperationGraphSave]
 
@@ -139,12 +139,12 @@ object OperationGraphSave extends Loggable {
 
   /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean) extends Operation[Unit](s"Save $graph with ${graph.model.eBox.serialization}.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationGraphSave] getOrElse new OperationGraphSave
   }
 }

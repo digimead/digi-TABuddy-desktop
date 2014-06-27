@@ -43,8 +43,8 @@
 
 package org.digimead.tabuddy.desktop.logic.payload
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.core.ui.support.Validator
 import org.digimead.tabuddy.desktop.logic.Default
@@ -115,7 +115,7 @@ trait PropertyType[T <: AnySRef] extends XPropertyType[T] {
   override def toString() = s"PropertyType[$id]"
 }
 
-object PropertyType extends Loggable {
+object PropertyType extends XLoggable {
   type genericAdapter = Adapter[AnySRef]
   type genericViewer = Viewer[AnySRef]
   type genericEditor = Editor[AnySRef]
@@ -266,7 +266,7 @@ object PropertyType extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Predefined element property types that are available for this application */
     lazy val types = injectTypes
     /**

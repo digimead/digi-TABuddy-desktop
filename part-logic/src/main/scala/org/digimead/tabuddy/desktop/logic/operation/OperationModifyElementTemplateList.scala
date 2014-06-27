@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationModifyElementTemplateList
 import org.digimead.tabuddy.desktop.logic.payload.api.XElementTemplate
@@ -85,7 +85,7 @@ trait OperationModifyElementTemplateList extends XOperationModifyElementTemplate
 /**
  * Modify an element template list.
  */
-object OperationModifyElementTemplateList extends Loggable {
+object OperationModifyElementTemplateList extends XLoggable {
   /** Stable identifier with OperationModifyElementTemplateList DI */
   lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyElementTemplateList]]
 
@@ -108,12 +108,12 @@ object OperationModifyElementTemplateList extends Loggable {
 
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val elementTemplates: Set[XElementTemplate])
     extends Operation[Set[XElementTemplate]](s"Edit the element template list for graph $graph") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationModifyElementTemplateList]
   }
 }

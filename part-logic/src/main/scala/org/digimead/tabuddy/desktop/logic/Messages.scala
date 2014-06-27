@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic
 
 import java.util.ResourceBundle
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
 
 /**
@@ -68,7 +68,7 @@ class Messages extends ResourceBundle {
   }
 }
 
-object Messages extends NLS with Loggable {
+object Messages extends NLS with XLoggable {
   val autoresize_key = ""
   val closeAllFiles_text = ""
   val closeFile_text = ""

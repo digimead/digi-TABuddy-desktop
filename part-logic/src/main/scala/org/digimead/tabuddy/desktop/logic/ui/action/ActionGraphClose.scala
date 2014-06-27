@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic.ui.action
 
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -60,7 +60,7 @@ import org.eclipse.swt.widgets.Event
 /**
  * Close the opened graph.
  */
-class ActionGraphClose @Inject() (windowContext: Context) extends Action(Messages.closeFile_text) with Loggable {
+class ActionGraphClose @Inject() (windowContext: Context) extends Action(Messages.closeFile_text) with XLoggable {
   @volatile protected var marker = Option.empty[GraphMarker]
 
   /** Runs this action, passing the triggering SWT event. */

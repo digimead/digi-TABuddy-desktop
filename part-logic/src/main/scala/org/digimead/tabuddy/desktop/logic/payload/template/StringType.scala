@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.template
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableValue
@@ -105,7 +105,7 @@ class StringType extends PropertyType[String] {
   def valueFromString(value: String): String = value
 }
 
-object StringType extends StringType with Loggable {
+object StringType extends StringType with XLoggable {
   class Adapter(implicit val argManifest: Manifest[String]) extends PropertyType.Adapter[String] {
     /** Cell label provider singleton with limited API for proxy use case */
     val cellLabelProvider: PropertyType.CellLabelProviderAdapter[String] = new CellLabelProviderAdapter() {
@@ -191,7 +191,7 @@ object StringType extends StringType with Loggable {
     def isEmpty = data.value == null || data.value.trim.isEmpty
     /** The validator function */
     def validate(validator: Validator, event: VerifyEvent) {
-      if (event.text.nonEmpty && event.character != '\0')
+      if (event.text.nonEmpty && event.character != '\u0000')
         event.doit = pattern.matcher(event.text).matches()
       if (!event.doit)
         validator.withDecoration { validator.showDecorationError(_) }

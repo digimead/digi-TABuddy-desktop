@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.core.operation
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.api.XTranslation
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.operation.api.XOperationCustomTranslations
@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.operation.api.XOperationCustomTranslati
 /**
  * Manage user translations. Returns selected translation: key, value, singleton
  */
-object OperationCustomTranslations extends Loggable {
+object OperationCustomTranslations extends XLoggable {
   @log
   def apply(): Option[Abstract] = {
     DI.jobFactory.asInstanceOf[Option[() ⇒ Abstract]] match {
@@ -67,12 +67,12 @@ object OperationCustomTranslations extends Loggable {
 
   abstract class Abstract()
     extends Operation[(String, String, XTranslation.NLS)](s"Translations.") with XOperationCustomTranslations {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val jobFactory = injectOptional[() ⇒ XOperationCustomTranslations]
   }
 }

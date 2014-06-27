@@ -45,17 +45,17 @@ package org.digimead.tabuddy.desktop.core.ui.block
 
 import akka.actor.{ Actor, ActorRef, PoisonPill, Props, ScalaActorRef, actorRef2Scala }
 import akka.pattern.ask
+import com.google.common.collect.MapMaker
 import java.lang.ref.WeakReference
 import java.util.UUID
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.{ Core, EventLoop }
 import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, WComposite }
 import org.eclipse.core.databinding.observable.Observables
@@ -65,6 +65,7 @@ import org.eclipse.jface.window.{ Window ⇒ JWindow }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.{ Event, Listener, Shell, Widget }
 import scala.collection.{ immutable, mutable }
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.concurrent.{ Await, Future }
 import scala.language.implicitConversions
 
@@ -77,7 +78,7 @@ import scala.language.implicitConversions
  * - save all windows configuration
  * - shut down application
  */
-class WindowSupervisor extends Actor with Loggable {
+class WindowSupervisor extends Actor with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -388,7 +389,7 @@ class WindowSupervisor extends Actor with Loggable {
     /** Focus event delay, ms. */
     val antiSpamDelay = 100
     /** Intercepted shells: shell -> timestamp. */
-    val shellMap = new mutable.WeakHashMap[Shell, Long]() with mutable.SynchronizedMap[Shell, Long]
+    val shellMap = new MapMaker().weakKeys().makeMap[Shell, Long]().asScala
 
     Observables.observeDelayedValue(antiSpamDelay, focusEvent).addValueChangeListener(new IValueChangeListener {
       def handleValueChange(event: ValueChangeEvent) =
@@ -465,7 +466,7 @@ class WindowSupervisor extends Actor with Loggable {
   override lazy val toString = "WindowSupervisor(actor)"
 }
 
-object WindowSupervisor extends Loggable {
+object WindowSupervisor extends XLoggable {
   implicit def windowSupervisor2actorRef(w: WindowSupervisor.type): ActorRef = w.actor
   implicit def windowSupervisor2actorSRef(w: WindowSupervisor.type): ScalaActorRef = w.actor
   /** WindowSupervisor actor reference. */
@@ -527,7 +528,7 @@ object WindowSupervisor extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** WindowSupervisor actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI.WindowSupervisor") getOrElse Props[WindowSupervisor]
   }

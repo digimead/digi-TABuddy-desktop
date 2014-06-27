@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation.view
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifyViewList
 import org.digimead.tabuddy.desktop.logic.payload.view.api.XView
@@ -85,7 +85,7 @@ trait OperationModifyViewList extends XOperationModifyViewList {
 /**
  * Modify a view list.
  */
-object OperationModifyViewList extends Loggable {
+object OperationModifyViewList extends XLoggable {
   /** Stable identifier with OperationModifyViewList DI */
   lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyViewList]]
 
@@ -109,12 +109,12 @@ object OperationModifyViewList extends Loggable {
   /** Bridge between abstract XOperation[Set[XView]] and concrete Operation[Set[XView]] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val viewList: Set[XView])
     extends Operation[Set[XView]](s"Edit view list for graph $graph.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationModifyViewList]
   }
 }

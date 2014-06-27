@@ -47,8 +47,8 @@ import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, ExecutionException }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -58,7 +58,7 @@ import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
 /** 'Close window' operation. */
-class OperationWindowClose extends XOperationWindowClose with Loggable {
+class OperationWindowClose extends XOperationWindowClose with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -110,7 +110,7 @@ class OperationWindowClose extends XOperationWindowClose with Loggable {
   override protected def checkSubclass() {}
 
   class Implemetation(windowId: UUID, saveOnClose: Boolean)
-    extends OperationWindowClose.Abstract(windowId, saveOnClose) with Loggable {
+    extends OperationWindowClose.Abstract(windowId, saveOnClose) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -127,7 +127,7 @@ class OperationWindowClose extends XOperationWindowClose with Loggable {
   }
 }
 
-object OperationWindowClose extends Loggable {
+object OperationWindowClose extends XLoggable {
   /** Stable identifier with OperationWindowClose DI */
   lazy val operation = DI.operation.asInstanceOf[OperationWindowClose]
 
@@ -150,12 +150,12 @@ object OperationWindowClose extends Loggable {
       else
         "Close AppWindow[%08X] without saving configuration.".format(windowId.hashCode())
     }) {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationWindowClose] getOrElse new OperationWindowClose
   }
 }

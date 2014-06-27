@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphOpen
@@ -57,7 +57,7 @@ import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Open graph' operation. */
-class OperationGraphOpen extends XOperationGraphOpen with Loggable {
+class OperationGraphOpen extends XOperationGraphOpen with XLoggable {
   /**
    * Open graph for graph marker.
    *
@@ -104,7 +104,7 @@ class OperationGraphOpen extends XOperationGraphOpen with Loggable {
   override protected def checkSubclass() {}
 
   class Implemetation(markerId: UUID, modified: Option[Element.Timestamp])
-    extends OperationGraphOpen.Abstract(markerId, modified) with Loggable {
+    extends OperationGraphOpen.Abstract(markerId, modified) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -133,7 +133,7 @@ class OperationGraphOpen extends XOperationGraphOpen with Loggable {
   }
 }
 
-object OperationGraphOpen extends Loggable {
+object OperationGraphOpen extends XLoggable {
   /** Stable identifier with OperationGraphOpen DI */
   lazy val operation = DI.operation.asInstanceOf[OperationGraphOpen]
 
@@ -153,12 +153,12 @@ object OperationGraphOpen extends Loggable {
       case Some(modified) ⇒ s"Open graph for marker with Id $markerId and modification ${modified}."
       case None ⇒ s"Open graph for marker with Id $markerId."
     }) {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationGraphOpen] getOrElse new OperationGraphOpen
   }
 }

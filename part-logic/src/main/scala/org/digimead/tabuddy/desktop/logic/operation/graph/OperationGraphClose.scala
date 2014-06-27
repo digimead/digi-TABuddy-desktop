@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -59,7 +59,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.MessageBox
 
 /** 'Close graph' operation. */
-class OperationGraphClose extends XOperationGraphClose with Loggable {
+class OperationGraphClose extends XOperationGraphClose with XLoggable {
   /**
    * Close graph.
    *
@@ -154,7 +154,7 @@ class OperationGraphClose extends XOperationGraphClose with Loggable {
   override protected def checkSubclass() {}
 
   class Implemetation(graph: Graph[_ <: Model.Like], force: Boolean)
-    extends OperationGraphClose.Abstract(graph, force) with Loggable {
+    extends OperationGraphClose.Abstract(graph, force) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -179,7 +179,7 @@ class OperationGraphClose extends XOperationGraphClose with Loggable {
   }
 }
 
-object OperationGraphClose extends Loggable {
+object OperationGraphClose extends XLoggable {
   /** Stable identifier with OperationGraphClose DI */
   lazy val operation = DI.operation.asInstanceOf[OperationGraphClose]
 
@@ -197,12 +197,12 @@ object OperationGraphClose extends Loggable {
   /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean)
     extends Operation[XGraphMarker](s"Close $graph.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationGraphClose] getOrElse new OperationGraphClose
   }
 }

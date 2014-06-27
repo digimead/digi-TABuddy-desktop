@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.logic.ui.action
 import akka.actor.ActorDSL.{ Act, actor }
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
@@ -64,7 +64,7 @@ import scala.concurrent.Future
 /**
  * Save all modified graphs.
  */
-class ActionGraphSaveAll @Inject() (windowContext: Context) extends Action(Messages.saveAllFiles_text) with Loggable {
+class ActionGraphSaveAll @Inject() (windowContext: Context) extends Action(Messages.saveAllFiles_text) with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
 
@@ -89,7 +89,7 @@ class ActionGraphSaveAll @Inject() (windowContext: Context) extends Action(Messa
   }
 }
 
-object ActionGraphSaveAll extends Loggable {
+object ActionGraphSaveAll extends XLoggable {
   /** Akka system. */
   implicit lazy val akka = App.system
   /** Akka execution context. */

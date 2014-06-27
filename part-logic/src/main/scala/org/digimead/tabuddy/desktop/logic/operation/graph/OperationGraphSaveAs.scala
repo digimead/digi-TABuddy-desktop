@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.logic.operation.graph
 import java.io.{ File, IOException }
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphSaveAs
@@ -58,7 +58,7 @@ import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Save graph as ...' operation. */
-class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
+class OperationGraphSaveAs extends XOperationGraphSaveAs with XLoggable {
   /**
    * Save graph.
    *
@@ -131,7 +131,7 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
   override protected def checkSubclass() {}
 
   class Implemetation(graph: Graph[_ <: Model.Like], path: File, name: String)
-    extends OperationGraphSaveAs.Abstract(graph, path, name) with Loggable {
+    extends OperationGraphSaveAs.Abstract(graph, path, name) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -156,7 +156,7 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with Loggable {
   }
 }
 
-object OperationGraphSaveAs extends Loggable {
+object OperationGraphSaveAs extends XLoggable {
   /** Stable identifier with OperationGraphSaveAs DI */
   lazy val operation = DI.operation.asInstanceOf[OperationGraphSaveAs]
 
@@ -175,12 +175,12 @@ object OperationGraphSaveAs extends Loggable {
   /** Bridge between abstract XOperation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val path: File, val name: String)
     extends Operation[Graph[_ <: Model.Like]](s"Save $graph as $name to $path.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationGraphSaveAs] getOrElse new OperationGraphSaveAs
   }
 }

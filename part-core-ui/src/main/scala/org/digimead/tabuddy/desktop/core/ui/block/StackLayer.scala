@@ -47,8 +47,8 @@ import akka.actor.{ Actor, ActorRef, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
@@ -66,7 +66,7 @@ import scala.concurrent.Await
 /**
  * Stack layer implementation that contains lay between window and view.
  */
-class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Actor with Loggable {
+class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Actor with XLoggable {
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(UI.communicationTimeout)
   /** Parent stack actor. */
@@ -304,7 +304,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
   override lazy val toString = "StackLayer[actor/%08X]".format(stackId.hashCode())
 }
 
-object StackLayer extends Loggable {
+object StackLayer extends XLoggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   // Initialize descendant actor singletons
@@ -325,7 +325,7 @@ object StackLayer extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** StackLayer actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI.StackLayer") getOrElse Props(classOf[StackLayer],
       // stack layer id

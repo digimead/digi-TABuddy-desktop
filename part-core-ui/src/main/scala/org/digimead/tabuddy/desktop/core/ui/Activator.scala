@@ -44,8 +44,11 @@
 package org.digimead.tabuddy.desktop.core.ui
 
 import akka.actor.{ Inbox, PoisonPill, Terminated }
-import org.digimead.digi.lib.log.api.Loggable
+import com.escalatesoft.subcut.inject.BindingException
 import org.digimead.digi.lib.{ DependencyInjection, Disposable }
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.jfx4swt.JFXPlatformFactory
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -56,7 +59,7 @@ import scala.ref.WeakReference
 /**
  * OSGi entry point.
  */
-class Activator extends BundleActivator with Loggable {
+class Activator extends BundleActivator with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
 
@@ -66,7 +69,7 @@ class Activator extends BundleActivator with Loggable {
       throw new IllegalStateException("Bundle is already disposed. Please reinstall it before activation.")
     log.debug("Start TABuddy Desktop UI interface.")
     // Setup DI for this bundle
-    val diReady = Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
+    val diReady = Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.XDependencyInjection])).
       map { currencyServiceRef ⇒ (currencyServiceRef, context.getService(currencyServiceRef)) } match {
         case Some((reference, diService)) ⇒
           diService.getDependencyValidator.foreach { validator ⇒
@@ -86,6 +89,10 @@ class Activator extends BundleActivator with Loggable {
         DependencyInjection(di, false)
       case None ⇒
         log.warn("Skip DI initialization in test environment.")
+    }
+    try JFXPlatformFactory.application catch {
+      case e: BindingException ⇒
+        throw new IllegalStateException("JavaFX bridge is not available. JFXApplication binging is absent.")
     }
     // Mark UI as available; see App.isUIAvailable
     App.watch(App.UIFlag) on ()
@@ -135,7 +142,7 @@ class Activator extends BundleActivator with Loggable {
 /**
  * Disposable manager. There is always only one singleton per class loader.
  */
-object Activator extends Disposable.Manager with Loggable {
+object Activator extends Disposable.Manager with XLoggable {
   @volatile private var disposable = Seq[WeakReference[Disposable]]()
   private val disposableLock = new Object
   private val startStopLock = new Object

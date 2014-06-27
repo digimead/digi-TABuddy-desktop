@@ -48,8 +48,8 @@ import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.{ Core, Messages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
@@ -68,7 +68,7 @@ import scala.concurrent.{ Await, Future }
  * - start window
  * - close/destroy window
  */
-class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor with AppWindow.Controller with Loggable {
+class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor with AppWindow.Controller with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -292,7 +292,7 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
   override lazy val toString = "Window[actor/%08X]".format(windowId.hashCode())
 }
 
-object Window extends Loggable {
+object Window extends XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Singleton identificator. */
@@ -392,7 +392,7 @@ object Window extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Window actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI.Window") getOrElse Props(classOf[Window],
       // window id

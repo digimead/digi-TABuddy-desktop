@@ -49,8 +49,8 @@ import org.bouncycastle.bcpg.{ HashAlgorithmTags, SymmetricKeyAlgorithmTags }
 import org.bouncycastle.crypto.AsymmetricCipherKeyPairGenerator
 import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyEncryptorBuilder, BcPGPContentSignerBuilder, BcPGPDigestCalculatorProvider, BcPGPKeyPair }
 import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPSignature, PGPSignatureSubpacketGenerator }
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
 
@@ -58,7 +58,7 @@ import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
  * PGP keyring generator base class.
  */
 abstract class Generator extends XGenerator {
-  this: Loggable ⇒
+  this: XLoggable ⇒
   /** PublicKeyAlgorithmTags for encryption keys. */
   val encAlgorithm: Int
   /** PublicKeyAlgorithmTags for signature keys. */
@@ -68,7 +68,7 @@ abstract class Generator extends XGenerator {
   def apply(args: AnyRef*): XGenerator.AsymmetricCipherKeyPairGenerator
 }
 
-object Generator extends Loggable {
+object Generator extends XLoggable {
   /** Get the default generator. */
   def default = DI.default
   /** Map of all available keyring generators . */
@@ -77,7 +77,7 @@ object Generator extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Default generator algorithm. */
     lazy val default = injectOptional[XGenerator.AsymmetricCipherKeyPairGenerator]("KeyRing.Generator.Default") getOrElse (new RSAGenerator)(4096: Integer)
     /**

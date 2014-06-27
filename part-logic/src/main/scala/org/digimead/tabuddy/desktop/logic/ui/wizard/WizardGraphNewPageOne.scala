@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.ui.wizard
 
 import java.io.File
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableValue
@@ -59,7 +59,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
 import org.eclipse.swt.widgets.{ Composite, DirectoryDialog, Shell }
 
-class WizardGraphNewPageOne extends WizardPage(Messages.wizardGraphNewPageOneTitle_text) with Loggable {
+class WizardGraphNewPageOne extends WizardPage(Messages.wizardGraphNewPageOneTitle_text) with XLoggable {
   /** Page view. */
   protected var view: Option[WizardGraphNewPageOneView] = None
   /** Model identifier. */

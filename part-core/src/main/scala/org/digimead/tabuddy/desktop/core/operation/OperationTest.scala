@@ -45,15 +45,15 @@ package org.digimead.tabuddy.desktop.core.operation
 
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.operation.api.XOperationTest
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.IProgressMonitor
 
 /** 'Returns test message' operation. */
-class OperationTest extends XOperationTest with Loggable {
+class OperationTest extends XOperationTest with XLoggable {
   /**
    * Returns test message.
    */
@@ -82,7 +82,7 @@ class OperationTest extends XOperationTest with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation() extends OperationTest.Abstract() with Loggable {
+  class Implemetation() extends OperationTest.Abstract() with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -99,7 +99,7 @@ class OperationTest extends XOperationTest with Loggable {
   }
 }
 
-object OperationTest extends Loggable {
+object OperationTest extends XLoggable {
   /** Stable identifier with OperationTest DI */
   lazy val operation = DI.operation.asInstanceOf[OperationTest]
 
@@ -109,12 +109,12 @@ object OperationTest extends Loggable {
 
   /** Bridge between abstract XOperation[String] and concrete Operation[String] */
   abstract class Abstract() extends Operation[String](s"Returns test message.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationTest] getOrElse new OperationTest
   }
 }

@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.logic.command
 
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.logic.operation.{ OperationModifyElementTemplateList, OperationModifyEnumerationList, OperationModifyTypeSchemaList }
@@ -56,7 +56,7 @@ import scala.language.implicitConversions
 /**
  * The configurator is responsible for configure/unconfigure logic commands.
  */
-class Commands extends Loggable {
+class Commands extends XLoggable {
   @volatile protected var contextParsers = Seq.empty[UUID]
   /** Synchronization lock. */
   protected val lock = new Object
@@ -176,7 +176,7 @@ object Commands {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Actions implementation */
     lazy val implementation = injectOptional[Commands] getOrElse new Commands
   }

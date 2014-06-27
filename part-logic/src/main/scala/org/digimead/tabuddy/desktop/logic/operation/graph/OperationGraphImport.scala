@@ -47,8 +47,8 @@ import java.io.{ File, InputStream }
 import java.net.URI
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphImport
@@ -64,7 +64,7 @@ import org.digimead.tabuddy.model.serialization.{ SData, Serialization }
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Import graph' operation. */
-class OperationGraphImport extends XOperationGraphImport with Loggable {
+class OperationGraphImport extends XOperationGraphImport with XLoggable {
   /**
    * Import graph.
    *
@@ -184,7 +184,7 @@ class OperationGraphImport extends XOperationGraphImport with Loggable {
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[Boolean], sParameters: Option[UUID])
-    extends OperationGraphImport.Abstract(location, containerEncParameters, contentEncParameters, dParameters, sParameters) with Loggable {
+    extends OperationGraphImport.Abstract(location, containerEncParameters, contentEncParameters, dParameters, sParameters) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -209,7 +209,7 @@ class OperationGraphImport extends XOperationGraphImport with Loggable {
   }
 }
 
-object OperationGraphImport extends Loggable {
+object OperationGraphImport extends XLoggable {
   /** Stable identifier with OperationGraphImport DI */
   lazy val operation = DI.operation.asInstanceOf[OperationGraphImport]
 
@@ -236,12 +236,12 @@ object OperationGraphImport extends Loggable {
     val contentEncParameters: Option[XEncryption.Parameters],
     val dParameters: Option[Boolean], val sParameters: Option[UUID])
     extends Operation[Graph[_ <: Model.Like]](s"Import graph from ${location}.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationGraphImport] getOrElse new OperationGraphImport
   }
 }

@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation.view
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifySorting
 import org.digimead.tabuddy.desktop.logic.payload.view.api.XSorting
@@ -86,7 +86,7 @@ trait OperationModifySorting extends XOperationModifySorting {
 /**
  * Modify a view's sorting.
  */
-object OperationModifySorting extends Loggable {
+object OperationModifySorting extends XLoggable {
   /** Stable identifier with OperationModifySorting DI */
   def operation = DI.operation.asInstanceOf[Option[OperationModifySorting]]
 
@@ -111,12 +111,12 @@ object OperationModifySorting extends Loggable {
   /** Bridge between abstract XOperation[XSorting] and concrete Operation[XSorting] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val sorting: XSorting, val sortingList: Set[XSorting])
     extends Operation[XSorting](s"Edit sorting $sorting for graph $graph.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationModifySorting]
   }
 }

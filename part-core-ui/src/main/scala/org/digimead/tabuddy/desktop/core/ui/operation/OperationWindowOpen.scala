@@ -47,8 +47,8 @@ import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -58,7 +58,7 @@ import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
 /** 'Open window' operation. */
-class OperationWindowOpen extends XOperationWindowOpen with Loggable {
+class OperationWindowOpen extends XOperationWindowOpen with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -122,7 +122,7 @@ class OperationWindowOpen extends XOperationWindowOpen with Loggable {
   override protected def checkSubclass() {}
 
   class Implemetation(windowId: Option[UUID])
-    extends OperationWindowOpen.Abstract(windowId) with Loggable {
+    extends OperationWindowOpen.Abstract(windowId) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -139,7 +139,7 @@ class OperationWindowOpen extends XOperationWindowOpen with Loggable {
   }
 }
 
-object OperationWindowOpen extends Loggable {
+object OperationWindowOpen extends XLoggable {
   /** Stable identifier with OperationWindowOpen DI */
   lazy val operation = DI.operation.asInstanceOf[OperationWindowOpen]
 
@@ -158,12 +158,12 @@ object OperationWindowOpen extends Loggable {
     case Some(windowId) ⇒ s"Open specific AppWindow[%08X] with id %s".format(windowId.hashCode(), windowId)
     case None ⇒ s"Open new window."
   }) {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationWindowOpen] getOrElse new OperationWindowOpen
   }
 }

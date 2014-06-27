@@ -44,14 +44,14 @@
 package org.digimead.tabuddy.desktop.logic.ui.action
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.{ Core, Messages }
 import org.digimead.tabuddy.desktop.core.definition.Context.rich2appContext
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Event
 
-class ActionGraphDelete extends Action(Messages.delete_text) with Loggable {
+class ActionGraphDelete extends Action(Messages.delete_text) with XLoggable {
   ContextInjectionFactory.inject(ActionGraphDelete.this, Core.context)
 
   override def isEnabled(): Boolean = super.isEnabled && enabled

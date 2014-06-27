@@ -46,10 +46,10 @@ package org.digimead.tabuddy.desktop.core.ui
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import javax.swing.UIManager
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.jfx4swt.JFX
 import org.digimead.digi.lib.jfx4swt.JFXApplication
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
@@ -83,7 +83,7 @@ import scala.language.implicitConversions
 /**
  * Root actor of the UI component.
  */
-class UI extends akka.actor.Actor with Loggable {
+class UI extends akka.actor.Actor with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Inconsistent elements. */
@@ -210,7 +210,7 @@ class UI extends akka.actor.Actor with Loggable {
   }
 }
 
-object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMapConsumer with Loggable {
+object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMapConsumer with XLoggable {
   implicit def ui2actorRef(u: UI.type): ActorRef = u.actor
   implicit def ui2actorSRef(u: UI.type): ScalaActorRef = u.actor
   /** UI actor reference. */
@@ -276,7 +276,7 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Close window when last view is closed. */
     lazy val closeWindowWithLastView = injectOptional[Boolean]("Core.UI.closeWindowWithLastView") getOrElse true
     /** Communication timeout for rapid requests with Akka 'await' or similar pattern. */

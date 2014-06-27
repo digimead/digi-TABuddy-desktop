@@ -43,8 +43,8 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block.builder
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, WComposite }
@@ -59,7 +59,7 @@ import scala.ref.WeakReference
 /**
  * Create initial window content.
  */
-class WindowContentBuilder extends Loggable {
+class WindowContentBuilder extends XLoggable {
   /** Creates and returns this window's contents. */
   def apply(window: AppWindow, parent: Composite): (Composite, Composite, WComposite) = {
     log.debug(s"Build content for window ${window.id}.")
@@ -89,7 +89,7 @@ object WindowContentBuilder {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Window WindowContentBuilder implementation. */
     lazy val implementation = injectOptional[WindowContentBuilder] getOrElse new WindowContentBuilder
   }

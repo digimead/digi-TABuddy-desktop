@@ -45,12 +45,12 @@ package org.digimead.tabuddy.desktop.logic.behaviour
 
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import scala.language.implicitConversions
 
-class TrackActiveGraph extends Loggable {
+class TrackActiveGraph extends XLoggable {
   /** Map of tracked graphs. */
   protected var trackObjects = Map[UUID, GraphMarker]()
   /** Set of track listeners. */
@@ -116,7 +116,7 @@ object TrackActiveGraph {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** TrackActiveGraph implementation. */
     lazy val implementation = injectOptional[TrackActiveGraph] getOrElse new TrackActiveGraph
   }

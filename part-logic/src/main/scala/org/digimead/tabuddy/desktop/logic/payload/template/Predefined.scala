@@ -43,8 +43,8 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.template
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, PropertyType, TemplateProperty, TemplatePropertyGroup }
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.model.Record
@@ -56,7 +56,7 @@ import scala.language.implicitConversions
 /**
  * Predefined element template factories.
  */
-class Predefined extends Loggable {
+class Predefined extends XLoggable {
   /**
    * Predefined record template.
    */
@@ -121,7 +121,7 @@ object Predefined {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Predefined implementation. */
     lazy val implementation = injectOptional[Predefined] getOrElse new Predefined
   }

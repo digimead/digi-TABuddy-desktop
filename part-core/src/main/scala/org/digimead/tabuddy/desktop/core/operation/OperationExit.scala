@@ -45,15 +45,15 @@ package org.digimead.tabuddy.desktop.core.operation
 
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.EventLoop
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.operation.api.XOperationExit
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
 /** 'Shutdown application' operation. */
-class OperationExit extends XOperationExit with Loggable {
+class OperationExit extends XOperationExit with XLoggable {
   /**
    * Shutdown application.
    */
@@ -82,7 +82,7 @@ class OperationExit extends XOperationExit with Loggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation() extends OperationExit.Abstract() with Loggable {
+  class Implemetation() extends OperationExit.Abstract() with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -99,7 +99,7 @@ class OperationExit extends XOperationExit with Loggable {
   }
 }
 
-object OperationExit extends Loggable {
+object OperationExit extends XLoggable {
   /** Stable identifier with OperationExit DI */
   lazy val operation = DI.operation.asInstanceOf[OperationExit]
 
@@ -109,12 +109,12 @@ object OperationExit extends Loggable {
 
   /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract() extends Operation[Unit](s"Shutdown application.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationExit] getOrElse new OperationExit
   }
 }

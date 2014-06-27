@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.logic.script
 import com.google.common.base.Charsets
 import com.google.common.io.Files
 import java.io.File
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import scala.collection.JavaConverters.asScalaBufferConverter
 import scala.language.implicitConversions
 
@@ -66,7 +66,7 @@ object Loader {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Loader implementation. */
     lazy val implementation = injectOptional[Loader] getOrElse new Loader
   }

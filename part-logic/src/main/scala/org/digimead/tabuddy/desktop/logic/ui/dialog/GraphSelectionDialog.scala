@@ -55,12 +55,12 @@ import javafx.scene.effect.DropShadow
 import javafx.scene.image.ImageView
 import javafx.scene.layout.Pane
 import javafx.scene.paint.Color
-import javafx.scene.text.{ Font, Text, TextAlignment, TextBuilder }
+import javafx.scene.text.{ Font, Text, TextAlignment }
 import javafx.scene.transform.Scale
 import javax.inject.Inject
 import org.digimead.digi.lib.jfx4swt.{ FXCanvas, JFX }
 import org.digimead.digi.lib.jfx4swt.util.JFXUtil
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Report
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.{ ResourceManager, Resources }
@@ -94,7 +94,7 @@ class GraphSelectionDialog @Inject() (
   /** Graph markers. */
   val markers: Array[GraphMarker],
   /** Parent shell. */
-  val parentShell: Shell) extends GraphSelectionDialogSkel(parentShell) with Dialog with Loggable {
+  val parentShell: Shell) extends GraphSelectionDialogSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The auto resize lock. */
@@ -118,13 +118,13 @@ class GraphSelectionDialog @Inject() (
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 1
   /** Default graph icon. */
-  lazy val text = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-    b.text(FontAwesome.ICON_FILE.toString())
-    b.fill(Color.GRAY)
-    b.font(font)
-    b.textAlignment(TextAlignment.CENTER)
-    b.textOrigin(VPos.TOP)
-    b.build()
+  lazy val text = {
+    val text = new Text(FontAwesome.ICON_FILE.toString())
+    text.setFill(Color.GRAY)
+    text.setFont(font)
+    text.setTextAlignment(TextAlignment.CENTER)
+    text.setTextOrigin(VPos.TOP)
+    text
   }
   /** Default graph icon bounds. */
   lazy val textBounds = JFXUtil.getCroppedBounds(textImage, 0.01)
@@ -546,7 +546,7 @@ class GraphSelectionDialog @Inject() (
   }
 }
 
-object GraphSelectionDialog extends Loggable {
+object GraphSelectionDialog extends XLoggable {
   lazy val comboFilterArray = Array("All", "Name", "Owner", "CreatedAt", "Modified")
 
   object NameLabelProvider extends ColumnLabelProvider {

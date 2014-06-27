@@ -43,10 +43,12 @@
 
 package org.digimead.tabuddy.desktop.core.ui
 
+import com.google.common.collect.MapMaker
 import java.util.Locale
+import java.util.concurrent.{ ConcurrentMap, CopyOnWriteArraySet }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.View
 import org.digimead.tabuddy.desktop.core.ui.definition.IWizard
@@ -56,13 +58,15 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.{ Font, GC, Image }
 import org.eclipse.swt.widgets.Shell
 import org.osgi.framework.{ BundleActivator, BundleContext }
+import scala.collection.JavaConverters.asScalaSetConverter
+import scala.collection.convert.Wrappers.JMapWrapperLike
 import scala.collection.mutable
 import scala.language.implicitConversions
 
 /**
  * Handle application resources.
  */
-class Resources extends BundleActivator with Loggable {
+class Resources extends BundleActivator with XLoggable {
   val small = 0.315
   val medium = 0.7
   val large = 1
@@ -87,9 +91,9 @@ class Resources extends BundleActivator with Loggable {
     new Font(App.display, fD.head)
   }
   /** List of all application view factories. */
-  protected val viewFactoriesMap = new Resources.ViewFactoryMap with mutable.SynchronizedMap[View.Factory, Boolean]
+  protected val viewFactoriesMap = Resources.ViewFactoryMap(new MapMaker().weakKeys().makeMap[View.Factory, Boolean]())
   /** Application wizards set. */
-  protected val wizardsSet = new mutable.HashSet[Class[_ <: IWizard]]() with mutable.SynchronizedSet[Class[_ <: IWizard]]
+  protected val wizardsSet = new CopyOnWriteArraySet[Class[_ <: IWizard]].asScala
   /** Limbo shell. */
   lazy val limboShell = App.execNGet {
     val limbo = new Shell(App.display, SWT.NONE)
@@ -228,7 +232,7 @@ class Resources extends BundleActivator with Loggable {
 /**
  * Application UI resources.
  */
-object Resources extends Loggable {
+object Resources extends XLoggable {
   implicit def resources2implementation(c: Resources.type): Resources = c.inner
 
   /** Resources implementation. */
@@ -244,18 +248,26 @@ object Resources extends Loggable {
     case object Dark extends Resources.IconTheme { val name = "dark" }
   }
   /** Application view map. This class is responsible for action.View command update. */
-  class ViewFactoryMap extends mutable.WeakHashMap[View.Factory, Boolean] {
-    override def +=(kv: (View.Factory, Boolean)): this.type = {
-      val (key, value) = kv
+  case class ViewFactoryMap[A <: View.Factory, B](underlying: ConcurrentMap[A, B])
+    extends mutable.AbstractMap[A, B] with JMapWrapperLike[A, B, ViewFactoryMap[A, B]] {
+    override def empty = ViewFactoryMap(new MapMaker().makeMap[A, B]())
+    /** Adds a single element to the map. */
+    override def +=(kv: (A, B)): this.type = { put(kv._1, kv._2); this }
+    /** Removes a key from this map. */
+    override def -=(key: A): this.type = { remove(key); this }
+    /** Adds a new key/value pair to this map and optionally returns previously bound value. */
+    override def put(key: A, value: B): Option[B] = {
       if (keys.exists(_.name == key.name))
         throw new IllegalArgumentException(s"View with name '${key.name.name}' is already exists.")
-      super.+=(kv)
+      super.put(key, value)
     }
+    /** Adds a new key/value pair to this map. */
+    override def update(key: A, value: B): Unit = put(key, value)
   }
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Resources implementation. */
     lazy val implementation = injectOptional[Resources] getOrElse new Resources()
     /** Application locale. */

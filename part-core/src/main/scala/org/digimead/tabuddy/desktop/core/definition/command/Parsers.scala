@@ -205,7 +205,7 @@ trait Parsers {
   }
   object Success {
     def apply[T](result: T, next: Input): Success[T] = new Success(result, next)
-    def unapply[T](s: Success[T]): Option[Pair[T, Input]] = Some((s.get, s.next))
+    def unapply[T](s: Success[T]): Option[(T, Input)] = Some((s.get, s.next))
   }
 
   private lazy val lastNoSuccessVar = new DynamicVariable[Option[NoSuccess]](None)
@@ -255,7 +255,7 @@ trait Parsers {
   }
   object Failure {
     def apply(msg: String, next: Input): Failure = new Failure(msg, next)
-    def unapply(f: Failure): Option[Pair[String, Input]] = Some((f.msg, f.next))
+    def unapply(f: Failure): Option[(String, Input)] = Some((f.msg, f.next))
   }
 
   /**
@@ -273,7 +273,7 @@ trait Parsers {
   }
   object Error {
     def apply(msg: String, next: Input): Error = new Error(msg, next)
-    def unapply(e: Error): Option[Pair[String, Input]] = Some((e.msg, e.next))
+    def unapply(e: Error): Option[(String, Input)] = Some((e.msg, e.next))
   }
 
   def Parser[T](f: Input ⇒ ParseResult[T]): Parser[T] = new Parser[T] { def apply(in: Input) = f(in) }

@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.core.ui.block.builder
 
 import akka.actor.ActorContext
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -57,7 +57,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.ScrolledComposite
 import scala.language.implicitConversions
 
-class StackBuilder extends Loggable {
+class StackBuilder extends XLoggable {
   /** Creates stack content. */
   @log
   def apply(stack: CPlaceHolder, parentWidget: ScrolledComposite, parentContext: Context, stackActorContext: ActorContext): Option[SComposite] = {
@@ -126,7 +126,7 @@ object StackBuilder {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Window StackBuilder implementation. */
     lazy val implementation = injectOptional[StackBuilder] getOrElse new StackBuilder
   }

@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.core.ui.block.transform
 
 import java.util.concurrent.ExecutionException
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.builder.ViewContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
@@ -56,7 +56,7 @@ import org.eclipse.swt.widgets.Control
 import scala.language.implicitConversions
 
 /** Unwrap view from tab stack. */
-class TransformTabToView extends Loggable {
+class TransformTabToView extends XLoggable {
   /**
    * Unwrap view from tab stack.
    *
@@ -130,7 +130,7 @@ object TransformTabToView {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** TransformTabToView implementation */
     lazy val implementation = injectOptional[TransformTabToView] getOrElse new TransformTabToView
   }

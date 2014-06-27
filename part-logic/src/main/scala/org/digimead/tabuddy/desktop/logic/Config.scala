@@ -46,13 +46,13 @@ package org.digimead.tabuddy.desktop.logic
 import com.escalatesoft.subcut.inject.{ BindingModule, Injectable }
 import java.io.{ File, FileOutputStream }
 import org.digimead.configgy.Configgy
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.api.XConfig
 import org.osgi.framework.BundleContext
 import scala.language.implicitConversions
 
-class Config(implicit val bindingModule: BindingModule) extends XConfig with Loggable with Injectable {
+class Config(implicit val bindingModule: BindingModule) extends XConfig with XLoggable with Injectable {
   @volatile var ready = false
   val location = inject[File]("Config")
   private val modificationLock = new Object
@@ -97,7 +97,7 @@ class Config(implicit val bindingModule: BindingModule) extends XConfig with Log
   }
 }
 
-object Config extends Loggable {
+object Config extends XLoggable {
   implicit def config2implementation(c: Config.type): XConfig = c.inner
 
   /** Get config implementation. */
@@ -106,7 +106,7 @@ object Config extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Config implementation. */
     lazy val implementation = inject[XConfig]
   }

@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation.view
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifyFilterList
 import org.digimead.tabuddy.desktop.logic.payload.view.api.XFilter
@@ -85,7 +85,7 @@ trait OperationModifyFilterList extends XOperationModifyFilterList {
 /**
  * Modify a view's filter list.
  */
-object OperationModifyFilterList extends Loggable {
+object OperationModifyFilterList extends XLoggable {
   /** Stable identifier with OperationModifyFilterList DI */
   def operation = DI.operation.asInstanceOf[Option[OperationModifyFilterList]]
 
@@ -109,12 +109,12 @@ object OperationModifyFilterList extends Loggable {
   /** Bridge between abstract XOperation[Set[XFilter]] and concrete Operation[Set[XFilter]] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val filterList: Set[XFilter])
     extends Operation[Set[XFilter]](s"Edit filter list for graph $graph.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationModifyFilterList]
   }
 }

@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.core.ui.block.builder
 
 import akka.actor.ActorRef
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.SCompositeVSash
@@ -54,7 +54,7 @@ import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.layout.GridLayout
 import scala.language.implicitConversions
 
-class StackVSashBuilder extends Loggable {
+class StackVSashBuilder extends XLoggable {
   def apply(vsash: Configuration.Stack.CVSash, parentWidget: ScrolledComposite, stackRef: ActorRef): (SCompositeVSash, ScrolledComposite, ScrolledComposite) = {
     log.debug("Build content for vertical sash.")
     App.assertEventThread()
@@ -78,7 +78,7 @@ object StackVSashBuilder {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** StackVSashBuilder implementation. */
     lazy val implementation = injectOptional[StackVSashBuilder] getOrElse new StackVSashBuilder
   }

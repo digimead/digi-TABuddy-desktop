@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.core.ui.definition.widget
 
 import akka.actor.{ ActorRef, actorRef2Scala }
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
@@ -53,7 +53,7 @@ import org.eclipse.swt.custom.{ CTabFolder, ScrolledComposite }
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
 
 class SCompositeTab(val id: UUID, val ref: ActorRef, parent: ScrolledComposite, style: Int)
-  extends CTabFolder(parent, style) with SComposite with Loggable {
+  extends CTabFolder(parent, style) with SComposite with XLoggable {
   initialize
 
   /** Returns the receiver's parent, which must be a ScrolledComposite. */

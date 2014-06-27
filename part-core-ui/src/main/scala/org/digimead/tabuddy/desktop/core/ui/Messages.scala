@@ -43,10 +43,10 @@
 
 package org.digimead.tabuddy.desktop.core.ui
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
 
-object Messages extends NLS with Loggable {
+object Messages extends NLS with XLoggable {
   val close_text = ""
   val consoleViewLongDescription = ""
   val consoleViewShortDescription = ""

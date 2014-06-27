@@ -44,9 +44,10 @@
 package org.digimead.tabuddy.desktop.logic.ui.action
 
 import akka.actor.ActorDSL.{ Act, actor }
+import com.google.common.collect.MapMaker
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
@@ -59,12 +60,12 @@ import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.swt.widgets.Event
-import scala.collection.mutable
+import scala.collection.JavaConverters.mapAsScalaMapConverter
 import scala.collection.mutable.{ Publisher, Subscriber }
 import scala.concurrent.Future
 
 /** Save the opened model. */
-class ActionGraphSave @Inject() (windowContext: Context) extends Action(Messages.saveFile_text) with Loggable {
+class ActionGraphSave @Inject() (windowContext: Context) extends Action(Messages.saveFile_text) with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   @volatile protected var marker = Option.empty[GraphMarker]
@@ -128,7 +129,7 @@ object ActionGraphSave {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** List of all actions. */
-  private val actions = new mutable.WeakHashMap[ActionGraphSave, Unit]() with mutable.SynchronizedMap[ActionGraphSave, Unit]
+  private val actions = new MapMaker().weakKeys().makeMap[ActionGraphSave, Unit]().asScala
   /** Track graph markers events. */
   private val appEventListener = actor(new Act {
     become {

@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.command.graph
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
@@ -56,7 +56,7 @@ import scala.concurrent.Future
 /**
  * List all known graphs.
  */
-object CommandGraphList extends Loggable {
+object CommandGraphList extends XLoggable {
   import Command.parser._
   private val bindedArg = "-binded"
   /** Akka execution context. */

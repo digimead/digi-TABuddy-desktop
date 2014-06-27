@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic.ui.action
 
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -64,7 +64,7 @@ import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
 
-class ActionGraphOpen @Inject() (windowContext: Context) extends Action(Messages.openFile_text) with Loggable {
+class ActionGraphOpen @Inject() (windowContext: Context) extends Action(Messages.openFile_text) with XLoggable {
   @log
   override def run = App.execAsync {
     UI.getActiveShell match {

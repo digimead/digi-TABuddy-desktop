@@ -43,16 +43,13 @@
 
 package org.digimead.tabuddy.desktop.core.definition
 
-import scala.collection.JavaConversions._
-import scala.collection.immutable
-
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.tabuddy.desktop.core.definition.Context.Event
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.e4.core.internal.contexts.EclipseContext
-
-import language.implicitConversions
+import scala.collection.JavaConversions.asScalaSet
+import scala.collection.immutable
+import scala.language.implicitConversions
 
 /**
  * EclipseContext wrapper.
@@ -180,7 +177,7 @@ object Context {
     /**
      * Dependency injection routines.
      */
-    private object DI extends DependencyInjection.PersistentInjectable {
+    private object DI extends XDependencyInjection.PersistentInjectable {
       /** Event implementation. */
       lazy val implementation = injectOptional[Event] getOrElse new Event
     }

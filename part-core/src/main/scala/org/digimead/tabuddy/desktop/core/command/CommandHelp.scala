@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.core.command
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
@@ -60,7 +60,7 @@ import scala.concurrent.Future
 /**
  * Help command that starts 'Get available commands' operation.
  */
-object CommandHelp extends Loggable {
+object CommandHelp extends XLoggable {
   import Command.parser._
   private val allArg = "-all"
   /** Akka execution context. */

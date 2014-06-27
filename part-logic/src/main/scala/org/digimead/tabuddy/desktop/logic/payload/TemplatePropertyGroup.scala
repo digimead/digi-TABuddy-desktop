@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,10 +43,10 @@
 
 package org.digimead.tabuddy.desktop.logic.payload
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.payload.api.XTemplatePropertyGroup
 
-case class TemplatePropertyGroup(val id: Symbol, val label: String, val priority: Int) extends XTemplatePropertyGroup with Loggable {
+case class TemplatePropertyGroup(val id: Symbol, val label: String, val priority: Int) extends XTemplatePropertyGroup with XLoggable {
   log.debug(s"property group '${id.name}' alive")
 
   override def toString() = id.name

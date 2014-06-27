@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic.ui.action
 
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -64,20 +64,22 @@ import org.eclipse.core.runtime.jobs.Job
 /**
  * Create new graph.
  */
-class ActionGraphNew @Inject() (windowContext: Context) extends Action(Messages.newFile_text) with Loggable {
+class ActionGraphNew @Inject() (windowContext: Context) extends Action(Messages.newFile_text) with XLoggable {
   @log
-  override def run = OperationGraphNew(None, None, true).foreach { operation ⇒
-    operation.getExecuteJob() match {
-      case Some(job) ⇒
-        job.setPriority(Job.LONG)
-        job.onComplete(_ match {
-          case Operation.Result.OK(Some(graph: Graph[Model.Like]), message) ⇒
-            onGraphCreated(GraphMarker(graph))
-          case _ ⇒
-        }).schedule()
-      case None ⇒
-        throw new RuntimeException(s"Unable to create job for ${operation}.")
-    }
+  override def run = {
+//    OperationGraphNew(None, None).foreach { operation ⇒
+//      operation.getExecuteJob() match {
+//        case Some(job) ⇒
+//          job.setPriority(Job.LONG)
+//          job.onComplete(_ match {
+//            case Operation.Result.OK(Some(graph: Graph[Model.Like]), message) ⇒
+//              onGraphCreated(GraphMarker(graph))
+//            case _ ⇒
+//          }).schedule()
+//        case None ⇒
+//          throw new RuntimeException(s"Unable to create job for ${operation}.")
+//      }
+//    }
   }
   /** Create view when graph is available. */
   def onGraphCreated(marker: GraphMarker) {

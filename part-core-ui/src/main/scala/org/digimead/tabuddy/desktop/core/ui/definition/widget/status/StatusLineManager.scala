@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.definition.widget.status
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
@@ -57,12 +57,12 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ TraverseEvent, TraverseListener }
 import org.eclipse.swt.layout.{ GridData, GridLayout }
 import org.eclipse.swt.widgets.{ Composite, Control, Text }
-import scala.concurrent.future
+import scala.concurrent.Future
 
 /**
  * Composite status manager for AppWindow
  */
-class StatusLineManager extends JStatusLineManager with Loggable {
+class StatusLineManager extends JStatusLineManager with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The status line control; <code>null</code> before creation and after disposal. */
@@ -123,7 +123,7 @@ class StatusLineManager extends JStatusLineManager with Loggable {
                     case Some(commandDescriptor) ⇒
                       val activeContext = Core.context.getActiveLeaf()
                       textField.setText("")
-                      future {
+                      Future {
                         log.info(s"Execute command '${commandDescriptor.name}' within context '${info.context}' with argument: " + result)
                         commandDescriptor.callback(activeContext, info.context, result)
                       }

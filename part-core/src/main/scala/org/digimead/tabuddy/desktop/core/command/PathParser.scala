@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.command
 
 import java.io.File
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import scala.language.implicitConversions
 import scala.util.DynamicVariable
@@ -143,7 +143,7 @@ object PathParser {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** GraphParser implementation. */
     lazy val implementation = injectOptional[PathParser] getOrElse new PathParser
   }

@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.logic.payload
 
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.NLS
 import org.digimead.tabuddy.desktop.core.support.App
@@ -100,7 +100,7 @@ class TypeSchema(
  * Layer that provide a filter for template builder against possible type swarm
  * Layer that provide a localization for end user
  */
-object TypeSchema extends Loggable {
+object TypeSchema extends XLoggable {
   /** TypeSchema apply. */
   def apply(id: UUID, name: String, description: String, entities: immutable.HashMap[Symbol, XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]) =
     new TypeSchema(id, name, description, entities)
@@ -338,7 +338,7 @@ object TypeSchema extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val default = inject[UUID]("TypeSchema.Default")
     /** Predefined type schemas that are available for this application */
     /*def predefinedTypeSchemas: Seq[api.TypeSchema] = {

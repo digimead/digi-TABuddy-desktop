@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.core.support
 import akka.actor.{ Actor, ActorRef, Props }
 import java.io.File
 import java.net.URL
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.eclipse.core.runtime.adaptor.LocationManager
 import org.eclipse.osgi.framework.internal.core.FrameworkProperties
 import scala.annotation.elidable
@@ -55,7 +55,7 @@ import scala.annotation.elidable._
 import scala.collection.immutable
 import scala.language.implicitConversions
 
-class App extends Loggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection with app.Watch {
+class App extends XLoggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection with app.Watch {
   /*
    * Symbol ::= plainid
    *
@@ -100,7 +100,7 @@ object App {
 
   /** An empty actor implementation. */
   trait ContainerActor extends Actor {
-    this: Loggable ⇒
+    this: XLoggable ⇒
     log.debug("Start actor " + self.path)
 
     def receive = {
@@ -293,7 +293,7 @@ object App {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Event thread delay in ms. */
     lazy val eventThreadDelay = injectOptional[Int]("Core.eventThreadDelay") getOrElse 0
     /** App implementation. */

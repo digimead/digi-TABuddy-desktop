@@ -48,29 +48,29 @@ package org.digimead.tabuddy.desktop.core.console.api
  */
 trait XConsole {
   /** Foreground color for ANSI black. */
-  final val BLACK = "\033[0;30m"
-  final val BBLACK = "\033[1;30m"
+  final val BLACK = "\u001b[0;30m"
+  final val BBLACK = "\u001b[1;30m"
   /** Foreground color for ANSI red. */
-  final val RED = "\033[0;31m"
-  final val BRED = "\033[1;31m"
+  final val RED = "\u001b[0;31m"
+  final val BRED = "\u001b[1;31m"
   /** Foreground color for ANSI green. */
-  final val GREEN = "\033[0;32m"
-  final val BGREEN = "\033[1;32m"
+  final val GREEN = "\u001b[0;32m"
+  final val BGREEN = "\u001b[1;32m"
   /** Foreground color for ANSI yellow. */
-  final val YELLOW = "\033[0;33m"
-  final val BYELLOW = "\033[1;33m"
+  final val YELLOW = "\u001b[0;33m"
+  final val BYELLOW = "\u001b[1;33m"
   /** Foreground color for ANSI blue. */
-  final val BLUE = "\033[0;34m"
-  final val BBLUE = "\033[1;34m"
+  final val BLUE = "\u001b[0;34m"
+  final val BBLUE = "\u001b[1;34m"
   /** Foreground color for ANSI magenta. */
-  final val MAGENTA = "\033[0;35m"
-  final val BMAGENTA = "\033[1;35m"
+  final val MAGENTA = "\u001b[0;35m"
+  final val BMAGENTA = "\u001b[1;35m"
   /** Foreground color for ANSI cyan. */
-  final val CYAN = "\033[0;36m"
-  final val BCYAN = "\033[1;36m"
+  final val CYAN = "\u001b[0;36m"
+  final val BCYAN = "\u001b[1;36m"
   /** Foreground color for ANSI white. */
-  final val WHITE = "\033[0;37m"
-  final val BWHITE = "\033[1;37m"
+  final val WHITE = "\u001b[0;37m"
+  final val BWHITE = "\u001b[1;37m"
 
   /** Background color for ANSI black. */
   def BLACK_B = scala.Console.BLACK_B

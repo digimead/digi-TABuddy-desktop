@@ -43,21 +43,17 @@
 
 package org.digimead.tabuddy.desktop.core.definition
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.api.XOperation
-import org.eclipse.core.commands.operations.AbstractOperation
-import org.eclipse.core.commands.operations.OperationHistoryFactory
-import org.eclipse.core.runtime.IAdaptable
-import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.core.runtime.IStatus
-import org.eclipse.core.runtime.jobs.IJobChangeEvent
-import org.eclipse.core.runtime.jobs.JobChangeAdapter
+import org.eclipse.core.commands.operations.{ AbstractOperation, OperationHistoryFactory }
+import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor, IStatus }
+import org.eclipse.core.runtime.jobs.{ IJobChangeEvent, JobChangeAdapter }
 
 /**
  * Operation base class.
  */
 abstract class Operation[A](label: String) extends AbstractOperation(label) with XOperation[A] {
-  this: Loggable ⇒
+  this: XLoggable ⇒
 
   override protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[A]
   override protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[A]
@@ -123,7 +119,7 @@ abstract class Operation[A](label: String) extends AbstractOperation(label) with
   override protected def checkSubclass() {}
 }
 
-object Operation extends Loggable {
+object Operation extends XLoggable {
   /** Operation history. */
   lazy val history = OperationHistoryFactory.getOperationHistory()
 

@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.definition.command
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import scala.language.implicitConversions
 import scala.util.DynamicVariable
 import scala.util.matching.Regex
@@ -53,7 +53,7 @@ import scala.util.matching.Regex
  * Parser implementation for commands.
  * Thanks a lot to to Marcus Schulte for an idea.
  */
-class CommandParsers extends JavaTokenParsers with Loggable {
+class CommandParsers extends JavaTokenParsers with XLoggable {
   /** Stub parser. */
   val stubParser = new StubParser
   /** Make whiteSpace public. */

@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui.support
 
 import javafx.util.Builder
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComposite, VComposite, WComposite }
 import org.eclipse.jface.viewers.TableViewerColumn
@@ -202,7 +202,7 @@ trait Generic {
   }
 }
 
-object Generic extends Loggable {
+object Generic extends XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
 

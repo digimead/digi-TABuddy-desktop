@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.payload
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
@@ -69,7 +69,7 @@ class Enumeration[T <: AnySRef: Manifest](
    */
   preinitialization: Enumeration[_] ⇒ Unit = (enum: Enumeration[_]) ⇒
     // create the enumeration element if needed and set the type field
-    enum.element.eSet[String](enum.getFieldIDType, enum.ptype.id.name)) extends Enumeration.Interface[T] with Loggable {
+    enum.element.eSet[String](enum.getFieldIDType, enum.ptype.id.name)) extends Enumeration.Interface[T] with XLoggable {
   def this(element: Element#RelativeType, ptype: XPropertyType[T], initialAvailability: Boolean,
     initialName: String, initialConstants: Set[XEnumeration.Constant[T]]) = {
     this(element, ptype, (enumerationWithoutErasure) ⇒ {
@@ -183,7 +183,7 @@ class Enumeration[T <: AnySRef: Manifest](
   override lazy val toString = "Enumeration[%s/%s]%s".format(ptype.id, scala.reflect.runtime.universe.typeOf[T], element.eId)
 }
 
-object Enumeration extends Loggable {
+object Enumeration extends XLoggable {
   type propertyMap = immutable.HashMap[TemplatePropertyGroup, Seq[TemplateProperty[_ <: AnySRef]]]
   /** Constants limit per enumeration */
   val collectionMaximum = 100

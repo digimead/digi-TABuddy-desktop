@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.core.support.app
 
 import java.util.concurrent.{ Exchanger, ExecutionException, TimeUnit }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import scala.collection.mutable
@@ -76,10 +76,10 @@ trait Watch {
 /*
  * App.watch(myObject1, ...).once().always().timeout(n).afterStart({ ... })
  */
-object Watch extends Loggable {
+object Watch extends XLoggable {
   implicit lazy val ec = App.system.dispatcher
   /** Watcher implementation. */
-  class Watcher(val ids: Set[Int], val t: Throwable) extends Loggable {
+  class Watcher(val ids: Set[Int], val t: Throwable) extends XLoggable {
     @volatile protected var argActive = false
     protected var argTimes = 1
     protected var hookAfterStart = Seq.empty[(Int, Function0[_])]
@@ -336,7 +336,7 @@ object Watch extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Maximum duration for watcher hooks. */
     lazy val maxProcessDuration = injectOptional[Duration]("Core.Watcher.Duration") getOrElse Timeout.longer
   }

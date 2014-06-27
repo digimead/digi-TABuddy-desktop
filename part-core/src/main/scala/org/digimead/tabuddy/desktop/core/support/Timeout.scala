@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.support
 
 import java.util.concurrent.TimeUnit
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import scala.concurrent.duration.{ Duration, FiniteDuration }
 import scala.language.implicitConversions
 
@@ -61,7 +61,7 @@ object Timeout {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val shortest = injectOptional[Int]("Timeout.Shortest") getOrElse 1000
     lazy val short = injectOptional[Int]("Timeout.Short") getOrElse 5000
     lazy val normal = injectOptional[Int]("Timeout.Normal") getOrElse 10000

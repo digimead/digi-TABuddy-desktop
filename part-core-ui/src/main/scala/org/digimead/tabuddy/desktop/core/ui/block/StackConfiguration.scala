@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.core.ui.block
 import java.io.{ File, FileInputStream, FileOutputStream, IOException, ObjectOutputStream }
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
 import org.digimead.tabuddy.desktop.core.ui.block.api.XConfiguration.CPlaceHolder
@@ -60,7 +60,7 @@ import scala.language.implicitConversions
 /**
  * Stack layer configuration.
  */
-class StackConfiguration extends Loggable {
+class StackConfiguration extends XLoggable {
   /** Persistent storage. */
   lazy val configurationContainer = {
     val container = StackConfiguration.configurationContainer
@@ -194,7 +194,7 @@ object StackConfiguration {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Name of the storage container for stack configurations. */
     lazy val configurationName = injectOptional[String]("Core.UI.StackConfiguration.Name") getOrElse "StackConfiguration"
     /** Extension for stored configurations. */

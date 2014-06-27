@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.support
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.databinding.observable.list.{ WritableList ⇒ OriginalWritableList }
@@ -55,7 +55,7 @@ import scala.collection.JavaConversions.seqAsJavaList
  * Tree proxy object that updates observables
  * Observables is updated only after TreeProxy.content
  */
-class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], expandedItems: mutable.HashSet[TreeProxy.Item]) extends Loggable {
+class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], expandedItems: mutable.HashSet[TreeProxy.Item]) extends XLoggable {
   /** Internal content that represents the actual flat projection of hierarchical structure */
   protected var content = parallel.immutable.ParVector[TreeProxy.Item]()
   /** Set of filtered items in hierarchical structure */

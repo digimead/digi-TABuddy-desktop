@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.logic.command.graph
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
@@ -62,7 +62,7 @@ import scala.concurrent.Future
 /**
  * Close graph that is already open.
  */
-object CommandGraphClose extends Loggable {
+object CommandGraphClose extends XLoggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher

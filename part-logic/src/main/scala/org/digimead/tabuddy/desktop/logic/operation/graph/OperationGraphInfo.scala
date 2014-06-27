@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.logic.operation.graph
 import java.io.InputStream
 import java.net.URI
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphInfo
@@ -64,7 +64,7 @@ import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 /**
  * 'Get information about graph' operation.
  */
-class OperationGraphInfo extends XOperationGraphInfo with Loggable {
+class OperationGraphInfo extends XOperationGraphInfo with XLoggable {
   /**
    * Get information about graph.
    *
@@ -149,7 +149,7 @@ class OperationGraphInfo extends XOperationGraphInfo with Loggable {
   class Implemetation(location: URI,
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters])
-    extends OperationGraphInfo.Abstract(location, containerEncParameters, contentEncParameters) with Loggable {
+    extends OperationGraphInfo.Abstract(location, containerEncParameters, contentEncParameters) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -174,7 +174,7 @@ class OperationGraphInfo extends XOperationGraphInfo with Loggable {
   }
 }
 
-object OperationGraphInfo extends Loggable {
+object OperationGraphInfo extends XLoggable {
   /** Stable identifier with OperationGraphInfo DI */
   lazy val operation = DI.operation.asInstanceOf[OperationGraphInfo]
 
@@ -197,12 +197,12 @@ object OperationGraphInfo extends Loggable {
     val containerEncParameters: Option[XEncryption.Parameters],
     val contentEncParameters: Option[XEncryption.Parameters])
     extends Operation[XOperationGraphInfo.Info](s"Get information about graph from ${location}.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationGraphInfo] getOrElse new OperationGraphInfo
   }
 }

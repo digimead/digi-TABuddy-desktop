@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.core
 import java.util.concurrent.Exchanger
 import java.util.concurrent.atomic.AtomicReference
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.core.databinding.DataBindingContext
@@ -62,7 +62,7 @@ import scala.concurrent.Future
  * Thread is required for data binding and UI operation.
  * It is suitable for headless mode.
  */
-class EventLoop extends Thread("Application event loop") with EventLoop.Initializer with Loggable {
+class EventLoop extends Thread("Application event loop") with EventLoop.Initializer with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The global application data binding context. */
@@ -235,7 +235,7 @@ object EventLoop {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** EventLoop implementation */
     lazy val implementation = injectOptional[Class[EventLoop]]("EventLoop") getOrElse classOf[EventLoop]
   }

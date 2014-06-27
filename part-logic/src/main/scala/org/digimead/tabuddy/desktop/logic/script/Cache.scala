@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.logic.script
 
 import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache, RemovalListener, RemovalNotification }
 import java.util.concurrent.TimeUnit
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import scala.language.implicitConversions
 import scala.util.DynamicVariable
 
@@ -65,7 +65,7 @@ class Cache {
     build(new Cache.ScriptLoader)
 }
 
-object Cache extends Loggable {
+object Cache extends XLoggable {
   implicit def cache2implementation(c: Cache.type): Cache = c.inner
   implicit def cache2storage(c: Cache.type): LoadingCache[String, Script.Container[_]] = c.inner.storage
 
@@ -107,7 +107,7 @@ object Cache extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Cache implementation. */
     lazy val implementation = injectOptional[Cache] getOrElse new Cache
     /** Cache maximum size. */

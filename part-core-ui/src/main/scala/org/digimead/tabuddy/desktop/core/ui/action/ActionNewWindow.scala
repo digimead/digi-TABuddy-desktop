@@ -44,14 +44,14 @@
 package org.digimead.tabuddy.desktop.core.ui.action
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.Messages
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationWindowOpen
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 
-object ActionNewWindow extends JFaceAction(Messages.newWindow_text) with Loggable {
+object ActionNewWindow extends JFaceAction(Messages.newWindow_text) with XLoggable {
   @log
   override def run = OperationWindowOpen(None).foreach { operation ⇒
     operation.getExecuteJob() match {

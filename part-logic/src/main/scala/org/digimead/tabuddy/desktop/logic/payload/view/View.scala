@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.payload.view
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
@@ -99,7 +99,7 @@ class View(
   override def hashCode() = elementId.hashCode
 }
 
-object View extends Loggable {
+object View extends XLoggable {
   /** Predefined default view */
   val displayName = new View(UUID.fromString("033ca060-8493-11e2-9e96-0800200c9a66"), Messages.default_text,
     "The default minimal view with 'name' column", true, mutable.LinkedHashSet('name), mutable.LinkedHashSet(), mutable.LinkedHashSet())

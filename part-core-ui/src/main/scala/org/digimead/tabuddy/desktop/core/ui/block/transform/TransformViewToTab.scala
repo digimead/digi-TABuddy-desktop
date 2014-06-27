@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.core.ui.block.transform
 
 import akka.pattern.ask
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackLayer, StackSupervisor }
@@ -55,7 +55,7 @@ import scala.concurrent.Await
 import scala.language.implicitConversions
 
 /** Wrap view with tab stack. */
-class TransformViewToTab extends Loggable {
+class TransformViewToTab extends XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -117,7 +117,7 @@ object TransformViewToTab {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** TransformViewToTab implementation */
     lazy val implementation = injectOptional[TransformViewToTab] getOrElse new TransformViewToTab
   }

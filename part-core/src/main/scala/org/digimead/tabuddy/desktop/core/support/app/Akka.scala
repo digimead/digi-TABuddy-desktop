@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.core.support.app
 import akka.actor.{ ActorIdentity, ActorPath, ActorRef, ActorSelection, Identify, Props, actorRef2Scala }
 import akka.pattern.ask
 import java.util.concurrent.atomic.AtomicReference
-import org.digimead.digi.lib.log.api.{ Loggable, RichLogger }
+import org.digimead.digi.lib.log.api.{ XLoggable, XRichLogger }
 import org.digimead.tabuddy.desktop.core.EventLoop
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -56,7 +56,7 @@ import scala.concurrent.Await
  * Akka support trait
  */
 trait Akka {
-  this: EventLoop.Consumer with Loggable ⇒
+  this: EventLoop.Consumer with XLoggable ⇒
   /** Support actor. */
   // System.nanoTime is needed because we may have more than one supportActor per JVM
   protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "TABuddyAppSupport." + System.currentTimeMillis() + System.nanoTime())
@@ -148,7 +148,7 @@ trait Akka {
   /** Send argument to the actor. */
   def tellActor[A](path: Seq[String], argument: A): Unit =
     getActorRef(path: _*).map { _ ! argument }
-  def traceMessage[T](message: AnyRef)(f: ⇒ T)(implicit l: RichLogger): Option[T] = try {
+  def traceMessage[T](message: AnyRef)(f: ⇒ T)(implicit l: XRichLogger): Option[T] = try {
     l.trace(s"enteringHandler '${message}'")
     val result = f
     l.trace(s"leavingHandler '${message}'")
@@ -160,7 +160,7 @@ trait Akka {
   }
 }
 
-object Akka extends Loggable {
+object Akka extends XLoggable {
   class Actor extends akka.actor.Actor {
     log.debug("Start internal actor " + self.path)
 

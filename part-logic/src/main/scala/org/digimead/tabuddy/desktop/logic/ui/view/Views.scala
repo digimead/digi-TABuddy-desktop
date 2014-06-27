@@ -44,15 +44,15 @@
 package org.digimead.tabuddy.desktop.logic.ui.view
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.ui.Resources
 import scala.language.implicitConversions
 
 /**
  * Configurator responsible for configure/unconfigure application views.
  */
-class Views extends Loggable {
+class Views extends XLoggable {
   /** Synchronization lock. */
   protected val lock = new Object
 
@@ -77,7 +77,7 @@ object Views {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Views implementation. */
     lazy val implementation = injectOptional[Views] getOrElse new Views
   }

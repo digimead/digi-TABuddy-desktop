@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.{ Core, definition }
 import org.eclipse.e4.core.contexts.{ EclipseContextFactory, IEclipseContext }
 import org.eclipse.e4.core.internal.contexts.EclipseContext
@@ -51,7 +51,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConversions.{ asJavaCollection, asScalaSet, mapAsScalaMap }
 
 trait Context {
-  this: Loggable with Generic ⇒
+  this: XLoggable with Generic ⇒
 
   /** Dump context hierarchy acquired from Core context. */
   def contextDumpHierarchy(filter: String ⇒ Boolean = (key) ⇒ true, brief: Boolean = true): String =

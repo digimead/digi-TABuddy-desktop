@@ -53,7 +53,7 @@ import javafx.scene.effect.DropShadow
 import javafx.scene.layout.Pane
 import javafx.scene.paint.Color
 import javafx.scene.shape.{ ArcTo, ClosePath, FillRule, LineTo, MoveTo, Path }
-import javafx.scene.text.{ Font, FontWeight, Text, TextAlignment, TextBuilder }
+import javafx.scene.text.{ Font, FontWeight, Text, TextAlignment }
 import javafx.scene.transform.{ Rotate, Scale }
 import javafx.util.Duration
 import org.digimead.digi.lib.jfx4swt.FXCanvas
@@ -118,15 +118,12 @@ class Loading(parent: Composite, style: Int) extends LoadingSkel(parent, style) 
     ds.setOffsetY(3.0f)
     ds.setColor(Color.color(0.4f, 0.4f, 0.4f))
 
-    val text = UI.<>[TextBuilder[_], Text](TextBuilder.create()) { b ⇒
-      b.text("Loading...")
-      b.fill(Color.LIGHTGRAY)
-      b.font(Font.font(null, FontWeight.BOLD, 100))
-      b.textAlignment(TextAlignment.CENTER)
-      b.effect(ds)
-      b.textOrigin(VPos.TOP)
-      b.build()
-    }
+    val text = new Text("Loading...")
+    text.setFill(Color.LIGHTGRAY)
+    text.setFont(Font.font(null, FontWeight.BOLD, 100))
+    text.setTextAlignment(TextAlignment.CENTER)
+    text.setEffect(ds)
+    text.setTextOrigin(VPos.TOP)
     val tb = text.getBoundsInLocal()
 
     val pathX = new SimpleDoubleProperty()

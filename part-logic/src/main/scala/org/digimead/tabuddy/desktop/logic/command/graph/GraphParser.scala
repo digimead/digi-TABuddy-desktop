@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
@@ -195,7 +195,7 @@ object GraphParser {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** GraphParser implementation. */
     lazy val implementation = injectOptional[GraphParser] getOrElse new GraphParser
   }

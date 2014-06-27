@@ -44,15 +44,15 @@
 package org.digimead.tabuddy.desktop.logic.ui.wizard
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.ui.Resources
 import scala.language.implicitConversions
 
 /**
  * The configurator is responsible for configure/unconfigure logic wizards.
  */
-class Wizards extends Loggable {
+class Wizards extends XLoggable {
   /** Configure component wizards. */
   @log
   def configure() {
@@ -73,7 +73,7 @@ object Wizards {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Wizards implementation */
     lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
   }

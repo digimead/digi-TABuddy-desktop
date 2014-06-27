@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.command.context
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.{ Core, Messages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.command.Command
@@ -56,7 +56,7 @@ import scala.concurrent.Future
 /**
  * List command that show all application contexts.
  */
-object CommandContextList extends Loggable {
+object CommandContextList extends XLoggable {
   import Command.parser._
   private val fullArg = "-full"
   /** Akka execution context. */

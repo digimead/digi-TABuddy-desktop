@@ -48,8 +48,8 @@ import akka.pattern.{ AskTimeoutException, ask }
 import java.util.UUID
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
@@ -69,7 +69,7 @@ import scala.concurrent.{ Await, Future }
 import scala.ref.WeakReference
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
-class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with Loggable {
+class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -263,7 +263,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with L
   override lazy val toString = "View[actor/%08X]".format(viewId.hashCode())
 }
 
-object View extends Loggable {
+object View extends XLoggable {
   /** Akka execution context. */
   implicit protected lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -462,7 +462,7 @@ object View extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** View actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI.View") getOrElse Props(classOf[View],
       // view layer id

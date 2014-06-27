@@ -49,8 +49,8 @@ import java.lang.ref.WeakReference
 import java.util.UUID
 import java.util.concurrent.atomic.{ AtomicBoolean, AtomicReference }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
@@ -72,7 +72,7 @@ import scala.language.implicitConversions
  * - provide view configuration
  * - save all views configuration
  */
-class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) extends Actor with Loggable {
+class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) extends Actor with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -504,7 +504,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
   override lazy val toString = "StackSupervisor[actor/%08X]".format(windowId.hashCode())
 }
 
-object StackSupervisor extends Loggable {
+object StackSupervisor extends XLoggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   // Initialize descendant actor singletons
@@ -527,7 +527,7 @@ object StackSupervisor extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** WindowSupervisor actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI.StackSupervisor") getOrElse Props(classOf[StackSupervisor],
       // window id = stack supervisor id

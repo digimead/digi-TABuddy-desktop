@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.payload.view
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
@@ -95,7 +95,7 @@ class Filter(
   override def hashCode() = elementId.hashCode
 }
 
-object Filter extends Loggable {
+object Filter extends XLoggable {
   /** Predefined default filter. */
   val allowAllFilter = new Filter(UUID.fromString("d9baaf38-fb98-4de5-9085-12156e668b0c"), Messages.default_text, "", true, mutable.LinkedHashSet())
   /** Fields limit per sort */

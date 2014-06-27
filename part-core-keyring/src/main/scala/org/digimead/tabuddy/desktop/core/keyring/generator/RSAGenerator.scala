@@ -48,14 +48,14 @@ import org.bouncycastle.bcpg.PublicKeyAlgorithmTags
 import org.bouncycastle.crypto.AsymmetricCipherKeyPairGenerator
 import org.bouncycastle.crypto.generators.RSAKeyPairGenerator
 import org.bouncycastle.crypto.params.RSAKeyGenerationParameters
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
 
 /**
  * RSA PGP keyring generator.
  */
-class RSAGenerator extends Generator with Loggable {
+class RSAGenerator extends Generator with XLoggable {
   /** PublicKeyAlgorithmTags for encryption keys. */
   // PublicKeyAlgorithmTags.RSA_ENCRYPT is "unknown algorithm 2" with gpg (GnuPG) 2.0.22 libgcrypt 1.5.3
   val encAlgorithm: Int = PublicKeyAlgorithmTags.RSA_GENERAL

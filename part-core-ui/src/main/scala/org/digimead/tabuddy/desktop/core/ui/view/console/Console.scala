@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.view.console
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Projection
 import org.digimead.tabuddy.desktop.core.support.{App, Timeout}
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
@@ -52,7 +52,7 @@ import org.eclipse.ui.console.{MessageConsole, MessageConsoleStream}
 import org.eclipse.ui.console.IOConsoleOutputStream
 
 class Console(parent: VComposite, style: Int, console: MessageConsole)
-  extends ConsoleSkel(parent, style, console) with Projection with Loggable {
+  extends ConsoleSkel(parent, style, console) with Projection with XLoggable {
   implicit val timeout = akka.util.Timeout(Timeout.short)
   @volatile var output: Option[IOConsoleOutputStream] = None
 

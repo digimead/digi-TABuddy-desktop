@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.core
 import java.io.File
 import java.text.{ DateFormat, SimpleDateFormat }
 import java.util.Date
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.api.XInfo
 import org.digimead.tabuddy.desktop.core.support.App
 import org.osgi.framework.{ BundleContext, ServiceReference }
@@ -57,7 +57,7 @@ import scala.language.{ implicitConversions, reflectiveCalls }
 /**
  * This class interact with launcher report service.
  */
-class Report(context: BundleContext) extends ServiceTrackerCustomizer[AnyRef, AnyRef] with Loggable {
+class Report(context: BundleContext) extends ServiceTrackerCustomizer[AnyRef, AnyRef] with XLoggable {
   /** Report service. */
   protected var serviceRef: Option[AnyRef] = None
   /** Exception listener. */
@@ -135,7 +135,7 @@ object Report {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Date representation format. */
     val df = injectOptional[DateFormat]("Report.DateFormat") getOrElse new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSZ")
     /** Report implementation. */

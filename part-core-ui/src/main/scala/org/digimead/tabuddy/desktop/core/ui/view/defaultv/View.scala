@@ -45,9 +45,9 @@ package org.digimead.tabuddy.desktop.core.ui.view.defaultv
 
 import akka.actor.{ Actor, Props }
 import java.util.UUID
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.jfx4swt.JFX
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.{ Messages, block }
 import org.digimead.tabuddy.desktop.core.ui.definition.IView
@@ -59,7 +59,7 @@ import org.eclipse.swt.widgets.Composite
  * Default application view.
  */
 /* http://stackoverflow.com/questions/15421527/how-to-animate-2d-curve-arrows-between-two-nodes-in-javafx?rq=1 */
-class View(val contentId: UUID, val factory: block.View.Factory) extends Actor with IView with Loggable {
+class View(val contentId: UUID, val factory: block.View.Factory) extends Actor with IView with XLoggable {
   log.debug("Start actor " + self.path)
 
   /** Creates and returns this window's contents. */
@@ -71,7 +71,7 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
   }
 }
 
-object View extends Loggable {
+object View extends XLoggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
 
@@ -96,7 +96,7 @@ object View extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Default view factory. */
     lazy val factory = injectOptional[Factory] getOrElse new Factory
     /** View name. */

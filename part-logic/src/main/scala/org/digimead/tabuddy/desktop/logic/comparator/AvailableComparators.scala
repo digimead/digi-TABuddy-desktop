@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.logic.comparator
 
 import java.util.UUID
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.tabuddy.desktop.logic.comparator.api.XComparator
 import scala.collection.immutable
 
@@ -58,7 +58,7 @@ object AvailableComparators {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Comparator item that is selected by default. */
     lazy val defaultComparator = map(inject[UUID]("Logic.Comparator.Default"))
     /** Predefined comparators that are available for this application */

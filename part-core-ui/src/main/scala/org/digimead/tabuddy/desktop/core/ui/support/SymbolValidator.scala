@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -60,7 +60,7 @@ class SymbolValidator private[support] (override val decoration: WeakReference[C
 
   /** Sent when the text is about to be modified. */
   override def verifyText(e: VerifyEvent) {
-    if (e.text.nonEmpty && e.character != '\0') {
+    if (e.text.nonEmpty && e.character != '\u0000') {
       // add lead letter if _ is a first symbol and start is not 0
       val text = if (e.start != 0 && e.text(0) == '_') "a" + e.text else e.text
       e.doit = App.symbolPattern.matcher(text).matches()

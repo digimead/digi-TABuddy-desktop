@@ -44,12 +44,12 @@
 package org.digimead.tabuddy.desktop.logic.comparator
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.comparator.api.XComparator
 import org.digimead.tabuddy.desktop.logic.payload.api.XPropertyType
 import org.digimead.tabuddy.model.element.Element
 
-class ByPropertyText extends XComparator[XComparator.Argument] with Loggable {
+class ByPropertyText extends XComparator[XComparator.Argument] with XLoggable {
   val id = UUID.fromString("84b24863-145a-40a7-aade-e25547c52b41")
   val name = "By property text"
   val description = "Compare two element's properties via text representation"

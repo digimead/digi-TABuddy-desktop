@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.operation
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationModifyEnumerationList
 import org.digimead.tabuddy.desktop.logic.payload.api.XEnumeration
@@ -85,7 +85,7 @@ trait OperationModifyEnumerationList extends XOperationModifyEnumerationList {
 /**
  * Modify an enumeration list.
  */
-object OperationModifyEnumerationList extends Loggable {
+object OperationModifyEnumerationList extends XLoggable {
   /** Stable identifier with OperationModifyEnumerationList DI */
   lazy val operation = DI.operation.asInstanceOf[Option[OperationModifyEnumerationList]]
 
@@ -108,13 +108,13 @@ object OperationModifyEnumerationList extends Loggable {
 
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val enumerationList: Set[XEnumeration[_ <: AnyRef with java.io.Serializable]])
     extends Operation[Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]](s"Edit enumeration list for graph ${graph}.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
 
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationModifyEnumerationList]
   }
 }

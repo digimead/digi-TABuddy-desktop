@@ -46,8 +46,8 @@ package org.digimead.tabuddy.desktop.logic
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import java.io.File
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
@@ -64,7 +64,7 @@ import scala.language.implicitConversions
 /**
  * Root actor of the Logic component.
  */
-class Logic extends akka.actor.Actor with Loggable {
+class Logic extends akka.actor.Actor with XLoggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef](Logic)
   /** Current bundle */
@@ -315,7 +315,7 @@ object Logic {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Logic actor reference configuration object. */
     lazy val props = injectOptional[Props]("Logic") getOrElse Props[Logic]
     /**

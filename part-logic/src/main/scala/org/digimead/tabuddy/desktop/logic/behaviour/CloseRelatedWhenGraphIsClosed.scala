@@ -43,15 +43,15 @@
 
 package org.digimead.tabuddy.desktop.logic.behaviour
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import scala.language.implicitConversions
 
-class CloseRelatedWhenGraphIsClosed extends Loggable {
+class CloseRelatedWhenGraphIsClosed extends XLoggable {
   def run(marker: GraphMarker) {
     log.debug(s"Close all views that are related to ${marker}.")
     val toCloseRefs = UI.viewMap.filter {
@@ -72,7 +72,7 @@ object CloseRelatedWhenGraphIsClosed {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** CloseRelatedWhenGraphIsClosed implementation. */
     lazy val implementation = injectOptional[CloseRelatedWhenGraphIsClosed] getOrElse new CloseRelatedWhenGraphIsClosed
   }

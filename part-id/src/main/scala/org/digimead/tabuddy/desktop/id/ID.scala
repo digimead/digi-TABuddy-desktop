@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.id
 
 import java.io.ByteArrayInputStream
 import org.bouncycastle.openpgp.{ PGPPublicKey, PGPPublicKeyRing, PGPSecretKey, PGPSecretKeyRing }
-import org.digimead.digi.lib.api.DependencyInjection
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import scala.collection.JavaConverters.asScalaIteratorConverter
 import scala.language.implicitConversions
@@ -415,7 +415,7 @@ object ID {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** ID implementation. */
     lazy val implementation = injectOptional[ID] getOrElse new ID
   }

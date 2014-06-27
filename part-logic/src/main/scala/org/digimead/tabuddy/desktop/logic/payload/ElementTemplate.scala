@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.logic.payload
 
 import java.util.UUID
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.payload.api.{ XElementTemplate, XEnumeration, XPropertyType, XTemplateProperty, XTemplatePropertyGroup }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
@@ -62,7 +62,7 @@ class ElementTemplate(
   /** The factory for the element that contains template data (container, id, scopeModificator) */
   val factory: (Element, Symbol, Symbol) ⇒ Element,
   /** Fn thats do something before the instance initialization */
-  preinitialization: ElementTemplate ⇒ Unit = _ ⇒ {}) extends ElementTemplate.Interface with Loggable {
+  preinitialization: ElementTemplate ⇒ Unit = _ ⇒ {}) extends ElementTemplate.Interface with XLoggable {
   def this(element: Element#RelativeType, factory: (Element, Symbol, Symbol) ⇒ Element,
     initialName: String, initialAvailability: Boolean, initialProperties: XElementTemplate.propertyMap) = {
     this(element, factory, (template) ⇒ {
@@ -214,7 +214,7 @@ class ElementTemplate(
   }
 }
 
-object ElementTemplate extends Loggable {
+object ElementTemplate extends XLoggable {
   /** Get list of element template builders. */
   def builders = DI.builders
   /**
@@ -407,7 +407,7 @@ object ElementTemplate extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /**
      * Collection of element template builders.
      *

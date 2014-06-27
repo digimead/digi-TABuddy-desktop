@@ -47,8 +47,8 @@ import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -60,7 +60,7 @@ import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import scala.concurrent.Await
 
 /** 'Create view' operation. */
-class OperationViewCreate extends XOperationViewCreate with Loggable {
+class OperationViewCreate extends XOperationViewCreate with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -115,7 +115,7 @@ class OperationViewCreate extends XOperationViewCreate with Loggable {
   override protected def checkSubclass() {}
 
   class Implemetation(windowId: UUID, viewConfiguration: Configuration.CView)
-    extends OperationViewCreate.Abstract(windowId, viewConfiguration) with Loggable {
+    extends OperationViewCreate.Abstract(windowId, viewConfiguration) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -132,7 +132,7 @@ class OperationViewCreate extends XOperationViewCreate with Loggable {
   }
 }
 
-object OperationViewCreate extends Loggable {
+object OperationViewCreate extends XLoggable {
   /** Stable identifier with OperationViewCreate DI */
   lazy val operation = DI.operation.asInstanceOf[OperationViewCreate]
 
@@ -150,12 +150,12 @@ object OperationViewCreate extends Loggable {
   /** Bridge between abstract XOperation[UUID] and concrete Operation[UUID] */
   abstract class Abstract(val windowId: UUID, val viewConfiguration: Configuration.CView)
     extends Operation[UUID](s"Create ${viewConfiguration} in AppWindow[%08X].".format(windowId.hashCode())) {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     lazy val operation = injectOptional[XOperationViewCreate] getOrElse new OperationViewCreate
   }
 }

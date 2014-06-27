@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic.ui.action
 
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -59,7 +59,7 @@ import org.eclipse.swt.widgets.Event
 /**
  * Close all opened graphs.
  */
-class ActionGraphCloseAll @Inject() (windowContext: Context) extends Action(Messages.closeAllFiles_text) with Loggable {
+class ActionGraphCloseAll @Inject() (windowContext: Context) extends Action(Messages.closeAllFiles_text) with XLoggable {
   /** Runs this action, passing the triggering SWT event. */
   @log
   override def runWithEvent(event: Event) {

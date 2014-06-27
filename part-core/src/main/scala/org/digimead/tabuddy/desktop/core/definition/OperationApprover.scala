@@ -43,12 +43,12 @@
 
 package org.digimead.tabuddy.desktop.core.definition
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.api.XOperationApprover
 import org.eclipse.core.commands.operations.IOperationApprover2
 
 abstract class OperationApprover extends IOperationApprover2 with XOperationApprover {
-  this: Loggable =>
+  this: XLoggable =>
   /**
    * Checks that this class can be subclassed.
    * <p>

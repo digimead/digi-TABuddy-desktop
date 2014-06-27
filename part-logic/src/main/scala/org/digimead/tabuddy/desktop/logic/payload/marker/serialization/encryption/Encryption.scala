@@ -43,14 +43,14 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
 
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 
 /**
  * Container for all available encryption implementations.
  */
-object Encryption extends Loggable {
+object Encryption extends XLoggable {
   type Identifier = XEncryption.Identifier
 
   /** Map of all available encryption implementations. */
@@ -59,7 +59,7 @@ object Encryption extends Loggable {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /**
      * Per identifier encryptions map.
      *

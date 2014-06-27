@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.payload.api
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -90,7 +90,7 @@ trait XPropertyType[A <: AnyRef with java.io.Serializable] extends Equals {
   def valueFromString(value: String): A
 }
 
-object XPropertyType extends Loggable {
+object XPropertyType extends XLoggable {
   /**
    * Element property adapter
    */

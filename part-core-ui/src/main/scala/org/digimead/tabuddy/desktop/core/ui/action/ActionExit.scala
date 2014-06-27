@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.core.ui.action
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.operation.OperationExit
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -54,7 +54,7 @@ import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 /**
  * Exit action that starts Exit operation.
  */
-object ActionExit extends JFaceAction(Messages.exit_text) with Loggable {
+object ActionExit extends JFaceAction(Messages.exit_text) with XLoggable {
   @log
   override def run = OperationExit().foreach { operation ⇒
     operation.getExecuteJob() match {

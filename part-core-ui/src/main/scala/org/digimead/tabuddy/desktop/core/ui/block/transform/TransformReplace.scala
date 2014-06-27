@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.core.ui.block.transform
 
 import akka.pattern.ask
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, StackSupervisor }
@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComp
 import scala.concurrent.{ Await, Future }
 import scala.language.implicitConversions
 
-class TransformReplace extends Loggable {
+class TransformReplace extends XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Akka communication timeout. */
@@ -99,7 +99,7 @@ object TransformReplace {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** TransformReplace implementation */
     lazy val implementation = injectOptional[TransformReplace] getOrElse new TransformReplace
   }

@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.logic.command.graph
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
@@ -64,7 +64,7 @@ import scala.concurrent.Future
  * Create new graph.
  * Example: graph new -all graphName /a/b/c/.../graphPath
  */
-object CommandGraphNew extends Loggable {
+object CommandGraphNew extends XLoggable {
   import Command.parser._
   private val allArg = "-all"
   /** Akka execution context. */
