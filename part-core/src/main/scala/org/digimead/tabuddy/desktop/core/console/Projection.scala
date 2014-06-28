@@ -57,6 +57,8 @@ trait Projection extends XConsole.Projection {
   protected var lastLine = ""
   /** The output stream for which command results come. */
   protected var out: Option[Writer] = None
+  /** Flag indicating whether a multiline mode is active. */
+  protected var multiline = Seq.empty[String]
 
   /** Barrier that freezes processing of the prompt until explicit signal. */
   protected val waitForPromptPermission = new Exchanger[Null]
@@ -64,6 +66,8 @@ trait Projection extends XConsole.Projection {
   /** Start prompt processing. */
   def enablePrompt() =
     waitForPromptPermission.exchange(null, 1000, TimeUnit.MILLISECONDS)
+  /** Get multiline prefix. */
+  def prefix = multiline.mkString
 
   /**
    * The main loop for the console. It calls
@@ -89,16 +93,33 @@ trait Projection extends XConsole.Projection {
             next = if (lastLine eq null) {
               false
             } else {
-              Console ! Console.Message.Command(lastLine, Some(this))
+              val nextLineSymbolIndex = lastLine.lastIndexOf("""\""")
+              if (nextLineSymbolIndex >= 0 && lastLine.drop(nextLineSymbolIndex + 1).trim().isEmpty()) {
+                val chunk = lastLine.take(nextLineSymbolIndex).trim() + " "
+                if (chunk == " ") {
+                  // empty line
+                  multiline = Seq.empty
+                  Console ! Console.Message.Command(multiline.mkString, Some(this))
+                } else {
+                  multiline = multiline :+ chunk
+                }
+              } else {
+                Console ! Console.Message.Command(multiline.mkString + lastLine, Some(this))
+                multiline = Seq.empty
+              }
               true
             }
+          else if (multiline.nonEmpty) {
+            Console ! Console.Message.Command(multiline.mkString + lastLine, Some(this))
+            multiline = Seq.empty
+          }
         case None ⇒
           next = false
       }
     }
   }
   /** Prompt to print when awaiting input. */
-  protected def prompt = Console.prompt
+  protected def prompt = if (multiline.nonEmpty) ">" else Console.prompt
   /** Replay question message for broken command. */
   protected def replayQuestionMessage(err: String) =
     s"""|The command execution was interrupted with an error: ${err}

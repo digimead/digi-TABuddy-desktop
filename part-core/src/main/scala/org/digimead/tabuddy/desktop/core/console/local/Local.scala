@@ -43,19 +43,20 @@
 
 package org.digimead.tabuddy.desktop.core.console.local
 
-import java.io.{ IOException, OutputStream, PrintStream, PrintWriter }
-import org.digimead.digi.lib.log.api.Loggable
+import java.io.{ IOException, PrintWriter }
+import jline.console.ConsoleReader
+import jline.console.completer.CandidateListCompletionHandler
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.{ Console, Projection, Reader ⇒ CReader, Writer ⇒ CWriter }
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import scala.collection.JavaConverters.seqAsJavaListConverter
-import scala.tools.jline.console.ConsoleReader
-import scala.tools.jline.console.completer.CandidateListCompletionHandler
+import scala.ref.WeakReference
 import scala.tools.nsc.interpreter.{ Completion, ConsoleReaderHelper, JLineReader, NoCompletion }
 import scala.tools.nsc.interpreter.session.JLineHistory.JLineFileHistory
 import scala.tools.nsc.interpreter.session.SimpleHistory
 
-class Local extends Projection with Loggable {
+class Local extends Projection with XLoggable {
   /** Thread with local console loop. */
   @volatile protected var thread = Option.empty[Thread]
 
@@ -70,12 +71,8 @@ class Local extends Projection with Loggable {
   def echoColumns(items: Seq[String]) = out.foreach { out ⇒ out.printColumns(items) }
   def start() {
     log.debug(s"Start local console.")
-    in = Option(new Local.Reader)
+    in = Option(new Local.Reader(WeakReference(this)))
     out = Option(new Local.Writer(in.get.asInstanceOf[Local.Reader].consoleReader))
-    // Reduce garbage from scala.tools.jline
-    scala.tools.jline.internal.Log.setOutput(new PrintStream(new OutputStream {
-      override def write(b: Int) {}
-    }))
     val thread = new Thread(new Runnable {
       def run = try loop catch {
         case e: IOException ⇒
@@ -101,10 +98,10 @@ class Local extends Projection with Loggable {
   }
 }
 
-object Local extends Loggable {
+object Local extends XLoggable {
   @volatile private var instance: Option[Local] = None
 
-  class Reader() extends JLineReader(new Local.JLineCompletion) with CReader {
+  class Reader(projection: WeakReference[Projection]) extends JLineReader(new Local.JLineCompletion(projection)) with CReader {
     override val consoleReader = new LocalConsoleReader()
     override lazy val history: scala.tools.nsc.interpreter.session.JLineHistory =
       try new JLineHistory catch { case _: Exception ⇒ new SimpleHistory() }
@@ -161,17 +158,18 @@ object Local extends Loggable {
       new scala.reflect.io.File(hFile)
     }
   }
-  class JLineCompleter extends Completion.ScalaCompleter {
+  class JLineCompleter(projection: WeakReference[Projection]) extends Completion.ScalaCompleter {
     def complete(buffer: String, cursor: Int): Completion.Candidates = try {
       val candidates = for {
         console ← instance
+        projection ← projection.get
         reader ← console.in
       } yield reader match {
         case reader: Reader ⇒
-          val (candidates, proposals) = getCandidatesAndProposals(buffer, cursor, console)
+          val (candidates, proposals) = getCandidatesAndProposals(projection.prefix + buffer, projection.prefix.length() + cursor, console)
           // process completions
           val buf = reader.consoleReader.getCursorBuffer()
-          val pos = reader.consoleReader.currentPos
+          val pos = buf.cursor
           val completions = candidates.candidates.filter(_.nonEmpty)
           // if there is only one completion, then fill in the buffer
           val completionShift = if (completions.length == 1) {
@@ -268,9 +266,9 @@ object Local extends Loggable {
       }
     }
   }
-  class JLineCompletion extends Completion {
+  class JLineCompletion(projection: WeakReference[Projection]) extends Completion {
     type ExecResult = Nothing
     def resetVerbosity() = ()
-    def completer() = new JLineCompleter
+    def completer() = new JLineCompleter(projection)
   }
 }

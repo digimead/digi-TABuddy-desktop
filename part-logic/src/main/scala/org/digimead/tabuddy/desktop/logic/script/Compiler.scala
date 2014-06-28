@@ -79,9 +79,10 @@ class Compiler(val settings: Settings) extends XLoggable {
         if (verbose) {
           var numLines = -lineOffset
           val header = "\nCode follows (%d bytes)".format(code.length)
+          val lastLine = code.lines.length - 3
           val body = for (line ← code.lines) yield {
             numLines += 1
-            if (numLines < 1)
+            if (numLines < 1 || numLines >= lastLine)
               "*".padTo(Compiler.codePad, ' ') + "| " + line
             else
               numLines.toString.padTo(Compiler.codePad, ' ') + "| " + line
@@ -115,7 +116,6 @@ object Compiler {
         try "line " + (pos.line - lineOffset.get())
         catch { case _: Throwable ⇒ "" }
       accumulator += (severityName + lineMessage + ": " + message) :: (if (pos.isDefined)
-        // DEPRECATED: pos.inUltimateSource(pos.source).lineContent.stripLineEnd :: (" " * (pos.column - 1) + "^") :: Nil
         pos.lineContent.stripLineEnd :: (" " * (pos.column - 1) + "^") :: Nil
       else
         Nil)
