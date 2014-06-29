@@ -51,15 +51,15 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.api.XMain
 import org.digimead.tabuddy.desktop.core.console.Console
-import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.api.XOperationApprover
+import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.core.commands.CommandManager
 import org.eclipse.core.commands.contexts.ContextManager
 import org.eclipse.core.runtime.{ IExtensionRegistry, RegistryFactory }
-import org.eclipse.e4.core.commands.{ ECommandService, EHandlerService }
 import org.eclipse.e4.core.commands.internal.{ CommandServiceImpl, HandlerServiceCreationFunction }
+import org.eclipse.e4.core.commands.{ ECommandService, EHandlerService }
 import org.eclipse.e4.core.contexts.{ ContextInjectionFactory, IEclipseContext }
 import org.eclipse.e4.core.services.events.IEventBroker
 import org.eclipse.e4.ui.bindings.EBindingService
@@ -255,7 +255,7 @@ class Core extends akka.actor.Actor with XLoggable {
     if (!instance.isAccessible())
       instance.setAccessible(true)
     // We may but not use E4Application.createDefaultContext() or E4Application.createDefaultHeadlessContext()
-    val workbenchContext = Core.context.createChild("workbench")
+    val workbenchContext = Core.serviceContext.createChild("workbench")
     val mApplication = new Core.ApplicationStub(workbenchContext)
     workbenchContext.set(classOf[BindingTableManager], ContextInjectionFactory.make(classOf[BindingTableManager], workbenchContext))
     workbenchContext.set(classOf[CommandManager], new CommandManager())
@@ -332,6 +332,8 @@ object Core extends XLoggable {
   val name = "digi-tabuddy-desktop-core"
   /** Core actor path. */
   lazy val path = actor.path
+  /** Service context for internal routines. */
+  val serviceContext = Context("Service")
 
   /** Core actor reference configuration object. */
   def props = DI.props

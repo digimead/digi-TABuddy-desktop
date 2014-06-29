@@ -200,71 +200,93 @@ object Local extends XLoggable {
     }
 
     /** Draw proposal list on the console. */
-    protected def drawProposals(proposals: Seq[(Option[String], Boolean, (Int) ⇒ Unit)], completionShift: Int, console: Local) {
+    protected def drawProposals(proposals: Seq[Proposal], completionShift: Int, console: Local) {
       console.echoNoNL("\r\n")
-      proposals.sortBy(_._1).foreach {
-        case (label, flagNL, proposalOutputFn) ⇒
+      proposals.sortBy(_.label).foreach {
+        case Proposal(label, flagNL, proposalOutputFn) ⇒
           proposalOutputFn(completionShift)
           if (flagNL)
             console.echoNoNL("\r\n")
       }
     }
     /** Get candidates and proposals. */
-    protected def getCandidatesAndProposals(buffer: String, cursor: Int,
-      console: Local): (Completion.Candidates, Seq[(Option[String], Boolean, (Int) ⇒ Unit)]) = {
+    protected def getCandidatesAndProposals(buffer: String, cursor: Int, console: Local): (Completion.Candidates, Seq[Proposal]) = {
       // little feature - notice jline that there is more than one completion
       // @see LocalCandidateListCompletionHandler.complete
       // ... else if (candidates.size() > 1 && !candidates.asScala.forall(_.length() == 0)) ...
       val ReDraw = Completion.Candidates(cursor, List("", ""))
       Command.completionProposalMode.withValue(true) { Command.parse(buffer.take(cursor)) } match {
-        case Command.MissingCompletionOrFailure(completionRaw, message) ⇒
-          val completionList = completionRaw.distinct
-          val completionStrings = completionList.map(_.completions).flatten.filter(_.nonEmpty).distinct
-          completionStrings match {
+        case Command.MissingCompletionOrFailure(List(Command.Hint(None, None, _)), message) ⇒
+          getCandidatesAndProposalsExt(buffer: String, cursor: Int, console: Local)
+        case Command.MissingCompletionOrFailure(completionRaw, message) if completionRaw != Seq() ⇒
+          val completionList = completionRaw.filterNot(hint ⇒ hint.label == None && hint.description == None).distinct
+          completionList match {
             case Nil ⇒
-              val proposals = completionList.map {
-                case Command.Hint(label, description, Seq(single)) ⇒
-                  (label, true, (shift: Int) ⇒ console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, single.drop(shift))))
-                case Command.Hint(label, description, multiple) ⇒
-                  (label, false, (shift: Int) ⇒ {
-                    console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, "") + "\r\n")
-                    console.echoColumns(multiple)
-                  })
+              (Completion.NoCandidates, Seq.empty)
+            case list ⇒
+              val completionStrings = completionList.map(_.completions).flatten.filter(_.nonEmpty).distinct
+              if (completionStrings.size == 1) {
+                (Completion.Candidates(cursor, completionStrings.toList), Seq.empty)
+              } else {
+                val proposals = getProposals(completionList, console)
+                (Completion.Candidates(cursor, completionStrings.toList), proposals)
               }
-              if (proposals.nonEmpty)
-                (ReDraw, proposals)
-              else
-                (Completion.NoCandidates, Seq.empty)
-            case Seq(single) ⇒
-              (Completion.Candidates(cursor, List(single)), Seq.empty)
-            case multiple ⇒
-              val proposals = completionList.filter(_.completions.nonEmpty).map {
-                case Command.Hint(label, description, Seq(single)) ⇒
-                  (label, true, (shift: Int) ⇒ console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, single.drop(shift))))
-                case Command.Hint(label, description, multiple) ⇒
-                  (label, false, (shift: Int) ⇒ {
-                    console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, "") + "\r\n")
-                    console.echoColumns(multiple.map(_.drop(shift)))
-                  })
-              }
-              (Completion.Candidates(cursor, multiple.toList), proposals)
           }
         case Command.Success(id, e) ⇒
-          // Ok, but there may be more...
-          // Add space character and search for append proposals...
-          Command.parse(buffer.take(cursor) + " ") match {
-            case Command.MissingCompletionOrFailure(completionList, message) if completionList.nonEmpty ⇒
-              (Completion.Candidates(cursor, List(" ")), Seq.empty)
-            case _ ⇒
-              (Completion.NoCandidates, Seq.empty)
-          }
+          getCandidatesAndProposalsExt(buffer: String, cursor: Int, console: Local)
         case Command.Error(message) ⇒
-          (ReDraw, Seq((None, true, (shift: Int) ⇒ console.echoNoNL(Console.msgWarning.format(message) + Console.RESET))))
+          (ReDraw, Seq(Proposal(None, true, (shift: Int) ⇒ console.echoNoNL(Console.msgWarning.format(message) + Console.RESET))))
         case err ⇒
           log.trace(s"Unable to complete '$buffer': " + err)
           (Completion.NoCandidates, Seq.empty)
       }
     }
+    /** Get candidates and proposals as alternative of current buffer. */
+    protected def getCandidatesAndProposalsExt(buffer: String, cursor: Int, console: Local): (Completion.Candidates, Seq[Proposal]) = {
+      // Ok, but there may be more...
+      // Remove one character and search for append proposals...
+      val completionListWithoutOneCharacter = if (cursor > 1)
+        Command.parse(buffer.take(cursor - 1)) match {
+          case Command.MissingCompletionOrFailure(completionList, message) if completionList.nonEmpty ⇒
+            val previousCharacter = buffer.substring(cursor - 1, cursor)
+            completionList.filter(_.completions.exists { completionFromPreviousCharacter ⇒
+              completionFromPreviousCharacter.startsWith(previousCharacter)
+            })
+          case _ ⇒
+            Nil
+        }
+      else
+        Nil
+      val completionStringsForListWithoutOneCharacter = completionListWithoutOneCharacter.map(_.completions).
+        flatten.map(_.drop(1)).filter(_.nonEmpty).distinct
+      if (completionStringsForListWithoutOneCharacter.nonEmpty) {
+        val proposals = getProposals(completionListWithoutOneCharacter, console)
+        return (Completion.Candidates(cursor, completionStringsForListWithoutOneCharacter.toList), proposals)
+      }
+      // Ok, but there may be more...
+      // Add space character and search for append proposals...
+      Command.parse(buffer.take(cursor) + " ") match {
+        case Command.MissingCompletionOrFailure(completionList, message) if completionList.nonEmpty ⇒
+          val proposals = getProposals(completionList, console)
+          (Completion.Candidates(cursor, List(" ")), proposals)
+        case _ ⇒
+          (Completion.NoCandidates, Seq.empty)
+      }
+    }
+    protected def getProposals(hints: Seq[Command.Hint], console: Local): Seq[Proposal] = hints map {
+      case Command.Hint(label, description, Nil) ⇒
+        Proposal(label, true, (shift: Int) ⇒
+          console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, "")))
+      case Command.Hint(label, description, Seq(single)) ⇒
+        Proposal(label, true, (shift: Int) ⇒
+          console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, single.drop(shift))))
+      case Command.Hint(label, description, multiple) ⇒
+        Proposal(label, false, (shift: Int) ⇒ {
+          console.echoNoNL(Console.hintToText(label.getOrElse("UNKNOWN"), description, "") + "\r\n")
+          console.echoColumns(multiple.map(_.drop(shift)))
+        })
+    }
+    case class Proposal(label: Option[String], flagNL: Boolean, proposalOutputFn: Int ⇒ Unit)
   }
   class JLineCompletion(projection: WeakReference[Projection]) extends Completion {
     type ExecResult = Nothing

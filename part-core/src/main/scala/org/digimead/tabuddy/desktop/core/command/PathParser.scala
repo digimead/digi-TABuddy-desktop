@@ -144,7 +144,7 @@ object PathParser {
    * Dependency injection routines
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    /** GraphParser implementation. */
+    /** PathParser implementation. */
     lazy val implementation = injectOptional[PathParser] getOrElse new PathParser
   }
 }

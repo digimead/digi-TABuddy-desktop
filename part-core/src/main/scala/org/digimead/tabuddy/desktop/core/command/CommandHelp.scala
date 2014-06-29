@@ -68,7 +68,7 @@ object CommandHelp extends XLoggable {
   /** Console converter. */
   lazy val converter: PartialFunction[(XCommand.Descriptor, Any), String] = {
     case (this.descriptor, Seq()) ⇒
-      "There are no commands"
+      "TODO Internal Help about console and application <TAB> <\\>"
     case (this.descriptor, descriptors @ Seq(_*)) ⇒
       descriptors.asInstanceOf[Seq[Command.Descriptor]].sortBy(_.name).map { d ⇒
         s"${Console.BWHITE}${d.name}${Console.RESET} ${d.shortDescription}"
