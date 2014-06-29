@@ -59,34 +59,34 @@ class XOR extends XEncryption {
   val identifier = XOR.Identifier
 
   /** Get encryption parameters. */
-  def apply(key: Option[String], args: String*): XORParameters = args match {
-    case Nil ⇒ XORParameters(key)
+  def apply(key: Option[String], args: String*): XOR.Parameters = args match {
+    case Nil ⇒ XOR.Parameters(key)
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case XORParameters(Some(key)) ⇒
+    case XOR.Parameters(Some(key)) ⇒
       xorWithKey(data, key.getBytes(io.Codec.UTF8.charSet))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Decrypt input stream. */
   def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
-    case XORParameters(Some(key)) ⇒
+    case XOR.Parameters(Some(key)) ⇒
       new CipherInputStream(inputStream, new XStreamCipher(key.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt data. */
   def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case XORParameters(Some(key)) ⇒
+    case XOR.Parameters(Some(key)) ⇒
       xorWithKey(data, key.getBytes(io.Codec.UTF8.charSet))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt output stearm. */
   def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
-    case XORParameters(Some(key)) ⇒
+    case XOR.Parameters(Some(key)) ⇒
       new CipherOutputStream(outputStream, new XStreamCipher(key.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
@@ -102,19 +102,6 @@ class XOR extends XEncryption {
     for (i ← 0 until a.length)
       out(i) = (a(i) ^ key((i + shift) % key.length)).toByte
     out
-  }
-
-  /**
-   * XOR encryption parameters.
-   */
-  case class XORParameters(val key: Option[String]) extends XEncryption.Parameters {
-    if (key.isEmpty)
-      throw new IllegalArgumentException("Encryption key is not defined")
-    /** Encryption instance. */
-    lazy val encryption = XOR.this
-
-    /** XOR parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq.empty
   }
 
   /**
@@ -151,6 +138,19 @@ object XOR {
       case Some(encryption: XOR) ⇒ encryption(Some(key))
       case _ ⇒ throw new IllegalStateException("XOR encryption is not available.")
     }
+
+  /**
+   * XOR encryption parameters.
+   */
+  case class Parameters(val key: Option[String]) extends XEncryption.Parameters {
+    if (key.isEmpty)
+      throw new IllegalArgumentException("Encryption key is not defined")
+    /** Encryption instance. */
+    lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[XOR]
+
+    /** XOR parameters as sequence of strings. */
+    def arguments: Seq[String] = Seq.empty
+  }
 
   /**
    * XOR encryption identifier.

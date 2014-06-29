@@ -41,49 +41,35 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
+package org.digimead.tabuddy.desktop.logic.command.signature
 
-import org.digimead.digi.lib.api.XDependencyInjection
-import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.bouncycastle.openpgp.PGPUtil
+import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyDecryptorBuilder, BcPGPDigestCalculatorProvider }
+import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyConverter
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.core.keyring.KeyRing
+import org.digimead.tabuddy.desktop.id.ID
+import org.digimead.tabuddy.model.serialization.signature.{ Mechanism, SimpleSignature }
 
 /**
- * Container for all available encryption implementations.
+ * Adapter between model.serialization.signature.SimpleSignature and console parser
  */
-object Encryption extends XLoggable {
-  type Identifier = XEncryption.Identifier
-  type Parameters = XEncryption.Parameters
+class SimpleSignatureAdapter extends SignatureAdapter {
+  import Command.parser._
+  /** Identifier of the digest mechanism. */
+  val identifier: Mechanism.Identifier = SimpleSignature.Identifier
+  /** Mechanism name. */
+  val name: String = "Simple"
+  /** Mechanism description. */
+  val description: String = "Simple model signature"
 
-  /** Map of all available encryption implementations. */
-  def perIdentifier = DI.perIdentifier
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends XDependencyInjection.PersistentInjectable {
-    /**
-     * Per identifier encryptions map.
-     *
-     * Each collected encryption must be:
-     *  1. an instance of api.GraphMarker.Encryption.Parameters
-     *  2. has name that starts with "Payload.Encryption."
-     */
-    lazy val perIdentifier: Map[Encryption.Identifier, XEncryption] = {
-      val encryptions = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[XEncryption].isAssignableFrom(key.m.runtimeClass)
-      }.map {
-        case (key, value) ⇒
-          key.name match {
-            case Some(name) if name.startsWith("Payload.Encryption.") ⇒
-              log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[XEncryption]]
-            case _ ⇒
-              log.debug(s"'${key.name.getOrElse("Unnamed")}' signature mechanism skipped.")
-              None
-          }
-      }.flatten.toSeq
-      assert(encryptions.distinct.size == encryptions.size, "Encryptions contain duplicated entities in " + encryptions)
-      Map(encryptions.map(m ⇒ m.identifier -> m): _*)
-    }
+  /** Create parser for SimpleSignature configuration. */
+  def apply(tag: String): Command.parser.Parser[Any] = "" ^^^ {
+    val publicKey = ID.thisPublicSigningKey
+    val privateKey = ID.thisSecretSigningKey.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).
+      build(KeyRing.defaultPassPhrase.toCharArray()))
+    val converter = new JcaPGPKeyConverter().setProvider(PGPUtil.getDefaultProvider())
+    val parameters = SimpleSignature(converter.getPublicKey(publicKey), converter.getPrivateKey(privateKey))
+    SignatureParser.Argument(tag, Some(parameters))
   }
 }

@@ -69,14 +69,14 @@ class DES extends XEncryption {
   val identifier = DES.Identifier
 
   /** Get encryption parameters. */
-  def apply(key: Option[String], args: String*): DESParameters = args match {
-    case Seq("false", salt: String) ⇒ DESParameters(key, DES.StrengthSimple, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
-    case Seq("true", salt: String) ⇒ DESParameters(key, DES.StrengthTriple, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+  def apply(key: Option[String], args: String*): DES.Parameters = args match {
+    case Seq("false", salt: String) ⇒ DES.Parameters(key, DES.StrengthSimple, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+    case Seq("true", salt: String) ⇒ DES.Parameters(key, DES.StrengthTriple, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
+    case DES.Parameters(Some(key), DES.StrengthSimple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
@@ -88,7 +88,7 @@ class DES extends XEncryption {
       val result = new Array[Byte](resultLength)
       System.arraycopy(buffer, 0, result, 0, result.length)
       result
-    case DESParameters(Some(key), DES.StrengthTriple, salt) ⇒
+    case DES.Parameters(Some(key), DES.StrengthTriple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESedeEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
@@ -105,14 +105,14 @@ class DES extends XEncryption {
   }
   /** Decrypt input stream. */
   def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
-    case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
+    case DES.Parameters(Some(key), DES.StrengthSimple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
       val paramsWithIV = pGen.generateDerivedParameters(64, 64).asInstanceOf[ParametersWithIV]
       cipher.init(false, new ParametersWithRandom(paramsWithIV, KeyRing.random))
       new CipherInputStream(inputStream, cipher)
-    case DESParameters(Some(key), DES.StrengthTriple, salt) ⇒
+    case DES.Parameters(Some(key), DES.StrengthTriple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESedeEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
@@ -124,7 +124,7 @@ class DES extends XEncryption {
   }
   /** Encrypt data. */
   def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
+    case DES.Parameters(Some(key), DES.StrengthSimple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
@@ -136,7 +136,7 @@ class DES extends XEncryption {
       val result = new Array[Byte](resultLength)
       System.arraycopy(buffer, 0, result, 0, result.length)
       result
-    case DESParameters(Some(key), DES.StrengthTriple, salt) ⇒
+    case DES.Parameters(Some(key), DES.StrengthTriple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESedeEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
@@ -153,14 +153,14 @@ class DES extends XEncryption {
   }
   /** Encrypt output stearm. */
   def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
-    case DESParameters(Some(key), DES.StrengthSimple, salt) ⇒
+    case DES.Parameters(Some(key), DES.StrengthSimple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
       val paramsWithIV = pGen.generateDerivedParameters(64, 64).asInstanceOf[ParametersWithIV]
       cipher.init(true, new ParametersWithRandom(paramsWithIV, KeyRing.random))
       new CipherOutputStream(outputStream, cipher)
-    case DESParameters(Some(key), DES.StrengthTriple, salt) ⇒
+    case DES.Parameters(Some(key), DES.StrengthTriple, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new DESedeEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA1Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, DES.iterationCount)
@@ -174,29 +174,6 @@ class DES extends XEncryption {
   def fromString(data: String): Array[Byte] = BaseEncoding.base64().decode(data)
   /** Convert to string. */
   def toString(data: Array[Byte]): String = BaseEncoding.base64().encode(data)
-
-  /**
-   * DES encryption parameters.
-   */
-  case class DESParameters(val key: Option[String], val strength: DES.StrengthParameter, val salt: Array[Byte]) extends XEncryption.Parameters {
-    if (key.isEmpty)
-      throw new IllegalArgumentException("Encryption key is not defined")
-    /** Encryption instance. */
-    lazy val encryption = DES.this
-
-    /** DES encryption parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(strength.triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
-
-    def canEqual(other: Any) = other.isInstanceOf[DESParameters]
-    override def equals(other: Any) = other match {
-      case that: DESParameters ⇒ (this eq that) || {
-        that.canEqual(this) && that.## == this.##
-      }
-      case _ ⇒ false
-    }
-    override def hashCode() = lazyHashCode
-    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, strength, java.util.Arrays.hashCode(salt): Integer))
-  }
 }
 
 object DES {
@@ -210,6 +187,29 @@ object DES {
       case Some(encryption: DES) ⇒ encryption(Some(key), triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("DES encryption is not available.")
     }
+
+  /**
+   * DES encryption parameters.
+   */
+  case class Parameters(val key: Option[String], val strength: DES.StrengthParameter, val salt: Array[Byte]) extends XEncryption.Parameters {
+    if (key.isEmpty)
+      throw new IllegalArgumentException("Encryption key is not defined")
+    /** Encryption instance. */
+    lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[DES]
+
+    /** DES encryption parameters as sequence of strings. */
+    def arguments: Seq[String] = Seq(strength.triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
+
+    def canEqual(other: Any) = other.isInstanceOf[Parameters]
+    override def equals(other: Any) = other match {
+      case that: Parameters ⇒ (this eq that) || {
+        that.canEqual(this) && that.## == this.##
+      }
+      case _ ⇒ false
+    }
+    override def hashCode() = lazyHashCode
+    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, strength, java.util.Arrays.hashCode(salt): Integer))
+  }
 
   /**
    * DES encryption identifier.

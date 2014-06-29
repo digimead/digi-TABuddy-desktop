@@ -41,49 +41,45 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
+package org.digimead.tabuddy.desktop.logic.command.encryption
 
-import org.digimead.digi.lib.api.XDependencyInjection
-import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.{ Blowfish, Encryption }
 
 /**
- * Container for all available encryption implementations.
+ * Adapter between logic.payload.marker.serialization.encryption.Blowfish and console parser
  */
-object Encryption extends XLoggable {
-  type Identifier = XEncryption.Identifier
-  type Parameters = XEncryption.Parameters
+class BlowfishAdapter extends EncryptionAdapter {
+  import Command.parser._
+  /** Identifier of the encryption mechanism. */
+  val identifier: Encryption.Identifier = Blowfish.Identifier
+  /** Encryption name. */
+  val name: String = "Blowfish"
+  /** Encryption description. */
+  val description: String = "Blowfish is a symmetric-key block cipher, designed by Bruce Schneier"
 
-  /** Map of all available encryption implementations. */
-  def perIdentifier = DI.perIdentifier
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends XDependencyInjection.PersistentInjectable {
-    /**
-     * Per identifier encryptions map.
-     *
-     * Each collected encryption must be:
-     *  1. an instance of api.GraphMarker.Encryption.Parameters
-     *  2. has name that starts with "Payload.Encryption."
-     */
-    lazy val perIdentifier: Map[Encryption.Identifier, XEncryption] = {
-      val encryptions = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[XEncryption].isAssignableFrom(key.m.runtimeClass)
-      }.map {
-        case (key, value) ⇒
-          key.name match {
-            case Some(name) if name.startsWith("Payload.Encryption.") ⇒
-              log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[XEncryption]]
-            case _ ⇒
-              log.debug(s"'${key.name.getOrElse("Unnamed")}' signature mechanism skipped.")
-              None
+  /** Create parser for Blowfish configuration. */
+  def apply(tag: String): Command.parser.Parser[Any] = (sp ~>
+    (("256", Command.Hint("256", Some("Build encryption key with length 256 bits long."))) |
+      ("448", Command.Hint("448", Some("Build encryption key with length 448 bits long.")))) ~ sp ~
+      opt(commandLiteral("-iv", Command.Hint("-iv", Some("Initialization vector"))) ~ sp ~>
+        commandRegex("'[^']+?'".r, Command.Hint.Container(Command.Hint("iv", Some("Initialization vector. Secret phrase surrounded by single quotes"), Seq.empty))) <~ sp) ~
+      commandRegex("'[^']+?'".r, Command.Hint.Container(Command.Hint("key", Some("Encryption key. Secret phrase surrounded by single quotes"), Seq.empty)))) ^^
+      (_ match {
+        case ~(~(~(length, _), iv), key) ⇒
+          val keyLength = length match {
+            case "256" ⇒ Blowfish.Strength256
+            case "448" ⇒ Blowfish.Strength448
+            case unknown ⇒ throw new IllegalArgumentException("Unable to process incorrect key length " + unknown)
           }
-      }.flatten.toSeq
-      assert(encryptions.distinct.size == encryptions.size, "Encryptions contain duplicated entities in " + encryptions)
-      Map(encryptions.map(m ⇒ m.identifier -> m): _*)
-    }
-  }
+          (length, iv) match {
+            case (length, None) ⇒
+              EncryptionParser.Argument(tag, Some(Blowfish(optionContent(key), keyLength)))
+            case (length, Some(iv)) ⇒
+              EncryptionParser.Argument(tag, Some(Blowfish(optionContent(key), keyLength, optionContent(iv).getBytes(io.Codec.UTF8.charSet))))
+          }
+      })
+
+  /** Get option content. */
+  protected def optionContent(option: String) = option.substring(1, option.length() - 1)
 }

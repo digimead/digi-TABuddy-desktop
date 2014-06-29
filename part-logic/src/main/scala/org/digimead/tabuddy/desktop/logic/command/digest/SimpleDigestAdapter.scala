@@ -41,49 +41,36 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
+package org.digimead.tabuddy.desktop.logic.command.digest
 
-import org.digimead.digi.lib.api.XDependencyInjection
-import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.model.serialization.digest.{ Mechanism, SimpleDigest }
 
 /**
- * Container for all available encryption implementations.
+ * Adapter between model.serialization.digest.SimpleDigest and console parser
  */
-object Encryption extends XLoggable {
-  type Identifier = XEncryption.Identifier
-  type Parameters = XEncryption.Parameters
+class SimpleDigestAdapter extends DigestAdapter {
+  import Command.parser._
+  /** Identifier of the digest mechanism. */
+  val identifier: Mechanism.Identifier = SimpleDigest.Identifier
+  /** Mechanism name. */
+  val name: String = "Simple"
+  /** Mechanism description. */
+  val description: String = "Simple model digest"
 
-  /** Map of all available encryption implementations. */
-  def perIdentifier = DI.perIdentifier
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends XDependencyInjection.PersistentInjectable {
-    /**
-     * Per identifier encryptions map.
-     *
-     * Each collected encryption must be:
-     *  1. an instance of api.GraphMarker.Encryption.Parameters
-     *  2. has name that starts with "Payload.Encryption."
-     */
-    lazy val perIdentifier: Map[Encryption.Identifier, XEncryption] = {
-      val encryptions = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[XEncryption].isAssignableFrom(key.m.runtimeClass)
-      }.map {
-        case (key, value) ⇒
-          key.name match {
-            case Some(name) if name.startsWith("Payload.Encryption.") ⇒
-              log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[XEncryption]]
-            case _ ⇒
-              log.debug(s"'${key.name.getOrElse("Unnamed")}' signature mechanism skipped.")
-              None
-          }
-      }.flatten.toSeq
-      assert(encryptions.distinct.size == encryptions.size, "Encryptions contain duplicated entities in " + encryptions)
-      Map(encryptions.map(m ⇒ m.identifier -> m): _*)
-    }
-  }
+  /** Create parser for SimpleDigest configuration. */
+  def apply(tag: String): Command.parser.Parser[Any] = sp ~> (
+    // http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest
+    (("SHA-512", Command.Hint("SHA-512", Some("Hash algorithms defined in the FIPS PUB 180-2."))) ^^
+      { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("SHA-512"))) }) |
+      (("SHA-384", Command.Hint("SHA-384", Some("Hash algorithms defined in the FIPS PUB 180-2."))) ^^
+        { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("SHA-384"))) }) |
+        (("SHA-256", Command.Hint("SHA-256", Some("Hash algorithms defined in the FIPS PUB 180-2."))) ^^
+          { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("SHA-256"))) }) |
+          (("SHA", Command.Hint("SHA", Some("Hash algorithms defined in the FIPS PUB 180-2."))) ^^
+            { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("SHA-1"))) }) |
+            (("MD5", Command.Hint("MD5", Some("The MD5 message digest algorithm as defined in RFC 1321."))) ^^
+              { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("MD5"))) }) |
+              (("MD2", Command.Hint("MD2", Some("The MD2 message digest algorithm as defined in RFC 1319."))) ^^
+                { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("MD2"))) }))
 }

@@ -278,7 +278,7 @@ trait SerializationSpecific {
         case None ⇒ throw new IllegalStateException(s"Unable to find name of the ${typeName} encryption algorithm.")
       }
       val key = Option(p.getProperty(s"${field}_${i}_key")).map { encBase64Bytes ⇒
-        val secretKey = ID.inner.thisSecretEncryptionKey
+        val secretKey = ID.thisSecretEncryptionKey
         val encBytes = Base64.decode(encBase64Bytes)
         new String(KeyRing.decrypt(secretKey, KeyRing.defaultPassPhrase)(encBytes), io.Codec.UTF8.charSet)
       }
@@ -311,7 +311,7 @@ trait SerializationSpecific {
           p.setProperty(s"${field}_${index}", uri.toString())
           p.setProperty(s"${field}_${index}_name", parameters.encryption.identifier.name)
           parameters.key.foreach { key ⇒
-            val publicKey = ID.inner.thisPublicEncryptionKey
+            val publicKey = ID.thisPublicEncryptionKey
             val encBytes = KeyRing.encrypt(publicKey)(key.getBytes(io.Codec.UTF8.charSet))
             val encBase64Bytes = Base64.encode(encBytes)
             p.setProperty(s"${field}_${index}_key", new String(encBase64Bytes, io.Codec.UTF8.charSet))

@@ -46,14 +46,19 @@ package org.digimead.tabuddy.desktop.logic.command.graph
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.command.digest.DigestParser
+import org.digimead.tabuddy.desktop.logic.command.encryption.EncryptionParser
+import org.digimead.tabuddy.desktop.logic.command.signature.SignatureParser
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -66,7 +71,6 @@ import scala.concurrent.Future
  */
 object CommandGraphNew extends XLoggable {
   import Command.parser._
-  private val allArg = "-all"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
@@ -74,7 +78,7 @@ object CommandGraphNew extends XLoggable {
     Messages.graph_newDescriptionShort_text, Messages.graph_newDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case ~(graphName: String, graphContainer: File) ⇒
+        case ((options @ List(_*), ~(graphName: String, graphContainer: File))) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
           OperationGraphNew(graphName, graphContainer, Payload.defaultSerialization).foreach { operation ⇒
             operation.getExecuteJob() match {
@@ -86,10 +90,33 @@ object CommandGraphNew extends XLoggable {
             }
           }
           exchanger.exchange(null) match {
-            case Operation.Result.OK(result, message) ⇒
+            case Operation.Result.OK(Some(graph), message) ⇒
+              val marker = GraphMarker(graph)
+              options.foreach(_ match {
+                case DigestParser.Argument("digest", Some(parameters)) ⇒
+                  marker.digest = XGraphMarker.Digest(Some(true), Some(Map(marker.graphPath.toURI() -> parameters)))
+                case DigestParser.Argument("digest", None) ⇒
+                  marker.digest = XGraphMarker.Digest(None, None)
+                case EncryptionParser.Argument("container", Some(parameters)) ⇒
+                  marker.containerEncryption = XGraphMarker.Encryption(Map(marker.graphPath.toURI() -> parameters))
+                case EncryptionParser.Argument("container", None) ⇒
+                  marker.containerEncryption = XGraphMarker.Encryption(Map())
+                case EncryptionParser.Argument("content", Some(parameters)) ⇒
+                  marker.contentEncryption = XGraphMarker.Encryption(Map(marker.graphPath.toURI() -> parameters))
+                case EncryptionParser.Argument("content", None) ⇒
+                  marker.contentEncryption = XGraphMarker.Encryption(Map())
+                case SignatureParser.Argument("signature", Some(parameters)) ⇒
+                  marker.signature = XGraphMarker.Signature(Some(UUID.randomUUID()), Some(Map(marker.graphPath.toURI() -> parameters)))
+                case SignatureParser.Argument("signature", None) ⇒
+                  marker.signature = XGraphMarker.Signature(None, None)
+                case unknown ⇒
+                  throw new IllegalArgumentException("Unknown parameter: " + unknown)
+              })
+              GraphMarker.bind(marker)
               log.info(s"Operation completed successfully.")
-              result.map(graph ⇒ GraphMarker.bind(GraphMarker(graph)))
-              result
+              marker
+            case Operation.Result.OK(None, message) ⇒
+              throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case Operation.Result.Cancel(message) ⇒
               throw new CancellationException(s"Operation canceled, reason: ${message}.")
             case err: Operation.Result.Error[_] ⇒
@@ -100,12 +127,42 @@ object CommandGraphNew extends XLoggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~ opt(sp ~> allArg) ~> sp ~> nameParser ~ pathParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> optionParser(Seq.empty) { nameParser ~ pathParser })
+
+  /** Option parser. */
+  def optionParser(alreadyDefinedOptions: Seq[Any])(tail: Command.parser.Parser[Any]): Command.parser.Parser[Any] = {
+    var options = Seq[Command.parser.Parser[Any]](tail ^^ { (alreadyDefinedOptions, _) })
+
+    if (!alreadyDefinedOptions.exists(_.isInstanceOf[DigestParser.Argument]))
+      options = (DigestParser.digestParser into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_.isInstanceOf[SignatureParser.Argument]))
+      options = (SignatureParser.signatureParser into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_ match {
+      case EncryptionParser.Argument("container", _) ⇒ true
+      case _ ⇒ false
+    }))
+      options = (EncryptionParser.containerEncryptionParser into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_ match {
+      case EncryptionParser.Argument("content", _) ⇒ true
+      case _ ⇒ false
+    }))
+      options = (EncryptionParser.contentEncryptionParser into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+
+    options.reduce(_ | _)
+  }
 
   /** Create parser for the graph name. */
   protected def nameParser: Command.parser.Parser[Any] =
-    commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"))))
+    commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"Value that is correct Scala symbol literal"))))
   /** Path argument parser. */
   protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "graph location",
-    () ⇒ Some(s"path to graph directory")) { _.isDirectory }
+    () ⇒ Some(s"Path to graph directory")) { _.isDirectory }
 }

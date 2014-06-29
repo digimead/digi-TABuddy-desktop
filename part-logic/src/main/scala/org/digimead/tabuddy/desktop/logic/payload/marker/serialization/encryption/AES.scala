@@ -69,15 +69,15 @@ class AES extends XEncryption {
   val identifier = AES.Identifier
 
   /** Get encryption parameters. */
-  def apply(key: Option[String], args: String*): AESParameters = args match {
-    case Seq("128", salt: String) ⇒ AESParameters(key, AES.Strength128, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
-    case Seq("192", salt: String) ⇒ AESParameters(key, AES.Strength192, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
-    case Seq("256", salt: String) ⇒ AESParameters(key, AES.Strength256, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+  def apply(key: Option[String], args: String*): AES.Parameters = args match {
+    case Seq("128", salt: String) ⇒ AES.Parameters(key, AES.Strength128, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+    case Seq("192", salt: String) ⇒ AES.Parameters(key, AES.Strength192, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+    case Seq("256", salt: String) ⇒ AES.Parameters(key, AES.Strength256, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case AESParameters(Some(key), strength, salt) ⇒
+    case AES.Parameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -94,7 +94,7 @@ class AES extends XEncryption {
   }
   /** Decrypt input stream. */
   def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
-    case AESParameters(Some(key), strength, salt) ⇒
+    case AES.Parameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -106,7 +106,7 @@ class AES extends XEncryption {
   }
   /** Encrypt data. */
   def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case AESParameters(Some(key), strength, salt) ⇒
+    case AES.Parameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -123,7 +123,7 @@ class AES extends XEncryption {
   }
   /** Encrypt output stearm. */
   def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
-    case AESParameters(Some(key), strength, salt) ⇒
+    case AES.Parameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new AESEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -137,29 +137,6 @@ class AES extends XEncryption {
   def fromString(data: String): Array[Byte] = BaseEncoding.base64().decode(data)
   /** Convert to string. */
   def toString(data: Array[Byte]): String = BaseEncoding.base64().encode(data)
-
-  /**
-   * AES encryption parameters.
-   */
-  case class AESParameters(val key: Option[String], val keyLength: AES.LengthParameter, val salt: Array[Byte]) extends XEncryption.Parameters {
-    if (key.isEmpty)
-      throw new IllegalArgumentException("Encryption key is not defined")
-    /** Encryption instance. */
-    lazy val encryption = AES.this
-
-    /** AES encryption parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
-
-    def canEqual(other: Any) = other.isInstanceOf[AESParameters]
-    override def equals(other: Any) = other match {
-      case that: AESParameters ⇒ (this eq that) || {
-        that.canEqual(this) && that.## == this.##
-      }
-      case _ ⇒ false
-    }
-    override def hashCode() = lazyHashCode
-    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, keyLength, java.util.Arrays.hashCode(salt): Integer))
-  }
 }
 
 object AES {
@@ -173,6 +150,29 @@ object AES {
       case Some(encryption: AES) ⇒ encryption(Some(key), keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("AES encryption is not available.")
     }
+
+  /**
+   * AES encryption parameters.
+   */
+  case class Parameters(val key: Option[String], val keyLength: AES.LengthParameter, val salt: Array[Byte]) extends XEncryption.Parameters {
+    if (key.isEmpty)
+      throw new IllegalArgumentException("Encryption key is not defined")
+    /** Encryption instance. */
+    lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[AES]
+
+    /** AES encryption parameters as sequence of strings. */
+    def arguments: Seq[String] = Seq(keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
+
+    def canEqual(other: Any) = other.isInstanceOf[Parameters]
+    override def equals(other: Any) = other match {
+      case that: Parameters ⇒ (this eq that) || {
+        that.canEqual(this) && that.## == this.##
+      }
+      case _ ⇒ false
+    }
+    override def hashCode() = lazyHashCode
+    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, keyLength, java.util.Arrays.hashCode(salt): Integer))
+  }
 
   /**
    * AES encryption identifier.

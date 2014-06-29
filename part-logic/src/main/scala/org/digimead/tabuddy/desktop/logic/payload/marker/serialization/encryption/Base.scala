@@ -58,38 +58,38 @@ class Base extends XEncryption {
   val identifier = Base.Identifier
 
   /** Get encryption parameters. */
-  def apply(key: Option[String], args: String*): BaseParameters = {
+  def apply(key: Option[String], args: String*): Base.Parameters = {
     if (key.nonEmpty)
       throw new IllegalArgumentException("Encryption key is not supported")
     args match {
-      case Seq("64") ⇒ BaseParameters(Base.Dictionary64)
+      case Seq("64") ⇒ Base.Parameters(Base.Dictionary64)
       case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
     }
   }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
+    case Base.Parameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
       BaseEncoding.base64().decode(CharMatcher.WHITESPACE.removeFrom(new String(data, io.Codec.UTF8.charSet)))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Decrypt input stream. */
   def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
-    case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
+    case Base.Parameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
       BaseEncoding.base64().decodingStream(new InputStreamReader(inputStream, io.Codec.UTF8.charSet))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt data. */
   def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
+    case Base.Parameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
       BaseEncoding.base64().encode(data).getBytes(io.Codec.UTF8.charSet)
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
   }
   /** Encrypt output stearm. */
   def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
-    case BaseParameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
+    case Base.Parameters(dictionaryLength) if dictionaryLength.length == 64 ⇒
       BaseEncoding.base64().encodingStream(new OutputStreamWriter(outputStream, io.Codec.UTF8.charSet))
     case _ ⇒
       throw new IllegalArgumentException("Incorrect parameters " + parameters)
@@ -98,19 +98,6 @@ class Base extends XEncryption {
   def fromString(data: String): Array[Byte] = data.getBytes(io.Codec.UTF8.charSet)
   /** Convert to string. */
   def toString(data: Array[Byte]): String = new String(data, io.Codec.UTF8.charSet)
-
-  /**
-   * Base encryption parameters.
-   */
-  case class BaseParameters(dictionaryLength: Base.LengthParameter) extends XEncryption.Parameters {
-    // Encryption key is not supported.
-    val key = None
-    /** Encryption instance. */
-    lazy val encryption = Base.this
-
-    /** Base parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(dictionaryLength.length.toString)
-  }
 }
 
 object Base {
@@ -120,6 +107,29 @@ object Base {
       case Some(encryption: Base) ⇒ encryption(None, dictionaryLength.length.toString)
       case _ ⇒ throw new IllegalStateException("Base encryption is not available.")
     }
+
+  /**
+   * Base encryption parameters.
+   */
+  case class Parameters(dictionaryLength: LengthParameter) extends XEncryption.Parameters {
+    // Encryption key is not supported.
+    val key = None
+    /** Encryption instance. */
+    lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[Base]
+
+    /** Base parameters as sequence of strings. */
+    def arguments: Seq[String] = Seq(dictionaryLength.length.toString)
+
+    def canEqual(other: Any) = other.isInstanceOf[Parameters]
+    override def equals(other: Any) = other match {
+      case that: Parameters ⇒ (this eq that) || {
+        that.canEqual(this) && that.## == this.##
+      }
+      case _ ⇒ false
+    }
+    override def hashCode() = lazyHashCode
+    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, dictionaryLength))
+  }
 
   /**
    * Base encryption identifier.

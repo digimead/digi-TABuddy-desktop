@@ -64,8 +64,6 @@ package object core {
       new File(configurationPath, configName)
     }
   })
-  lazy val standard = default ~
-    command.default ~
-    operation.default
+  lazy val defaultBundle = default ~ command.default ~ operation.default
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.definition.NLS$DI$")
 }

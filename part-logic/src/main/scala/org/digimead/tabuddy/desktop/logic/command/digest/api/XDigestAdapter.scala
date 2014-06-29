@@ -41,49 +41,12 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption
+package org.digimead.tabuddy.desktop.logic.command.digest.api
 
-import org.digimead.digi.lib.api.XDependencyInjection
-import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.core.definition.command.Command
+import org.digimead.tabuddy.model.serialization.digest.Mechanism
 
 /**
- * Container for all available encryption implementations.
+ * Digest adapter interface.
  */
-object Encryption extends XLoggable {
-  type Identifier = XEncryption.Identifier
-  type Parameters = XEncryption.Parameters
-
-  /** Map of all available encryption implementations. */
-  def perIdentifier = DI.perIdentifier
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends XDependencyInjection.PersistentInjectable {
-    /**
-     * Per identifier encryptions map.
-     *
-     * Each collected encryption must be:
-     *  1. an instance of api.GraphMarker.Encryption.Parameters
-     *  2. has name that starts with "Payload.Encryption."
-     */
-    lazy val perIdentifier: Map[Encryption.Identifier, XEncryption] = {
-      val encryptions = bindingModule.bindings.filter {
-        case (key, value) ⇒ classOf[XEncryption].isAssignableFrom(key.m.runtimeClass)
-      }.map {
-        case (key, value) ⇒
-          key.name match {
-            case Some(name) if name.startsWith("Payload.Encryption.") ⇒
-              log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[XEncryption]]
-            case _ ⇒
-              log.debug(s"'${key.name.getOrElse("Unnamed")}' signature mechanism skipped.")
-              None
-          }
-      }.flatten.toSeq
-      assert(encryptions.distinct.size == encryptions.size, "Encryptions contain duplicated entities in " + encryptions)
-      Map(encryptions.map(m ⇒ m.identifier -> m): _*)
-    }
-  }
-}
+trait XDigestAdapter

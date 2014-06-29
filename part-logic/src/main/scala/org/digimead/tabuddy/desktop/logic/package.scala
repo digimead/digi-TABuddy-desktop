@@ -51,14 +51,9 @@ import org.digimead.tabuddy.desktop.logic.api.XConfig
 package object logic {
   lazy val default = new NewBindingModule(module ⇒ {
     module.bind[XConfig] toModuleSingle { implicit module ⇒ new Config }
-  }) ~
-    ui.default ~
-    command.default ~
-    payload.default ~
-    payload.view.default ~
-    payload.marker.serialization.encryption.default ~
-    comparator.default ~
-    filter.default ~
-    operation.default
+  })
+  lazy val defaultBundle = default ~ command.default ~ command.digest.default ~ command.encryption.default ~ command.signature.default ~
+    comparator.default ~ filter.default ~ operation.default ~ payload.default ~ payload.marker.serialization.encryption.default ~
+    payload.view.default ~ ui.default
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.Default$DI$")
 }

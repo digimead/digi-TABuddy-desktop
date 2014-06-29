@@ -69,13 +69,13 @@ class GOST28147 extends XEncryption {
   val identifier = GOST28147.Identifier
 
   /** Get encryption parameters. */
-  def apply(key: Option[String], args: String*): GOST28147Parameters = args match {
-    case Seq(salt: String) ⇒ GOST28147Parameters(key, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+  def apply(key: Option[String], args: String*): GOST28147.Parameters = args match {
+    case Seq(salt: String) ⇒ GOST28147.Parameters(key, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case GOST28147Parameters(Some(key), salt) ⇒
+    case GOST28147.Parameters(Some(key), salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new GOST28147Engine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -92,7 +92,7 @@ class GOST28147 extends XEncryption {
   }
   /** Decrypt input stream. */
   def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
-    case GOST28147Parameters(Some(key), salt) ⇒
+    case GOST28147.Parameters(Some(key), salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new GOST28147Engine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -104,7 +104,7 @@ class GOST28147 extends XEncryption {
   }
   /** Encrypt data. */
   def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case GOST28147Parameters(Some(key), salt) ⇒
+    case GOST28147.Parameters(Some(key), salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new GOST28147Engine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -121,7 +121,7 @@ class GOST28147 extends XEncryption {
   }
   /** Encrypt output stearm. */
   def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
-    case GOST28147Parameters(Some(key), salt) ⇒
+    case GOST28147.Parameters(Some(key), salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new GOST28147Engine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -135,29 +135,6 @@ class GOST28147 extends XEncryption {
   def fromString(data: String): Array[Byte] = BaseEncoding.base64().decode(data)
   /** Convert to string. */
   def toString(data: Array[Byte]): String = BaseEncoding.base64().encode(data)
-
-  /**
-   * GOST28147 encryption parameters.
-   */
-  case class GOST28147Parameters(val key: Option[String], val salt: Array[Byte]) extends XEncryption.Parameters {
-    if (key.isEmpty)
-      throw new IllegalArgumentException("Encryption key is not defined")
-    /** Encryption instance. */
-    lazy val encryption = GOST28147.this
-
-    /** GOST28147 encryption parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(new String(Base64.encode(salt), io.Codec.UTF8.charSet))
-
-    def canEqual(other: Any) = other.isInstanceOf[GOST28147Parameters]
-    override def equals(other: Any) = other match {
-      case that: GOST28147Parameters ⇒ (this eq that) || {
-        that.canEqual(this) && that.## == this.##
-      }
-      case _ ⇒ false
-    }
-    override def hashCode() = lazyHashCode
-    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, java.util.Arrays.hashCode(salt): Integer))
-  }
 }
 
 object GOST28147 {
@@ -168,6 +145,29 @@ object GOST28147 {
       case Some(encryption: GOST28147) ⇒ encryption(Some(key), new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("GOST28147 encryption is not available.")
     }
+
+  /**
+   * GOST28147 encryption parameters.
+   */
+  case class Parameters(val key: Option[String], val salt: Array[Byte]) extends XEncryption.Parameters {
+    if (key.isEmpty)
+      throw new IllegalArgumentException("Encryption key is not defined")
+    /** Encryption instance. */
+    lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[GOST28147]
+
+    /** GOST28147 encryption parameters as sequence of strings. */
+    def arguments: Seq[String] = Seq(new String(Base64.encode(salt), io.Codec.UTF8.charSet))
+
+    def canEqual(other: Any) = other.isInstanceOf[Parameters]
+    override def equals(other: Any) = other match {
+      case that: Parameters ⇒ (this eq that) || {
+        that.canEqual(this) && that.## == this.##
+      }
+      case _ ⇒ false
+    }
+    override def hashCode() = lazyHashCode
+    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, java.util.Arrays.hashCode(salt): Integer))
+  }
 
   /**
    * GOST 28147 encryption identifier.

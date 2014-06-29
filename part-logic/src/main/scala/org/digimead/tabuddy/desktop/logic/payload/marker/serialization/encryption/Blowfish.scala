@@ -69,14 +69,14 @@ class Blowfish extends XEncryption {
   val identifier = Blowfish.Identifier
 
   /** Get encryption parameters. */
-  def apply(key: Option[String], args: String*): BlowfishParameters = args match {
-    case Seq("256", salt: String) ⇒ BlowfishParameters(key, Blowfish.Strength256, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
-    case Seq("448", salt: String) ⇒ BlowfishParameters(key, Blowfish.Strength448, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+  def apply(key: Option[String], args: String*): Blowfish.Parameters = args match {
+    case Seq("256", salt: String) ⇒ Blowfish.Parameters(key, Blowfish.Strength256, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
+    case Seq("448", salt: String) ⇒ Blowfish.Parameters(key, Blowfish.Strength448, Base64.decode(salt.getBytes(io.Codec.UTF8.charSet)))
     case _ ⇒ throw new IllegalArgumentException("Incorrect parameters: " + args.mkString(", "))
   }
   /** Decrypt data. */
   def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case BlowfishParameters(Some(key), strength, salt) ⇒
+    case Blowfish.Parameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new BlowfishEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -93,7 +93,7 @@ class Blowfish extends XEncryption {
   }
   /** Decrypt input stream. */
   def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream = parameters match {
-    case BlowfishParameters(Some(key), strength, salt) ⇒
+    case Blowfish.Parameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new BlowfishEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -105,7 +105,7 @@ class Blowfish extends XEncryption {
   }
   /** Encrypt data. */
   def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte] = parameters match {
-    case BlowfishParameters(Some(key), strength, salt) ⇒
+    case Blowfish.Parameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new BlowfishEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -122,7 +122,7 @@ class Blowfish extends XEncryption {
   }
   /** Encrypt output stearm. */
   def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream = parameters match {
-    case BlowfishParameters(Some(key), strength, salt) ⇒
+    case Blowfish.Parameters(Some(key), strength, salt) ⇒
       val cipher = new PaddedBufferedBlockCipher(new CBCBlockCipher(new BlowfishEngine))
       val pGen = new PKCS12ParametersGenerator(new SHA256Digest())
       pGen.init(PBEParametersGenerator.PKCS12PasswordToBytes(key.toCharArray()), salt, AES.iterationCount)
@@ -136,29 +136,6 @@ class Blowfish extends XEncryption {
   def fromString(data: String): Array[Byte] = BaseEncoding.base64().decode(data)
   /** Convert to string. */
   def toString(data: Array[Byte]): String = BaseEncoding.base64().encode(data)
-
-  /**
-   * Blowfish encryption parameters.
-   */
-  case class BlowfishParameters(val key: Option[String], keyLength: Blowfish.LengthParameter, val salt: Array[Byte]) extends XEncryption.Parameters {
-    if (key.isEmpty)
-      throw new IllegalArgumentException("Encryption key is not defined")
-    /** Encryption instance. */
-    lazy val encryption = Blowfish.this
-
-    /** Blowfish encryption parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
-
-    def canEqual(other: Any) = other.isInstanceOf[BlowfishParameters]
-    override def equals(other: Any) = other match {
-      case that: BlowfishParameters ⇒ (this eq that) || {
-        that.canEqual(this) && that.## == this.##
-      }
-      case _ ⇒ false
-    }
-    override def hashCode() = lazyHashCode
-    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, keyLength, java.util.Arrays.hashCode(salt): Integer))
-  }
 }
 
 object Blowfish {
@@ -169,6 +146,29 @@ object Blowfish {
       case Some(encryption: Blowfish) ⇒ encryption(Some(key), keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("Blowfish encryption is not available.")
     }
+
+  /**
+   * Blowfish encryption parameters.
+   */
+  case class Parameters(val key: Option[String], keyLength: Blowfish.LengthParameter, val salt: Array[Byte]) extends XEncryption.Parameters {
+    if (key.isEmpty)
+      throw new IllegalArgumentException("Encryption key is not defined")
+    /** Encryption instance. */
+    lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[Blowfish]
+
+    /** Blowfish encryption parameters as sequence of strings. */
+    def arguments: Seq[String] = Seq(keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
+
+    def canEqual(other: Any) = other.isInstanceOf[Parameters]
+    override def equals(other: Any) = other match {
+      case that: Parameters ⇒ (this eq that) || {
+        that.canEqual(this) && that.## == this.##
+      }
+      case _ ⇒ false
+    }
+    override def hashCode() = lazyHashCode
+    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, keyLength, java.util.Arrays.hashCode(salt): Integer))
+  }
 
   /**
    * Blowfish encryption identifier.
