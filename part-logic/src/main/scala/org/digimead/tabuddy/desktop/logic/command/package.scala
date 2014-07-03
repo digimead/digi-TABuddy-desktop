@@ -48,6 +48,7 @@ import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 
 package object command {
   lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[PartialFunction[(XCommand.Descriptor, Any), String]] identifiedBy "Console.Converter.GraphList" toSingle { graph.CommandGraphList.converter }
+    module.bind[PartialFunction[(XCommand.Descriptor, Any), String]] identifiedBy "Console.Converter.GraphList" toSingle { graph.CommandGraphShow.converter }
+    module.bind[PartialFunction[(XCommand.Descriptor, Any), String]] identifiedBy "Console.Converter.GraphHistory" toSingle { graph.CommandGraphHistory.converter }
   })
 }

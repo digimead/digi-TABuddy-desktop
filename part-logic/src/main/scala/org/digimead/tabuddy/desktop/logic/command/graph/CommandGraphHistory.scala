@@ -43,94 +43,84 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
-import java.util.UUID
+import java.net.URI
+import java.util.{ Date, UUID }
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.serialization.digest
+import org.digimead.tabuddy.model.serialization.digest.Digest
+import org.digimead.tabuddy.model.serialization.signature
+import org.digimead.tabuddy.model.serialization.signature.Signature
 import scala.concurrent.Future
 
 /**
- * List all known graphs or dump graph content.
+ * Show graph history.
  */
-object CommandGraphShow {
+object CommandGraphHistory {
   import Command.parser._
-  private val fullArg = "-full"
-  private val treeArg = "-tree"
-  private val bindedArg = "-binded"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Console converter. */
   lazy val converter: PartialFunction[(XCommand.Descriptor, Any), String] = {
-    case (this.descriptor, (true, Seq())) ⇒
-      "There are no binded graphs"
-    case (this.descriptor, (false, Seq())) ⇒
-      "There are no graphs"
     case (this.descriptor, (true, graphMarkers @ Seq(_*))) ⇒
       graphMarkers.asInstanceOf[Seq[GraphMarker]].filter(_.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name).map { marker ⇒
         s"${Console.BWHITE}${marker.graphOrigin.name}${Console.RESET} " +
           s"${Console.BWHITE}${marker.graphModelId.name}${Console.RESET} " +
           s"${Console.BWHITE}${marker.uuid}${Console.RESET} binded to ${GraphMarker.markerToContext(marker).mkString(", ")}"
       }.mkString("\n")
-    case (this.descriptor, (false, graphMarkers @ Seq(_*))) ⇒
-      graphMarkers.asInstanceOf[Seq[GraphMarker]].
-        sortBy(m ⇒ try m.graphModelId.name catch { case e: Throwable ⇒ "-" }).
-        sortBy(m ⇒ try m.graphOrigin.name catch { case e: Throwable ⇒ "-" }).map { marker ⇒
-          val state = marker match {
-            case broken if !marker.markerIsValid ⇒ s"[${Console.BRED}broken${Console.RESET}]"
-            case dirty if marker.graphIsOpen() && marker.graphIsDirty() ⇒ s"[${Console.BYELLOW}unsaved${Console.RESET}]"
-            case opened if marker.graphIsOpen() ⇒ s"[${Console.BGREEN}opened${Console.RESET}]"
-            case closed ⇒ s"[${Console.BBLACK}closed${Console.RESET}]"
-          }
-          s"${Console.BWHITE}${
-            try marker.graphOrigin.name catch { case e: Throwable ⇒ "-" }
-          }${Console.RESET} " +
-            s"${Console.BWHITE}${
-              try marker.graphModelId.name catch { case e: Throwable ⇒ "-" }
-            }${Console.RESET} " +
-            s"${Console.BWHITE}${marker.uuid}${Console.RESET} ${state} at ${marker.graphPath}"
-        }.mkString("\n")
+    case (this.descriptor, records: Iterable[_]) ⇒
+      records.asInstanceOf[Iterable[(Element.Timestamp, Map[URI, (Option[digest.Mechanism.Parameters], Option[signature.Mechanism.Parameters])])]].
+        toSeq.sortBy(_._1)(Ordering[Element.Timestamp].reverse) match {
+          case Nil ⇒
+            s"${Console.BYELLOW}There are no history records.${Console.RESET}"
+          case sorted ⇒
+            sorted.map {
+              case (record, map) ⇒
+                val builder = new StringBuilder()
+                builder ++= s"${Console.BWHITE}${new Date(record.milliseconds)} [${record}]${Console.RESET}\n"
+                map.toSeq.sortBy(_._1).foreach {
+                  case (uri, (digest, signature)) ⇒
+                    builder ++= s"    ${uri}: ${digest getOrElse "no digest"}, ${signature getOrElse "no signature"}"
+                }
+                builder.result
+            }.mkString("\n")
+        }
   }
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_show_text,
-    Messages.graph_showDescriptionShort_text, Messages.graph_showDescriptionLong_text,
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_history_text,
+    Messages.graph_historyDescriptionShort_text, Messages.graph_historyDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case Some((options @ List(_*), (Some(marker: GraphMarker), _, _))) ⇒
-          if (options.contains(treeArg))
-            Graph.dump(marker.safeRead(_.graph), !options.contains(fullArg))
-          else
-            marker.safeRead(_.graph).model.eDump(!options.contains(fullArg))
-        case Some(this.bindedArg) ⇒
-          (true, GraphMarker.list().map(GraphMarker(_)).filter(_.graphIsOpen()))
-        case None ⇒
-          (false, GraphMarker.list().map(GraphMarker(_)))
+        case (Some(marker: GraphMarker), _, _) ⇒
+          { try Option(marker.graphAcquireLoader()) catch { case e: Throwable ⇒ None } } match {
+            case Some(loader) ⇒
+              val loaderHistory = loader.history
+              val digestHistory = Digest.history(loader)
+              val signatureHistory = Signature.history(loader)
+              val records = loaderHistory.keys
+              records.map { record ⇒
+                (record, Map(loaderHistory(record).toSeq.map { uri ⇒
+                  uri -> (digestHistory.get(record).flatMap(_.get(uri)), signatureHistory.get(record).flatMap(_.get(uri)))
+                }: _*))
+              }
+            case None ⇒
+              val graphHistory = marker.safeRead(_.graph).retrospective.history
+              val records = graphHistory.keys
+              records.map { record ⇒
+                (record, Map())
+              }
+          }
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> optionParser(Seq.empty) { graphParser }))
+  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> graphParser)
 
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
-    filter(m ⇒ m.markerIsValid && m.graphIsOpen()).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
-  /** Option parser. */
-  def optionParser(alreadyDefinedOptions: Seq[Any])(tail: Command.parser.Parser[Any]): Command.parser.Parser[Any] = {
-    var options = Seq[Command.parser.Parser[Any]](tail ^^ { (alreadyDefinedOptions, _) })
-
-    if (alreadyDefinedOptions.isEmpty)
-      options = (bindedArg into { result ⇒ nop ^^^ { bindedArg } }) +: options
-    if (alreadyDefinedOptions.isEmpty)
-      options = (fullArg into { result ⇒
-        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
-      }) +: options
-    if (alreadyDefinedOptions.isEmpty)
-      options = (treeArg into { result ⇒
-        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
-      }) +: options
-
-    options.reduce(_ | _)
-  }
+    filter(m ⇒ m.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
 }

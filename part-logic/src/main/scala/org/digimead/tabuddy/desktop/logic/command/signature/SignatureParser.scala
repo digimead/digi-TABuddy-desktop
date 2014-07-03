@@ -57,17 +57,25 @@ class SignatureParser {
   import Command.parser._
   /** Set of valid signature identifiers. */
   lazy val validIdentifiers = SignatureParser.perIdentifier.map(_._1).toSet intersect Signature.perIdentifier.map(_._1).toSet
+  /** All valid signature identifiers with empty value. */
+  lazy val allValidIdentifiers = validIdentifiers + Empty.Empty
 
   /** Create parser for the signature configuration. */
   def apply(tag: String = ""): Command.parser.Parser[Any] =
-    sp ~> commandRegex("\\w+".r, NameHintContainer) ^^ { name ⇒
-      validIdentifiers.map(SignatureParser.perIdentifier).find(_.name == name) getOrElse {
-        if (Empty.name == name)
-          Empty
-        else
-          throw Command.ParseException(s"Signature with name '$name' not found.")
-      }
-    } into (adapter ⇒ adapter(tag))
+    sp ~> commandRegex("\\w+".r, NameHintContainer) ^? {
+      case name if !isCompletionRequest(name) ⇒
+        validIdentifiers.map(SignatureParser.perIdentifier).find(_.name == name) getOrElse {
+          if (Empty.name == name)
+            Empty
+          else
+            throw Command.ParseException(s"Signature with name '$name' not found.")
+        }
+      case request @ CompletionRequest(name) if allValidIdentifiers.exists(_.name == name) ⇒
+        name
+    } into (_ match {
+      case adapter: SignatureAdapter ⇒ adapter(tag)
+      case name ⇒ nop
+    })
 
   /** Hint container for signature mechanism name. */
   object NameHintContainer extends Command.Hint.Container {

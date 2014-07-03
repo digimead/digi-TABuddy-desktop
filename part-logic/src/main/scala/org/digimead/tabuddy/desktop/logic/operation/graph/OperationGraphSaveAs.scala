@@ -93,7 +93,7 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with XLoggable {
       state.payloadObject = Option(marker.safeRead(_.payload))
     })
     newMarker.graphAdditionalStorages = marker.graphAdditionalStorages
-    newMarker.digest = marker.digest //
+    newMarker.digest = marker.digest
     newMarker.containerEncryption = marker.containerEncryption
     newMarker.contentEncryption = marker.contentEncryption
     newMarker.signature = marker.signature

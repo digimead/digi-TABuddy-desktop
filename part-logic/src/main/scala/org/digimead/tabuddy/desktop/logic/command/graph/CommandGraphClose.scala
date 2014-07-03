@@ -71,7 +71,7 @@ object CommandGraphClose extends XLoggable {
     Messages.graph_closeDescriptionShort_text, Messages.graph_closeDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case Some((Some(marker: GraphMarker), _, _, _)) ⇒
+        case Some((Some(marker: GraphMarker), _, _)) ⇒
           val exchanger = new Exchanger[Operation.Result[XGraphMarker]]()
           val graph = marker.safeRead(_.graph)
           OperationGraphClose(graph, true).foreach { operation ⇒
@@ -114,7 +114,7 @@ object CommandGraphClose extends XLoggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphParser))
+  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> graphParser))
 
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).

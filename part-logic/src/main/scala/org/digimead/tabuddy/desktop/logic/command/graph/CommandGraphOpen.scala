@@ -70,7 +70,7 @@ object CommandGraphOpen extends XLoggable {
     Messages.graph_openDescriptionShort_text, Messages.graph_openDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case (Some(marker: GraphMarker), _, _, _) ⇒
+        case (Some(marker: GraphMarker), _, _) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
           OperationGraphOpen(marker.uuid).foreach { operation ⇒
             operation.getExecuteJob() match {
@@ -98,7 +98,7 @@ object CommandGraphOpen extends XLoggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> graphParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> graphParser)
 
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).

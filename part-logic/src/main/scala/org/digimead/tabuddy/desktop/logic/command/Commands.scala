@@ -67,11 +67,26 @@ class Commands extends XLoggable {
     /*
      * graph
      */
+    Command.register(graph.CommandGraphClose.descriptor)
+    Command.addToContext(Core.context, graph.CommandGraphClose.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(graph.CommandGraphDelete.descriptor)
+    Command.addToContext(Core.context, graph.CommandGraphDelete.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(graph.CommandGraphExport.descriptor)
+    Command.addToContext(Core.context, graph.CommandGraphExport.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(graph.CommandGraphHistory.descriptor)
+    Command.addToContext(Core.context, graph.CommandGraphHistory.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(graph.CommandGraphImport.descriptor)
+    Command.addToContext(Core.context, graph.CommandGraphImport.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(graph.CommandGraphMeta.descriptor)
+    Command.addToContext(Core.context, graph.CommandGraphMeta.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphNew.descriptor)
     Command.addToContext(Core.context, graph.CommandGraphNew.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(graph.CommandGraphList.descriptor)
-    Command.addToContext(Core.context, graph.CommandGraphList.parser).
       foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphOpen.descriptor)
     Command.addToContext(Core.context, graph.CommandGraphOpen.parser).
@@ -81,18 +96,6 @@ class Commands extends XLoggable {
       foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphSaveAs.descriptor)
     Command.addToContext(Core.context, graph.CommandGraphSaveAs.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(graph.CommandGraphClose.descriptor)
-    Command.addToContext(Core.context, graph.CommandGraphClose.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(graph.CommandGraphDelete.descriptor)
-    Command.addToContext(Core.context, graph.CommandGraphDelete.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(graph.CommandGraphImport.descriptor)
-    Command.addToContext(Core.context, graph.CommandGraphImport.parser).
-      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
-    Command.register(graph.CommandGraphExport.descriptor)
-    Command.addToContext(Core.context, graph.CommandGraphExport.parser).
       foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
     Command.register(graph.CommandGraphShow.descriptor)
     Command.addToContext(Core.context, graph.CommandGraphShow.parser).
@@ -155,15 +158,16 @@ class Commands extends XLoggable {
     Command.get(CommandModifyTypeSchemaList.descriptor.parserId).foreach(Command.unregister)
     Command.unregister(script.CommandScriptRun.descriptor)
     Command.unregister(graph.CommandGraphShow.descriptor)
-    Command.unregister(graph.CommandGraphExport.descriptor)
-    Command.unregister(graph.CommandGraphImport.descriptor)
-    Command.unregister(graph.CommandGraphDelete.descriptor)
-    Command.unregister(graph.CommandGraphClose.descriptor)
     Command.unregister(graph.CommandGraphSaveAs.descriptor)
     Command.unregister(graph.CommandGraphSave.descriptor)
     Command.unregister(graph.CommandGraphOpen.descriptor)
-    Command.unregister(graph.CommandGraphList.descriptor)
     Command.unregister(graph.CommandGraphNew.descriptor)
+    Command.unregister(graph.CommandGraphMeta.descriptor)
+    Command.unregister(graph.CommandGraphImport.descriptor)
+    Command.unregister(graph.CommandGraphHistory.descriptor)
+    Command.unregister(graph.CommandGraphExport.descriptor)
+    Command.unregister(graph.CommandGraphDelete.descriptor)
+    Command.unregister(graph.CommandGraphClose.descriptor)
   }
 }
 

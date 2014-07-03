@@ -54,37 +54,152 @@ import scala.util.matching.Regex
  * Thanks a lot to to Marcus Schulte for an idea.
  */
 class CommandParsers extends JavaTokenParsers with XLoggable {
-  /** Stub parser. */
-  val stubParser = new StubParser
-  /** Make whiteSpace public. */
-  override val whiteSpace = """[ \t]+""".r
+  /** Placeholder parser. */
+  val nop = new Parser[String] { def apply(in: Input) = Success(in.source.toString, in) }
   /** Special parser for whiteSpaces. */
   val sp = new Parser[String] {
     def apply(in: Input) = {
       val source = in.source
       val offset = in.offset
       val start = offset
-      (whiteSpace findPrefixMatchOf (source.subSequence(start, source.length))) match {
-        case Some(matched) ⇒
-          Success(source.subSequence(start, start + matched.end).toString,
-            in.drop(start + matched.end - offset))
-        case None ⇒
+      if (start == (source.length() - 1) && source.charAt(start) == CompletionRequest.character) {
+        val completion = MissingCompletionOrFailure(Seq(Command.Hint(" ")),
+          "expected whitespace", in.drop(start - offset))
+        Command.completionProposal.value = Command.completionProposal.value :+ completion
+        completion
+      } else
+        (whiteSpace findPrefixMatchOf (source.subSequence(start, source.length))) match {
+          case Some(matched) ⇒
+            Success(source.subSequence(start, start + matched.end).toString,
+              in.drop(start + matched.end - offset))
+          case None ⇒
+            val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
+            if (start == source.length()) {
+              val completion = MissingCompletionOrFailure(Seq(Command.Hint(" ")),
+                "expected whitespace", in.drop(start - offset))
+              Command.completionProposal.value = Command.completionProposal.value :+ completion
+              completion
+            } else {
+              Failure("string matching whitespace expected but " + found + " found", in.drop(start - offset))
+            }
+        }
+    }
+  }
+  /** Stub parser. */
+  val stubParser = new StubParser
+  /** Make whiteSpace public. */
+  override val whiteSpace = """[ \t]+""".r
+
+  /** Check whether the string is completion request. */
+  def isCompletionRequest(arg: CharSequence) = arg.length() > 0 && arg.charAt(arg.length() - 1) == CompletionRequest.character
+  /** If true, skips anything matching `whiteSpace` starting from the current offset. */
+  override def skipWhitespace = false
+
+  /** A parser that matches a literal string. */
+  implicit def commandLiteral(s: String)(implicit descriptor: Command.Descriptor): Parser[String] =
+    commandLiteral(s, Command.Hint(descriptor.name, Some(descriptor.shortDescription)))
+  /** A parser that matches a literal string. */
+  implicit def commandLiteral(t: (String, Command.Hint)): Parser[String] =
+    commandLiteral(t._1, t._2)
+  /** A parser that matches a literal string. */
+  implicit def commandLiteral(s: String, hint: Command.Hint): Parser[String] = new Parser[String] {
+    def apply(in: Input): ParseResult[String] = {
+      val source = in.source
+      val offset = in.offset
+      val start = handleWhiteSpace(source, offset)
+      var i = 0
+      var j = start
+      while (i < s.length && j < source.length && s.charAt(i) == source.charAt(j)) {
+        i += 1
+        j += 1
+      }
+      if (i == s.length) {
+        Success(source.subSequence(start, j).toString, in.drop(j - offset))
+      } else if (j == source.length()) {
+        // if j == all text that we have then give our proposal
+        val missing = s.substring(i)
+        val completionHint = if (hint.completions.isEmpty) hint.copyWithCompletion(missing) else hint
+        val completion = MissingCompletionOrFailure(Seq(completionHint), "expected one of " + missing, in.drop(start - offset))
+        Command.completionProposal.value = Command.completionProposal.value :+ completion
+        completion
+      } else {
+        if (source.charAt(start) == CompletionRequest.character) {
+          val missing = s
+          val completionHint = if (hint.completions.isEmpty) hint.copyWithCompletion(missing) else hint
+          val completion = MissingCompletionOrFailure(Seq(completionHint), "expected one of " + missing, in.drop(start - offset))
+          Command.completionProposal.value = Command.completionProposal.value :+ completion
+          completion
+        } else {
           val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
-          if (start == source.length()) {
-            val completion = MissingCompletionOrFailure(Seq(Command.Hint(" ")),
-              "expected whitespace", in.drop(start - offset))
-            Command.completionProposal.value = Command.completionProposal.value :+ completion
-            completion
-          } else {
-            Failure("string matching whitespace expected but " + found + " found", in.drop(start - offset))
-          }
+          Failure("`" + s + "' expected but " + found + " found", in.drop(start - offset))
+        }
       }
     }
   }
+  /** A parser that matches a regex string. */
+  implicit def commandRegex(r: Regex)(implicit descriptor: Command.Descriptor): Parser[String] =
+    commandRegex(r, Command.Hint.Container(Command.Hint(descriptor.name, Some(descriptor.shortDescription))))
+  /** A parser that matches a regex string. */
+  implicit def commandRegex(t: (Regex, Command.Hint.Container)): Parser[String] =
+    commandRegex(t._1, t._2)
+  /** A parser that matches a regex string. */
+  implicit def commandRegex(r: Regex, hints: Command.Hint.Container): Parser[String] = new Parser[String] {
+    def apply(in: Input) = {
+      val source = in.source
+      val offset = in.offset
+      val start = handleWhiteSpace(source, offset)
+      val completionRequestMode = isCompletionRequest(source)
+      val subject =
+        if (completionRequestMode)
+          source.subSequence(start, source.length - 1).toString()
+        else
+          source.subSequence(start, source.length).toString()
+      val hintList = hints(subject)
+      if (start == (source.length() - 1) && completionRequestMode && hintList.nonEmpty) {
+        val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
+        Command.completionProposal.value = Command.completionProposal.value :+ completion
+        completion
+      } else
+        (r findPrefixMatchOf subject) match {
+          case Some(matched) if completionRequestMode && hintList.nonEmpty && matched.matched == subject ⇒
+            // If we are at completion request mode
+            // and there are some proposals
+            // and this is last parser that covers whole subject
+            val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
+            Command.completionProposal.value = Command.completionProposal.value :+ completion
+            // But we return success, so we will collect proposal from other parsers
+            Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
+              in.drop(start + matched.end - offset))
+          case Some(matched) ⇒
+            Success(source.subSequence(start, start + matched.end).toString,
+              in.drop(start + matched.end - offset))
+          case None ⇒
+            val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
+            if (start == source.length()) {
+              val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
+              Command.completionProposal.value = Command.completionProposal.value :+ completion
+              completion
+            } else {
+              Failure("string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
+            }
+        }
+    }
+  }
+  /**
+   * Completion request routines.
+   */
+  object CompletionRequest {
+    /** Special character that appends to string if we want to create completion request. */
+    val character: Char = '\u0001'
 
-  override def skipWhitespace = false
-
-  /** Simple stub parser. */
+    /** Convert string to completion request. */
+    def apply(arg: String) = arg + character
+    /** Convert completion request to string. */
+    def unapply(arg: String) = if (isCompletionRequest(arg)) Some(arg.dropRight(1)) else None
+  }
+  /**
+   * Simple stub parser.
+   */
   class StubParser[T] extends Parser[T] {
     named("Stub")
     def apply(in: Input): ParseResult[T] = Error("Stub parser.", in)
@@ -107,76 +222,6 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
               result
           }
         case result ⇒ result
-      }
-    }
-  }
-  /** A parser that matches a literal string. */
-  implicit def commandLiteral(s: String)(implicit descriptor: Command.Descriptor): Parser[String] =
-    commandLiteral(s, Command.Hint(descriptor.name, Some(descriptor.shortDescription)))
-  /** A parser that matches a literal string. */
-  implicit def commandLiteral(t: (String, Command.Hint)): Parser[String] =
-    commandLiteral(t._1, t._2)
-  /** A parser that matches a literal string. */
-  implicit def commandLiteral(s: String, hint: Command.Hint): Parser[String] = new Parser[String] {
-    def apply(in: Input): ParseResult[String] = {
-      val source = in.source
-      val offset = in.offset
-      val start = handleWhiteSpace(source, offset)
-      var i = 0
-      var j = start
-      while (i < s.length && j < source.length && s.charAt(i) == source.charAt(j)) {
-        i += 1
-        j += 1
-      }
-      if (i == s.length)
-        Success(source.subSequence(start, j).toString, in.drop(j - offset))
-      else if (j == source.length()) {
-        // if j == all text that we have then give our proposal
-        val missing = s.substring(i)
-        val completionHint = if (hint.completions.isEmpty) hint.copyWithCompletion(missing) else hint
-        val completion = MissingCompletionOrFailure(Seq(completionHint), "expected one of " + missing, in.drop(start - offset))
-        Command.completionProposal.value = Command.completionProposal.value :+ completion
-        completion
-      } else {
-        val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
-        Failure("`" + s + "' expected but " + found + " found", in.drop(start - offset))
-      }
-    }
-  }
-  /** A parser that matches a regex string. */
-  implicit def commandRegex(r: Regex)(implicit descriptor: Command.Descriptor): Parser[String] =
-    commandRegex(r, Command.Hint.Container(Command.Hint(descriptor.name, Some(descriptor.shortDescription))))
-  /** A parser that matches a regex string. */
-  implicit def commandRegex(t: (Regex, Command.Hint.Container)): Parser[String] =
-    commandRegex(t._1, t._2)
-  /** A parser that matches a regex string. */
-  implicit def commandRegex(r: Regex, hints: Command.Hint.Container): Parser[String] = new Parser[String] {
-    def apply(in: Input) = {
-      val source = in.source
-      val offset = in.offset
-      val start = handleWhiteSpace(source, offset)
-      val subject = source.subSequence(start, source.length).toString()
-      val hintList = hints(subject)
-      (r findPrefixMatchOf subject) match {
-        case Some(matched) if Command.completionProposalMode.value && hintList.nonEmpty && matched.end == subject.length() ⇒
-          // if we are at completionProposalMode
-          // and there are some proposals
-          // and this is last parser that covers whole subject
-          val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
-          Command.completionProposal.value = Command.completionProposal.value :+ completion
-          completion
-        case Some(matched) ⇒
-          Success(source.subSequence(start, start + matched.end).toString,
-            in.drop(start + matched.end - offset))
-        case None ⇒
-          val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
-          if (start == source.length()) {
-            val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
-            Command.completionProposal.value = Command.completionProposal.value :+ completion
-            completion
-          } else {
-            Failure("string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
-          }
       }
     }
   }

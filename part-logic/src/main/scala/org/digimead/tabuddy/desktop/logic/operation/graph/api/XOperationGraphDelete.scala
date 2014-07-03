@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
+import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api.XOperation
 import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.model.Model
@@ -57,11 +58,27 @@ trait XOperationGraphDelete {
   /**
    * Delete graph.
    *
+   * @param markerUUID uuid of the graph marker
+   * @param askBefore askUser before delete
+   * @return deleted graph marker UUID
+   */
+  def apply(markerUUID: UUID, askBefore: Boolean): XGraphMarker
+  /**
+   * Delete graph.
+   *
    * @param graph graph to delete
    * @param askBefore askUser before delete
    * @return deleted graph marker UUID
    */
   def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): XGraphMarker
+  /**
+   * Create 'Delete graph' operation.
+   *
+   * @param markerUUID uuid of the graph marker
+   * @param askBefore askUser before delete
+   * @return 'Delete graph' operation
+   */
+  def operation(markerUUID: UUID, askBefore: Boolean): XOperation[XGraphMarker]
   /**
    * Create 'Delete graph' operation.
    *

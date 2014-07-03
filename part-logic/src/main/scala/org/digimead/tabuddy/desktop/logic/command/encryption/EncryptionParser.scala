@@ -57,17 +57,25 @@ class EncryptionParser {
   import Command.parser._
   /** Set of encryption identifiers. */
   lazy val validIdentifiers = EncryptionParser.perIdentifier.map(_._1).toSet intersect Encryption.perIdentifier.map(_._1).toSet
+  /** All valid ecryption identifiers with empty value. */
+  lazy val allValidIdentifiers = validIdentifiers + Empty.Empty
 
   /** Create parser for the encryption configuration. */
   def apply(tag: String = ""): Command.parser.Parser[Any] =
-    sp ~> commandRegex("\\w+".r, NameHintContainer) ^^ { name ⇒
-      validIdentifiers.map(EncryptionParser.perIdentifier).find(_.name == name) getOrElse {
-        if (Empty.name == name)
-          Empty
-        else
-          throw Command.ParseException(s"Encryption with name '$name' not found.")
-      }
-    } into (adapter ⇒ adapter(tag))
+    sp ~> commandRegex("\\w+".r, NameHintContainer) ^? {
+      case name if !isCompletionRequest(name) ⇒
+        validIdentifiers.map(EncryptionParser.perIdentifier).find(_.name == name) getOrElse {
+          if (Empty.name == name)
+            Empty
+          else
+            throw Command.ParseException(s"Encryption with name '$name' not found.")
+        }
+      case request @ CompletionRequest(name) if allValidIdentifiers.exists(_.name == name) ⇒
+        name
+    } into (_ match {
+      case adapter: EncryptionAdapter ⇒ adapter(tag)
+      case name ⇒ nop
+    })
 
   /** Hint container for signature mechanism name. */
   object NameHintContainer extends Command.Hint.Container {

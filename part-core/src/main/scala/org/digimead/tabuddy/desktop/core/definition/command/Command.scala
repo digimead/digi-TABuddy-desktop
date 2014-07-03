@@ -231,8 +231,6 @@ object Command extends XLoggable {
   implicit def cmdLine2implementation(c: Command.type): Command = c.inner
   /** Last parsing process completion. */
   val completionProposal = new DynamicVariable(Seq.empty[CommandParsers#MissingCompletionOrFailure])
-  /** Force completion proposal mode. */
-  val completionProposalMode = new DynamicVariable(false)
   /** Context commands map key. */
   val contextKey = "Commands"
   /** Context commands composite parser key. */

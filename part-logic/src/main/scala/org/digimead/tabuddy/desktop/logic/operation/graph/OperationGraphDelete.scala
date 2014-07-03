@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.graph
 
+import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
@@ -60,26 +61,36 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
   /**
    * Delete graph.
    *
+   * @param markerUUID uuid of the graph marker
+   * @param askBefore askUser before delete
+   * @return deleted graph read only marker
+   */
+  def apply(markerUUID: UUID, askBefore: Boolean): XGraphMarker = {
+    GraphMarker.globalRWL.writeLock().lock()
+    try delete(GraphMarker(markerUUID), askBefore)
+    finally GraphMarker.globalRWL.writeLock().unlock()
+  }
+  /**
+   * Delete graph.
+   *
    * @param graph graph to delete
    * @param askBefore askUser before delete
    * @return deleted graph read only marker
    */
   def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): XGraphMarker = {
     GraphMarker.globalRWL.writeLock().lock()
-    try {
-      val marker = GraphMarker(graph)
-      marker.safeUpdate { state ⇒
-        log.info(s"Delete $graph.")
-        if (!marker.markerIsValid)
-          throw new IllegalStateException(marker + " is not valid.")
-        if (marker.graphIsOpen())
-          GraphMarker(graph).graphClose()
-        val roMarker = GraphMarker.deleteFromWorkspace(GraphMarker(graph))
-        log.info(s"$graph is deleted.")
-        roMarker
-      }
-    } finally GraphMarker.globalRWL.writeLock().unlock()
+    try delete(GraphMarker(graph), askBefore)
+    finally GraphMarker.globalRWL.writeLock().unlock()
   }
+  /**
+   * Create 'Delete graph' operation.
+   *
+   * @param markerUUID uuid of the graph marker
+   * @param askBefore askUser before delete
+   * @return 'Delete graph' operation
+   */
+  def operation(markerUUID: UUID, askBefore: Boolean) =
+    new Implementation(GraphMarker(markerUUID), askBefore)
   /**
    * Create 'Delete graph' operation.
    *
@@ -88,7 +99,7 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
    * @return 'Delete graph' operation
    */
   def operation(graph: Graph[_ <: Model.Like], askBefore: Boolean) =
-    new Implementation(graph, askBefore)
+    new Implementation(GraphMarker(graph), askBefore)
 
   /**
    * Checks that this class can be subclassed.
@@ -105,9 +116,26 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
    * </p>
    */
   override protected def checkSubclass() {}
+  /**
+   * Delete graph.
+   *
+   * @param marker marker of the graph
+   * @param askBefore askUser before delete
+   * @return deleted graph read only marker
+   */
+  protected def delete(marker: GraphMarker, askBefore: Boolean): XGraphMarker = marker.safeUpdate { state ⇒
+    log.info(s"Delete graph with ${marker}.")
+    if (!marker.markerIsValid)
+      throw new IllegalStateException(marker + " is not valid.")
+    if (marker.graphIsOpen())
+      marker.graphClose()
+    val roMarker = GraphMarker.deleteFromWorkspace(marker)
+    log.info(s"Graph with ${marker} is deleted.")
+    roMarker
+  }
 
-  class Implementation(graph: Graph[_ <: Model.Like], askBefore: Boolean)
-    extends OperationGraphDelete.Abstract(graph, askBefore) with XLoggable {
+  class Implementation(marker: GraphMarker, askBefore: Boolean)
+    extends OperationGraphDelete.Abstract(marker, askBefore) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -117,12 +145,16 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option(OperationGraphDelete.this(graph, askBefore))
+        val result = Option {
+          GraphMarker.globalRWL.writeLock().lock()
+          try delete(marker, askBefore)
+          finally GraphMarker.globalRWL.writeLock().unlock()
+        }
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to delete $graph.", e)
+          Operation.Result.Error(s"Unable to delete graph with ${marker}.", e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
@@ -139,6 +171,16 @@ object OperationGraphDelete extends XLoggable {
   /**
    * Build a new 'Delete graph' operation.
    *
+   * @param markerUUID uuid of the graph marker
+   * @param askBefore askUser before delete
+   * @return 'Delete graph' operation
+   */
+  @log
+  def apply(markerUUID: UUID, askBefore: Boolean): Option[Abstract] =
+    Some(operation.operation(markerUUID, askBefore).asInstanceOf[Abstract])
+  /**
+   * Build a new 'Delete graph' operation.
+   *
    * @param graph graph to delete
    * @param askBefore askUser before delete
    * @return 'Delete graph' operation
@@ -147,9 +189,9 @@ object OperationGraphDelete extends XLoggable {
   def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): Option[Abstract] =
     Some(operation.operation(graph, askBefore).asInstanceOf[Abstract])
 
-  /** Bridge between abstract XOperation[UUID] and concrete Operation[UUID] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val askBefore: Boolean)
-    extends Operation[XGraphMarker](s"Delete $graph.") {
+  /** Bridge between abstract XOperation[XGraphMarker] and concrete Operation[XGraphMarker] */
+  abstract class Abstract(val marker: GraphMarker, val askBefore: Boolean)
+    extends Operation[XGraphMarker](s"Delete graph with $marker.") {
     this: XLoggable ⇒
   }
   /**

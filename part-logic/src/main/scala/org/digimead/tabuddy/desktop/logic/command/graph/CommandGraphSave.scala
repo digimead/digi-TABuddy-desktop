@@ -69,7 +69,7 @@ object CommandGraphSave extends XLoggable {
     Messages.graph_saveDescriptionShort_text, Messages.graph_saveDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case Some((Some(marker: GraphMarker), _, _, _)) ⇒
+        case Some((Some(marker: GraphMarker), _, _)) ⇒
           val exchanger = new Exchanger[Operation.Result[Unit]]()
           val graph = marker.safeRead(_.graph)
           OperationGraphSave(graph, false).foreach { operation ⇒
@@ -112,7 +112,7 @@ object CommandGraphSave extends XLoggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(graphParser))
+  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> graphParser))
 
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).

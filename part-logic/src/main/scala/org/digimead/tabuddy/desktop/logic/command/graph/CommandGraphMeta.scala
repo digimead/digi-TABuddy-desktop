@@ -43,66 +43,48 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
-import java.util.UUID
-import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.console.Console
+import java.util.{ Date, UUID }
 import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import scala.concurrent.Future
 
 /**
- * List all known graphs.
+ * Show graph metadata.
  */
-object CommandGraphList extends XLoggable {
+object CommandGraphMeta {
   import Command.parser._
-  private val bindedArg = "-binded"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
-  /** Console converter. */
-  lazy val converter: PartialFunction[(XCommand.Descriptor, Any), String] = {
-    case (this.descriptor, (true, Seq())) ⇒
-      "There are no binded graphs"
-    case (this.descriptor, (false, Seq())) ⇒
-      "There are no graphs"
-    case (this.descriptor, (true, graphMarkers @ Seq(_*))) ⇒
-      graphMarkers.asInstanceOf[Seq[GraphMarker]].filter(_.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name).map { marker ⇒
-        s"${Console.BWHITE}${marker.graphOrigin.name}${Console.RESET} " +
-          s"${Console.BWHITE}${marker.graphModelId.name}${Console.RESET} " +
-          s"${Console.BWHITE}${marker.uuid}${Console.RESET} binded to ${GraphMarker.markerToContext(marker).mkString(", ")}"
-      }.mkString("\n")
-    case (this.descriptor, (false, graphMarkers @ Seq(_*))) ⇒
-      graphMarkers.asInstanceOf[Seq[GraphMarker]].
-        sortBy(m ⇒ try m.graphModelId.name catch { case e: Throwable ⇒ "-" }).
-        sortBy(m ⇒ try m.graphOrigin.name catch { case e: Throwable ⇒ "-" }).map { marker ⇒
-          val state = marker match {
-            case broken if !marker.markerIsValid ⇒ s"[${Console.BRED}broken${Console.RESET}]"
-            case dirty if marker.graphIsOpen() && marker.graphIsDirty() ⇒ s"[${Console.BYELLOW}unsaved${Console.RESET}]"
-            case opened if marker.graphIsOpen() ⇒ s"[${Console.BGREEN}opened${Console.RESET}]"
-            case closed ⇒ s"[${Console.BBLACK}closed${Console.RESET}]"
-          }
-          s"${Console.BWHITE}${
-            try marker.graphOrigin.name catch { case e: Throwable ⇒ "-" }
-          }${Console.RESET} " +
-            s"${Console.BWHITE}${
-              try marker.graphModelId.name catch { case e: Throwable ⇒ "-" }
-            }${Console.RESET} " +
-            s"${Console.BWHITE}${marker.uuid}${Console.RESET} ${state} at ${marker.graphPath}"
-        }.mkString("\n")
-  }
   /** Command description. */
-  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_list_text,
-    Messages.graph_listDescriptionShort_text, Messages.graph_listDescriptionLong_text,
-    (activeContext, parserContext, parserResult) ⇒ Future[(Boolean, Seq[GraphMarker])] {
+  implicit lazy val descriptor = Command.Descriptor(UUID.randomUUID())(Messages.graph_meta_text,
+    Messages.graph_metaDescriptionShort_text, Messages.graph_metaDescriptionLong_text,
+    (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case Some(loadedArg) ⇒
-          (true, GraphMarker.list().map(GraphMarker(_)).filter(_.graphIsOpen()))
-        case None ⇒
-          (false, GraphMarker.list().map(GraphMarker(_)))
+        case (Some(marker: GraphMarker), _, _) ⇒
+          s"""identifier: ${marker.graphModelId}
+             |origin: ${marker.graphOrigin}
+             |loaded: ${if (marker.graphIsOpen()) "YES" else "NO"}
+             |modified: ${if (marker.graphIsDirty()) "YES" else "NO"}
+             |creation timestamp: ${new Date(marker.graphCreated.milliseconds)} [${marker.graphCreated}]
+             |last save timestamp: ${new Date(marker.markerLastAccessed)}
+             |default serialization type: ${marker.defaultSerialization}
+             |digest on write: ${marker.digest.freeze}
+             |digest on read: ${marker.digest.acquire}
+             |signature on write: ${marker.signature.freeze}
+             |signature on read: ${marker.signature.acquire}
+             |containerEncryption: ${marker.containerEncryption}
+             |contentEncryption: ${marker.contentEncryption}
+             |primary storage: ${marker.graphPath}
+             |additional storages: ${marker.graphAdditionalStorages}
+             |marker uuid: ${marker.uuid}""".stripMargin
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> bindedArg))
+  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> graphParser)
+
+  /** Graph argument parser. */
+  def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
+    filter(m ⇒ m.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
 }

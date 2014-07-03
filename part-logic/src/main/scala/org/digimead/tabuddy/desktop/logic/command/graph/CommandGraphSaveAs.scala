@@ -107,7 +107,7 @@ object CommandGraphSaveAs extends XLoggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> (graphParser ^^ { result ⇒
+  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> (graphParser ^^ { result ⇒
     localGraphMarker.value = result._1
     result._1
   }) ~ sp ~ (nameParser ^^ { result ⇒
@@ -123,7 +123,7 @@ object CommandGraphSaveAs extends XLoggable {
   /** Create parser for the graph name. */
   protected def nameParser: Command.parser.Parser[Any] = commandRegex(App.symbolPattern.pattern().r, HintContainer)
   /** Path argument parser. */
-  protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "graph location",
+  protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "new graph location",
     () ⇒ Some(s"path to graph directory")) { _.isDirectory }
 
   /** Hint container for graph name. */
@@ -131,11 +131,11 @@ object CommandGraphSaveAs extends XLoggable {
     /** Get parser hints for user provided argument. */
     def apply(arg: String): Seq[Command.Hint] = localGraphMarker.value match {
       case Some(marker) if arg.isEmpty ⇒
-        Seq(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"), Seq(marker.graphModelId.name)))
+        Seq(Command.Hint("new graph name", Some(s"string that is correct Scala symbol literal"), Seq(marker.graphModelId.name)))
       case Some(marker) if marker.graphModelId.name.startsWith(arg) ⇒
-        Seq(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"), Seq(marker.graphModelId.name.drop(arg.length()))))
+        Seq(Command.Hint("new graph name", Some(s"string that is correct Scala symbol literal"), Seq(marker.graphModelId.name.drop(arg.length()))))
       case Some(marker) ⇒
-        Seq(Command.Hint("graph name", Some(s"string that is correct Scala symbol literal"), Seq()))
+        Seq(Command.Hint("new graph name", Some(s"string that is correct Scala symbol literal"), Seq()))
       case None ⇒
         Seq()
     }

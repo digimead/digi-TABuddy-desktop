@@ -70,9 +70,9 @@ object CommandGraphDelete extends XLoggable {
     Messages.graph_deleteDescriptionShort_text, Messages.graph_deleteDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case (Some(marker: GraphMarker), _, _, _) ⇒
+        case (Some(marker: GraphMarker), _, _) ⇒
           val exchanger = new Exchanger[Operation.Result[XGraphMarker]]()
-          OperationGraphDelete(marker.safeRead(_.graph), false).foreach { operation ⇒
+          OperationGraphDelete(marker.uuid, false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -97,7 +97,7 @@ object CommandGraphDelete extends XLoggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> graphParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~> sp  ~> graphParser)
 
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
