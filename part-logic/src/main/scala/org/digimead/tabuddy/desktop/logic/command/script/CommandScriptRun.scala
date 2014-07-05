@@ -94,7 +94,7 @@ object CommandScriptRun extends XLoggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> pathParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> pathParser)
   /** Path argument parser. */
   protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "script location",
     () ⇒ Some(s"path to script file")) { f ⇒ f.canRead() && !f.getName().startsWith(".") }

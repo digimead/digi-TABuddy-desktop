@@ -50,88 +50,58 @@ import scala.language.implicitConversions
 import scala.util.DynamicVariable
 
 /**
- * Path argument parser builder.
+ * Builder of file path argument parser.
  */
 class PathParser {
   import Command.parser._
-  /** Thread local cache with current default location. */
-  protected val localDefault = new DynamicVariable[Option[File]](None)
-  /** Thread local cache with listFiles filter. */
-  protected val localFilter = new DynamicVariable[Option[File ⇒ Boolean]](None)
-  /** Thread local cache with hint description. */
-  protected val localHintDescription = new DynamicVariable[Option[String]](None)
-  /** Thread local cache with hint label. */
-  protected val localHintLabel = new DynamicVariable[Option[String]](None)
-  /** Thread local cache with selected location. */
-  protected val localSelected = new DynamicVariable[Option[File]](None)
 
   /** Create parser for the graph location. */
-  def apply(default: () ⇒ File, hintLabel: () ⇒ String, hintDescription: () ⇒ Option[String] = () ⇒ None,
-    keep: Boolean = false)(filter: File ⇒ Boolean): Command.parser.Parser[Any] = {
-    sp ^^ { result ⇒
-      // clear thread local values at the beginning
-      threadLocalClear()
-      localDefault.value = Some(default())
-      localFilter.value = Some(filter)
-      localHintDescription.value = hintDescription()
-      localHintLabel.value = Some(hintLabel())
+  def apply(defaultFn: () ⇒ File, hintLabelFn: () ⇒ String,
+    hintDescriptionFn: () ⇒ Option[String] = () ⇒ None)(filterFn: File ⇒ Boolean): Command.parser.Parser[Any] =
+    commandRegex("""[^<>:"|?*]+""".r, new HintContainer(defaultFn, hintLabelFn, hintDescriptionFn, filterFn)) ^? {
+      case CompletionRequest(file) ⇒
+        new File(file)
+      case file ⇒
+        new File(file)
     }
-  } ~> {
-    commandRegex(".*".r, HintContainer) ^^ { result ⇒
-      val file = new File(result)
-      if (keep)
-        localSelected.value = Some(file)
-      else
-        threadLocalClear()
-      file
-    }
-  }
-  /** Clear thread local values. */
-  def threadLocalClear() = {
-    localDefault.value = None
-    localFilter.value = None
-    localHintDescription.value = None
-    localHintLabel.value = None
-    localSelected.value = None
-  }
 
-  /** Get root from the file. */
-  def getRoot(file: File): File = Option(file.getParentFile()) match {
-    case Some(parent) ⇒ getRoot(parent)
-    case None ⇒ file
-  }
-
-  object HintContainer extends Command.Hint.Container {
+  class HintContainer(defaultFn: () ⇒ File, hintLabelFn: () ⇒ String,
+    hintDescriptionFn: () ⇒ Option[String], filterFn: File ⇒ Boolean) extends Command.Hint.Container {
     /** Get parser hints for user provided path. */
     def apply(arg: String): Seq[Command.Hint] = {
-      for {
-        default ← localDefault.value
-        filter ← localFilter.value
-        hintLabel ← localHintLabel.value
-      } yield {
-        if (arg.trim.isEmpty) {
-          if (default.isDirectory() && !default.toString().endsWith(File.separator))
-            return Seq(Command.Hint(hintLabel, localHintDescription.value, Seq(default.toString() + File.separator)))
-          else
-            return Seq(Command.Hint(hintLabel, localHintDescription.value, Seq(default.toString())))
-        }
-        val hint = new File(arg.trim()) match {
+      val input = arg match {
+        case CompletionRequest(arg) ⇒ arg.trim
+        case arg ⇒ arg.trim
+      }
+      val default = defaultFn()
+      val hintLabel = hintLabelFn()
+      val hintDescription = hintDescriptionFn()
+      if (input.isEmpty) {
+        if (default.isDirectory() && !default.toString.endsWith(File.separator))
+          Seq(Command.Hint(hintLabel, hintDescription, Seq(default.toString + File.separator)))
+        else
+          Seq(Command.Hint(hintLabel, hintDescription, Seq(default.toString)))
+      } else {
+        new File(arg.trim()) match {
           case path if path.isDirectory() && arg.endsWith(File.separator) ⇒
-            val dirs = path.listFiles().filter(filter).sortBy(_.getName)
-            Command.Hint(hintLabel, localHintDescription.value, dirs.map(_.getName()))
+            val files = path.listFiles().filter(filterFn).sortBy(_.getName)
+            Seq(Command.Hint(hintLabel, hintDescription, files.map(_.getName())))
           case path ⇒
             val prefix = path.getName()
             val beginIndex = prefix.length()
-            val parent = path.getParentFile()
-            val dirs = if (parent.isDirectory())
-              path.getParentFile().listFiles().filter(f ⇒ f.getName().startsWith(prefix) && filter(f))
-            else
-              Array[File]()
-            Command.Hint(hintLabel, localHintDescription.value, dirs.map(_.getName().substring(beginIndex) + File.separator))
+            Option(path.getParentFile()) match {
+              case Some(parent) ⇒
+                val dirs = if (parent.isDirectory())
+                  path.getParentFile().listFiles().filter(f ⇒ f.getName().startsWith(prefix) && filterFn(f))
+                else
+                  Array[File]()
+                Seq(Command.Hint(hintLabel, hintDescription, dirs.map(_.getName().substring(beginIndex) + File.separator)))
+              case None ⇒
+                Seq(Command.Hint(hintLabel, hintDescription, Nil))
+            }
         }
-        Seq(hint)
       }
-    } getOrElse Seq()
+    }
   }
 }
 

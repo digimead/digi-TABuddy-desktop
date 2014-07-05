@@ -63,15 +63,15 @@ class DigestParser {
   /** Create parser for the digest configuration. */
   def apply(tag: String = ""): Command.parser.Parser[Any] =
     sp ~> commandRegex("\\w+".r, NameHintContainer) ^? {
-      case name if !isCompletionRequest(name) ⇒
-        validIdentifiers.map(DigestParser.perIdentifier).find(_.name == name) getOrElse {
-          if (Empty.name == name)
+      case CompletionRequest(name) ⇒
+        validIdentifiers.map(DigestParser.perIdentifier).find(_.identifier.name == name) getOrElse { name }
+      case name ⇒
+        validIdentifiers.map(DigestParser.perIdentifier).find(_.identifier.name == name) getOrElse {
+          if (name == Empty.identifier.name)
             Empty
           else
             throw Command.ParseException(s"Digest with name '$name' not found.")
         }
-      case request @ CompletionRequest(name) if allValidIdentifiers.exists(_.name == name) ⇒
-        name
     } into (_ match {
       case adapter: DigestAdapter ⇒ adapter(tag)
       case name ⇒ nop
@@ -81,9 +81,9 @@ class DigestParser {
   object NameHintContainer extends Command.Hint.Container {
     /** Get parser hints for user provided argument. */
     def apply(arg: String): Seq[Command.Hint] = {
-      val adapters = validIdentifiers.map(DigestParser.perIdentifier).toSeq.sortBy(_.name)
-      (Empty +: adapters.filter(_.name.startsWith(arg))).filter(_.name.startsWith(arg)).map(proposal ⇒
-        Command.Hint(proposal.name, Some(proposal.description), Seq(proposal.name.drop(arg.length)))).
+      val adapters = validIdentifiers.map(DigestParser.perIdentifier).toSeq.sortBy(_.identifier.name)
+      (Empty +: adapters.filter(_.identifier.name.startsWith(arg))).filter(_.identifier.name.startsWith(arg)).map(proposal ⇒
+        Command.Hint(proposal.identifier.name, Some(proposal.description), Seq(proposal.identifier.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
   }
@@ -91,8 +91,6 @@ class DigestParser {
   object Empty extends DigestAdapter {
     /** Identifier of the digest mechanism. */
     val identifier: Mechanism.Identifier = Empty
-    /** Mechanism name. */
-    val name: String = "None"
     /** Mechanism description. */
     val description: String = "Turn off digest calculation"
 
@@ -100,7 +98,7 @@ class DigestParser {
     def apply(tag: String): Command.parser.Parser[Any] = "" ^^^ { DigestParser.Argument(tag, None) }
 
     object Empty extends Mechanism.Identifier {
-      val name = "None"
+      val name = "none"
     }
   }
 }

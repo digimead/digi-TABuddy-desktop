@@ -53,8 +53,6 @@ import org.digimead.tabuddy.model.serialization.digest.Mechanism
 trait DigestAdapter extends XDigestAdapter {
   /** Identifier of the digest mechanism. */
   val identifier: Mechanism.Identifier
-  /** Mechanism name. */
-  val name: String
   /** Mechanism description. */
   val description: String
 

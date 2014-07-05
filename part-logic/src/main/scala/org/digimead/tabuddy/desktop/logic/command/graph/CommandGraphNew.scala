@@ -78,7 +78,7 @@ object CommandGraphNew extends XLoggable {
     Messages.graph_newDescriptionShort_text, Messages.graph_newDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case ((options @ List(_*), ~(graphName: String, graphContainer: File))) ⇒
+        case ((options @ List(_*), ~(~(graphName: String, _), graphContainer: File))) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
           OperationGraphNew(graphName, graphContainer, Payload.defaultSerialization).foreach { operation ⇒
             operation.getExecuteJob() match {
@@ -127,7 +127,7 @@ object CommandGraphNew extends XLoggable {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> optionParser(Seq.empty) { nameParser ~ pathParser })
+  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> optionParser(Seq.empty) { nameParser ~ sp ~ pathParser })
 
   /** Option parser. */
   def optionParser(alreadyDefinedOptions: Seq[Any])(tail: Command.parser.Parser[Any]): Command.parser.Parser[Any] = {

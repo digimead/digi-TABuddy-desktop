@@ -73,7 +73,7 @@ object CommandGraphSaveAs extends XLoggable {
     Messages.graph_saveAsDescriptionShort_text, Messages.graph_saveAsDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case ~(~(~(Some(marker: GraphMarker), space), name: String), path: File) ⇒
+        case ~(~(~(~(Some(marker: GraphMarker), _), name: String), _), path: File) ⇒
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
           val shouldCloseAfterComplete = !marker.graphIsOpen()
           marker.graphAcquire()
@@ -113,7 +113,7 @@ object CommandGraphSaveAs extends XLoggable {
   }) ~ sp ~ (nameParser ^^ { result ⇒
     localGraphMarker.value = None
     result
-  }) ~ pathParser)
+  }) ~ sp ~ pathParser)
   /** Thread local cache with current graph marker. */
   protected lazy val localGraphMarker = new DynamicVariable[Option[GraphMarker]](None)
 

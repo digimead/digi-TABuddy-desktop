@@ -53,8 +53,6 @@ import org.digimead.tabuddy.model.serialization.signature.Mechanism
 trait SignatureAdapter extends XSignatureAdapter {
   /** Identifier of the signature mechanism. */
   val identifier: Mechanism.Identifier
-  /** Mechanism name. */
-  val name: String
   /** Mechanism description. */
   val description: String
 

@@ -64,9 +64,9 @@ class GraphParser {
   /** Thread local cache with marker list. */
   protected val localMarkers = new DynamicVariable[Seq[GraphMarker]](Seq())
   /** UUID delimiter. */
-  lazy val uuidLiteral = commandLiteral("#", Command.Hint("#", Some("graph UUID. Actually, marker UUID, but in most cases they are the same.")))
+  lazy val uuidLiteral = commandLiteral("#", Command.Hint("#", Some("Graph UUID. Actually, marker UUID, but in most cases they are the same.")))
   /** UUID mark. */
-  lazy val uuidLiteralMark = commandLiteral("*#", Command.Hint("any name", Some("graph UUID. Actually, graph marker UUID, but in most cases they are the same.")))
+  lazy val uuidLiteralMark = commandLiteral("*#", Command.Hint("any name", Some("Graph UUID. Actually, graph marker UUID, but in most cases they are the same.")))
 
   /** Graph argument parser. */
   def apply(markerArgs: () ⇒ Seq[GraphMarker], keep: Boolean = false) = (nop ^^ { _ ⇒
@@ -118,6 +118,7 @@ class GraphParser {
         localGraphName.value = Some(name)
         name
       case CompletionRequest(name) if localMarkers.value.exists(_.graphModelId.name == name) ⇒
+        localGraphName.value = Some(name)
         name
     })
   /** Create parser for the graph marker UUID. */
@@ -127,12 +128,14 @@ class GraphParser {
         val uuidLower = uuid.toLowerCase()
         localMarkers.value.find(_.uuid.toString().toLowerCase() == uuid) getOrElse {
           threadLocalClear()
-          throw Command.ParseException(s"Graph marker with UUID '$uuidLower' not found.")
+          throw Command.ParseException(s"Graph marker with UUID '$uuidLower' not available.")
         }
         // save result for further parsers
         localGraphUUID.value = Some(uuidLower)
         uuidLower
       case CompletionRequest(uuid) if localMarkers.value.exists(_.uuid.toString().toLowerCase() == uuid) ⇒
+        val uuidLower = uuid.toLowerCase()
+        localGraphUUID.value = Some(uuidLower)
         uuid
     }
 
@@ -142,7 +145,7 @@ class GraphParser {
     def apply(arg: String): Seq[Command.Hint] = {
       val names = localMarkers.value.map(_.graphModelId.name).distinct
       names.filter(_.startsWith(arg)).map(proposal ⇒
-        Command.Hint("graph name", Some(s"model id which is scala symbol literal"), Seq(proposal.drop(arg.length)))).
+        Command.Hint("graph name", Some(s"Model id which is scala symbol literal"), Seq(proposal.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
   }
@@ -158,7 +161,7 @@ class GraphParser {
           localMarkers.value.map(_.uuid.toString())
       }
       uuids.filter(_.startsWith(lowerArg)).map(proposal ⇒
-        Command.Hint("graph marker UUID", Some(s"UUID that allow distincts graphs with the same name"), Seq(proposal.drop(arg.length)))).
+        Command.Hint("graph marker UUID", Some(s"UUID that allow distinct graphs with the same name"), Seq(proposal.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
   }

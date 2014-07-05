@@ -217,38 +217,7 @@ object Local extends XLoggable {
       // @see LocalCandidateListCompletionHandler.complete
       // ... else if (candidates.size() > 1 && !candidates.asScala.forall(_.length() == 0)) ...
       val ReDraw = Completion.Candidates(cursor, List("", ""))
-      val completionExt = Command.parse(buffer.take(cursor)) match {
-        case result @ Command.Success(_, _) ⇒
-          if (cursor > 1)
-            // Ok, but there may be more...
-            // Remove one character and search for append proposals...
-            Command.parse(buffer.take(cursor - 1)) match {
-              case Command.MissingCompletionOrFailure(List(Command.Hint(None, None, Seq(" "))), message) ⇒
-                result
-              case Command.MissingCompletionOrFailure(completionList, message) if completionList.nonEmpty ⇒
-                val previousCharacter = buffer.substring(cursor - 1, cursor)
-                Command.MissingCompletionOrFailure(completionList.filter(_.completions.exists { completionFromPreviousCharacter ⇒
-                  completionFromPreviousCharacter.startsWith(previousCharacter)
-                }).map(hint ⇒ hint.copyWithCompletion(hint.completions.map(_.drop(1)): _*)), message)
-              case _ ⇒
-                result
-            }
-          else
-            result
-        case result ⇒
-          result
-      }
-      val completion = (completionExt, Command.parse(Command.parser.CompletionRequest(buffer.take(cursor)))) match {
-        case (Command.MissingCompletionOrFailure(listA, _), Command.MissingCompletionOrFailure(listB, _)) ⇒
-          Command.MissingCompletionOrFailure((listA ++ listB).distinct, "union")
-        case (completion @ Command.MissingCompletionOrFailure(_, _), _) ⇒
-          completion
-        case (_, completion @ Command.MissingCompletionOrFailure(_, _)) ⇒
-          completion
-        case (primary, secondary) ⇒
-          primary
-      }
-      completion match {
+      Command.parser.CompletionRequest.getProposals(buffer.take(cursor)) match {
         case Command.MissingCompletionOrFailure(List(Command.Hint(None, None, Seq(" "))), _) ⇒
           (Completion.Candidates(cursor, List(" ")), Seq.empty)
         case Command.MissingCompletionOrFailure(completionRaw, message) if completionRaw != Seq() ⇒

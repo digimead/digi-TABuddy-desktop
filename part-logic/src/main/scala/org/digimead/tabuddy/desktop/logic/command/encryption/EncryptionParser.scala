@@ -63,15 +63,17 @@ class EncryptionParser {
   /** Create parser for the encryption configuration. */
   def apply(tag: String = ""): Command.parser.Parser[Any] =
     sp ~> commandRegex("\\w+".r, NameHintContainer) ^? {
-      case name if !isCompletionRequest(name) ⇒
+      case CompletionRequest(name) ⇒
         validIdentifiers.map(EncryptionParser.perIdentifier).find(_.name == name) getOrElse {
-          if (Empty.name == name)
+          name
+        }
+      case name ⇒
+        validIdentifiers.map(EncryptionParser.perIdentifier).find(_.name == name) getOrElse {
+          if (name == Empty.identifier.name)
             Empty
           else
             throw Command.ParseException(s"Encryption with name '$name' not found.")
         }
-      case request @ CompletionRequest(name) if allValidIdentifiers.exists(_.name == name) ⇒
-        name
     } into (_ match {
       case adapter: EncryptionAdapter ⇒ adapter(tag)
       case name ⇒ nop

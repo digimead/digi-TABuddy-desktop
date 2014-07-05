@@ -63,15 +63,17 @@ class SignatureParser {
   /** Create parser for the signature configuration. */
   def apply(tag: String = ""): Command.parser.Parser[Any] =
     sp ~> commandRegex("\\w+".r, NameHintContainer) ^? {
+      case request @ CompletionRequest(name) ⇒
+        validIdentifiers.map(SignatureParser.perIdentifier).find(_.identifier.name == name) getOrElse {
+          name
+        }
       case name if !isCompletionRequest(name) ⇒
-        validIdentifiers.map(SignatureParser.perIdentifier).find(_.name == name) getOrElse {
-          if (Empty.name == name)
+        validIdentifiers.map(SignatureParser.perIdentifier).find(_.identifier.name == name) getOrElse {
+          if (name == Empty.identifier.name)
             Empty
           else
             throw Command.ParseException(s"Signature with name '$name' not found.")
         }
-      case request @ CompletionRequest(name) if allValidIdentifiers.exists(_.name == name) ⇒
-        name
     } into (_ match {
       case adapter: SignatureAdapter ⇒ adapter(tag)
       case name ⇒ nop
@@ -81,9 +83,9 @@ class SignatureParser {
   object NameHintContainer extends Command.Hint.Container {
     /** Get parser hints for user provided argument. */
     def apply(arg: String): Seq[Command.Hint] = {
-      val adapters = validIdentifiers.map(SignatureParser.perIdentifier).toSeq.sortBy(_.name)
-      (Empty +: adapters.filter(_.name.startsWith(arg))).filter(_.name.startsWith(arg)).map(proposal ⇒
-        Command.Hint(proposal.name, Some(proposal.description), Seq(proposal.name.drop(arg.length)))).
+      val adapters = validIdentifiers.map(SignatureParser.perIdentifier).toSeq.sortBy(_.identifier.name)
+      (Empty +: adapters.filter(_.identifier.name.startsWith(arg))).filter(_.identifier.name.startsWith(arg)).map(proposal ⇒
+        Command.Hint(proposal.identifier.name, Some(proposal.description), Seq(proposal.identifier.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
   }
@@ -91,8 +93,6 @@ class SignatureParser {
   object Empty extends SignatureAdapter {
     /** Identifier of the digest mechanism. */
     val identifier: Mechanism.Identifier = Empty
-    /** Mechanism name. */
-    val name: String = "None"
     /** Mechanism description. */
     val description: String = "Turn off signature calculation"
 
@@ -100,7 +100,7 @@ class SignatureParser {
     def apply(tag: String): Command.parser.Parser[Any] = "" ^^^ { SignatureParser.Argument(tag, None) }
 
     object Empty extends Mechanism.Identifier {
-      val name = "None"
+      val name = "none"
     }
   }
 }

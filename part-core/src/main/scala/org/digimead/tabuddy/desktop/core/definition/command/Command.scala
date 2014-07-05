@@ -151,7 +151,13 @@ class Command extends XLoggable {
     result match {
       case r @ Command.parser.Success(result, next) ⇒
         parserId match {
-          case Some(parserId) ⇒ Command.Success(parserId, result)
+          case Some(parserId) ⇒
+            if (Command.parser.isCompletionRequest(input) && proposals.nonEmpty)
+              // returns append proposals if any
+              proposals.foldLeft(Command.MissingCompletionOrFailure(Seq(), "empty append proposal"))((a, b) ⇒
+                Command.MissingCompletionOrFailure(a.completion ++ b.completions, "append proposals"))
+            else
+              Command.Success(parserId, result)
           case None ⇒ Command.Error("Unable to find parser id for: " + r)
         }
       case Command.parser.MissingCompletionOrFailure(list, message, next) ⇒

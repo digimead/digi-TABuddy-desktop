@@ -43,19 +43,22 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
+import java.io.File
 import java.net.URI
 import java.util.{ Date, UUID }
+import org.digimead.tabuddy.desktop.core.command.URIParser
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.serialization.digest
+import org.digimead.tabuddy.model.serialization.{ Serialization, digest }
 import org.digimead.tabuddy.model.serialization.digest.Digest
 import org.digimead.tabuddy.model.serialization.signature
 import org.digimead.tabuddy.model.serialization.signature.Signature
+import org.digimead.tabuddy.model.serialization.transport.Transport
 import scala.concurrent.Future
 
 /**
@@ -99,15 +102,7 @@ object CommandGraphHistory {
         case (Some(marker: GraphMarker), _, _) ⇒
           { try Option(marker.graphAcquireLoader()) catch { case e: Throwable ⇒ None } } match {
             case Some(loader) ⇒
-              val loaderHistory = loader.history
-              val digestHistory = Digest.history(loader)
-              val signatureHistory = Signature.history(loader)
-              val records = loaderHistory.keys
-              records.map { record ⇒
-                (record, Map(loaderHistory(record).toSeq.map { uri ⇒
-                  uri -> (digestHistory.get(record).flatMap(_.get(uri)), signatureHistory.get(record).flatMap(_.get(uri)))
-                }: _*))
-              }
+              getHistory(loader)
             case None ⇒
               val graphHistory = marker.safeRead(_.graph).retrospective.history
               val records = graphHistory.keys
@@ -115,12 +110,56 @@ object CommandGraphHistory {
                 (record, Map())
               }
           }
+        case uri: URI ⇒
+          if (uri.getScheme() == "file") {
+            val graphPath = new File(uri).getAbsoluteFile()
+            GraphMarker.list().map(GraphMarker(_)).find(_.graphPath.getAbsoluteFile() == graphPath) match {
+              case Some(marker) ⇒
+                { try marker.graphAcquireLoader() catch { case e: Throwable ⇒ e.getMessage() } } match {
+                  case loader: Serialization.Loader ⇒
+                    getHistory(loader)
+                  case error ⇒
+                    "Unable to get graph history: " + error
+                }
+              case None ⇒
+                { try Serialization.acquireLoader(graphPath.toURI) catch { case e: Throwable ⇒ e.getMessage() } } match {
+                  case loader: Serialization.Loader ⇒
+                    getHistory(loader)
+                  case error ⇒
+                    "Unable to acquire graph history: " + error
+                }
+            }
+          } else {
+            { try Serialization.acquireLoader(uri) catch { case e: Throwable ⇒ e.getMessage() } } match {
+              case loader: Serialization.Loader ⇒
+                getHistory(loader)
+              case error ⇒
+                "Unable to acquire graph history: " + error
+            }
+          }
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> graphParser)
+  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> (uriParser | graphParser))
 
+  /** Get history from loader. */
+  def getHistory(loader: Serialization.Loader): Iterable[(Element.Timestamp, Map[URI, (Option[digest.Mechanism.Parameters], Option[signature.Mechanism.Parameters])])] = {
+    val loaderHistory = loader.history
+    val digestHistory = Digest.history(loader)
+    val signatureHistory = Signature.history(loader)
+    val records = loaderHistory.keys
+    records.map { record ⇒
+      (record, Map(loaderHistory(record).toSeq.map { uri ⇒
+        uri -> (digestHistory.get(record).flatMap(_.get(uri)), signatureHistory.get(record).flatMap(_.get(uri)))
+      }: _*))
+    }
+  }
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
     filter(m ⇒ m.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  /** URI argument parser. */
+  def uriParser = URIParser(() ⇒ Logic.graphContainer.toURI(),
+    () ⇒ "location", () ⇒ Some(s"path to the graph")) { (uri: URI, transport: Transport) ⇒
+      transport.isDirectory(uri) == Some(true)
+    }
 }

@@ -290,7 +290,9 @@ object Console extends XConsole with XLoggable {
         |Scala ${Console.WHITE}${versionString}${Console.BBLACK}, running on ${javaVmName}, Java ${javaVersion}.
         |Platform ${Console.WHITE}${platform}${Console.BBLACK}, ${os} ${Console.WHITE}${arch}${Console.BBLACK}
         |Type in commands to have them evaluated.
-        |Type ${Console.WHITE}${Messages.help_text}${Console.BBLACK} for more information.""".stripMargin
+        |Type ${Console.WHITE}${Messages.help_text}${Console.BBLACK} for more information.
+        |Use ${Console.WHITE}<TAB>${Console.BBLACK} key for automatic completion.
+        |Use ${Console.WHITE}<\\>${Console.BBLACK} character for multi line expression.""".stripMargin
     welcomeMsg
   }
 

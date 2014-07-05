@@ -58,17 +58,33 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
   val nop = new Parser[String] { def apply(in: Input) = Success(in.source.toString, in) }
   /** Special parser for whiteSpaces. */
   val sp = new Parser[String] {
-    def apply(in: Input) = {
-      val source = in.source
+    def apply(in: Input): ParseResult[String] = {
+      if (in.atEnd) {
+        val completion = MissingCompletionOrFailure(Seq(Command.Hint(" ")),
+          "expected whitespace", in)
+        Command.completionProposal.value = Command.completionProposal.value :+ completion
+        return completion
+      }
+      val (source, completionMode) = in.source match {
+        case CompletionRequest(source) ⇒ (source, true)
+        case source ⇒ (source, false)
+      }
       val offset = in.offset
       val start = offset
-      if (start == (source.length() - 1) && source.charAt(start) == CompletionRequest.character) {
+      if (source.length() == 0 && completionMode) {
         val completion = MissingCompletionOrFailure(Seq(Command.Hint(" ")),
           "expected whitespace", in.drop(start - offset))
         Command.completionProposal.value = Command.completionProposal.value :+ completion
         completion
-      } else
+      } else {
         (whiteSpace findPrefixMatchOf (source.subSequence(start, source.length))) match {
+          case Some(matched) if completionMode ⇒
+            if (start + matched.end == source.length())
+              Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
+                in.drop(start + matched.end + 1 - offset))
+            else
+              Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
+                in.drop(start + matched.end - offset))
           case Some(matched) ⇒
             Success(source.subSequence(start, start + matched.end).toString,
               in.drop(start + matched.end - offset))
@@ -83,6 +99,7 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
               Failure("string matching whitespace expected but " + found + " found", in.drop(start - offset))
             }
         }
+      }
     }
   }
   /** Stub parser. */
@@ -104,20 +121,37 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
   /** A parser that matches a literal string. */
   implicit def commandLiteral(s: String, hint: Command.Hint): Parser[String] = new Parser[String] {
     def apply(in: Input): ParseResult[String] = {
-      val source = in.source
+      if (in.atEnd) {
+        val missing = s
+        val completionHint = if (hint.completions.isEmpty) hint.copyWithCompletion(missing) else hint
+        val completion = MissingCompletionOrFailure(Seq(completionHint), "expected one of " + missing, in)
+        Command.completionProposal.value = Command.completionProposal.value :+ completion
+        return completion
+      }
+      val (source, completionMode) = in.source match {
+        case CompletionRequest(source) ⇒ (source, true)
+        case source ⇒ (source, false)
+      }
       val offset = in.offset
       val start = handleWhiteSpace(source, offset)
-      var i = 0
-      var j = start
-      while (i < s.length && j < source.length && s.charAt(i) == source.charAt(j)) {
-        i += 1
-        j += 1
+      var matchLen = 0
+      var matchPos = start
+      while (matchLen < s.length && matchPos < source.length && s.charAt(matchLen) == source.charAt(matchPos)) {
+        matchLen += 1
+        matchPos += 1
       }
-      if (i == s.length) {
-        Success(source.subSequence(start, j).toString, in.drop(j - offset))
-      } else if (j == source.length()) {
-        // if j == all text that we have then give our proposal
-        val missing = s.substring(i)
+      if (matchLen == s.length) {
+        if (completionMode) {
+          if (matchPos == source.length)
+            Success(CompletionRequest(s), in.drop(matchPos + 1 - offset))
+          else
+            Success(CompletionRequest(s), in.drop(matchPos - offset))
+        } else {
+          Success(s, in.drop(matchPos - offset))
+        }
+      } else if (matchPos == source.length) {
+        // if matchPos == all text that we have then give our proposal
+        val missing = s.substring(matchLen)
         val completionHint = if (hint.completions.isEmpty) hint.copyWithCompletion(missing) else hint
         val completion = MissingCompletionOrFailure(Seq(completionHint), "expected one of " + missing, in.drop(start - offset))
         Command.completionProposal.value = Command.completionProposal.value :+ completion
@@ -144,7 +178,12 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
     commandRegex(t._1, t._2)
   /** A parser that matches a regex string. */
   implicit def commandRegex(r: Regex, hints: Command.Hint.Container): Parser[String] = new Parser[String] {
-    def apply(in: Input) = {
+    def apply(in: Input): ParseResult[String] = {
+      if (in.atEnd) {
+        val completion = MissingCompletionOrFailure(hints(""), "string matching regex `" + r + "' expected", in)
+        Command.completionProposal.value = Command.completionProposal.value :+ completion
+        return completion
+      }
       val source = in.source
       val offset = in.offset
       val start = handleWhiteSpace(source, offset)
@@ -171,8 +210,12 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
             Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
               in.drop(start + matched.end - offset))
           case Some(matched) ⇒
-            Success(source.subSequence(start, start + matched.end).toString,
-              in.drop(start + matched.end - offset))
+            if (completionRequestMode)
+              Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
+                in.drop(start + matched.end - offset))
+            else
+              Success(source.subSequence(start, start + matched.end).toString,
+                in.drop(start + matched.end - offset))
           case None ⇒
             val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
             if (start == source.length()) {
@@ -194,6 +237,55 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
 
     /** Convert string to completion request. */
     def apply(arg: String) = arg + character
+    /** Get proposals. */
+    def getProposals(buffer: String, parser: Command.parser.Parser[Any] = null): Command.Result = {
+      val completionPri = {
+        if (parser != null)
+          Command.parse(CompletionRequest(buffer), parser)
+        else
+          Command.parse(CompletionRequest(buffer))
+      } match {
+        case Command.MissingCompletionOrFailure(list, message) ⇒
+          Command.MissingCompletionOrFailure(list.distinct, message)
+        case result ⇒
+          result
+      }
+      val completionSec = if (buffer.length() > 1)
+        // Ok, but there may be more...
+        // Remove one character and search for append proposals...
+        {
+          if (parser != null)
+            Command.parse(CompletionRequest(buffer.dropRight(1)), parser)
+          else
+            Command.parse(CompletionRequest(buffer.dropRight(1)))
+        } match {
+          case Command.MissingCompletionOrFailure(List(Command.Hint(None, None, Seq(" "))), message) ⇒
+            Command.Failure("skip")
+          case Command.MissingCompletionOrFailure(completionList, message) if completionList.nonEmpty ⇒
+            val previousCharacter = Character.toString(buffer.last)
+            Command.MissingCompletionOrFailure(completionList.flatMap { hint ⇒
+              val completions = hint.completions.filter(_.startsWith(previousCharacter)).map(_.drop(1))
+              if (completions.filter(_.trim().nonEmpty).isEmpty)
+                None
+              else
+                Some(hint.copyWithCompletion(completions: _*))
+            }.distinct, message)
+          case _ ⇒
+            Command.Failure("skip")
+        }
+      else
+        Command.Failure("skip")
+      (completionPri, completionSec) match {
+        case (Command.MissingCompletionOrFailure(listA, _), Command.MissingCompletionOrFailure(listB, _)) ⇒
+          Command.MissingCompletionOrFailure((listA ++ listB).distinct, "union")
+        case (primary @ Command.MissingCompletionOrFailure(_, _), _) ⇒
+          primary
+        case (_, secondary @ Command.MissingCompletionOrFailure(_, _)) ⇒
+          secondary
+        case (primary, secondary) ⇒
+          primary
+      }
+    }
     /** Convert completion request to string. */
     def unapply(arg: String) = if (isCompletionRequest(arg)) Some(arg.dropRight(1)) else None
   }

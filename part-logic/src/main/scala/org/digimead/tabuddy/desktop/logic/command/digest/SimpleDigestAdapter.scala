@@ -53,8 +53,6 @@ class SimpleDigestAdapter extends DigestAdapter {
   import Command.parser._
   /** Identifier of the digest mechanism. */
   val identifier: Mechanism.Identifier = SimpleDigest.Identifier
-  /** Mechanism name. */
-  val name: String = "Simple"
   /** Mechanism description. */
   val description: String = "Simple model digest"
 
