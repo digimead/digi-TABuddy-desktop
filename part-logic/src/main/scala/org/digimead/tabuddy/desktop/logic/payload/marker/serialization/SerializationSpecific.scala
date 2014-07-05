@@ -77,7 +77,7 @@ trait SerializationSpecific {
   /** Load default serialization identifier value from java.util.Properties. */
   def defaultSerialization: Serialization.Identifier = graphProperties { p ⇒
     Option(p.getProperty(GraphMarker.fieldDefaultSerialization)).map(serializationExtension ⇒
-      Serialization.perIdentifier.find(_._1.extension == serializationExtension) match {
+      Serialization.perIdentifier.find(_._1.extension.name == serializationExtension) match {
         case Some((identifier, mechanism)) ⇒
           identifier
         case None ⇒

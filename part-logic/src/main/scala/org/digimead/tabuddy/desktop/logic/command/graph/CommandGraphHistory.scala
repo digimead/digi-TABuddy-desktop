@@ -43,18 +43,20 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
-import java.io.File
+import java.io.{ File, InputStream }
 import java.net.URI
 import java.util.{ Date, UUID }
+import org.digimead.digi.lib.aop.log
 import org.digimead.tabuddy.desktop.core.command.URIParser
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.definition.command.api.XCommand
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.digimead.tabuddy.desktop.logic.command.encryption.EncryptionParser
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.serialization.{ Serialization, digest }
+import org.digimead.tabuddy.model.serialization.{ SData, Serialization, digest }
 import org.digimead.tabuddy.model.serialization.digest.Digest
 import org.digimead.tabuddy.model.serialization.signature
 import org.digimead.tabuddy.model.serialization.signature.Signature
@@ -110,19 +112,50 @@ object CommandGraphHistory {
                 (record, Map())
               }
           }
-        case uri: URI ⇒
+        case (options @ List(_*), uri: URI) ⇒
+          val containerEncParameters = options.flatMap {
+            case EncryptionParser.Argument("container", parameters) ⇒ Some(parameters)
+            case _ ⇒ None
+          }.flatten.headOption
+          val contentEncParameters = options.flatMap {
+            case EncryptionParser.Argument("content", parameters) ⇒ Some(parameters)
+            case _ ⇒ None
+          }.flatten.headOption
+          val sData = SData(Signature.Key.acquire -> Signature.acceptAll)
+          val sDataNContainerEncryption = containerEncParameters match {
+            case Some(parameters) ⇒ sData.updated(SData.Key.convertURI,
+              // encode
+              ((name: String, sData: SData) ⇒
+                parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters)),
+                // decode
+                (name: String, sData: SData) ⇒
+                  new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)))
+            case None ⇒
+              sData
+          }
+          val sDataNContentEncryption = contentEncParameters match {
+            case Some(parameters) ⇒
+              sDataNContainerEncryption.updated(SData.Key.readFilter, ((is: InputStream, uri: URI, transport: Transport, sData: SData) ⇒
+                parameters.encryption.decrypt(is, parameters)))
+            case None ⇒
+              sDataNContainerEncryption
+          }
+
           if (uri.getScheme() == "file") {
             val graphPath = new File(uri).getAbsoluteFile()
             GraphMarker.list().map(GraphMarker(_)).find(_.graphPath.getAbsoluteFile() == graphPath) match {
               case Some(marker) ⇒
-                { try marker.graphAcquireLoader() catch { case e: Throwable ⇒ e.getMessage() } } match {
+                { try marker.graphAcquireLoader(sData = sDataNContainerEncryption) catch { case e: Throwable ⇒ e.getMessage() } } match {
                   case loader: Serialization.Loader ⇒
                     getHistory(loader)
                   case error ⇒
                     "Unable to get graph history: " + error
                 }
               case None ⇒
-                { try Serialization.acquireLoader(graphPath.toURI) catch { case e: Throwable ⇒ e.getMessage() } } match {
+                {
+                  try Serialization.acquireLoader(graphPath.toURI, sDataNContentEncryption)
+                  catch { case e: Throwable ⇒ e.getMessage() }
+                } match {
                   case loader: Serialization.Loader ⇒
                     getHistory(loader)
                   case error ⇒
@@ -130,7 +163,10 @@ object CommandGraphHistory {
                 }
             }
           } else {
-            { try Serialization.acquireLoader(uri) catch { case e: Throwable ⇒ e.getMessage() } } match {
+            {
+              try Serialization.acquireLoader(uri, sDataNContentEncryption)
+              catch { case e: Throwable ⇒ e.getMessage() }
+            } match {
               case loader: Serialization.Loader ⇒
                 getHistory(loader)
               case error ⇒
@@ -140,7 +176,7 @@ object CommandGraphHistory {
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> (uriParser | graphParser))
+  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> (optionParser(Seq.empty) { uriParser } | graphParser))
 
   /** Get history from loader. */
   def getHistory(loader: Serialization.Loader): Iterable[(Element.Timestamp, Map[URI, (Option[digest.Mechanism.Parameters], Option[signature.Mechanism.Parameters])])] = {
@@ -157,6 +193,27 @@ object CommandGraphHistory {
   /** Graph argument parser. */
   def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
     filter(m ⇒ m.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
+  /** Option parser. */
+  def optionParser(alreadyDefinedOptions: Seq[Any])(tail: Command.parser.Parser[Any]): Command.parser.Parser[Any] = {
+    var options = Seq[Command.parser.Parser[Any]](tail ^^ { (alreadyDefinedOptions, _) })
+
+    if (!alreadyDefinedOptions.exists(_ match {
+      case EncryptionParser.Argument("container", _) ⇒ true
+      case _ ⇒ false
+    }))
+      options = (EncryptionParser.containerParser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_ match {
+      case EncryptionParser.Argument("content", _) ⇒ true
+      case _ ⇒ false
+    }))
+      options = (EncryptionParser.contentParser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+
+    options.reduce(_ | _)
+  }
   /** URI argument parser. */
   def uriParser = URIParser(() ⇒ Logic.graphContainer.toURI(),
     () ⇒ "location", () ⇒ Some(s"path to the graph")) { (uri: URI, transport: Transport) ⇒

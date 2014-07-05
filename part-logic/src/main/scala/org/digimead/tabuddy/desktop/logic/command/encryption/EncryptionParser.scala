@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryptio
 import scala.language.implicitConversions
 
 /**
- * Encryption argument parser builder.
+ * Parser builder for encryption argument.
  */
 class EncryptionParser {
   import Command.parser._
@@ -84,7 +84,7 @@ class EncryptionParser {
     /** Get parser hints for user provided argument. */
     def apply(arg: String): Seq[Command.Hint] = {
       val adapters = validIdentifiers.map(EncryptionParser.perIdentifier).toSeq.sortBy(_.name)
-      (Empty +: adapters.filter(_.name.startsWith(arg))).filter(_.name.startsWith(arg)).map(proposal ⇒
+      (Empty +: adapters).filter(_.name.startsWith(arg)).map(proposal ⇒
         Command.Hint(proposal.name, Some(proposal.description), Seq(proposal.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
@@ -118,9 +118,9 @@ object EncryptionParser extends XLoggable {
   val contentEncryptionArg = "-contentEncryption"
 
   /** Container encryption parser. */
-  def containerEncryptionParser = (containerEncryptionArg, Command.Hint(containerEncryptionArg, Some("Directory or file name encryption parameters"))) ~> EncryptionParser("container")
+  def containerParser(tag: String = "container") = (containerEncryptionArg, Command.Hint(containerEncryptionArg, Some("Directory or file name encryption parameters"))) ~> EncryptionParser(tag)
   /** Content encryption parser. */
-  def contentEncryptionParser = (contentEncryptionArg, Command.Hint(contentEncryptionArg, Some("File content encryption parameters"))) ~> EncryptionParser("content")
+  def contentParser(tag: String = "content") = (contentEncryptionArg, Command.Hint(contentEncryptionArg, Some("File content encryption parameters"))) ~> EncryptionParser(tag)
   /** Get EncryptionParser implementation. */
   def inner() = DI.implementation
   /** Map of all available encryption adapters. */

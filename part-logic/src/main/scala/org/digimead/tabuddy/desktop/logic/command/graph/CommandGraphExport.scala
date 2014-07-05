@@ -43,18 +43,25 @@
 
 package org.digimead.tabuddy.desktop.logic.command.graph
 
-import java.io.File
+import java.net.URI
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.command.PathParser
+import org.digimead.tabuddy.desktop.core.command.URIParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.command.SerializationTypeParser
+import org.digimead.tabuddy.desktop.logic.command.digest.DigestParser
+import org.digimead.tabuddy.desktop.logic.command.encryption.EncryptionParser
+import org.digimead.tabuddy.desktop.logic.command.signature.SignatureParser
 import org.digimead.tabuddy.desktop.logic.operation.graph.{ OperationGraphClose, OperationGraphExport }
+import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.digimead.tabuddy.model.serialization.SData
+import org.digimead.tabuddy.model.serialization.transport.Transport
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 import scala.util.DynamicVariable
@@ -65,6 +72,7 @@ import scala.util.DynamicVariable
 object CommandGraphExport extends XLoggable {
   import Command.parser._
   private val forceArg = "-force"
+  private val forceDescription = "Read partially damaged data, overwrite files if needed"
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Command description. */
@@ -72,56 +80,112 @@ object CommandGraphExport extends XLoggable {
     Messages.graph_exportDescriptionShort_text, Messages.graph_exportDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case ~(arg, ~(marker: GraphMarker, destination: File)) ⇒
-        //          val exchanger = new Exchanger[Operation.Result[Unit]]()
-        //          val shouldCloseAfterComplete = !marker.graphIsOpen()
-        //          marker.graphAcquire()
-        //          OperationGraphExport(marker.safeRead(_.graph), Some(destination), arg == Some(forceArg), false).foreach { operation ⇒
-        //            operation.getExecuteJob() match {
-        //              case Some(job) ⇒
-        //                job.setPriority(Job.LONG)
-        //                job.onComplete(exchanger.exchange).schedule()
-        //              case None ⇒
-        //                throw new RuntimeException(s"Unable to create job for ${operation}.")
-        //            }
-        //          }
-        //          exchanger.exchange(null) match {
-        //            case Operation.Result.OK(result, message) ⇒
-        //              log.info(s"Operation completed successfully.")
-        //              val graph = marker.safeRead(_.graph)
-        //              if (shouldCloseAfterComplete)
-        //                OperationGraphClose.operation(graph, false)
-        //              result match {
-        //                case Some(_) ⇒ s"$graph exported successfully to $destination"
-        //                case None ⇒ s"$graph export failed due to an unexpected error"
-        //              }
-        //            case Operation.Result.Cancel(message) ⇒
-        //              throw new CancellationException(s"Operation canceled, reason: ${message}.")
-        //            case err: Operation.Result.Error[_] ⇒
-        //              throw err
-        //            case other ⇒
-        //              throw new RuntimeException(s"Unable to complete operation: ${other}.")
-        //          }
+        case ~(~((Some(marker: GraphMarker), _, _), _), (options @ List(_*), destination: URI)) ⇒
+          val exchanger = new Exchanger[Operation.Result[Unit]]()
+          val shouldCloseAfterComplete = !marker.graphIsOpen()
+          marker.graphAcquire(sData = SData(SData.Key.force -> true))
+          val overwrite = options.contains(forceArg)
+          val serializationType = options.flatMap {
+            case SerializationTypeParser.Argument(tag, identifier) ⇒ Some(identifier)
+            case _ ⇒ None
+          }.headOption
+          val containerEncParameters = options.flatMap {
+            case EncryptionParser.Argument("container", parameters) ⇒ Some(parameters)
+            case _ ⇒ None
+          }.flatten.headOption
+          val contentEncParameters = options.flatMap {
+            case EncryptionParser.Argument("content", parameters) ⇒ Some(parameters)
+            case _ ⇒ None
+          }.flatten.headOption
+          val digestParameters = options.flatMap {
+            case DigestParser.Argument(tag, parameters) ⇒ Some(parameters)
+            case _ ⇒ None
+          }.flatten.headOption
+          val signatureParameters = options.flatMap {
+            case SignatureParser.Argument(tag, parameters) ⇒ Some(parameters)
+            case _ ⇒ None
+          }.flatten.headOption
+          OperationGraphExport(marker.safeRead(_.graph), destination, overwrite,
+            containerEncParameters, contentEncParameters, digestParameters, signatureParameters, serializationType).foreach { operation ⇒
+              operation.getExecuteJob() match {
+                case Some(job) ⇒
+                  job.setPriority(Job.LONG)
+                  job.onComplete(exchanger.exchange).schedule()
+                case None ⇒
+                  throw new RuntimeException(s"Unable to create job for ${operation}.")
+              }
+            }
+          exchanger.exchange(null) match {
+            case Operation.Result.OK(result, message) ⇒
+              log.info(s"Operation completed successfully.")
+              val graph = marker.safeRead(_.graph)
+              if (shouldCloseAfterComplete)
+                OperationGraphClose.operation(graph, false)
+              result match {
+                case Some(_) ⇒ s"$graph exported successfully to $destination"
+                case None ⇒ s"$graph export failed due to an unexpected error"
+              }
+            case Operation.Result.Cancel(message) ⇒
+              throw new CancellationException(s"Operation canceled, reason: ${message}.")
+            case err: Operation.Result.Error[_] ⇒
+              throw err
+            case other ⇒
+              throw new RuntimeException(s"Unable to complete operation: ${other}.")
+          }
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~> opt(sp ~> forceArg) ~ ((graphParser ^^ { _ ⇒
-    //    case (marker, name, _, _) ⇒
-    //      marker match {
-    //        case value @ Some(marker) ⇒
-    //          localGraphMarker.value = value
-    //          marker
-    //        case None ⇒
-    //          throw Command.ParseException(s"Graph marker with name '$name' not found.")
-    //      }
-  }) ~ pathParser))
+  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~> graphParser ~ sp ~ optionParser(Seq.empty) { uriParser })
   /** Thread local cache with current graph marker. */
   protected lazy val localGraphMarker = new DynamicVariable[Option[GraphMarker]](None)
 
   /** Graph argument parser. */
-  protected def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
+  def graphParser = GraphParser(() ⇒ GraphMarker.list().map(GraphMarker(_)).
     filter(m ⇒ m.markerIsValid).sortBy(_.graphModelId.name).sortBy(_.graphOrigin.name))
-  /** Path argument parser. */
-  protected def pathParser = PathParser(() ⇒ localGraphMarker.value.get.graphPath.getParentFile(),
-    () ⇒ "desitnation location", () ⇒ Some(s"path to desitnation directory")) { _.isDirectory }
+  /** Option parser. */
+  def optionParser(alreadyDefinedOptions: Seq[Any])(tail: Command.parser.Parser[Any]): Command.parser.Parser[Any] = {
+    var options = Seq[Command.parser.Parser[Any]](tail ^^ { (alreadyDefinedOptions, _) })
+
+    if (!alreadyDefinedOptions.contains(forceArg))
+      options = ((forceArg, Command.Hint(forceArg, Some(forceDescription))) into { result ⇒
+        val argument = result match {
+          case CompletionRequest(argument) ⇒ argument
+          case argument ⇒ argument
+        }
+        sp ~> (optionParser(alreadyDefinedOptions :+ argument) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_.isInstanceOf[SerializationTypeParser.Argument]))
+      options = (SerializationTypeParser.parser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_.isInstanceOf[DigestParser.Argument]))
+      options = (DigestParser.parser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_.isInstanceOf[SignatureParser.Argument]))
+      options = (SignatureParser.parser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_ match {
+      case EncryptionParser.Argument("container", _) ⇒ true
+      case _ ⇒ false
+    }))
+      options = (EncryptionParser.containerParser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_ match {
+      case EncryptionParser.Argument("content", _) ⇒ true
+      case _ ⇒ false
+    }))
+      options = (EncryptionParser.contentParser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+
+    options.reduce(_ | _)
+  }
+  /** URI argument parser. */
+  def uriParser = URIParser(() ⇒ Logic.graphContainer.toURI(),
+    () ⇒ "location", () ⇒ Some(s"path to the graph")) { (uri: URI, transport: Transport) ⇒
+      transport.isDirectory(uri) == Some(true)
+    }
 }

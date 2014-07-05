@@ -69,7 +69,7 @@ object CommandGraphMeta {
              |modified: ${if (marker.graphIsDirty()) "YES" else "NO"}
              |creation timestamp: ${new Date(marker.graphCreated.milliseconds)} [${marker.graphCreated}]
              |last save timestamp: ${new Date(marker.markerLastAccessed)}
-             |default serialization type: ${marker.defaultSerialization.extension.toUpperCase()}
+             |default serialization type: ${marker.defaultSerialization.extension.name.toUpperCase()}
              |digest on write: ${marker.digest.freeze}
              |digest on read: ${marker.digest.acquire}
              |signature on write: ${marker.signature.freeze}

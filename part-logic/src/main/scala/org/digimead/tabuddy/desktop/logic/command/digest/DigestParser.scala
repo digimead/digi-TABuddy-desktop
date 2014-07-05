@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.serialization.digest.{ Digest, Mechanism }
 import scala.language.implicitConversions
 
 /**
- * Digest argument parser builder.
+ * Parser builder for digest argument.
  */
 class DigestParser {
   import Command.parser._
@@ -82,7 +82,7 @@ class DigestParser {
     /** Get parser hints for user provided argument. */
     def apply(arg: String): Seq[Command.Hint] = {
       val adapters = validIdentifiers.map(DigestParser.perIdentifier).toSeq.sortBy(_.identifier.name)
-      (Empty +: adapters.filter(_.identifier.name.startsWith(arg))).filter(_.identifier.name.startsWith(arg)).map(proposal ⇒
+      (Empty +: adapters).filter(_.identifier.name.startsWith(arg)).map(proposal ⇒
         Command.Hint(proposal.identifier.name, Some(proposal.description), Seq(proposal.identifier.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
@@ -110,7 +110,7 @@ object DigestParser extends XLoggable {
   private val digestArg = "-digest"
 
   /** Digest parser. */
-  def digestParser = (digestArg, Command.Hint(digestArg, Some("Digest calculation parameters"))) ~> DigestParser("digest")
+  def parser(tag: String = "digest") = (digestArg, Command.Hint(digestArg, Some("Digest calculation parameters"))) ~> DigestParser(tag)
   /** Get DigestParser implementation. */
   def inner() = DI.implementation
   /** Map of all available digest adapters. */

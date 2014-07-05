@@ -72,9 +72,9 @@ trait XGraphMarker {
   /** Get content encryption settings. */
   def contentEncryption: XGraphMarker.Encryption
   /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false)
+  def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false, sData: SData = new SData())
   /** Acquire graph loader. */
-  def graphAcquireLoader(modified: Option[Element.Timestamp] = None): Serialization.Loader
+  def graphAcquireLoader(modified: Option[Element.Timestamp] = None, sData: SData = new SData()): Serialization.Loader
   /** Get the bunch of additional storages where the left part is a write storage and the right part is a read one. */
   def graphAdditionalStorages: Set[Either[URI, URI]]
   /** Close the loaded graph. */

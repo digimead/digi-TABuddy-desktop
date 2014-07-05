@@ -167,14 +167,16 @@ class Payload(val marker: GraphMarker) extends XLoggable {
  * - Records, binded to Model
  */
 object Payload extends XLoggable {
-  /** Get file extension for the graph descriptor. */
-  def extensionGraph = DI.extensionGraph
-  /** Get local origin. */
-  def origin = DI.origin
+  /** Get set of available serialization mechanisms. */
+  def availableSerialization = DI.availableSerialization + defaultSerialization
   /** Get default serialization mechanism. */
   def defaultSerialization = DI.defaultSerialization
   /** Get flag for unknown storages (by default 'read only' or 'read write') */
   def isUnknownStoragesRW = DI.isUnknownStoragesRW
+  /** Get file extension for the graph descriptor. */
+  def extensionGraph = DI.extensionGraph
+  /** Get local origin. */
+  def origin = DI.origin
 
   trait YAMLProcessor[T] {
     /** Convert YAML to object */
@@ -190,6 +192,8 @@ object Payload extends XLoggable {
     lazy val default = inject[UUID]("Payload.TypeSchema.Default")
     /** Default serialization mechanism. */
     lazy val defaultSerialization = inject[Serialization.Identifier]("Payload.Serialization")
+    /** Set of available serialization mechanisms. */
+    lazy val availableSerialization = inject[Set[Serialization.Identifier]]("Payload.Serialization.Available")
     /** File extension for the graph descriptor. */
     lazy val extensionGraph = injectOptional[Symbol]("Payload.Extension.Graph") getOrElse "graph"
     /** The local origin. */

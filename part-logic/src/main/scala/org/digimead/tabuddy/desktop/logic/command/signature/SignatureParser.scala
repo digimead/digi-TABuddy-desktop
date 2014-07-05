@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.serialization.signature.{ Mechanism, Signature
 import scala.language.implicitConversions
 
 /**
- * Signature argument parser builder.
+ * Parser builder for signature argument.
  */
 class SignatureParser {
   import Command.parser._
@@ -84,7 +84,7 @@ class SignatureParser {
     /** Get parser hints for user provided argument. */
     def apply(arg: String): Seq[Command.Hint] = {
       val adapters = validIdentifiers.map(SignatureParser.perIdentifier).toSeq.sortBy(_.identifier.name)
-      (Empty +: adapters.filter(_.identifier.name.startsWith(arg))).filter(_.identifier.name.startsWith(arg)).map(proposal ⇒
+      (Empty +: adapters).filter(_.identifier.name.startsWith(arg)).map(proposal ⇒
         Command.Hint(proposal.identifier.name, Some(proposal.description), Seq(proposal.identifier.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
@@ -116,7 +116,7 @@ object SignatureParser extends XLoggable {
   /** Map of all available signature adapters. */
   def perIdentifier = DI.perIdentifier
   /** Signature parser. */
-  def signatureParser = (signatureArg, Command.Hint(signatureArg, Some("Signature calculation parameters"))) ~> SignatureParser("signature")
+  def parser(tag: String = "signature") = (signatureArg, Command.Hint(signatureArg, Some("Signature calculation parameters"))) ~> SignatureParser(tag)
 
   /** Parser result. */
   case class Argument(tag: String, value: Option[Mechanism.Parameters])

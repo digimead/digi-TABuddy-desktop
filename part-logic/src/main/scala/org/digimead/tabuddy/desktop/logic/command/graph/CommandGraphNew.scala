@@ -52,6 +52,7 @@ import org.digimead.tabuddy.desktop.core.command.PathParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.command.SerializationTypeParser
 import org.digimead.tabuddy.desktop.logic.command.digest.DigestParser
 import org.digimead.tabuddy.desktop.logic.command.encryption.EncryptionParser
 import org.digimead.tabuddy.desktop.logic.command.signature.SignatureParser
@@ -79,8 +80,12 @@ object CommandGraphNew extends XLoggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case ((options @ List(_*), ~(~(graphName: String, _), graphContainer: File))) ⇒
+          val serializationType = options.flatMap {
+            case SerializationTypeParser.Argument(tag, identifier) ⇒ Some(identifier)
+            case _ ⇒ None
+          }.headOption getOrElse Payload.defaultSerialization
           val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-          OperationGraphNew(graphName, graphContainer, Payload.defaultSerialization).foreach { operation ⇒
+          OperationGraphNew(graphName, graphContainer, serializationType).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒
                 job.setPriority(Job.LONG)
@@ -109,6 +114,7 @@ object CommandGraphNew extends XLoggable {
                   marker.signature = XGraphMarker.Signature(Some(UUID.randomUUID()), Some(Map(marker.graphPath.toURI() -> parameters)))
                 case SignatureParser.Argument("signature", None) ⇒
                   marker.signature = XGraphMarker.Signature(None, None)
+                case SerializationTypeParser.Argument("serialization", serialization) ⇒ // skip
                 case unknown ⇒
                   throw new IllegalArgumentException("Unknown parameter: " + unknown)
               })
@@ -133,26 +139,30 @@ object CommandGraphNew extends XLoggable {
   def optionParser(alreadyDefinedOptions: Seq[Any])(tail: Command.parser.Parser[Any]): Command.parser.Parser[Any] = {
     var options = Seq[Command.parser.Parser[Any]](tail ^^ { (alreadyDefinedOptions, _) })
 
+    if (!alreadyDefinedOptions.exists(_.isInstanceOf[SerializationTypeParser.Argument]))
+      options = (SerializationTypeParser.parser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
     if (!alreadyDefinedOptions.exists(_.isInstanceOf[DigestParser.Argument]))
-      options = (DigestParser.digestParser into { result ⇒
+      options = (DigestParser.parser() into { result ⇒
         sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
       }) +: options
     if (!alreadyDefinedOptions.exists(_.isInstanceOf[SignatureParser.Argument]))
-      options = (SignatureParser.signatureParser into { result ⇒
+      options = (SignatureParser.parser() into { result ⇒
         sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
       }) +: options
     if (!alreadyDefinedOptions.exists(_ match {
       case EncryptionParser.Argument("container", _) ⇒ true
       case _ ⇒ false
     }))
-      options = (EncryptionParser.containerEncryptionParser into { result ⇒
+      options = (EncryptionParser.containerParser() into { result ⇒
         sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
       }) +: options
     if (!alreadyDefinedOptions.exists(_ match {
       case EncryptionParser.Argument("content", _) ⇒ true
       case _ ⇒ false
     }))
-      options = (EncryptionParser.contentEncryptionParser into { result ⇒
+      options = (EncryptionParser.contentParser() into { result ⇒
         sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
       }) +: options
 

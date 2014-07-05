@@ -57,7 +57,6 @@ import org.digimead.tabuddy.model.serialization.{ SData, Serialization }
 import org.digimead.tabuddy.model.serialization.digest.Digest
 import org.digimead.tabuddy.model.serialization.signature.Signature
 import org.digimead.tabuddy.model.serialization.transport.Transport
-import scala.{ Left, Right }
 
 /**
  * Part of the graph marker that contains graph specific logic.
@@ -66,13 +65,14 @@ trait GraphSpecific {
   this: GraphMarker ⇒
 
   /** Load the specific graph from the predefined directory ${location}/id/ */
-  def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false): Unit = state.safeWrite { state ⇒
+  def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false,
+    takeItEasy: Boolean = false, sData: SData = new SData()): Unit = state.safeWrite { state ⇒
     assertState()
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
     if (reload || state.graphObject.isEmpty) {
-      val graph = loadGraph(modified = modified, takeItEasy = takeItEasy) getOrElse {
+      val graph = loadGraph(modified = modified, takeItEasy = takeItEasy, sData = sData) getOrElse {
         log.info("Create new empty graph " + graphModelId)
         /**
          * TABuddy - global TA Buddy space
@@ -112,46 +112,52 @@ trait GraphSpecific {
   }
   /** Acquire graph loader. */
   @log
-  def graphAcquireLoader(modified: Option[Element.Timestamp] = None): Serialization.Loader = {
+  def graphAcquireLoader(modified: Option[Element.Timestamp] = None, sData: SData = new SData()): Serialization.Loader = {
     // Digest
     val sDataNDigest = digest.acquire match {
-      case Some(parameters) ⇒
-        SData(Digest.Key.acquire -> parameters)
-      case None ⇒
-        SData()
+      case Some(parameters) if sData.isDefinedAt(Digest.Key.acquire) ⇒
+        sData.updated(Digest.Key.acquire, parameters)
+      case _ ⇒
+        sData
     }
     // Signature
     val sDataNSignature = signature.acquire match {
-      case Some(validatorId) ⇒
+      case Some(validatorId) if sData.isDefinedAt(Signature.Key.acquire) ⇒
         // TODO replace Signature.acceptAll with loadFromSomeWhere(validatorId)
         sDataNDigest.updated(Signature.Key.acquire, Signature.acceptAll)
-      case None ⇒
+      case _ ⇒
         sDataNDigest
     }
     // Container encryption
     val containerEncryptionMap = containerEncryption.encryption
-    val sDataNContainerEncryption = sDataNDigest.updated(SData.Key.convertURI,
-      // encode
-      ((name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
-        case Some(parameters) ⇒
-          parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters))
-        case None ⇒
-          name
-      },
-        // decode
-        (name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
+    val sDataNContainerEncryption = if (!sData.isDefinedAt(SData.Key.convertURI))
+      sDataNSignature.updated(SData.Key.convertURI,
+        // encode
+        ((name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
           case Some(parameters) ⇒
-            new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)
+            parameters.encryption.toString(parameters.encryption.encrypt(name.getBytes(io.Codec.UTF8.charSet), parameters))
           case None ⇒
             name
-        }))
+        },
+          // decode
+          (name: String, sData: SData) ⇒ containerEncryptionMap.get(sData(SData.Key.storageURI)) match {
+            case Some(parameters) ⇒
+              new String(parameters.encryption.decrypt(parameters.encryption.fromString(name), parameters), io.Codec.UTF8.charSet)
+            case None ⇒
+              name
+          }))
+    else
+      sDataNSignature
     // Content encryption
     val contentEncryptionMap = contentEncryption.encryption
-    val sDataNContentEncryption = sDataNContainerEncryption.updated(SData.Key.readFilter, ((is: InputStream, uri: URI, transport: Transport, sData: SData) ⇒
-      contentEncryptionMap.get(sData(SData.Key.storageURI)) match {
-        case Some(parameters) ⇒ parameters.encryption.decrypt(is, parameters)
-        case None ⇒ is
-      }))
+    val sDataNContentEncryption = if (!sData.isDefinedAt(SData.Key.readFilter))
+      sDataNContainerEncryption.updated(SData.Key.readFilter, ((is: InputStream, uri: URI, transport: Transport, sData: SData) ⇒
+        contentEncryptionMap.get(sData(SData.Key.storageURI)) match {
+          case Some(parameters) ⇒ parameters.encryption.decrypt(is, parameters)
+          case None ⇒ is
+        }))
+    else
+      sDataNContainerEncryption
     // Acquire
     Serialization.acquireLoader(graphPath.toURI, modified, sDataNContentEncryption)
   }
@@ -324,11 +330,11 @@ trait GraphSpecific {
 
   /** Load the graph. */
   @log
-  protected def loadGraph(modified: Option[Element.Timestamp], takeItEasy: Boolean): Option[Graph[_ <: Model.Like]] = try {
+  protected def loadGraph(modified: Option[Element.Timestamp], takeItEasy: Boolean, sData: SData): Option[Graph[_ <: Model.Like]] = try {
     if (!markerIsValid)
       return None
 
-    val loader = graphAcquireLoader(modified)
+    val loader = graphAcquireLoader(modified, sData)
     Option[Graph[_ <: Model.Like]](loader.load())
   } catch {
     case e: Throwable if takeItEasy ⇒

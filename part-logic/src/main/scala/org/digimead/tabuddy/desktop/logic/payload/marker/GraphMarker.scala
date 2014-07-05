@@ -474,7 +474,7 @@ object GraphMarker extends XLoggable {
       resourceContent.setProperty(fieldLastAccessed, created.milliseconds.toString)
       resourceContent.setProperty(fieldCreatedMillis, created.milliseconds.toString)
       resourceContent.setProperty(fieldCreatedNanos, created.nanoShift.toString)
-      resourceContent.setProperty(fieldDefaultSerialization, serialization.extension)
+      resourceContent.setProperty(fieldDefaultSerialization, serialization.extension.name)
       resourceContent.setProperty(fieldResourceId, resourceUUID.toString)
       resourceContent.setProperty(fieldOrigin, origin.name)
       resourceContent.setProperty(fieldSavedMillis, 0.toString)
@@ -679,10 +679,11 @@ object GraphMarker extends XLoggable {
     /** Assert marker state. */
     def assertState() {}
     /** Load the specific graph from the predefined directory ${location}/id/ */
-    def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false) =
+    def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false,
+      takeItEasy: Boolean = false, sData: SData = new SData()) =
       throw new UnsupportedOperationException()
     /** Acquire graph loader. */
-    def graphAcquireLoader(modified: Option[Element.Timestamp] = None): Serialization.Loader =
+    def graphAcquireLoader(modified: Option[Element.Timestamp] = None, sData: SData = new SData()): Serialization.Loader =
       throw new UnsupportedOperationException()
     /** Close the loaded graph. */
     def graphClose() = throw new UnsupportedOperationException()
@@ -747,10 +748,11 @@ object GraphMarker extends XLoggable {
     /** Set content encryption settings. */
     override def contentEncryption_=(settings: XGraphMarker.Encryption) = throw new UnsupportedOperationException()
     /** Load the specific graph from the predefined directory ${location}/id/ */
-    override def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false) =
+    override def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false,
+      takeItEasy: Boolean = false, sData: SData = new SData()) =
       throw new UnsupportedOperationException()
     /** Acquire graph loader. */
-    override def graphAcquireLoader(modified: Option[Element.Timestamp] = None): Serialization.Loader =
+    override def graphAcquireLoader(modified: Option[Element.Timestamp] = None, sData: SData = new SData()): Serialization.Loader =
       throw new UnsupportedOperationException()
     /** Graph creation timestamp. */
     override def graphCreated: Element.Timestamp = graph.created

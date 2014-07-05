@@ -52,7 +52,7 @@ import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.api.{ XElementTemplate, XPropertyType, XTypeSchema }
 import org.digimead.tabuddy.desktop.logic.payload.template.{ Predefined, StringType, TextType }
 import org.digimead.tabuddy.model.graph.Graph
-import org.digimead.tabuddy.model.serialization.{ Serialization, YAMLSerialization }
+import org.digimead.tabuddy.model.serialization.{ BuiltinSerialization, Serialization, YAMLSerialization }
 import org.digimead.tabuddy.model.{ Model, Record }
 import scala.collection.immutable
 
@@ -63,6 +63,7 @@ package object payload {
       module.inject[File](Some("Config")).getParentFile()
     }
     module.bind[Serialization.Identifier] identifiedBy "Payload.Serialization" toSingle { YAMLSerialization.Identifier }
+    module.bind[Set[Serialization.Identifier]] identifiedBy "Payload.Serialization.Available" toSingle { Set(YAMLSerialization.Identifier, BuiltinSerialization.Identifier) }
     /** The map of the application property types (UI factories). */
     module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.String" toSingle { StringType }
     module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Text" toSingle { TextType }
