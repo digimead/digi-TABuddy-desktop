@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.core.ui.inspector.dialog
 
 import javax.inject.Inject
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
@@ -68,7 +68,7 @@ class InspectorDialog @Inject() (
   val context: IEclipseContext,
   /** Parent shell. */
   val parentShell: Shell)
-  extends InspectorDialogSkel(parentShell) with Dialog with Loggable {
+  extends InspectorDialogSkel(parentShell) with Dialog with XLoggable {
   val colors = Seq(
     App.display.getSystemColor(SWT.COLOR_RED),
     App.display.getSystemColor(SWT.COLOR_BLUE),
@@ -456,7 +456,7 @@ object InspectorDialog {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Inspector margin. */
     lazy val margin = injectOptional[Int]("Core.UI.Inspector.Margin") getOrElse 3
   }

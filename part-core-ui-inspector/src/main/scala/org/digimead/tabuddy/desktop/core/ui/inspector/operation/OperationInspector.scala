@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.core.ui.inspector.operation
 
 import java.util.concurrent.CancellationException
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.Operation
@@ -56,8 +56,10 @@ import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
 
-/** 'Show inspector' operation. */
-class OperationInspector extends api.OperationInspector with Loggable {
+/**
+ * 'Show inspector' operation.
+ */
+class OperationInspector extends api.XOperationInspector with XLoggable {
   /**
    * Show inspector.
    */
@@ -113,7 +115,7 @@ class OperationInspector extends api.OperationInspector with Loggable {
     Operation.Result.OK()
   }
 
-  class Implemetation() extends OperationInspector.Abstract() with Loggable {
+  class Implemetation() extends OperationInspector.Abstract() with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -147,12 +149,12 @@ object OperationInspector {
 
   /** Bridge between abstract api.Operation[Unit] and concrete Operation[Unit] */
   abstract class Abstract() extends Operation[Unit](s"Show inspector.") {
-    this: Loggable ⇒
+    this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[api.OperationInspector] getOrElse new OperationInspector
+  private object DI extends XDependencyInjection.PersistentInjectable {
+    lazy val operation = injectOptional[api.XOperationInspector] getOrElse new OperationInspector
   }
 }

@@ -92,7 +92,7 @@ class Activator extends BundleActivator with XLoggable {
     }
     try JFXPlatformFactory.application catch {
       case e: BindingException ⇒
-        throw new IllegalStateException("JavaFX bridge is not available. JFXApplication binging is absent.")
+        throw new IllegalStateException("JavaFX bridge is not available. JFXApplication DI binging is absent.")
     }
     // Mark UI as available; see App.isUIAvailable
     App.watch(App.UIFlag) on ()

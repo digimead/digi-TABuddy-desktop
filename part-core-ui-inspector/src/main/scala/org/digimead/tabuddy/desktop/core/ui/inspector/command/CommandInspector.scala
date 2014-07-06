@@ -46,7 +46,7 @@ package org.digimead.tabuddy.desktop.core.ui.inspector.command
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
@@ -58,7 +58,7 @@ import scala.concurrent.Future
 /**
  * Show inspector.
  */
-object CommandInspector extends Loggable {
+object CommandInspector extends XLoggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher

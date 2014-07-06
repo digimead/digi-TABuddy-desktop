@@ -48,7 +48,7 @@ import org.digimead.tabuddy.desktop.core.definition.api
 /**
  * OperationInspector base trait.
  */
-trait OperationInspector {
+trait XOperationInspector {
   checkSubclass()
 
   /**
@@ -60,7 +60,7 @@ trait OperationInspector {
    *
    * @return 'Show inspector' operation
    */
-  def operation(): api.Operation[Unit]
+  def operation(): api.XOperation[Unit]
 
   /**
    * Checks that this class can be subclassed.

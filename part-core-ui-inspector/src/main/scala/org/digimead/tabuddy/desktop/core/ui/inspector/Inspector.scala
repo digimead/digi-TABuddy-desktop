@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.core.ui.inspector
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -57,7 +57,7 @@ import scala.language.implicitConversions
 /**
  * Root actor of the UI inspector component.
  */
-class Inspector extends akka.actor.Actor with Loggable {
+class Inspector extends akka.actor.Actor with XLoggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef](Inspector)
   /** Current bundle */
@@ -171,7 +171,7 @@ object Inspector {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Inspector actor reference configuration object. */
     lazy val props = injectOptional[Props]("Inspector") getOrElse Props[Inspector]
   }
