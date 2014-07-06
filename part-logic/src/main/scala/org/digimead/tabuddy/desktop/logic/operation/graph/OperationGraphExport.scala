@@ -199,7 +199,7 @@ class OperationGraphExport extends XOperationGraphExport with XLoggable {
         case e: IOException if e.getMessage() == "Destination directory is already exists." ⇒
           Operation.Result.Error(s"Unable to export $graph: " + e.getMessage(), null, false)
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to export $graph.", e)
+          Operation.Result.Error(s"Unable to export $graph: " + e.getMessage(), e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =

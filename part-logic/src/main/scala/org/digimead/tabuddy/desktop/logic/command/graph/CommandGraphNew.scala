@@ -135,6 +135,9 @@ object CommandGraphNew extends XLoggable {
   /** Command parser. */
   lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> optionParser(Seq.empty) { nameParser ~ sp ~ pathParser })
 
+  /** Create parser for the graph name. */
+  def nameParser: Command.parser.Parser[Any] =
+    commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"Value that is correct Scala symbol literal"))))
   /** Option parser. */
   def optionParser(alreadyDefinedOptions: Seq[Any])(tail: Command.parser.Parser[Any]): Command.parser.Parser[Any] = {
     var options = Seq[Command.parser.Parser[Any]](tail ^^ { (alreadyDefinedOptions, _) })
@@ -168,11 +171,7 @@ object CommandGraphNew extends XLoggable {
 
     options.reduce(_ | _)
   }
-
-  /** Create parser for the graph name. */
-  protected def nameParser: Command.parser.Parser[Any] =
-    commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"Value that is correct Scala symbol literal"))))
   /** Path argument parser. */
-  protected def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "graph location",
+  def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "graph location",
     () ⇒ Some(s"Path to graph directory")) { _.isDirectory }
 }

@@ -199,7 +199,7 @@ trait Parsers {
     def get: T = result
 
     /** The toString method of a Success. */
-    override lazy val toString = "[" + next.pos + "] parsed: " + result
+    override lazy val toString = "Success [" + next.pos + "] parsed: " + result
 
     val successful = true
   }

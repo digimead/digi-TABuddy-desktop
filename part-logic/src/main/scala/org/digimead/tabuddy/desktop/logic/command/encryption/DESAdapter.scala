@@ -62,11 +62,11 @@ class DESAdapter extends EncryptionAdapter {
   def apply(tag: String): Command.parser.Parser[Any] = (sp ~>
     (("single", Command.Hint("single", Some("Data encryption algorithm (DES)"))) |
       ("triple", Command.Hint("tripple", Some("Triple data encryption algorithm (3DES)")))) ~ sp ~
-      opt(commandLiteral("-iv", Command.Hint("-iv", Some("Initialization vector"))) ~ sp ~>
-        commandRegex("'[^']+?'".r, Command.Hint.Container(Command.Hint("iv", Some("Initialization vector. Secret phrase surrounded by single quotes"), Seq.empty))) <~ sp) ~
-      commandRegex("'[^']+?'".r, Command.Hint.Container(Command.Hint("key", Some("Encryption key. Secret phrase surrounded by single quotes"), Seq.empty)))) ^^
+      opt(commandLiteral("-iv", Command.Hint("-iv", Some("Initialization vector"))) ~ sp ~ sqB("the initialization vector") ~>
+        commandRegex("[^']+".r, Command.Hint.Container(Command.Hint("iv", Some("Initialization vector. Secret phrase"), Seq.empty))) <~ sqE ~ sp) ~
+      sqB("the encryption key") ~ commandRegex("[^']+".r, Command.Hint.Container(Command.Hint("key", Some("Encryption key. Secret phrase"), Seq.empty))) <~ sqE) ^^
       (_ match {
-        case ~(~(~(modification, _), iv), key) ⇒
+        case ~(~(~(~(modification, _), iv), _), key) ⇒
           (modification, iv) match {
             case ("single", None) ⇒
               EncryptionParser.Argument(tag, Some(DES(optionContent(key), false)))

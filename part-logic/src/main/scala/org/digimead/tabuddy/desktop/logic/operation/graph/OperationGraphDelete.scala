@@ -154,7 +154,7 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to delete graph with ${marker}.", e)
+          Operation.Result.Error(s"Unable to delete graph with ${marker}: " + e.getMessage(), e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =

@@ -71,18 +71,20 @@ trait GraphSpecific {
     log.debug(s"Acquire graph with marker ${this}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
-    if (reload || state.graphObject.isEmpty) {
-      val graph = loadGraph(modified = modified, takeItEasy = takeItEasy, sData = sData) getOrElse {
-        log.info("Create new empty graph " + graphModelId)
-        /**
-         * TABuddy - global TA Buddy space
-         *  +-Settings - global TA Buddy settings
-         *     +-Templates - global TA Buddy element templates
-         *  +-Temp - temporary TA Buddy elements
-         *     +-Templates - predefined TA Buddy element templates
-         */
-        // try to create model because we are unable to load it
-        Graph[Model](graphModelId, graphOrigin, Model.scope, defaultSerialization, uuid, graphCreated) { g ⇒ }
+    if (reload || state.graphObject.isEmpty || state.payloadObject.isEmpty) {
+      val graph = state.graphObject getOrElse {
+        loadGraph(modified = modified, takeItEasy = takeItEasy, sData = sData) getOrElse {
+          log.info("Create new empty graph " + graphModelId)
+          /**
+           * TABuddy - global TA Buddy space
+           *  +-Settings - global TA Buddy settings
+           *     +-Templates - global TA Buddy element templates
+           *  +-Temp - temporary TA Buddy elements
+           *     +-Templates - predefined TA Buddy element templates
+           */
+          // try to create model because we are unable to load it
+          Graph[Model](graphModelId, graphOrigin, Model.scope, defaultSerialization, uuid, graphCreated) { g ⇒ }
+        }
       }
       graph.withData(_(GraphMarker) = GraphSpecific.this)
       state.graphObject = Option(graph)

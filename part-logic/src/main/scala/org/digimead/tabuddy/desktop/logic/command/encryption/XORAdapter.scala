@@ -60,7 +60,7 @@ class XORAdapter extends EncryptionAdapter {
 
   /** Create parser for XOR configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = sp ~>
-    commandRegex("'[^']+?'".r, Command.Hint.Container(Command.Hint("key", Some("XOR encryption key. Secret phrase surrounded by single quotes"), Seq.empty))) ^^
+    sqB("the encryption key") ~> commandRegex("[^']+".r, Command.Hint.Container(Command.Hint("key", Some("Encryption key. Secret phrase"), Seq.empty))) <~ sqE ^^
     { key ⇒ EncryptionParser.Argument(tag, Some(XOR(optionContent(key)))) }
 
   /** Get option content. */

@@ -62,11 +62,11 @@ class BlowfishAdapter extends EncryptionAdapter {
   def apply(tag: String): Command.parser.Parser[Any] = (sp ~>
     (("256", Command.Hint("256", Some("Build encryption key with length 256 bits long."))) |
       ("448", Command.Hint("448", Some("Build encryption key with length 448 bits long.")))) ~ sp ~
-      opt(commandLiteral("-iv", Command.Hint("-iv", Some("Initialization vector"))) ~ sp ~>
-        commandRegex("'[^']+?'".r, Command.Hint.Container(Command.Hint("iv", Some("Initialization vector. Secret phrase surrounded by single quotes"), Seq.empty))) <~ sp) ~
-      commandRegex("'[^']+?'".r, Command.Hint.Container(Command.Hint("key", Some("Encryption key. Secret phrase surrounded by single quotes"), Seq.empty)))) ^^
+      opt(commandLiteral("-iv", Command.Hint("-iv", Some("Initialization vector"))) ~ sp ~ sqB("the initialization vector") ~>
+        commandRegex("[^']+".r, Command.Hint.Container(Command.Hint("iv", Some("Initialization vector. Secret phrase"), Seq.empty))) <~ sqE ~ sp) ~
+      sqB("the encryption key") ~ commandRegex("[^']+".r, Command.Hint.Container(Command.Hint("key", Some("Encryption key. Secret phrase"), Seq.empty))) <~ sqE) ^^
       (_ match {
-        case ~(~(~(length, _), iv), key) ⇒
+        case ~(~(~(~(length, _), iv), _), key) ⇒
           val keyLength = length match {
             case "256" ⇒ Blowfish.Strength256
             case "448" ⇒ Blowfish.Strength448

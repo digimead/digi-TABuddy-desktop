@@ -121,7 +121,7 @@ class OperationGraphOpen extends XOperationGraphOpen with XLoggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to open graph for $marker.", e)
+          Operation.Result.Error(s"Unable to open graph for $marker: " + e.getMessage(), e)
       }
     }
     protected def redo(monitor: IProgressMonitor,

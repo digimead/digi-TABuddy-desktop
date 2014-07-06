@@ -125,7 +125,7 @@ class OperationGraphNew extends XOperationGraphNew with XLoggable {
       } catch {
         case e: CancellationException ⇒ Operation.Result.Cancel()
         case e: RuntimeException ⇒ Operation.Result.Error(e.getMessage(), e)
-        case e: Throwable ⇒ Operation.Result.Error(s"Unable to create new graph.", e)
+        case e: Throwable ⇒ Operation.Result.Error(s"Unable to create new graph: " + e.getMessage(), e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =

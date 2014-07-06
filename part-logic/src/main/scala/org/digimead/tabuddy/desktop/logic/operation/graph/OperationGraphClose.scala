@@ -169,7 +169,7 @@ class OperationGraphClose extends XOperationGraphClose with XLoggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to close $graph.", e)
+          Operation.Result.Error(s"Unable to close $graph: " + e.getMessage(), e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =

@@ -47,25 +47,28 @@ import java.io.File
 import java.net.URI
 import java.util.UUID
 import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.command.PathParser
-import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.command.URIParser
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.command.digest.DigestParser
+import org.digimead.tabuddy.desktop.logic.command.encryption.EncryptionParser
+import org.digimead.tabuddy.desktop.logic.command.signature.SignatureParser
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphImport
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
+import org.digimead.tabuddy.model.serialization.transport.Transport
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
 /**
  * Import graph.
  */
-object CommandGraphImport {
+object CommandGraphImport extends XLoggable {
   import Command.parser._
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
@@ -74,41 +77,79 @@ object CommandGraphImport {
     Messages.graph_importDescriptionShort_text, Messages.graph_importDescriptionLong_text,
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
-        case ~(~(origin: Symbol, _), location: URI) ⇒
-//          val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
-//          OperationGraphImport(Some(origin), Some(location), false).foreach { operation ⇒
-//            operation.getExecuteJob() match {
-//              case Some(job) ⇒
-//                job.setPriority(Job.LONG)
-//                job.onComplete(exchanger.exchange).schedule()
-//              case None ⇒
-//                throw new RuntimeException(s"Unable to create job for ${operation}.")
-//            }
-//          }
-//          exchanger.exchange(null) match {
-//            case Operation.Result.OK(result, message) ⇒
-//              log.info(s"Operation completed successfully.")
-//              result
-//            case Operation.Result.Cancel(message) ⇒
-//              throw new CancellationException(s"Operation canceled, reason: ${message}.")
-//            case err: Operation.Result.Error[_] ⇒
-//              throw err
-//            case other ⇒
-//              throw new RuntimeException(s"Unable to complete operation: ${other}.")
-//          }
+        case ~(~(uri: URI, _), (options @ List(_*), ~(~(name: String, _), path: File))) ⇒
+          val exchanger = new Exchanger[Operation.Result[Graph[_ <: Model.Like]]]()
+          val containerEncParameters = options.flatMap {
+            case EncryptionParser.Argument("container", parameters) ⇒ Some(parameters)
+            case _ ⇒ None
+          }.flatten.headOption
+          val contentEncParameters = options.flatMap {
+            case EncryptionParser.Argument("content", parameters) ⇒ Some(parameters)
+            case _ ⇒ None
+          }.flatten.headOption
+          OperationGraphImport(uri, name, path, containerEncParameters, contentEncParameters, None, None).foreach { operation ⇒
+            operation.getExecuteJob() match {
+              case Some(job) ⇒
+                job.setPriority(Job.LONG)
+                job.onComplete(exchanger.exchange).schedule()
+              case None ⇒
+                throw new RuntimeException(s"Unable to create job for ${operation}.")
+            }
+          }
+          exchanger.exchange(null) match {
+            case Operation.Result.OK(result, message) ⇒
+              log.info(s"Operation completed successfully.")
+              result
+            case Operation.Result.Cancel(message) ⇒
+              throw new CancellationException(s"Operation canceled, reason: ${message}.")
+            case err: Operation.Result.Error[_] ⇒
+              throw err
+            case other ⇒
+              throw new RuntimeException(s"Unable to complete operation: ${other}.")
+          }
       }
     })
   /** Command parser. */
-  lazy val parser = Command.CmdParser(descriptor.name ~ sp ~>
-    ((graphOriginParser ^^ { case symbol: String ⇒ Symbol(symbol) }) ~ sp) ~ (graphLocationParser ^^ { uri ⇒ new URI(uri) }))
-  /** Default root. */
-  protected lazy val root = App.getRoot(Logic.graphContainer)
+  lazy val parser = Command.CmdParser(descriptor.name ~> sp ~> uriParser ~ sp ~ optionParser(Seq.empty) { nameParser ~ sp ~ pathParser })
 
-  /** Create parser for the graph origin. */
-  protected def graphOriginParser: Command.parser.Parser[Any] =
-    commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r,
-      Command.Hint.Container(Command.Hint("origin", Some("scala symbol literal"), Seq())))
-  /** Location argument parser. */
-  protected def graphLocationParser = commandRegex("[a-zA-Z][a-zA-Z0-9\\+\\-\\.]+:.+".r,
-    Command.Hint.Container(Command.Hint("source location", Some("URI with graph"), Seq())))
+  /** Create parser for the graph name. */
+  def nameParser: Command.parser.Parser[Any] =
+    commandRegex(App.symbolPattern.pattern().r, Command.Hint.Container(Command.Hint("graph name", Some(s"Value that is correct Scala symbol literal"))))
+  /** Option parser. */
+  def optionParser(alreadyDefinedOptions: Seq[Any])(tail: Command.parser.Parser[Any]): Command.parser.Parser[Any] = {
+    var options = Seq[Command.parser.Parser[Any]](tail ^^ { (alreadyDefinedOptions, _) })
+
+    if (!alreadyDefinedOptions.exists(_.isInstanceOf[DigestParser.Argument]))
+      options = (DigestParser.parser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_.isInstanceOf[SignatureParser.Argument]))
+      options = (SignatureParser.parser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_ match {
+      case EncryptionParser.Argument("container", _) ⇒ true
+      case _ ⇒ false
+    }))
+      options = (EncryptionParser.containerParser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+    if (!alreadyDefinedOptions.exists(_ match {
+      case EncryptionParser.Argument("content", _) ⇒ true
+      case _ ⇒ false
+    }))
+      options = (EncryptionParser.contentParser() into { result ⇒
+        sp ~> (optionParser(alreadyDefinedOptions :+ result) { tail })
+      }) +: options
+
+    options.reduce(_ | _)
+  }
+  /** Path argument parser. */
+  def pathParser = PathParser(() ⇒ Logic.graphContainer, () ⇒ "graph location",
+    () ⇒ Some(s"Path to the graph directory")) { _.isDirectory }
+  /** URI argument parser. */
+  def uriParser = URIParser(() ⇒ Logic.graphContainer.toURI(),
+    () ⇒ "location", () ⇒ Some(s"URI of the imported graph")) { (uri: URI, transport: Transport) ⇒
+      transport.isDirectory(uri) == Some(true)
+    }
 }

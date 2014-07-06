@@ -55,7 +55,7 @@ import scala.language.implicitConversions
  */
 class URIParser {
   import Command.parser._
-  lazy val uri = "/" + "[-A-Za-z0-9+&@#/%?=~_|!:,.;]" + "*[-A-Za-z0-9+&@#/%=~_|]"
+  lazy val uri = "/\\S*"
 
   /** Create parser for the graph location. */
   def apply(defaultFn: () ⇒ URI, hintLabelFn: () ⇒ String,

@@ -43,6 +43,7 @@
 
 package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
+import java.io.File
 import java.net.URI
 import java.util.UUID
 import org.digimead.tabuddy.desktop.core.definition.api.XOperation
@@ -59,28 +60,32 @@ trait XOperationGraphImport {
   /**
    * Import graph.
    *
-   * @param location source with imported graph
+   * @param source location of the imported graph
+   * @param name model name
+   * @param target graph location
    * @param containerEncParameters container encription parameters
    * @param contentEncParameters content encription parameters
    * @param dParameters digest parameters
    * @param sParameters signature parameters
    * @return imported graph
    */
-  def apply(location: URI,
+  def apply(source: URI, name: String, target: File,
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[Boolean], sParameters: Option[UUID]): Graph[_ <: Model.Like]
   /**
    * Create 'Import graph' operation.
    *
-   * @param location source with imported graph
+   * @param source location of the imported graph
+   * @param name model name
+   * @param target graph location
    * @param containerEncParameters container encription parameters
    * @param contentEncParameters content encription parameters
    * @param dParameters digest parameters
    * @param sParameters signature parameters
    * @return 'Import graph' operation
    */
-  def operation(location: URI,
+  def operation(source: URI, name: String, target: File,
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[Boolean], sParameters: Option[UUID]): XOperation[Graph[_ <: Model.Like]]

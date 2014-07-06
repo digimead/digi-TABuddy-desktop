@@ -58,31 +58,27 @@ class PathParser {
   /** Create parser for the graph location. */
   def apply(defaultFn: () ⇒ File, hintLabelFn: () ⇒ String,
     hintDescriptionFn: () ⇒ Option[String] = () ⇒ None)(filterFn: File ⇒ Boolean): Command.parser.Parser[Any] =
-    commandRegex("""[^<>:"|?*]+""".r, new HintContainer(defaultFn, hintLabelFn, hintDescriptionFn, filterFn)) ^? {
+    sqB("the local path") ~ (commandRegex("""[^<>:"'|?*]+""".r, new HintContainer(defaultFn, hintLabelFn, hintDescriptionFn, filterFn)) ^? {
       case CompletionRequest(file) ⇒
         new File(file)
       case file ⇒
         new File(file)
-    }
+    }) ~ sqE ^^ { case ~(~(_, file), _) ⇒ file }
 
   class HintContainer(defaultFn: () ⇒ File, hintLabelFn: () ⇒ String,
     hintDescriptionFn: () ⇒ Option[String], filterFn: File ⇒ Boolean) extends Command.Hint.Container {
     /** Get parser hints for user provided path. */
     def apply(arg: String): Seq[Command.Hint] = {
-      val input = arg match {
-        case CompletionRequest(arg) ⇒ arg.trim
-        case arg ⇒ arg.trim
-      }
       val default = defaultFn()
       val hintLabel = hintLabelFn()
       val hintDescription = hintDescriptionFn()
-      if (input.isEmpty) {
+      if (arg.isEmpty) {
         if (default.isDirectory() && !default.toString.endsWith(File.separator))
           Seq(Command.Hint(hintLabel, hintDescription, Seq(default.toString + File.separator)))
         else
           Seq(Command.Hint(hintLabel, hintDescription, Seq(default.toString)))
       } else {
-        new File(arg.trim()) match {
+        new File(arg) match {
           case path if path.isDirectory() && arg.endsWith(File.separator) ⇒
             val files = path.listFiles().filter(filterFn).sortBy(_.getName)
             Seq(Command.Hint(hintLabel, hintDescription, files.map(_.getName())))

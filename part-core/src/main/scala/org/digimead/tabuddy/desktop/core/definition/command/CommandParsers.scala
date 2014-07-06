@@ -56,7 +56,7 @@ import scala.util.matching.Regex
 class CommandParsers extends JavaTokenParsers with XLoggable {
   /** Placeholder parser. */
   val nop = new Parser[String] { def apply(in: Input) = Success(in.source.toString, in) }
-  /** Special parser for whiteSpaces. */
+  /** Special parser for white spaces. */
   val sp = new Parser[String] {
     def apply(in: Input): ParseResult[String] = {
       if (in.atEnd) {
@@ -83,7 +83,7 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
               Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
                 in.drop(start + matched.end + 1 - offset))
             else
-              Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
+              Success(source.subSequence(start, start + matched.end).toString,
                 in.drop(start + matched.end - offset))
           case Some(matched) ⇒
             Success(source.subSequence(start, start + matched.end).toString,
@@ -102,6 +102,10 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
       }
     }
   }
+  /** The leading single quote parser. */
+  val sqB = ("'", Command.Hint("'", Some("The leading single quote"))): Parser[String]
+  /** The trailing single quote parser. */
+  val sqE = ("'", Command.Hint("'", Some("The trailing single quote"))): Parser[String]
   /** Stub parser. */
   val stubParser = new StubParser
   /** Make whiteSpace public. */
@@ -145,7 +149,7 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
           if (matchPos == source.length)
             Success(CompletionRequest(s), in.drop(matchPos + 1 - offset))
           else
-            Success(CompletionRequest(s), in.drop(matchPos - offset))
+            Success(s, in.drop(matchPos - offset))
         } else {
           Success(s, in.drop(matchPos - offset))
         }
@@ -193,41 +197,45 @@ class CommandParsers extends JavaTokenParsers with XLoggable {
           source.subSequence(start, source.length - 1).toString()
         else
           source.subSequence(start, source.length).toString()
-      val hintList = hints(subject)
-      if (start == (source.length() - 1) && completionRequestMode && hintList.nonEmpty) {
-        val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
-        Command.completionProposal.value = Command.completionProposal.value :+ completion
-        completion
-      } else
-        (r findPrefixMatchOf subject) match {
-          case Some(matched) if completionRequestMode && hintList.nonEmpty && matched.matched == subject ⇒
-            // If we are at completion request mode
-            // and there are some proposals
-            // and this is last parser that covers whole subject
-            val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
-            Command.completionProposal.value = Command.completionProposal.value :+ completion
-            // But we return success, so we will collect proposal from other parsers
-            Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
-              in.drop(start + matched.end - offset))
-          case Some(matched) ⇒
-            if (completionRequestMode)
-              Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
-                in.drop(start + matched.end - offset))
-            else
-              Success(source.subSequence(start, start + matched.end).toString,
-                in.drop(start + matched.end - offset))
-          case None ⇒
-            val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
-            if (start == source.length()) {
-              val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
-              Command.completionProposal.value = Command.completionProposal.value :+ completion
-              completion
-            } else {
-              Failure("string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
-            }
+      if (start == (source.length() - 1) && completionRequestMode) {
+        val hintList = hints(subject)
+        if (hintList.nonEmpty) {
+          val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
+          Command.completionProposal.value = Command.completionProposal.value :+ completion
+          return completion
         }
+      }
+
+      val matched = r findPrefixMatchOf subject
+      val hintList = matched.map(m ⇒ hints(m.matched))
+      (matched, hintList) match {
+        case (Some(matched), Some(hintList)) if completionRequestMode && matched.matched == subject && hintList.nonEmpty ⇒
+          // If we are at completion request mode
+          // and there are some proposals
+          // and this is last parser that covers whole subject
+          val completion = MissingCompletionOrFailure(hintList, "string matching regex `" + r + "' expected", in.drop(start - offset))
+          Command.completionProposal.value = Command.completionProposal.value :+ completion
+          // But we return success, so we will collect proposal from other parsers
+          Success(CompletionRequest(source.subSequence(start, start + matched.end).toString),
+            in.drop(start + matched.end - offset))
+        case (Some(matched), _) ⇒
+          Success(source.subSequence(start, start + matched.end).toString,
+            in.drop(start + matched.end - offset))
+        case (None, hintList) ⇒
+          val found = if (start == source.length()) "end of source" else "`" + source.charAt(start) + "'"
+          if (start == source.length()) {
+            val completion = MissingCompletionOrFailure(hintList getOrElse Seq.empty, "string matching regex `" + r + "' expected", in.drop(start - offset))
+            Command.completionProposal.value = Command.completionProposal.value :+ completion
+            completion
+          } else {
+            Failure("string matching regex `" + r + "' expected but " + found + " found", in.drop(start - offset))
+          }
+      }
     }
   }
+  /** The leading single quote parser. */
+  def sqB(subject: String) = ("'", Command.Hint("'", Some("The leading single quote for " + subject))): Parser[String]
+
   /**
    * Completion request routines.
    */

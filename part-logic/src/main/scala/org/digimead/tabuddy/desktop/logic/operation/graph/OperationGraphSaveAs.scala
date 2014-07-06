@@ -146,7 +146,7 @@ class OperationGraphSaveAs extends XOperationGraphSaveAs with XLoggable {
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to save $graph.", e)
+          Operation.Result.Error(s"Unable to save $graph: " + e.getMessage(), e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =

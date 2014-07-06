@@ -109,7 +109,10 @@ class GraphParser {
   /** Create parser for the graph name. */
   protected def graphNameParser: Command.parser.Parser[Any] =
     (commandRegex(s"${App.symbolPatternDefinition()}+${App.symbolPatternDefinition("_")}*".r, NameHintContainer) ^? {
-      case name if !isCompletionRequest(name) ⇒
+      case CompletionRequest(name) if localMarkers.value.exists(_.graphModelId.name == name) ⇒
+        localGraphName.value = Some(name)
+        name
+      case name if localMarkers.value.exists(_.graphModelId.name == name) ⇒
         localMarkers.value.find(_.graphModelId.name == name) getOrElse {
           threadLocalClear()
           throw Command.ParseException(s"Graph marker with name '$name' is not available.")
@@ -117,14 +120,15 @@ class GraphParser {
         // save result for further parsers
         localGraphName.value = Some(name)
         name
-      case CompletionRequest(name) if localMarkers.value.exists(_.graphModelId.name == name) ⇒
-        localGraphName.value = Some(name)
-        name
     })
   /** Create parser for the graph marker UUID. */
   protected def graphUUIDParser: Command.parser.Parser[Any] =
     commandRegex("[0-9A-Fa-f-]+".r, UUIDHintContainer) ^? {
-      case uuid if !isCompletionRequest(uuid) ⇒
+      case CompletionRequest(uuid) if localMarkers.value.exists(_.uuid.toString().toLowerCase() == uuid) ⇒
+        val uuidLower = uuid.toLowerCase()
+        localGraphUUID.value = Some(uuidLower)
+        uuid
+      case uuid if localMarkers.value.exists(_.uuid.toString().toLowerCase() == uuid) ⇒
         val uuidLower = uuid.toLowerCase()
         localMarkers.value.find(_.uuid.toString().toLowerCase() == uuid) getOrElse {
           threadLocalClear()
@@ -133,10 +137,6 @@ class GraphParser {
         // save result for further parsers
         localGraphUUID.value = Some(uuidLower)
         uuidLower
-      case CompletionRequest(uuid) if localMarkers.value.exists(_.uuid.toString().toLowerCase() == uuid) ⇒
-        val uuidLower = uuid.toLowerCase()
-        localGraphUUID.value = Some(uuidLower)
-        uuid
     }
 
   /** Hint container for graph name (model id). */

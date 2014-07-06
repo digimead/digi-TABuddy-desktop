@@ -60,13 +60,13 @@ class GOST28147Adapter extends EncryptionAdapter {
 
   /** Create parser for GOST28147 configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = (sp ~>
-    opt(("-iv", Command.Hint("-iv", Some("Initialization vector"))) ~ sp ~>
-      commandRegex("'\\S+'".r, Command.Hint.Container(Command.Hint("iv", Some("Initialization vector. Secret phrase surrounded by single quotes"), Seq.empty))) <~ sp) ~
-    commandRegex("'\\S+'".r, Command.Hint.Container(Command.Hint("key", Some("Encryption key. Secret phrase surrounded by single quotes"), Seq.empty)))) ^^
+    opt(commandLiteral("-iv", Command.Hint("-iv", Some("Initialization vector"))) ~ sp ~ sqB("the initialization vector") ~>
+      commandRegex("[^']+".r, Command.Hint.Container(Command.Hint("iv", Some("Initialization vector. Secret phrase"), Seq.empty))) <~ sqE ~ sp) ~
+    sqB("the encryption key") ~ commandRegex("[^']+".r, Command.Hint.Container(Command.Hint("key", Some("Encryption key. Secret phrase"), Seq.empty))) <~ sqE) ^^
     (_ match {
-      case ~(Some(iv), key) ⇒
+      case ~(~(Some(iv), _), key) ⇒
         EncryptionParser.Argument(tag, Some(GOST28147(optionContent(key), optionContent(iv).getBytes(io.Codec.UTF8.charSet))))
-      case ~(None, key) ⇒
+      case ~(~(None, _), key) ⇒
         EncryptionParser.Argument(tag, Some(GOST28147(optionContent(key))))
     })
 

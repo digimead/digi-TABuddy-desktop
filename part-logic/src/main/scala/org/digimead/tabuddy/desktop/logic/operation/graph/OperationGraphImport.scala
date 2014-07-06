@@ -68,22 +68,24 @@ class OperationGraphImport extends XOperationGraphImport with XLoggable {
   /**
    * Import graph.
    *
-   * @param location source with imported graph
+   * @param source location of the imported graph
+   * @param name model name
+   * @param target graph location
    * @param containerEncParameters container encription parameters
    * @param contentEncParameters content encription parameters
    * @param dParameters digest parameters
    * @param sParameters signature parameters
    * @return imported graph
    */
-  def apply(location: URI,
+  def apply(source: URI, name: String, target: File,
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[Boolean], sParameters: Option[UUID]): Graph[_ <: Model.Like] = {
-    log.info(s"Import graph from ${location}.")
+    log.info(s"Import graph from ${source}.")
     if (!Logic.container.isOpen())
       throw new IllegalStateException("Workspace is not available.")
 
-    val locationURI = Serialization.normalizeURI(location)
+    val sourceURI = Serialization.normalizeURI(source)
     val sData = SData(SData.Key.force -> true)
     // Digest
     val sDataNDigest = dParameters match {
@@ -122,47 +124,44 @@ class OperationGraphImport extends XOperationGraphImport with XLoggable {
         sDataNContainerEncryption
     }
 
-    Option[Graph[_ <: Model.Like]](Serialization.acquire(locationURI, sDataNContentEncryption)) match {
+    Option[Graph[_ <: Model.Like]](Serialization.acquire(sourceURI, sDataNContentEncryption)) match {
       case Some(graph) ⇒
-        val localGraphPath = if (locationURI.getScheme() != new File(".").toURI().getScheme()) {
-          // this is remote graph
-          // create local copy
-          val destination = new File(Logic.graphContainer, graph.model.eId.name)
-          Serialization.freeze(graph, destination.toURI())
-          destination
-        } else
-          new File(locationURI)
+        val graphPath = new File(target, name)
         val uuid = if (GraphMarker.list().contains(graph.node.unique))
           UUID.randomUUID()
         else
           graph.node.unique
-        val newMarker = GraphMarker.createInTheWorkspace(uuid, localGraphPath, Element.timestamp(), graph.origin, graph.model.eBox.serialization)
+        val newMarker = GraphMarker.createInTheWorkspace(uuid, graphPath, Element.timestamp(), graph.origin, graph.model.eBox.serialization)
         newMarker.safeUpdate(_.safeWrite(_.graphObject = Some(graph.copy() { g ⇒
           g.withData { data ⇒
             data(GraphMarker) = newMarker
           }
         })))
         newMarker.graphAcquire()
-        newMarker.safeRead(_.graph)
+        val imported = newMarker.safeRead(_.graph)
+        OperationGraphSave.operation(imported, true)
+        imported
       case None ⇒
-        throw new IllegalStateException(s"Unable to import graph from " + locationURI)
+        throw new IllegalStateException(s"Unable to import graph from " + sourceURI)
     }
   }
   /**
    * Create 'Import graph' operation.
    *
-   * @param location source with imported graph
+   * @param source location of the imported graph
+   * @param name model name
+   * @param target graph location
    * @param containerEncParameters container encription parameters
    * @param contentEncParameters content encription parameters
    * @param dParameters digest parameters
    * @param sParameters signature parameters
    * @return 'Import graph' operation
    */
-  def operation(location: URI,
+  def operation(source: URI, name: String, target: File,
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[Boolean], sParameters: Option[UUID]) =
-    new Implemetation(location, containerEncParameters, contentEncParameters, dParameters, sParameters)
+    new Implemetation(source, name, target, containerEncParameters, contentEncParameters, dParameters, sParameters)
 
   /**
    * Checks that this class can be subclassed.
@@ -180,11 +179,12 @@ class OperationGraphImport extends XOperationGraphImport with XLoggable {
    */
   override protected def checkSubclass() {}
 
-  class Implemetation(location: URI,
+  class Implemetation(source: URI, name: String, target: File,
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[Boolean], sParameters: Option[UUID])
-    extends OperationGraphImport.Abstract(location, containerEncParameters, contentEncParameters, dParameters, sParameters) with XLoggable {
+    extends OperationGraphImport.Abstract(source, name, target,
+      containerEncParameters, contentEncParameters, dParameters, sParameters) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
@@ -194,12 +194,13 @@ class OperationGraphImport extends XOperationGraphImport with XLoggable {
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] = {
       require(canExecute, "Execution is disabled.")
       try {
-        val result = Option[Graph[_ <: Model.Like]](OperationGraphImport.this(location, containerEncParameters, contentEncParameters, dParameters, sParameters))
+        val result = Option[Graph[_ <: Model.Like]](OperationGraphImport.this(source, name, target,
+          containerEncParameters, contentEncParameters, dParameters, sParameters))
         allowExecute = false
         Operation.Result.OK(result)
       } catch {
         case e: Throwable ⇒
-          Operation.Result.Error(s"Unable to import graph.", e)
+          Operation.Result.Error(s"Unable to import graph: " + e.getMessage(), e)
       }
     }
     protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Graph[_ <: Model.Like]] =
@@ -216,7 +217,9 @@ object OperationGraphImport extends XLoggable {
   /**
    * Build a new 'Import graph' operation.
    *
-   * @param location source with imported graph
+   * @param source location of the imported graph
+   * @param name model name
+   * @param target graph location
    * @param containerEncParameters container encription parameters
    * @param contentEncParameters content encription parameters
    * @param dParameters digest parameters
@@ -224,18 +227,18 @@ object OperationGraphImport extends XLoggable {
    * @return 'Import graph' operation
    */
   @log
-  def apply(location: URI,
+  def apply(source: URI, name: String, target: File,
     containerEncParameters: Option[XEncryption.Parameters],
     contentEncParameters: Option[XEncryption.Parameters],
     dParameters: Option[Boolean], sParameters: Option[UUID]): Option[Abstract] =
-    Some(operation.operation(location, containerEncParameters, contentEncParameters, dParameters, sParameters))
+    Some(operation.operation(source, name, target, containerEncParameters, contentEncParameters, dParameters, sParameters))
 
   /** Bridge between abstract XOperation[Graph[_ <: Model.Like]] and concrete Operation[Graph[_ <: Model.Like]] */
-  abstract class Abstract(val location: URI,
+  abstract class Abstract(val source: URI, val name: String, val target: File,
     val containerEncParameters: Option[XEncryption.Parameters],
     val contentEncParameters: Option[XEncryption.Parameters],
     val dParameters: Option[Boolean], val sParameters: Option[UUID])
-    extends Operation[Graph[_ <: Model.Like]](s"Import graph from ${location}.") {
+    extends Operation[Graph[_ <: Model.Like]](s"Import graph from ${source} as ${name}.") {
     this: XLoggable ⇒
   }
   /**
