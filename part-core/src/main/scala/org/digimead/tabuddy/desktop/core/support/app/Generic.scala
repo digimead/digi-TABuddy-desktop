@@ -174,5 +174,7 @@ trait Generic extends EventLoop.Consumer {
     processRecursiveImpl(toNextList.map(_._1).flatten, (Seq.empty[Iterable[File]] :+ toNextList.map(_._2)) ++ toProcess, depth + 1, maxDepth)(f)
   }
   /** Persistent object for isUIAvailable. */
-  object UIFlag
+  object UIFlag {
+    override def toString = "UIFlag"
+  }
 }

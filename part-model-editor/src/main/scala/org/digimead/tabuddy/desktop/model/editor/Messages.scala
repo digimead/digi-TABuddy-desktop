@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.model.editor
 
 import java.util.ResourceBundle
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
 
 /**
@@ -68,7 +68,7 @@ class Messages extends ResourceBundle {
   }
 }
 
-object Messages extends NLS with Loggable {
+object Messages extends NLS with XLoggable {
   val autoresize_key = ""
   val btnModelLocation_text = ""
   val collapseAll_text = ""
@@ -109,6 +109,8 @@ object Messages extends NLS with Loggable {
   val table_text = ""
   val title_text = ""
   val tree_text = ""
+  val ModelCreationWizardPageOne_title_text = ""
+  val ModelCreationWizardPageOne_description_text = ""
 
   T.ranslate("org.digimead.tabuddy.desktop.model.editor.messages")
 }

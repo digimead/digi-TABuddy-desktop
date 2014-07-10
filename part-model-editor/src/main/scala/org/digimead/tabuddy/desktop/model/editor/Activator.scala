@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.model.editor
 
 import akka.actor.{ Inbox, PoisonPill, Terminated }
 import org.digimead.digi.lib.{ DependencyInjection, Disposable }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -56,7 +56,7 @@ import scala.ref.WeakReference
 /**
  * OSGi entry point.
  */
-class Activator extends BundleActivator with Loggable {
+class Activator extends BundleActivator with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
 
@@ -66,7 +66,7 @@ class Activator extends BundleActivator with Loggable {
       throw new IllegalStateException("Bundle is already disposed. Please reinstall it before activation.")
     log.debug("Start TABuddy Desktop ModelEditor component.")
     // Setup DI for this bundle
-    val diReady = Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.DependencyInjection])).
+    val diReady = Option(context.getServiceReference(classOf[org.digimead.digi.lib.api.XDependencyInjection])).
       map { currencyServiceRef ⇒ (currencyServiceRef, context.getService(currencyServiceRef)) } match {
         case Some((reference, diService)) ⇒
           diService.getDependencyValidator.foreach { validator ⇒
@@ -126,15 +126,19 @@ class Activator extends BundleActivator with Loggable {
     }
     Activator.dispose()
   }
+
+  override def toString = "model.editor.Activator"
 }
 
 /**
  * Disposable manager. There is always only one singleton per class loader.
  */
-object Activator extends Disposable.Manager with Loggable {
+object Activator extends Disposable.Manager with XLoggable {
   @volatile private var disposable = Seq[WeakReference[Disposable]]()
   private val disposableLock = new Object
   private val startStopLock = new Object
+
+  override def toString = "model.editor.Activator[Singleton]"
 
   /** Register the disposable instance. */
   def register(disposable: Disposable) = disposableLock.synchronized {

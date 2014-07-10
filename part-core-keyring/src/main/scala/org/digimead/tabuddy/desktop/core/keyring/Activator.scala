@@ -128,6 +128,8 @@ class Activator extends BundleActivator with XLoggable {
     }
     Activator.dispose()
   }
+
+  override def toString = "core.keyring.Activator"
 }
 
 /**
@@ -150,4 +152,6 @@ object Activator extends Disposable.Manager with XLoggable {
     })
     disposable = null
   }
+
+  override def toString = "core.keyring.Activator[Singleton]"
 }

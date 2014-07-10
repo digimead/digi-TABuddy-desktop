@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,39 +41,24 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor.ui
+package org.digimead.tabuddy.desktop.core.extension.point
 
-import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-//import org.digimead.tabuddy.desktop.Resources
-//import org.digimead.tabuddy.desktop.Resources.resources2implementation
-//import org.digimead.tabuddy.desktop.model.editor.wizard.ModelCreationWizard
+import org.osgi.framework.BundleActivator
+import org.osgi.framework.BundleContext
+import org.digimead.digi.lib.log.api.XLoggable
 
-import language.implicitConversions
-
-class Wizards {
-  /** Configure component wizards. */
-  @log
-  def configure() {
-//    Resources.registerWizard(classOf[ModelCreationWizard])
+/**
+ * OSGi entry point.
+ */
+class Activator extends BundleActivator with XLoggable {
+  /** Start bundle. */
+  def start(context: BundleContext) = {
+    log.debug("Start TA Buddy Desktop extension point.")
   }
-  @log /** Unconfigure component wizards. */
-  def unconfigure() {
-//    Resources.unregisterWizard(classOf[ModelCreationWizard])
+  /** Stop bundle. */
+  def stop(context: BundleContext) = {
+    log.debug("Stop TA Buddy Desktop extension point.")
   }
-}
 
-object Wizards {
-  implicit def configurator2implementation(w: Wizards.type): Wizards = w.inner
-
-  /** Wizards implementation. */
-  def inner(): Wizards = DI.implementation
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Wizards implementation */
-    lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
-  }
+  override def toString = "core.Activator"
 }

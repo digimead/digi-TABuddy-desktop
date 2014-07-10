@@ -138,6 +138,8 @@ class Inspector extends akka.actor.Actor with XLoggable {
       Console ! Console.Message.Notice("UI inspector component is stopped.")
     }
   }
+
+  override def toString = "core.ui.inspector.Inspector"
 }
 
 object Inspector {
@@ -161,7 +163,7 @@ object Inspector {
   /** Inspector actor reference configuration object. */
   lazy val props = DI.props
 
-  override def toString = "Inspector[Singleton]"
+  override def toString = "core.ui.inspector.Inspector[Singleton]"
 
   /*
    * Explicit import for runtime components/bundle manifest generation.

@@ -105,7 +105,8 @@ class Core extends akka.actor.Actor with XLoggable {
    */
   if (App.watch(Activator, EventLoop, this).hooks.isEmpty)
     App.watch(Activator, EventLoop, this).always().
-      makeAfterStart { onAppStarted() }.makeBeforeStop { onAppStopped() }.sync()
+      makeAfterStart { onAppStarted() }.
+      makeBeforeStop { onAppStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -317,6 +318,8 @@ class Core extends akka.actor.Actor with XLoggable {
       assert(!PlatformUI.isWorkbenchRunning())
     }
   }
+
+  override def toString = "core.Core"
 }
 
 object Core extends XLoggable {
@@ -338,7 +341,7 @@ object Core extends XLoggable {
   /** Core actor reference configuration object. */
   def props = DI.props
 
-  override def toString = "Core[Singleton]"
+  override def toString = "core.Core[Singleton]"
 
   /**
    * MApplication stub for workbench.

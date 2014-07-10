@@ -106,6 +106,9 @@ class AppService extends XMain with Disposable.Default with XLoggable {
     log.info("Run core.")
     // Waiting for IApplicationContext service.
     // Assume that platform is started when IApplicationContext is available.
+    // FYI
+    // @.org.eclipse.equinox.registry: The extensions and extension-points from the bundle "org.digimead.tabuddy.desktop.core" are ignored.
+    //  The bundle is not marked as singleton.
     val applicationContextServiceTracker = new ServiceTracker[IApplicationContext, IApplicationContext](App.bundle(getClass).getBundleContext(), classOf[IApplicationContext], null)
     applicationContextServiceTracker.open()
     log.debug("Get global application context.")
@@ -327,6 +330,8 @@ class AppService extends XMain with Disposable.Default with XLoggable {
           log.warn("DI service not found.")
       }
   }
+
+  override def toString = "core.AppService"
 }
 
 object AppService extends XLoggable {
@@ -335,6 +340,8 @@ object AppService extends XLoggable {
 
   /** Main service implementation. */
   def inner() = DI.implementation
+
+  override def toString = "core.AppService[Singleton]"
 
   /**
    * Dependency injection routines.

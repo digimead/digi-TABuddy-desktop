@@ -143,6 +143,7 @@ class KeyRing extends akka.actor.Actor with XLoggable {
     App.publish(App.Message.Consistent(this, self))
   }
   /** Invoked on Core started. */
+  @log
   protected def onCoreStarted() = initializationLock.synchronized {
     App.watch(KeyRing) on {
       self ! App.Message.Inconsistent(KeyRing, None)
@@ -155,6 +156,7 @@ class KeyRing extends akka.actor.Actor with XLoggable {
     }
   }
   /** Invoked on Core stopped. */
+  @log
   protected def onCoreStopped() = initializationLock.synchronized {
     App.watch(KeyRing) off {
       self ! App.Message.Inconsistent(KeyRing, None)
@@ -166,6 +168,8 @@ class KeyRing extends akka.actor.Actor with XLoggable {
       Console ! Console.Message.Notice("KeyRing component is stopped.")
     }
   }
+
+  override def toString = "core.KeyRing"
 }
 
 object KeyRing {
@@ -209,6 +213,8 @@ object KeyRing {
   def random = DI.random
   /** Get private keyring resource name. */
   def secretKeyRingName = DI.secretKeyRingName
+
+  override def toString = "core.KeyRing[Singleton]"
 
   /**
    * Asymmetric cipher decryptor.

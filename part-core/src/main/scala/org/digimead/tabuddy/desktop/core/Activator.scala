@@ -115,8 +115,8 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
           // Start component actors hierarchy
           Core.actor
           /*
-         * Start global components that haven't dispose methods.
-         */
+           * Start global components that haven't dispose methods.
+           */
           Command
           // Start application environment
           Core ! context
@@ -172,6 +172,8 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     reportServiceTracker = None
     Activator.dispose()
   }
+
+  override def toString = "core.Activator"
 }
 
 /**
@@ -194,4 +196,6 @@ object Activator extends Disposable.Manager with XLoggable {
     })
     disposable = null
   }
+
+  override def toString = "core.Activator[Singleton]"
 }

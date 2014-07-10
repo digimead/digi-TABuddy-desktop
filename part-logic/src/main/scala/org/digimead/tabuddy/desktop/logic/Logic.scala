@@ -244,6 +244,8 @@ class Logic extends akka.actor.Actor with XLoggable {
     ui.view.Views.unconfigure()
     ui.wizard.Wizards.unconfigure()
   }
+
+  override def toString = "logic.Logic"
 }
 
 object Logic {
@@ -281,7 +283,7 @@ object Logic {
   def containerName = DI.infrastructureWideProjectName
   def graphContainer = DI.graphContainer
 
-  override def toString = "Logic[Singleton]"
+  override def toString = "logic.Logic[Singleton]"
 
   /*
    * Explicit import for runtime components/bundle manifest generation.

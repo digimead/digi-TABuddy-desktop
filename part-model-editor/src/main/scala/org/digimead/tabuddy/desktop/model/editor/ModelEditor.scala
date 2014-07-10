@@ -45,18 +45,20 @@ package org.digimead.tabuddy.desktop.model.editor
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.model.editor.ui.WindowWatcher
 import scala.language.implicitConversions
+import org.digimead.tabuddy.desktop.core.ui.UI
 
 /**
  * Root actor of the ModelEditor component.
  */
-class ModelEditor extends akka.actor.Actor with Loggable {
+class ModelEditor extends akka.actor.Actor with XLoggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef](ModelEditor)
   /** Current bundle */
@@ -68,10 +70,10 @@ class ModelEditor extends akka.actor.Actor with Loggable {
   /*
    * ModelEditor component actors.
    */
-  val actionRef = context.actorOf(ui.action.Action.props, ui.action.Action.id)
+  lazy val windowWatcherRef = context.actorOf(WindowWatcher.props, WindowWatcher.id)
 
-  if (App.watch(Activator, Logic, this).hooks.isEmpty)
-    App.watch(Activator, Logic, this).always().
+  if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
+    App.watch(Activator, Logic, UI, this).always().
       makeAfterStart { onGUIStarted() }.
       makeBeforeStop { onGUIStopped() }.sync()
 
@@ -123,8 +125,12 @@ class ModelEditor extends akka.actor.Actor with Loggable {
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(ModelEditor) on {
       self ! App.Message.Inconsistent(ModelEditor, None)
-      ui.Views.configure
-      ui.Wizards.configure
+      // Initialize lazy actors
+      ModelEditor.actor
+      windowWatcherRef
+
+      ui.view.Views.configure
+      ui.wizard.Wizards.configure
       //Approver.start()
       Console ! Console.Message.Notice("ModelEditor component is started.")
       self ! App.Message.Consistent(ModelEditor, None)
@@ -136,14 +142,16 @@ class ModelEditor extends akka.actor.Actor with Loggable {
     App.watch(ModelEditor) off {
       self ! App.Message.Inconsistent(ModelEditor, None)
       //Actions.unconfigure
-      ui.Wizards.unconfigure
-      ui.Views.unconfigure
+      ui.wizard.Wizards.unconfigure
+      ui.view.Views.unconfigure
       val lost = inconsistentSet - ModelEditor
       if (lost.nonEmpty)
         log.fatal("Inconsistent elements detected: " + lost)
       Console ! Console.Message.Notice("ModelEditor component is stopped.")
     }
   }
+
+  override def toString = "model.editor.ModelEditor"
 }
 
 object ModelEditor {
@@ -167,9 +175,10 @@ object ModelEditor {
   /** ModelEditor actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  ui.action.Action
+  if (App.isUIAvailable)
+    WindowWatcher
 
-  override def toString = "ModelEditor[Singleton]"
+  override def toString = "model.editor.ModelEditor[Singleton]"
 
   /*
    * Explicit import for runtime components/bundle manifest generation.
@@ -189,7 +198,7 @@ object ModelEditor {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** ModelEditor actor reference configuration object. */
     lazy val props = injectOptional[Props]("ModelEditor") getOrElse Props[ModelEditor]
   }

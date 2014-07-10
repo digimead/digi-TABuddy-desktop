@@ -41,22 +41,21 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.ui
+package org.digimead.tabuddy.desktop.model.editor.ui
 
-import akka.actor.{ Actor, Props, actorRef2Scala }
-import java.util.UUID
+import akka.actor.{ Actor, ActorRef, Props }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
-import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowSupervisor }
-import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor.WindowPointer
-import org.digimead.tabuddy.desktop.core.ui.block.WindowToolbar
+import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.digimead.tabuddy.desktop.logic.ui.action.{ ActionGraphClose, ActionGraphCloseAll, ActionGraphExport, ActionGraphImport, ActionGraphOpen, ActionGraphProperties, ActionGraphSave, ActionGraphSaveAll }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.jface.action.Separator
+import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
+import java.util.UUID
+import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor.WindowPointer
 
 /**
  * Register action in new windows.
@@ -110,23 +109,7 @@ class WindowWatcher extends Actor with XLoggable {
   @log
   protected def adjustMenu(window: AppWindow) {
     val file = WindowMenu(Left(window), ui.WindowWatcher.fileMenu)
-    //    file.add(action.ActionSaveModel())
-    //    file.add(action.ActionDeleteModel())
-    //file.add(action.ActionCloseGraph())
-    // file.add(ContextInjectionFactory.make(classOf[action.ActionGraphNew], window.windowContext))
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphOpen], window.windowContext))
-    file.add(new Separator())
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphClose], window.windowContext))
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphCloseAll], window.windowContext))
-    file.add(new Separator())
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphSave], window.windowContext))
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphSaveAll], window.windowContext))
-    file.add(new Separator())
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphImport], window.windowContext))
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphExport], window.windowContext))
-    file.add(new Separator())
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphProperties], window.windowContext))
-    file.add(new Separator())
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphNew], window.windowContext))
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */

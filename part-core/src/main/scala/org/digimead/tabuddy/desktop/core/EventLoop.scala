@@ -102,9 +102,10 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
       eventLoopThreadSync()
       waitWhile { _ == null } match {
         case None ⇒
+          log.debug("Start event loop.")
           Realm.runWithDefault(realm, new Runnable() { def run() = loop() })
         case Some(exitCodeValue) ⇒
-          log.info(s"Skip main loop. Exit code detected: ${exitCodeValue}")
+          log.info(s"Skip event loop. Exit code detected: ${exitCodeValue}")
       }
       eventLoopThreadSync()
     } else {
@@ -124,14 +125,14 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
   }
   /** Start event loop. */
   def startEventLoop() = exitCodeValue.synchronized {
-    log.debugWhere("Start main loop.")
+    log.debugWhere("Notify event loop routine that it must be started.")
     // change exitCodeValue from null -> None
     exitCodeValue.set(None)
     exitCodeValue.notifyAll()
   }
   /** Stop event loop with the specific exit code. */
   def stopEventLoop(code: EventLoop.Code) = exitCodeValue.synchronized {
-    log.debugWhere(s"Stop event loop with code '${code}'.")
+    log.debugWhere(s"Notify event loop routine that it must be stopped with code '${code}'.")
     if (exitCodeValue.compareAndSet(None, Some(code))) {
       exitCodeValue.synchronized { exitCodeValue.notifyAll() }
       App.display.wake()
@@ -156,7 +157,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
     exitCodeValue.get // unreachable code for compiler
   }
 
-  /** Application main loop that is invoked from EventLoop. */
+  /** Application event loop that is invoked from EventLoop. */
   @log
   protected def loop() {
     log.debug("Event loop is running.")
@@ -198,6 +199,8 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
     }
     exitCodeValue.synchronized { exitCodeValue.notifyAll() }
   }
+
+  override def toString = "core.EventLoop"
 }
 
 object EventLoop {
@@ -205,6 +208,8 @@ object EventLoop {
   lazy val thread = DI.implementation.newInstance()
   /** Startup synchronization. */
   protected lazy val startSync = new Exchanger[Null]
+
+  override def toString = "core.EventLoop[Singleton]"
 
   /**
    * I really don't want to provide access to AppService/EventLoop from entire system

@@ -137,6 +137,8 @@ class Activator extends BundleActivator with XLoggable {
     }
     Activator.dispose()
   }
+
+  override def toString = "core.ui.Activator"
 }
 
 /**
@@ -159,4 +161,6 @@ object Activator extends Disposable.Manager with XLoggable {
     })
     disposable = null
   }
+
+  override def toString = "core.ui.Activator[Singleton]"
 }

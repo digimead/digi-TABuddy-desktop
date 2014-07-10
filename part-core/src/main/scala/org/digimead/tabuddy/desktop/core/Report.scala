@@ -109,6 +109,8 @@ class Report(context: BundleContext) extends ServiceTrackerCustomizer[AnyRef, An
   protected def onException() = serviceRef.foreach { service ⇒
     log.___glance("BOOM!!!")
   }
+
+  override def toString = "core.Report"
 }
 
 /** Report singleton. */
@@ -119,6 +121,8 @@ object Report {
   def dateString(date: Date) = DI.df.format(date)
   /** Report implementation. */
   def inner() = DI.implementation
+
+  override def toString = "core.Report[Singleton]"
 
   /**
    * Application information acquired from launcher via OSGi service.

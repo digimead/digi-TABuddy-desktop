@@ -47,12 +47,12 @@ import java.util.ResourceBundle;
 
 import org.eclipse.jface.viewers.ComboViewer;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.DisposeListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
@@ -67,10 +67,27 @@ import org.eclipse.ui.forms.widgets.FormToolkit;
 public class ModelCreationWizardPageOneView extends Composite {
 	private static final ResourceBundle BUNDLE = getResourceBundle();
 	private final FormToolkit toolkit = new FormToolkit(Display.getCurrent());
-	private Text txtModelIdentificator;
-	private Text txtModelLocation;
-	private Combo combo;
-	private Button btnModelLocation;
+	private Button btnLocation;
+	private CCombo comboSerialization;
+	private CCombo comboContentEncryption;
+	private CCombo comboContainerEncryption;
+	private CCombo comboDigest;
+	private CCombo comboSignature;
+	private ComboViewer comboViewerDigest;
+	private ComboViewer comboViewerSignature;
+	private ComboViewer comboViewerContainerEncryption;
+	private ComboViewer comboViewerContentEncryption;
+	private Label lblContainerEncryption;
+	private Label lblContentEncryption;
+	private Label lblDigest;
+	private Label lblSignature;
+	private Text textContainerEncryption;
+	private Text textContentEncryption;
+	private Text textDigest;
+	private Text textSignature;
+	private Text txtIdentificator;
+	private Text txtLocation;
+	private ComboViewer comboViewerSerialization;
 
 	/**
 	 * Get ResourceBundle from Scala environment.
@@ -79,7 +96,7 @@ public class ModelCreationWizardPageOneView extends Composite {
 	 */
 	private static ResourceBundle getResourceBundle() {
 		try {
-			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.editor.ui.Messages").newInstance();
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.editor.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
 			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.ui.messages");
 		} catch (IllegalAccessException e) {
@@ -106,46 +123,138 @@ public class ModelCreationWizardPageOneView extends Composite {
 		toolkit.paintBordersFor(this);
 		setLayout(new GridLayout(3, false));
 
-		Label lblModelIdentificator = toolkit.createLabel(this, BUNDLE.getString("lblModelIdentificator_text"), SWT.NONE);
-		lblModelIdentificator.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		Label lblIdentificator = toolkit.createLabel(this, BUNDLE.getString("lblIdentificator_text"), SWT.NONE);
+		lblIdentificator.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
 
-		txtModelIdentificator = toolkit.createText(this, "", SWT.NONE);
-		txtModelIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		txtIdentificator = toolkit.createText(this, "", SWT.NONE);
+		txtIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
 		new Label(this, SWT.NONE);
 
-		Label lblModelLocation = toolkit.createLabel(this, BUNDLE.getString("lblModelLocation_text"), SWT.NONE);
-		lblModelLocation.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		Label lblLocation = toolkit.createLabel(this, BUNDLE.getString("lblLocation_text"), SWT.NONE);
+		lblLocation.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
 
-		txtModelLocation = toolkit.createText(this, "", SWT.NONE);
-		txtModelLocation.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		txtLocation = toolkit.createText(this, "", SWT.NONE);
+		txtLocation.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
 
-		btnModelLocation = toolkit.createButton(this, BUNDLE.getString("btnModelLocation_text"), SWT.NONE);
+		btnLocation = toolkit.createButton(this, BUNDLE.getString("btnLocation_text"), SWT.NONE);
 
-		Label lblModelSerialization = toolkit.createLabel(this, BUNDLE.getString("lblModelSerialization_text"), SWT.NONE);
-		lblModelSerialization.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		Label lblSerialization = toolkit.createLabel(this, BUNDLE.getString("lblSerialization_text"), SWT.NONE);
+		lblSerialization.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
 
-		ComboViewer comboViewer = new ComboViewer(this, SWT.READ_ONLY);
-		combo = comboViewer.getCombo();
-		combo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
-		toolkit.adapt(combo);
-		toolkit.paintBordersFor(combo);
+		comboSerialization = new CCombo(this, SWT.READ_ONLY | SWT.FLAT);
+		comboSerialization.setData(FormToolkit.KEY_DRAW_BORDER, FormToolkit.TEXT_BORDER);
+		comboSerialization.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		comboViewerSerialization = new ComboViewer(comboSerialization);
+		toolkit.adapt(comboSerialization);
+		toolkit.paintBordersFor(comboSerialization);
 		new Label(this, SWT.NONE);
 
+		lblDigest = new Label(this, SWT.NONE);
+		lblDigest.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		lblDigest.setText(BUNDLE.getString("lblDigest_text"));
+		toolkit.adapt(lblDigest, true, true);
+
+		comboDigest = new CCombo(this, SWT.READ_ONLY | SWT.FLAT);
+		comboDigest.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		comboDigest.setData(FormToolkit.KEY_DRAW_BORDER, FormToolkit.TEXT_BORDER);
+		comboViewerDigest = new ComboViewer(comboDigest);
+		toolkit.adapt(comboDigest);
+		toolkit.paintBordersFor(comboDigest);
+
+		textDigest = toolkit.createText(this, "", SWT.NONE);
+		textDigest.setEditable(false);
+		textDigest.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		toolkit.adapt(textDigest, true, true);
+
+		lblSignature = new Label(this, SWT.NONE);
+		lblSignature.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		toolkit.adapt(lblSignature, true, true);
+		lblSignature.setText(BUNDLE.getString("lblSignature_text"));
+
+		comboSignature = new CCombo(this, SWT.READ_ONLY | SWT.FLAT);
+		comboSignature.setData(FormToolkit.KEY_DRAW_BORDER, FormToolkit.TEXT_BORDER);
+		comboSignature.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		comboViewerSignature = new ComboViewer(comboSignature);
+		toolkit.adapt(comboSignature);
+		toolkit.paintBordersFor(comboSignature);
+
+		textSignature = toolkit.createText(this, "", SWT.NONE);
+		textSignature.setEditable(false);
+		textSignature.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		toolkit.adapt(textSignature, true, true);
+
+		lblContainerEncryption = new Label(this, SWT.NONE);
+		lblContainerEncryption.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		toolkit.adapt(lblContainerEncryption, true, true);
+		lblContainerEncryption.setText(BUNDLE.getString("lblContainerEncryption_text"));
+
+		comboContainerEncryption = new CCombo(this, SWT.READ_ONLY | SWT.FLAT);
+		comboContainerEncryption.setData(FormToolkit.KEY_DRAW_BORDER, FormToolkit.TEXT_BORDER);
+		comboContainerEncryption.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		comboViewerContainerEncryption = new ComboViewer(comboContainerEncryption);
+		toolkit.adapt(comboContainerEncryption);
+		toolkit.paintBordersFor(comboContainerEncryption);
+
+		textContainerEncryption = toolkit.createText(this, "", SWT.NONE);
+		textContainerEncryption.setEditable(false);
+		textContainerEncryption.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		toolkit.adapt(textContainerEncryption, true, true);
+
+		lblContentEncryption = new Label(this, SWT.NONE);
+		lblContentEncryption.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		toolkit.adapt(lblContentEncryption, true, true);
+		lblContentEncryption.setText(BUNDLE.getString("lblContentEncryption_text"));
+
+		comboContentEncryption = new CCombo(this, SWT.READ_ONLY | SWT.FLAT);
+		comboContentEncryption.setData(FormToolkit.KEY_DRAW_BORDER, FormToolkit.TEXT_BORDER);
+		comboContentEncryption.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		comboViewerContentEncryption = new ComboViewer(comboContentEncryption);
+		toolkit.adapt(comboContentEncryption);
+		toolkit.paintBordersFor(comboContentEncryption);
+
+		textContentEncryption = toolkit.createText(this, "", SWT.NONE);
+		textContentEncryption.setEditable(false);
+		textContentEncryption.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		toolkit.adapt(textContentEncryption, true, true);
 	}
 
 	public Text getTxtModelIdentificator() {
-		return txtModelIdentificator;
+		return txtIdentificator;
 	}
 
 	public Text getTxtModelLocation() {
-		return txtModelLocation;
-	}
-
-	public Combo getCombo() {
-		return combo;
+		return txtLocation;
 	}
 
 	public Button getBtnModelLocation() {
-		return btnModelLocation;
+		return btnLocation;
+	}
+
+	protected ComboViewer getComboViewerSerialization() {
+		return comboViewerSerialization;
+	}
+	protected ComboViewer getComboViewerDigest() {
+		return comboViewerDigest;
+	}
+	protected ComboViewer getComboViewerSignature() {
+		return comboViewerSignature;
+	}
+	protected ComboViewer getComboViewerContainerEncryption() {
+		return comboViewerContainerEncryption;
+	}
+	protected ComboViewer getComboViewerContentEncryption() {
+		return comboViewerContentEncryption;
+	}
+	protected Text getTextDigest() {
+		return textDigest;
+	}
+	protected Text getTextSignature() {
+		return textSignature;
+	}
+	protected Text getTextContainerEncryption() {
+		return textContainerEncryption;
+	}
+	protected Text getTextContentEncryption() {
+		return textContentEncryption;
 	}
 }

@@ -208,6 +208,8 @@ class UI extends akka.actor.Actor with XLoggable {
       Resources.stop(App.bundle(getClass).getBundleContext())
     } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
   }
+
+  override def toString = "core.ui.UI"
 }
 
 object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMapConsumer with XLoggable {
@@ -251,7 +253,7 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
   /** Sets the shape that the CTabFolder will use to render itself. */
   def tabFolderSimple = DI.tabFolderSimple
 
-  override def toString = "UI[Singleton]"
+  override def toString = "core.ui.UI[Singleton]"
 
   /*
    * Explicit import of runtime components.

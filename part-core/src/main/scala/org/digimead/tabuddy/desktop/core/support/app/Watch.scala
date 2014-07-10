@@ -46,12 +46,15 @@ package org.digimead.tabuddy.desktop.core.support.app
 import java.util.concurrent.{ Exchanger, ExecutionException, TimeUnit }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
-import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.digi.lib.log.api.XRichLogger
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import scala.annotation.elidable
+import scala.annotation.elidable.FINE
 import scala.collection.mutable
-import scala.concurrent.{ Await, Future, TimeoutException }
+import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration.Duration
+import org.digimead.digi.lib.log.api.XLoggable
 
 /**
  * Watch trait that adds ability to track references(objects) and call hooks on start/stop
@@ -63,7 +66,8 @@ trait Watch {
   protected val watchSet = mutable.HashSet[Int]()
 
   /** Get new watcher. */
-  def watch(refs: AnyRef*): Watch.Watcher = new Watch.Watcher(refs.map(System.identityHashCode).toSet, new Throwable("Refs: " + refs.mkString(",")))
+  def watch(refs: AnyRef*)(implicit containerLog: XRichLogger): Watch.Watcher =
+    new Watch.Watcher(refs.map(System.identityHashCode).toSet, new Throwable("Refs: " + refs.mkString(",")), containerLog)
   /** Reset watchers. */
   def watchResetList() = watchSet.synchronized {
     watchRef.clear()
@@ -76,10 +80,11 @@ trait Watch {
 /*
  * App.watch(myObject1, ...).once().always().timeout(n).afterStart({ ... })
  */
-object Watch extends XLoggable {
+object Watch {
   implicit lazy val ec = App.system.dispatcher
   /** Watcher implementation. */
-  class Watcher(val ids: Set[Int], val t: Throwable) extends XLoggable {
+  class Watcher(val ids: Set[Int], val t: Throwable, val containerLog: XRichLogger) extends XLoggable {
+    override implicit lazy val log: XRichLogger = containerLog
     @volatile protected var argActive = false
     protected var argTimes = 1
     protected var hookAfterStart = Seq.empty[(Int, Function0[_])]
@@ -126,7 +131,7 @@ object Watch extends XLoggable {
     /** Stop Id's. */
     @log
     def off[A](f: ⇒ A = {}): A = {
-      log.debug("off " + this)
+      traceOff()
       val (before, after, watchers) = App.watchSet.synchronized {
         // Core bundle is reseted independently while development mode is enabled.
         if (ids.forall(!App.watchSet(_)) && !App.isDevelopmentMode)
@@ -160,10 +165,13 @@ object Watch extends XLoggable {
        * - hooks haven't new one from the new watcher
        */
       // point A
+      traceOffBeforeStop()
       process(before)
+      traceOffStop()
       val result = f
       // point B
       App.watchSet.synchronized { App.watchSet --= ids } // deactivate
+      traceOffAfterStop()
       process(after + (() ⇒ watchers.map(_.compress)))
       // Invoke lost watchers from A-B
       App.watchSet.synchronized { ids.flatMap(w ⇒ App.watchRef.get(w)) }.flatten.map(_.sync())
@@ -172,7 +180,7 @@ object Watch extends XLoggable {
     /** Start Id's. */
     @log
     def on[A](f: ⇒ A = {}): A = {
-      log.debug("on " + this)
+      traceOn()
       val (before, after, watchers) = App.watchSet.synchronized {
         if (ids.forall(App.watchSet))
           throw new IllegalStateException(this + " is already on")
@@ -206,10 +214,13 @@ object Watch extends XLoggable {
        * - hooks haven't new one from the new watcher
        */
       // point A
+      traceOnBeforeStart()
       process(before)
+      traceOnStart()
       val result = f
       // point B
       App.watchSet.synchronized { App.watchSet ++= ids } // activate
+      traceOnAfterStart()
       process(after + (() ⇒ watchers.map(_.compress)))
       // Invoke lost watchers from A-B
       App.watchSet.synchronized { ids.flatMap(w ⇒ App.watchRef.get(w)) }.flatten.map(_.sync())
@@ -249,6 +260,7 @@ object Watch extends XLoggable {
     }
     /** Wait for start. */
     def waitForStart(timeout: Duration = Duration.Inf): Watcher = {
+      traceWaitingForStart()
       val exchanger = App.watchSet.synchronized {
         if (ids.forall(App.watchSet)) {
           argActive = true
@@ -270,6 +282,7 @@ object Watch extends XLoggable {
     }
     /** Wait for stop. */
     def waitForStop(timeout: Duration = Duration.Inf): Watcher = {
+      traceWaitingForStop()
       val exchanger = App.watchSet.synchronized {
         if (ids.forall(!App.watchSet(_))) {
           argActive = false
@@ -329,7 +342,26 @@ object Watch extends XLoggable {
         }
         f
       }), DI.maxProcessDuration)
-
+    @elidable(FINE) protected def traceWaitingForStart() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} Waiting for ON (${t.getMessage()})")
+    @elidable(FINE) protected def traceWaitingForStop() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} Waiting for OFF (${t.getMessage()})")
+    @elidable(FINE) protected def traceOff() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} OFF (${t.getMessage()})")
+    @elidable(FINE) protected def traceOffAfterStop() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} launch hooks after (${t.getMessage()}) was OFF")
+    @elidable(FINE) protected def traceOffBeforeStop() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} launch hooks before (${t.getMessage()}) will be OFF")
+    @elidable(FINE) protected def traceOffStop() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} launch OFF routine (${t.getMessage()})")
+    @elidable(FINE) protected def traceOn() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} ON (${t.getMessage()})")
+    @elidable(FINE) protected def traceOnAfterStart() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} launch hooks after (${t.getMessage()}) was ON")
+    @elidable(FINE) protected def traceOnBeforeStart() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} launch hooks before (${t.getMessage()}) will be ON")
+    @elidable(FINE) protected def traceOnStart() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} launch ON routine (${t.getMessage()})")
     override lazy val toString = s"Watcher(${t.getMessage()})"
   }
 
