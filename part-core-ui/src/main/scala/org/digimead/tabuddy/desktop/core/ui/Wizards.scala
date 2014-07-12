@@ -47,10 +47,13 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.ui.definition.IWizard
-import org.eclipse.jface.wizard.WizardDialog
-import org.eclipse.swt.widgets.Shell
+import org.eclipse.jface.wizard.{ ProgressMonitorPart, WizardDialog }
+import org.eclipse.swt.widgets.{ Composite, Control, Shell }
 import scala.language.implicitConversions
 
+/**
+ * Application wizards singleton.
+ */
 class Wizards extends XLoggable {
   private val lock = new Object
 
@@ -68,7 +71,11 @@ class Wizards extends XLoggable {
         case wizard ⇒
       }
     }
-    val wd = new WizardDialog(shell, instance)
+    val wd = if (instance.needsProgressMonitor())
+      new WizardDialog(shell, instance)
+    else
+      new Wizards.WizardDialogWithoutProgressMonitor(shell, instance)
+    wd.setHelpAvailable(instance.isHelpAvailable())
     wd.setTitle(instance.getWindowTitle())
     val result = wd.open(): Integer
     instance match {
@@ -100,9 +107,19 @@ object Wizards {
   def inner(): Wizards = DI.implementation
 
   /**
+   * WizardDialog modification without ProgressMonitorPart
+   */
+  class WizardDialogWithoutProgressMonitor(parentShell: Shell, newWizard: IWizard) extends WizardDialog(parentShell, newWizard) {
+    override protected def createDialogArea(parent: Composite): Control = {
+      val result = super.createDialogArea(parent)
+      getProgressMonitor().asInstanceOf[ProgressMonitorPart].dispose()
+      result
+    }
+  }
+  /**
    * Dependency injection routines.
    */
-  private object DI extends XDependencyInjection.PersistentInjectable {
+  object DI extends XDependencyInjection.PersistentInjectable {
     /** Wizards implementation */
     lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
   }

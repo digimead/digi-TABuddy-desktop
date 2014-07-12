@@ -101,7 +101,7 @@ public class InspectorDialogSkel extends TitleAreaDialog {
 	 */
 	public InspectorDialogSkel(Shell parentShell) {
 		super(parentShell);
-		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE);
+		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.SYSTEM_MODAL);
 	}
 
 	/**

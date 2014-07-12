@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,47 +43,37 @@
 
 package org.digimead.tabuddy.desktop.core.ui.support
 
-import org.digimead.tabuddy.desktop.core.Messages
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.Resources
 import org.eclipse.jface.fieldassist.ControlDecoration
-import org.eclipse.swt.events.VerifyEvent
-import org.eclipse.swt.widgets.{ Combo, Control, Text }
+import org.eclipse.swt.events.{ VerifyEvent, VerifyListener }
+import org.eclipse.swt.widgets.{ Combo, Control, Text ⇒ JText }
 import scala.ref.WeakReference
 
 /**
- * SWT element validator that handle VerifyEvents and check against App.symbolPattern.
+ * SWT element validator that handle VerifyEvents.
  */
-class SymbolValidator(override val decoration: WeakReference[ControlDecoration], showOnlyOnFocus: Boolean, callback: (Validator[VerifyEvent], VerifyEvent) ⇒ Any)
-  extends TextValidator(decoration, showOnlyOnFocus, callback) {
-  override def showDecorationRequired(decoration: ControlDecoration, message: String = Messages.identificatorIsNotDefined_text) =
-    showDecoration(decoration, message, Resources.Image.required)
-  override def showDecorationError(decoration: ControlDecoration, message: String = Messages.identificatorCharacterIsNotValid_text) =
-    showDecoration(decoration, message, Resources.Image.error)
-
+class TextValidator(
+  /** ControlDecoration instance */
+  decoration: WeakReference[ControlDecoration],
+  /** Set the boolean that controls whether the decoration is shown only when the control has focus. */
+  showOnlyOnFocus: Boolean,
+  /** Validation callback */
+  callback: (Validator[VerifyEvent], VerifyEvent) ⇒ Any) extends Validator[VerifyEvent](decoration, showOnlyOnFocus, callback) with VerifyListener {
   /** Sent when the text is about to be modified. */
-  override def verifyText(e: VerifyEvent) {
-    if (e.text.nonEmpty && e.character != '\u0000') {
-      // add lead letter if _ is a first symbol and start is not 0
-      val text = if (e.start != 0 && e.text(0) == '_') "a" + e.text else e.text
-      e.doit = App.symbolPattern.matcher(text).matches()
-    }
-    callback(this, e)
-  }
+  override def verifyText(e: VerifyEvent) = callback(this, e)
 }
 
-object SymbolValidator {
+object TextValidator {
   /** Create validator, add decoration and validation listener to control. */
-  def apply[T](control: Control, showOnlyOnFocus: Boolean)(onValidation: (Validator[VerifyEvent], VerifyEvent) ⇒ T): SymbolValidator =
+  def apply[T](control: Control, showOnlyOnFocus: Boolean)(onValidation: (Validator[VerifyEvent], VerifyEvent) ⇒ T): Validator[VerifyEvent] =
     apply(control, showOnlyOnFocus, null)(onValidation)
   /** Create validator, add decoration and validation listener to control. */
-  def apply[T](control: Control, showOnlyOnFocus: Boolean, decoration: ControlDecoration)(onValidation: (Validator[VerifyEvent], VerifyEvent) ⇒ T): SymbolValidator = {
+  def apply[T](control: Control, showOnlyOnFocus: Boolean, decoration: ControlDecoration)(onValidation: (Validator[VerifyEvent], VerifyEvent) ⇒ T): Validator[VerifyEvent] = {
     val viewerDecoration = Option(decoration).getOrElse(new ControlDecoration(control, Validator.defaultDecorationLocation))
-    val validator = new SymbolValidator(WeakReference(viewerDecoration), showOnlyOnFocus, onValidation)
+    val validator = new TextValidator(WeakReference(viewerDecoration), showOnlyOnFocus, onValidation)
     control match {
       case combo: Combo ⇒
         combo.addVerifyListener(validator)
-      case text: Text ⇒
+      case text: JText ⇒
         text.addVerifyListener(validator)
       case _ ⇒
     }

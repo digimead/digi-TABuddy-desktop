@@ -43,7 +43,9 @@
 
 package org.digimead.tabuddy.desktop.core.ui.definition
 
-/** Base application wizard with init(arg) method */
+/**
+ * Base application wizard with init(arg) method
+ */
 trait IWizard extends org.eclipse.jface.wizard.IWizard {
   /** Wizard result. Int by default. */
   @volatile var result: Option[AnyRef] = None

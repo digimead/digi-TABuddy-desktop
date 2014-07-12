@@ -48,27 +48,27 @@ import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.ui.Resources
 import org.eclipse.jface.fieldassist.ControlDecoration
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ FocusAdapter, FocusEvent, VerifyEvent, VerifyListener }
+import org.eclipse.swt.events.{ FocusAdapter, FocusEvent }
 import org.eclipse.swt.graphics.Image
-import org.eclipse.swt.widgets.{ Combo, Control, Text }
+import org.eclipse.swt.widgets.Control
 import scala.ref.WeakReference
 
-class Validator private[support] (
+/**
+ * SWT element validator.
+ */
+class Validator[T](
   /** ControlDecoration instance */
   val decoration: WeakReference[ControlDecoration],
   /** Set the boolean that controls whether the decoration is shown only when the control has focus. */
   showOnlyOnFocus: Boolean,
   /** Validation callback */
-  callback: (Validator, VerifyEvent) ⇒ Any)
-  extends VerifyListener with XLoggable {
-  withDecoration { decoration ⇒
-    val control = decoration.getControl()
-    decoration.setShowOnlyOnFocus(true)
-    control.addFocusListener(new FocusAdapter() {
-      override def focusLost(e: FocusEvent) = withDecoration(decoration ⇒
-        if (decoration.getShowOnlyOnFocus()) decoration.hide())
-    })
+  callback: (Validator[T], T) ⇒ Any)
+  extends XLoggable {
+  protected lazy val showOnlyOnFocusListener = new FocusAdapter() {
+    override def focusLost(e: FocusEvent) = withDecoration(decoration ⇒
+      if (decoration.getShowOnlyOnFocus()) decoration.hide())
   }
+  setShowOnlyOnFocus(showOnlyOnFocus)
 
   /**
    * Get the boolean that controls whether the decoration is shown only when
@@ -81,7 +81,17 @@ class Validator private[support] (
    * the control has focus. The default value of this setting is
    * <code>false</code>.
    */
-  def setShowOnlyOnFocus(showOnlyOnFocus: Boolean) = withDecoration(_.setShowOnlyOnFocus(showOnlyOnFocus))
+  def setShowOnlyOnFocus(showOnlyOnFocus: Boolean) = withDecoration { decoration ⇒
+    if (showOnlyOnFocus) {
+      val control = decoration.getControl()
+      decoration.setShowOnlyOnFocus(true)
+      control.addFocusListener(showOnlyOnFocusListener)
+    } else {
+      val control = decoration.getControl()
+      decoration.setShowOnlyOnFocus(false)
+      control.removeFocusListener(showOnlyOnFocusListener)
+    }
+  }
   def showDecorationRequired(decoration: ControlDecoration, message: String = Messages.valueIsNotDefined_text) =
     showDecoration(decoration, message, Resources.Image.required)
   def showDecorationError(decoration: ControlDecoration, message: String = Messages.valueCharacterIsNotValid_text) =
@@ -94,30 +104,22 @@ class Validator private[support] (
     decoration.setShowHover(true)
     decoration.showHoverText(message)
   }
-  /** Sent when the text is about to be modified. */
-  override def verifyText(e: VerifyEvent) = callback(this, e)
+  /** Sent when the state is about to be modified. */
+  def verify(e: T) = callback(this, e)
   /** Get decoration if any */
   def withDecoration[T](f: ControlDecoration ⇒ T): Option[T] = decoration.get.map(f(_))
 }
 
 object Validator {
   /** The default decoration location for the new validator */
-  val defaultDecorationLocation = SWT.TOP | SWT.LEFT
+  val defaultDecorationLocation = SWT.BOTTOM | SWT.LEFT
 
-  /** Add validation listener to control */
-  def apply[T](control: Control, showOnlyOnFocus: Boolean)(onValidation: (Validator, VerifyEvent) ⇒ T): Validator =
+  /** Create validator and add decoration to control. */
+  def apply[T](control: Control, showOnlyOnFocus: Boolean)(onValidation: (Validator[T], T) ⇒ _): Validator[T] =
     apply(control, showOnlyOnFocus, null)(onValidation)
-  /** Add validation listener to control */
-  def apply[T](control: Control, showOnlyOnFocus: Boolean, decoration: ControlDecoration)(onValidation: (Validator, VerifyEvent) ⇒ T): Validator = {
+  /** Create validator and add decoration to control. */
+  def apply[T](control: Control, showOnlyOnFocus: Boolean, decoration: ControlDecoration)(onValidation: (Validator[T], T) ⇒ _): Validator[T] = {
     val viewerDecoration = Option(decoration).getOrElse(new ControlDecoration(control, defaultDecorationLocation))
-    val validator = new Validator(WeakReference(viewerDecoration), showOnlyOnFocus, onValidation)
-    control match {
-      case combo: Combo ⇒
-        combo.addVerifyListener(validator)
-      case text: Text ⇒
-        text.addVerifyListener(validator)
-      case _ ⇒
-    }
-    validator
+    new Validator(WeakReference(viewerDecoration), showOnlyOnFocus, onValidation)
   }
 }
