@@ -120,7 +120,7 @@ object Report {
   /** Returns string representation of the specific date. */
   def dateString(date: Date) = DI.df.format(date)
   /** Report implementation. */
-  def inner() = DI.implementation
+  def inner = DI.implementation
 
   override def toString = "core.Report[Singleton]"
 

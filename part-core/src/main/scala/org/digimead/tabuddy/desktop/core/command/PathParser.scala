@@ -104,7 +104,7 @@ class PathParser {
 object PathParser {
   implicit def parser2implementation(c: PathParser.type): PathParser = c.inner
 
-  def inner() = DI.implementation
+  def inner = DI.implementation
 
   /**
    * Dependency injection routines

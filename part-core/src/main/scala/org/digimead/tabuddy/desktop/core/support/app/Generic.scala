@@ -50,7 +50,7 @@ import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.EventLoop
-import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.support.{ App, Timeout }
 import org.eclipse.core.runtime.preferences.InstanceScope
 import org.eclipse.core.runtime.{ IStatus, MultiStatus, Status }
 import org.eclipse.jface.preference.IPreferenceStore
@@ -69,7 +69,7 @@ trait Generic extends EventLoop.Consumer {
   protected lazy val preferenceStore = new ScopedPreferenceStore(InstanceScope.INSTANCE, bundle(getClass).getSymbolicName())
   /** Flag indicating whether UI available. */
   lazy val isUIAvailable = try {
-    watch(UIFlag).waitForStart(Timeout.short)
+    watch(UIFlag).waitForStart(App.UIDetectionTimeout)
     isActive(UIFlag)
   } catch {
     case e: TimeoutException ⇒ false

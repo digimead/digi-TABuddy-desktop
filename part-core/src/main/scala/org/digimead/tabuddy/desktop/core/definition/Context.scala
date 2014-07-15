@@ -172,7 +172,7 @@ object Context {
     implicit def event2implementation(c: Event.type): Event = c.inner
 
     /** Event implementation. */
-    def inner() = DI.implementation
+    def inner = DI.implementation
 
     /**
      * Dependency injection routines.

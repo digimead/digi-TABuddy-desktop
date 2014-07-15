@@ -352,7 +352,12 @@ object Core extends XLoggable {
     def getBindingContexts(): java.util.List[org.eclipse.e4.ui.model.application.commands.MBindingContext] = new java.util.ArrayList()
     def getBindingTables(): java.util.List[org.eclipse.e4.ui.model.application.commands.MBindingTable] = new java.util.ArrayList()
     def getCategories(): java.util.List[org.eclipse.e4.ui.model.application.commands.MCategory] = new java.util.ArrayList()
-    def getChildren(): java.util.List[org.eclipse.e4.ui.model.application.ui.basic.MWindow] = new java.util.ArrayList()
+    def getChildren(): java.util.List[org.eclipse.e4.ui.model.application.ui.basic.MWindow] = {
+      // We are always returns only one window to the framework if any
+      val list = new java.util.ArrayList[org.eclipse.e4.ui.model.application.ui.basic.MWindow]()
+      Option(serviceContext.get(classOf[org.eclipse.e4.ui.model.application.ui.basic.MWindow])).foreach(list.add)
+      list
+    }
     def getCommands(): java.util.List[org.eclipse.e4.ui.model.application.commands.MCommand] = new java.util.ArrayList()
     def getContainerData(): String = ""
     def getContext() = context

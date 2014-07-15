@@ -53,6 +53,7 @@ import org.eclipse.osgi.framework.internal.core.FrameworkProperties
 import scala.annotation.elidable
 import scala.annotation.elidable._
 import scala.collection.immutable
+import scala.concurrent.duration.Duration
 import scala.language.implicitConversions
 
 class App extends XLoggable with app.Akka with app.Context with app.Thread with app.Generic with app.Reflection with app.Watch {
@@ -94,9 +95,12 @@ object App {
   implicit def app2implementation(l: App.type): App = inner
 
   /** App implementation. */
-  def inner(): App = DI.implementation
+  def inner: App = DI.implementation
   /** Event thread delay in ms. */
   def eventThreadDelay = DI.eventThreadDelay
+  /** Get UI detection timeout */
+  // I don't want that this method foul autocompleters
+  protected[support] def UIDetectionTimeout = DI.UIDetectionTimeout
 
   /** An empty actor implementation. */
   trait ContainerActor extends Actor {
@@ -291,12 +295,14 @@ object App {
     }
   }
   /**
-   * Dependency injection routines
+   * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
     /** Event thread delay in ms. */
     lazy val eventThreadDelay = injectOptional[Int]("Core.eventThreadDelay") getOrElse 0
     /** App implementation. */
     lazy val implementation = injectOptional[App] getOrElse new App
+    /** UI detection timeout. */
+    lazy val UIDetectionTimeout = injectOptional[Duration]("Core.UI.DetectionTimeout") getOrElse Timeout.short
   }
 }

@@ -75,7 +75,7 @@ object CommandContextList extends XLoggable {
       }.mkString("\n")
     case (this.descriptor, Right((seq, full: Boolean))) ⇒
       seq.asInstanceOf[Seq[EclipseContext]].sortBy(ctx ⇒ Context.getName(ctx).getOrElse("")).map { context ⇒
-        App.inner().contextDumpHierarchy(context, _ ⇒ true, full)
+        App.contextDumpHierarchy(context, _ ⇒ true, full)
       }.mkString("\n")
   }
   /** Command description. */
@@ -85,10 +85,10 @@ object CommandContextList extends XLoggable {
       parserResult match {
         case Some(~(name, opt)) ⇒
           val nameList = (Context.getName(Core.context.context).map(name ⇒ (name, Core.context.context)) +:
-            App.inner().contextChildren(Core.context).map(ctx ⇒ Context.getName(ctx).map(name ⇒ (name, ctx)))).flatten
+            App.contextChildren(Core.context).map(ctx ⇒ Context.getName(ctx).map(name ⇒ (name, ctx)))).flatten
           Right(nameList.filter(_._1 == name).map(_._2), opt != Some(fullArg)) // full
         case None ⇒
-          Left(Core.context.context +: App.inner().contextChildren(Core.context)) // brief
+          Left(Core.context.context +: App.contextChildren(Core.context)) // brief
       }
     })
   /** Command parser. */

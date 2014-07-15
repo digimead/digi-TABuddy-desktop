@@ -95,7 +95,7 @@ object Commands {
   implicit def commands2implementation(c: Commands.type): Commands = c.inner
 
   /** Commands implementation. */
-  def inner(): Commands = DI.implementation
+  def inner: Commands = DI.implementation
 
   /**
    * Dependency injection routines

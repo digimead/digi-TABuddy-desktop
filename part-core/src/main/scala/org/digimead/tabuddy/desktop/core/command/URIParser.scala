@@ -144,9 +144,9 @@ class URIParser {
 }
 
 object URIParser {
-  implicit def parser2implementation(c: URIParser.type): URIParser = c.inner
+  implicit def parser2implementation(p: URIParser.type): URIParser = p.inner
 
-  def inner() = DI.implementation
+  def inner = DI.implementation
 
   /**
    * Dependency injection routines

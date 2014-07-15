@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.core
 
 import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.definition.NLS
+import org.digimead.tabuddy.desktop.core.definition.{ BaseResourceBundle, NLS }
 
 /**
  * Resource bundle implementation.
@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.definition.NLS
  * This code is directly evaluated in IDE (WindowBuilderPro).
  * Any runtime references that may prevent creation are prohibited.
  */
-class Messages extends ResourceBundle {
+class Messages extends ResourceBundle with BaseResourceBundle {
   def getKeys() = new java.util.Enumeration[String] {
     private val iterator = Messages.T.messages.keys.iterator
     def hasMoreElements(): Boolean = iterator.hasNext
