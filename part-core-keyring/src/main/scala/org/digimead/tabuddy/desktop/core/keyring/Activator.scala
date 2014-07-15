@@ -113,6 +113,7 @@ class Activator extends BundleActivator with XLoggable {
     log.debug("Stop TABuddy Desktop keyring.")
     KeyRing ! App.Message.Inconsistent(KeyRing, None)
     App.watch(Activator) off {}
+    App.watch(KeyRing).waitForStop(Timeout.long)
     try {
       // Stop component actors.
       val inbox = Inbox.create(App.system)

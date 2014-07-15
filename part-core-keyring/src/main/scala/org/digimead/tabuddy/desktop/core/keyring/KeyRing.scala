@@ -217,6 +217,10 @@ object KeyRing {
   override def toString = "core.KeyRing[Singleton]"
 
   /**
+   * Set of predefined fields for key properties.
+   */
+  object Attr extends Attr
+  /**
    * Asymmetric cipher decryptor.
    */
   trait Decryptor extends Function1[Array[Byte], Array[Byte]]
