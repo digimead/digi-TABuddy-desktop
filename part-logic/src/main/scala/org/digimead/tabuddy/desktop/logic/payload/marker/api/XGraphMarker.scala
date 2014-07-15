@@ -47,6 +47,7 @@ import java.io.File
 import java.net.URI
 import java.util.UUID
 import org.digimead.tabuddy.desktop.logic.payload.api.XTypeSchema
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
 import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.serialization.{ Serialization, SData, digest, signature }
 import scala.collection.immutable

@@ -53,10 +53,6 @@ class BlowfishAdapter extends EncryptionAdapter {
   import Command.parser._
   /** Identifier of the encryption mechanism. */
   val identifier: Encryption.Identifier = Blowfish.Identifier
-  /** Encryption name. */
-  val name: String = "Blowfish"
-  /** Encryption description. */
-  val description: String = "Blowfish is a symmetric-key block cipher, designed by Bruce Schneier"
 
   /** Create parser for Blowfish configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = (sp ~>

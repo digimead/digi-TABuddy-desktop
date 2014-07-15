@@ -57,14 +57,12 @@ import org.bouncycastle.crypto.params.{ ParametersWithIV, ParametersWithRandom }
 import org.bouncycastle.util.encoders.Base64
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
 import org.digimead.tabuddy.desktop.id.ID
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
 
 /**
  * GOST28147 encryption implementation.
  */
 class GOST28147 extends XEncryption {
-  /** Encryption description. */
-  val description: String = "Block cipher, defined in the standard GOST 28147-89."
   /** Unique encryption identifier. */
   val identifier = GOST28147.Identifier
 
@@ -156,21 +154,16 @@ object GOST28147 {
     lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[GOST28147]
 
     /** GOST28147 encryption parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(new String(Base64.encode(salt), io.Codec.UTF8.charSet))
-
-    def canEqual(other: Any) = other.isInstanceOf[Parameters]
-    override def equals(other: Any) = other match {
-      case that: Parameters ⇒ (this eq that) || {
-        that.canEqual(this) && that.## == this.##
-      }
-      case _ ⇒ false
-    }
-    override def hashCode() = lazyHashCode
-    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, java.util.Arrays.hashCode(salt): Integer))
+    val arguments: Seq[String] = Seq(new String(Base64.encode(salt), io.Codec.UTF8.charSet))
   }
 
   /**
    * GOST 28147 encryption identifier.
    */
-  object Identifier extends XEncryption.Identifier { val name = "GOST 28147-89" }
+  object Identifier extends XEncryption.Identifier {
+    /** Encryption name. */
+    val name = "GOST 28147-89"
+    /** Encryption description. */
+    val description: String = "the block cipher, defined in the standard GOST 28147-89"
+  }
 }

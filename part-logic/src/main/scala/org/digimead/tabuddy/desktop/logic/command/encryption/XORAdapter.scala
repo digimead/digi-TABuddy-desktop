@@ -53,10 +53,6 @@ class XORAdapter extends EncryptionAdapter {
   import Command.parser._
   /** Identifier of the encryption mechanism. */
   val identifier: Encryption.Identifier = XOR.Identifier
-  /** Encryption name. */
-  val name: String = "XOR"
-  /** Encryption description. */
-  val description: String = "Extremely simple additive cipher"
 
   /** Create parser for XOR configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = sp ~>

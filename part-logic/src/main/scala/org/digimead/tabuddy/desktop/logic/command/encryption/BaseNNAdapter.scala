@@ -53,15 +53,11 @@ class BaseNNAdapter extends EncryptionAdapter {
   import Command.parser._
   /** Identifier of the encryption mechanism. */
   val identifier: Encryption.Identifier = Base.Identifier
-  /** Encryption name. */
-  val name: String = "Base"
-  /** Encryption description. */
-  val description: String = "Base64 and similar binary-to-text encoding schemes like Base32, Base85 and so on..."
 
   /** Create parser for Base configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = sp ~> {
     val base64 = Base.Parameters(Base.Dictionary64)
-    (("64", Command.Hint("64", Some("The \"base64\" base encoding specified by RFC 4648 section 4, Base 64 Encoding"))) ^^
+    (("64", Command.Hint("64", Some("The \"base64\" encoding specified by RFC 4648 section 4, Base 64 Encoding"))) ^^
       { _ ⇒ EncryptionParser.Argument(tag, Some(base64)) })
   }
 }

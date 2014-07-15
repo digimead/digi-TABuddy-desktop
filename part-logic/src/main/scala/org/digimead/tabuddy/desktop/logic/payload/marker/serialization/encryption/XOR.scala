@@ -47,14 +47,12 @@ import com.google.common.io.BaseEncoding
 import java.io.{ InputStream, OutputStream }
 import org.bouncycastle.crypto.{ CipherParameters, DataLengthException, OutputLengthException, StreamCipher }
 import org.bouncycastle.crypto.io.{ CipherInputStream, CipherOutputStream }
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
 
 /**
  * Simple XOR encryption implementation.
  */
 class XOR extends XEncryption {
-  /** Encryption description. */
-  val description: String = "Simple XOR transformation."
   /** Unique encryption identifier. */
   val identifier = XOR.Identifier
 
@@ -149,11 +147,16 @@ object XOR {
     lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[XOR]
 
     /** XOR parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq.empty
+    val arguments: Seq[String] = Seq.empty
   }
 
   /**
    * XOR encryption identifier.
    */
-  object Identifier extends XEncryption.Identifier { val name = "XOR" }
+  object Identifier extends XEncryption.Identifier {
+    /** Encryption name. */
+    val name = "XOR"
+    /** Encryption description. */
+    val description: String = "extremely simple additive cipher"
+  }
 }

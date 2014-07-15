@@ -46,14 +46,12 @@ package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encrypti
 import com.google.common.base.CharMatcher
 import com.google.common.io.BaseEncoding
 import java.io.{ InputStream, InputStreamReader, OutputStream, OutputStreamWriter }
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
 
 /**
  * Base encryption implementation.
  */
 class Base extends XEncryption {
-  /** Encryption description. */
-  val description: String = "Simple base transformation."
   /** Unique encryption identifier. */
   val identifier = Base.Identifier
 
@@ -118,23 +116,18 @@ object Base {
     lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[Base]
 
     /** Base parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(dictionaryLength.length.toString)
-
-    def canEqual(other: Any) = other.isInstanceOf[Parameters]
-    override def equals(other: Any) = other match {
-      case that: Parameters ⇒ (this eq that) || {
-        that.canEqual(this) && that.## == this.##
-      }
-      case _ ⇒ false
-    }
-    override def hashCode() = lazyHashCode
-    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, dictionaryLength))
+    val arguments: Seq[String] = Seq(dictionaryLength.length.toString)
   }
 
   /**
    * Base encryption identifier.
    */
-  object Identifier extends XEncryption.Identifier { val name = "Base" }
+  object Identifier extends XEncryption.Identifier {
+    /** Encryption name. */
+    val name = "base"
+    /** Encryption description. */
+    val description: String = "base64 and similar binary-to-text encoding schemes like base32, base85 and so on..."
+  }
   /**
    * Encryption dictionary length.
    */

@@ -58,8 +58,6 @@ class SimpleSignatureAdapter extends SignatureAdapter {
   import Command.parser._
   /** Identifier of the digest mechanism. */
   val identifier: Mechanism.Identifier = SimpleSignature.Identifier
-  /** Mechanism description. */
-  val description: String = "Simple model signature"
 
   /** Create parser for SimpleSignature configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = "" ^^^ {

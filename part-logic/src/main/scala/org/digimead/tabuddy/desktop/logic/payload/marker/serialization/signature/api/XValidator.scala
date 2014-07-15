@@ -41,19 +41,41 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.command.digest
+package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.api
 
-import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.desktop.logic.command.digest.api.XDigestAdapter
-import org.digimead.tabuddy.model.serialization.digest.Mechanism
+import java.security.PublicKey
+import java.util.UUID
+import org.digimead.tabuddy.desktop.core.keyring.storage.api.XStorage
 
 /**
- * Digest adapter interface.
+ * Serialization validator interface.
  */
-trait DigestAdapter extends XDigestAdapter {
-  /** Identifier of the digest mechanism. */
-  val identifier: Mechanism.Identifier
+trait XValidator extends Product1[UUID] with java.io.Serializable {
+  /** Unique ID. */
+  val id: UUID
+  /** Validator name. */
+  val name: Symbol
+  /** Validator description. */
+  val description: String
 
-  /** Create parser for the digest configuration. */
-  def apply(tag: String): Command.parser.Parser[Any]
+  /** A projection of element 1 of this Product. */
+  def _1: UUID = id
+  /** Get validator rule. */
+  def rule: XValidator.Rule
+  /** Validation routine. */
+  def validator: Option[PublicKey] ⇒ Boolean
+
+  override def canEqual(that: Any) = that.isInstanceOf[XValidator]
+  override def equals(that: Any): Boolean = that match {
+    case that: XValidator ⇒ that.canEqual(this) && that.id.equals(this.id)
+    case _ ⇒ false
+  }
+  override def hashCode = id.##
+}
+
+object XValidator {
+  /**
+   * Validator rule
+   */
+  case class Rule(val implicitlyAccept: Boolean, val acceptUnsigned: Boolean, keys: Seq[XStorage.Key])
 }

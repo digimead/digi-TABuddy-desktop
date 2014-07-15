@@ -41,60 +41,16 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.payload.marker.api
+package org.digimead.tabuddy.desktop.logic.payload.marker.serialization
 
-import java.io.{ InputStream, OutputStream }
+import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.api.XValidator
 
-/**
- * Base encryption interface.
- */
-trait XEncryption {
-  /** Encryption description. */
-  val description: String
-  /** Unique encryption identifier. */
-  val identifier: XEncryption.Identifier
-
-  /** Get encryption parameters. */
-  def apply(key: Option[String], args: String*): XEncryption.Parameters
-  /** Decrypt data. */
-  def decrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte]
-  /** Decrypt input stream. */
-  def decrypt(inputStream: InputStream, parameters: XEncryption.Parameters): InputStream
-  /** Encrypt data. */
-  def encrypt(data: Array[Byte], parameters: XEncryption.Parameters): Array[Byte]
-  /** Encrypt output stearm. */
-  def encrypt(outputStream: OutputStream, parameters: XEncryption.Parameters): OutputStream
-  /** Convert from string. */
-  def fromString(data: String): Array[Byte]
-  /** Convert to string. */
-  def toString(data: Array[Byte]): String
-}
-
-object XEncryption {
-  /**
-   * Identifier that is associated with the encryption.
-   */
-  trait Identifier extends Equals with java.io.Serializable {
-    val name: String
-
-    override def canEqual(that: Any) = that.isInstanceOf[Identifier]
-    override def equals(that: Any): Boolean = that match {
-      case that: Identifier ⇒ that.canEqual(this) && that.name.equals(this.name)
-      case _ ⇒ false
-    }
-    override def hashCode = name.##
-
-    override def toString = s"Encryption.Identifier(${name})"
-  }
-  /**
-   * Encryption parameters.
-   */
-  trait Parameters {
-    /** Encryption parameters as sequence of strings. */
-    def arguments: Seq[String]
-    /** Encryption instance. */
-    def encryption: XEncryption
-    /** Encryption key. */
-    def key: Option[String]
-  }
+package object signature {
+  lazy val default = new NewBindingModule(module ⇒ {
+    module.bind[XValidator] identifiedBy ("Signature.Validator.AcceptAll") toSingle { new Validator.AcceptAll }
+    module.bind[XValidator] identifiedBy ("Signature.Validator.AcceptSigned") toSingle { new Validator.AcceptSigned }
+    DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.Validator$DI$")
+  })
 }

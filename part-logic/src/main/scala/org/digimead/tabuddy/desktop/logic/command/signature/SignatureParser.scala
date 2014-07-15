@@ -85,22 +85,23 @@ class SignatureParser {
     def apply(arg: String): Seq[Command.Hint] = {
       val adapters = validIdentifiers.map(SignatureParser.perIdentifier).toSeq.sortBy(_.identifier.name)
       (Empty +: adapters).filter(_.identifier.name.startsWith(arg)).map(proposal ⇒
-        Command.Hint(proposal.identifier.name, Some(proposal.description), Seq(proposal.identifier.name.drop(arg.length)))).
+        Command.Hint(proposal.identifier.name, Some(proposal.identifier.description), Seq(proposal.identifier.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
   }
-  /** Empty signature argument. */
+  /** Empty signature adapter. */
   object Empty extends SignatureAdapter {
     /** Identifier of the digest mechanism. */
     val identifier: Mechanism.Identifier = Empty
-    /** Mechanism description. */
-    val description: String = "Turn off signature calculation"
 
     /** Create parser for the digest configuration. */
     def apply(tag: String): Command.parser.Parser[Any] = "" ^^^ { SignatureParser.Argument(tag, None) }
 
     object Empty extends Mechanism.Identifier {
-      val name = "none"
+      /** Mechanism name. */
+      val name: String = "none"
+      /** Mechanism description. */
+      val description: String = "turn off signature generation"
     }
   }
 }

@@ -64,11 +64,11 @@ class EncryptionParser {
   def apply(tag: String = ""): Command.parser.Parser[Any] =
     sp ~> commandRegex("\\w+".r, NameHintContainer) ^? {
       case CompletionRequest(name) ⇒
-        validIdentifiers.map(EncryptionParser.perIdentifier).find(_.name == name) getOrElse {
+        validIdentifiers.map(EncryptionParser.perIdentifier).find(_.identifier.name == name) getOrElse {
           name
         }
       case name ⇒
-        validIdentifiers.map(EncryptionParser.perIdentifier).find(_.name == name) getOrElse {
+        validIdentifiers.map(EncryptionParser.perIdentifier).find(_.identifier.name == name) getOrElse {
           if (name == Empty.identifier.name)
             Empty
           else
@@ -83,20 +83,16 @@ class EncryptionParser {
   object NameHintContainer extends Command.Hint.Container {
     /** Get parser hints for user provided argument. */
     def apply(arg: String): Seq[Command.Hint] = {
-      val adapters = validIdentifiers.map(EncryptionParser.perIdentifier).toSeq.sortBy(_.name)
-      (Empty +: adapters).filter(_.name.startsWith(arg)).map(proposal ⇒
-        Command.Hint(proposal.name, Some(proposal.description), Seq(proposal.name.drop(arg.length)))).
+      val adapters = validIdentifiers.map(EncryptionParser.perIdentifier).toSeq.sortBy(_.identifier.name)
+      (Empty +: adapters).filter(_.identifier.name.startsWith(arg)).map(proposal ⇒
+        Command.Hint(proposal.identifier.name, Some(proposal.identifier.description), Seq(proposal.identifier.name.drop(arg.length)))).
         filter(_.completions.head.nonEmpty)
     }
   }
-  /** Empty digest argument. */
+  /** Empty encryption adapter. */
   object Empty extends EncryptionAdapter {
     /** Identifier of the encryption mechanism. */
     val identifier: Encryption.Identifier = Empty
-    /** Encryption name. */
-    val name: String = "None"
-    /** Encryption description. */
-    val description: String = "Turn off encryption"
 
     /** Create parser for the encryption configuration. */
     def apply(tag: String): Command.parser.Parser[Any] = "" ^^^ { EncryptionParser.Argument(tag, None) }
@@ -104,7 +100,10 @@ class EncryptionParser {
     def valid: Boolean = true
 
     object Empty extends Encryption.Identifier {
-      val name = "None"
+      /** Encryption name. */
+      val name: String = "none"
+      /** Encryption description. */
+      val description: String = "turn off encryption"
     }
   }
 }

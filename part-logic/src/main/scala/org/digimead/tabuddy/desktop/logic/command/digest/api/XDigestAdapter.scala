@@ -43,9 +43,6 @@
 
 package org.digimead.tabuddy.desktop.logic.command.digest.api
 
-import org.digimead.tabuddy.desktop.core.definition.command.Command
-import org.digimead.tabuddy.model.serialization.digest.Mechanism
-
 /**
  * Digest adapter interface.
  */

@@ -53,10 +53,6 @@ class AESAdapter extends EncryptionAdapter {
   import Command.parser._
   /** Identifier of the encryption mechanism. */
   val identifier: Encryption.Identifier = AES.Identifier
-  /** Encryption name. */
-  val name: String = "AES"
-  /** Encryption description. */
-  val description: String = "The Advanced Encryption Standard symmetric block cipher"
 
   /** Create parser for AES configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = (sp ~>

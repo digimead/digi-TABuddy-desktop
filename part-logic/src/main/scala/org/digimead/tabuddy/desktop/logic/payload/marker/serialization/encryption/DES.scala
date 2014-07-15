@@ -45,7 +45,6 @@ package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encrypti
 
 import com.google.common.io.BaseEncoding
 import java.io.{ InputStream, OutputStream }
-import java.nio.ByteBuffer
 import org.bouncycastle.crypto.PBEParametersGenerator
 import org.bouncycastle.crypto.digests.SHA1Digest
 import org.bouncycastle.crypto.engines.{ DESEngine, DESedeEngine }
@@ -56,15 +55,12 @@ import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher
 import org.bouncycastle.crypto.params.{ ParametersWithIV, ParametersWithRandom }
 import org.bouncycastle.util.encoders.Base64
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
-import org.digimead.tabuddy.desktop.id.ID
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
 
 /**
  * DES encryption implementation.
  */
 class DES extends XEncryption {
-  /** Encryption description. */
-  val description: String = "Data Encryption Algorithm symmetric-key block cipher."
   /** Unique encryption identifier. */
   val identifier = DES.Identifier
 
@@ -181,8 +177,7 @@ object DES {
   val iterationCount = 128
 
   /** Get DES encryption parameters. */
-  def apply(key: String, triple: Boolean,
-    salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): XEncryption.Parameters =
+  def apply(key: String, triple: Boolean, salt: Array[Byte] = Encryption.defaultSalt): XEncryption.Parameters =
     Encryption.perIdentifier.get(Identifier) match {
       case Some(encryption: DES) ⇒ encryption(Some(key), triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("DES encryption is not available.")
@@ -198,23 +193,18 @@ object DES {
     lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[DES]
 
     /** DES encryption parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(strength.triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
-
-    def canEqual(other: Any) = other.isInstanceOf[Parameters]
-    override def equals(other: Any) = other match {
-      case that: Parameters ⇒ (this eq that) || {
-        that.canEqual(this) && that.## == this.##
-      }
-      case _ ⇒ false
-    }
-    override def hashCode() = lazyHashCode
-    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, strength, java.util.Arrays.hashCode(salt): Integer))
+    val arguments: Seq[String] = Seq(strength.triple.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
   }
 
   /**
    * DES encryption identifier.
    */
-  object Identifier extends XEncryption.Identifier { val name = "DES" }
+  object Identifier extends XEncryption.Identifier {
+    /** Encryption name. */
+    val name = "DES"
+    /** Encryption description. */
+    val description: String = "the Data Encryption Standard symmetric block cipher"
+  }
   /**
    * Encryption strength.
    */

@@ -53,22 +53,20 @@ class SimpleDigestAdapter extends DigestAdapter {
   import Command.parser._
   /** Identifier of the digest mechanism. */
   val identifier: Mechanism.Identifier = SimpleDigest.Identifier
-  /** Mechanism description. */
-  val description: String = "Simple model digest"
 
   /** Create parser for SimpleDigest configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = sp ~> (
     // http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest
-    (("SHA-512", Command.Hint("SHA-512", Some("Hash algorithms defined in the FIPS PUB 180-2."))) ^^
+    (("SHA-512", Command.Hint("SHA-512", Some("hash algorithms defined in the FIPS PUB 180-2."))) ^^
       { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("SHA-512"))) }) |
-      (("SHA-384", Command.Hint("SHA-384", Some("Hash algorithms defined in the FIPS PUB 180-2."))) ^^
+      (("SHA-384", Command.Hint("SHA-384", Some("hash algorithms defined in the FIPS PUB 180-2."))) ^^
         { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("SHA-384"))) }) |
-        (("SHA-256", Command.Hint("SHA-256", Some("Hash algorithms defined in the FIPS PUB 180-2."))) ^^
+        (("SHA-256", Command.Hint("SHA-256", Some("hash algorithms defined in the FIPS PUB 180-2."))) ^^
           { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("SHA-256"))) }) |
-          (("SHA", Command.Hint("SHA", Some("Hash algorithms defined in the FIPS PUB 180-2."))) ^^
+          (("SHA", Command.Hint("SHA", Some("hash algorithms defined in the FIPS PUB 180-2."))) ^^
             { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("SHA-1"))) }) |
-            (("MD5", Command.Hint("MD5", Some("The MD5 message digest algorithm as defined in RFC 1321."))) ^^
+            (("MD5", Command.Hint("MD5", Some("the MD5 message digest algorithm as defined in RFC 1321."))) ^^
               { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("MD5"))) }) |
-              (("MD2", Command.Hint("MD2", Some("The MD2 message digest algorithm as defined in RFC 1319."))) ^^
+              (("MD2", Command.Hint("MD2", Some("the MD2 message digest algorithm as defined in RFC 1319."))) ^^
                 { _ ⇒ DigestParser.Argument(tag, Some(SimpleDigest("MD2"))) }))
 }

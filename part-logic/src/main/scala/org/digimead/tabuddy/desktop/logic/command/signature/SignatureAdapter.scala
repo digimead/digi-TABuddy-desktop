@@ -53,9 +53,7 @@ import org.digimead.tabuddy.model.serialization.signature.Mechanism
 trait SignatureAdapter extends XSignatureAdapter {
   /** Identifier of the signature mechanism. */
   val identifier: Mechanism.Identifier
-  /** Mechanism description. */
-  val description: String
 
-  /** Create parser for the digest configuration. */
+  /** Create parser for the signature configuration. */
   def apply(tag: String): Command.parser.Parser[Any]
 }

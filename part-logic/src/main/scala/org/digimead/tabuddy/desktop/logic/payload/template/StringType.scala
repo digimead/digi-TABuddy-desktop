@@ -132,7 +132,7 @@ object StringType extends StringType with XLoggable {
   class Editor(val data: WritableValue[String], val propertyId: Symbol, val element: Element)(implicit val argManifest: Manifest[String]) extends PropertyType.Editor[String] {
     protected val pattern = """[\p{Print}]*""".r.pattern
     /** Add the validator */
-    def addValidator(control: Control, showOnlyOnFocus: Boolean): Option[Validator] =
+    def addValidator(control: Control, showOnlyOnFocus: Boolean): Option[Validator[VerifyEvent]] =
       Some(Validator(control, showOnlyOnFocus)(validate))
     /** Get an UI control */
     def createControl(parent: Composite, style: Int, updateDelay: Int): Control =
@@ -190,7 +190,7 @@ object StringType extends StringType with XLoggable {
     /** Returns true if the data is empty, false otherwise. */
     def isEmpty = data.value == null || data.value.trim.isEmpty
     /** The validator function */
-    def validate(validator: Validator, event: VerifyEvent) {
+    def validate(validator: Validator[VerifyEvent], event: VerifyEvent) {
       if (event.text.nonEmpty && event.character != '\u0000')
         event.doit = pattern.matcher(event.text).matches()
       if (!event.doit)

@@ -45,7 +45,6 @@ package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encrypti
 
 import com.google.common.io.BaseEncoding
 import java.io.{ InputStream, OutputStream }
-import java.nio.ByteBuffer
 import org.bouncycastle.crypto.PBEParametersGenerator
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.engines.AESEngine
@@ -56,8 +55,7 @@ import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher
 import org.bouncycastle.crypto.params.{ ParametersWithIV, ParametersWithRandom }
 import org.bouncycastle.util.encoders.Base64
 import org.digimead.tabuddy.desktop.core.keyring.KeyRing
-import org.digimead.tabuddy.desktop.id.ID
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
 
 /**
  * AES encryption implementation.
@@ -144,8 +142,7 @@ object AES {
   val iterationCount = 128
 
   /** Get AES encryption parameters. */
-  def apply(key: String, keyLength: AES.LengthParameter,
-    salt: Array[Byte] = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()): XEncryption.Parameters =
+  def apply(key: String, keyLength: AES.LengthParameter, salt: Array[Byte] = Encryption.defaultSalt): XEncryption.Parameters =
     Encryption.perIdentifier.get(Identifier) match {
       case Some(encryption: AES) ⇒ encryption(Some(key), keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
       case _ ⇒ throw new IllegalStateException("AES encryption is not available.")
@@ -161,23 +158,18 @@ object AES {
     lazy val encryption = Encryption.perIdentifier(Identifier).asInstanceOf[AES]
 
     /** AES encryption parameters as sequence of strings. */
-    def arguments: Seq[String] = Seq(keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
-
-    def canEqual(other: Any) = other.isInstanceOf[Parameters]
-    override def equals(other: Any) = other match {
-      case that: Parameters ⇒ (this eq that) || {
-        that.canEqual(this) && that.## == this.##
-      }
-      case _ ⇒ false
-    }
-    override def hashCode() = lazyHashCode
-    protected lazy val lazyHashCode = java.util.Arrays.hashCode(Array[AnyRef](key, keyLength, java.util.Arrays.hashCode(salt): Integer))
+    val arguments: Seq[String] = Seq(keyLength.length.toString, new String(Base64.encode(salt), io.Codec.UTF8.charSet))
   }
 
   /**
    * AES encryption identifier.
    */
-  object Identifier extends XEncryption.Identifier { val name = "AES" }
+  object Identifier extends XEncryption.Identifier {
+    /** Encryption name. */
+    val name = "AES"
+    /** Encryption description. */
+    val description: String = "the Advanced Encryption Standard symmetric block cipher"
+  }
   /**
    * Encryption key length.
    */

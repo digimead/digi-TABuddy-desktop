@@ -208,7 +208,8 @@ class Logic extends akka.actor.Actor with XLoggable {
       self ! App.Message.Inconsistent(Logic, None)
       // Initialize lazy actors
       Logic.actor
-      windowWatcherRef
+      if (App.isUIAvailable)
+        windowWatcherRef
       val context = thisBundle.getBundleContext()
       openContainer()
       Config.start(context) // Initialize the application configuration based on Configgy

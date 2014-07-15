@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic.payload.marker.serialization
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
 
 package object encryption {
   lazy val default = new NewBindingModule(module ⇒ {

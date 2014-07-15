@@ -45,7 +45,9 @@ package org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encrypti
 
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
+import java.nio.ByteBuffer
+import org.digimead.tabuddy.desktop.id.ID
 
 /**
  * Container for all available encryption implementations.
@@ -53,6 +55,8 @@ import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
 object Encryption extends XLoggable {
   type Identifier = XEncryption.Identifier
   type Parameters = XEncryption.Parameters
+  /** Default application salt. */
+  val defaultSalt = ByteBuffer.allocate(8).putLong(ID.thisPublicSigningKey.getKeyID()).array()
 
   /** Map of all available encryption implementations. */
   def perIdentifier = DI.perIdentifier

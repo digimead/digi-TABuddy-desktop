@@ -53,10 +53,6 @@ import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryptio
 trait EncryptionAdapter extends XEncryptionAdapter {
   /** Identifier of the encryption mechanism. */
   val identifier: Encryption.Identifier
-  /** Encryption name. */
-  val name: String
-  /** Encryption description. */
-  val description: String
 
   /** Create parser for the encryption configuration. */
   def apply(tag: String): Command.parser.Parser[Any]

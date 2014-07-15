@@ -55,6 +55,8 @@ object Default {
   def DESCENDING = DI.DESCENDING
   /** Auto resize column padding */
   def columnPadding = DI.columnPadding
+  /** Password char. */
+  def passwordChar = DI.passwordChar
   /** Default sort direction */
   def sortingDirection = DI.sortingDirection
   /**
@@ -81,6 +83,8 @@ object Default {
     lazy val DESCENDING = injectOptional[Boolean]("Default.Sorting.DESCENDING") getOrElse true
     /** Auto resize column padding */
     lazy val columnPadding = injectOptional[Int]("Default.columnPadding") getOrElse 10
+    /** Password char. */
+    lazy val passwordChar = injectOptional[Char]("Default.passwordChar") getOrElse 0x25cf.toChar
     /** Default sort direction */
     lazy val sortingDirection = injectOptional[Boolean]("Default.Sorting.Direction") getOrElse Default.ASCENDING
     /**

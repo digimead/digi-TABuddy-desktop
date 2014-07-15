@@ -155,7 +155,7 @@ object PropertyType extends XLoggable {
     val element: Element
 
     /** Add the validator */
-    def addValidator(control: Control, showOnlyOnFocus: Boolean = true): Option[Validator]
+    def addValidator(control: Control, showOnlyOnFocus: Boolean = true): Option[Validator[VerifyEvent]]
     /** Get a combo viewer UI control */
     def createCControl(parent: Composite): ComboViewer = createCControl(parent, SWT.NONE)
     /** Get a combo viewer UI control */
@@ -169,7 +169,7 @@ object PropertyType extends XLoggable {
     /** Get a combo viewer UI control */
     def createCControl(toolkit: FormToolkit, parent: Composite, style: Int, updateDelay: Int): ComboViewer
     /** The validator function */
-    def validate(validator: Validator, event: VerifyEvent): Unit
+    def validate(validator: Validator[VerifyEvent], event: VerifyEvent): Unit
   }
   /**
    * Element property trait that provides a viewer widget

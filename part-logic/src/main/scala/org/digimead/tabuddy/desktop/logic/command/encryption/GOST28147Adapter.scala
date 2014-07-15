@@ -53,10 +53,6 @@ class GOST28147Adapter extends EncryptionAdapter {
   import Command.parser._
   /** Identifier of the encryption mechanism. */
   val identifier: Encryption.Identifier = GOST28147.Identifier
-  /** Encryption name. */
-  val name: String = "GOST28147"
-  /** Encryption description. */
-  val description: String = "The block cipher, defined in the standard GOST 28147-89"
 
   /** Create parser for GOST28147 configuration. */
   def apply(tag: String): Command.parser.Parser[Any] = (sp ~>
