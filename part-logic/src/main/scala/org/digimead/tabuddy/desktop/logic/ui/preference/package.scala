@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,22 +41,13 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.logic.ui
 
 import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.Config
-import org.digimead.tabuddy.desktop.logic.api.XConfig
+import org.digimead.tabuddy.desktop.core.definition.api.XPreferencePage
 
-package object logic {
+package object preference {
   lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[XConfig] toModuleSingle { implicit module ⇒ new Config }
+    module.bind[XPreferencePage] identifiedBy "UI.Preference.SignatureValidator" toSingle { new SignatureValidator }
   })
-  lazy val defaultBundle = default ~
-    command.default ~ command.digest.default ~ command.encryption.default ~ command.signature.default ~
-    comparator.default ~ filter.default ~ operation.default ~
-    payload.default ~ payload.marker.serialization.encryption.default ~ payload.marker.serialization.signature.default ~ payload.view.default ~
-    ui.default ~ ui.preference.default ~
-    ui.support.digest.default ~ ui.support.signature.default ~ ui.support.encryption.default
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.Default$DI$")
 }

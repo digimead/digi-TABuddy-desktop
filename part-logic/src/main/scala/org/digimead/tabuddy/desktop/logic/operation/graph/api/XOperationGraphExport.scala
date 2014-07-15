@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic.operation.graph.api
 
 import java.net.URI
 import org.digimead.tabuddy.desktop.core.definition.api.XOperation
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XEncryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.api.XEncryption
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.{ Serialization, digest, signature }

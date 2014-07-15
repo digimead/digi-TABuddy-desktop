@@ -56,11 +56,11 @@ class Wizards extends XLoggable {
   /** Configure component wizards. */
   @log
   def configure() {
-    Resources.registerWizard(classOf[WizardGraphNew])
+    Resources.registerWizard(classOf[NewGraphWizard])
   }
   @log /** Unconfigure component wizards. */
   def unconfigure() {
-    Resources.unregisterWizard(classOf[WizardGraphNew])
+    Resources.unregisterWizard(classOf[NewGraphWizard])
   }
 }
 

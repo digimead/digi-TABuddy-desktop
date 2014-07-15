@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,24 +43,20 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.wizard
 
-import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.definition.INewWizard
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.{ IStatus, Status }
+import org.eclipse.core.runtime.IStatus
+import org.eclipse.core.runtime.Status
 import org.eclipse.jface.dialogs.ErrorDialog
 import org.eclipse.jface.wizard.Wizard
+import org.digimead.tabuddy.desktop.core.ui.definition.INewWizard
 
-class WizardGraphNew extends Wizard with INewWizard with XLoggable {
+class NewGraphWizard extends Wizard with INewWizard with XLoggable {
   /** The only available page. */
-  lazy val one = new WizardGraphNewPageOne()
-  setWindowTitle(Messages.shellTitleEmpty_text)
+  lazy val one = new NewGraphWizardPageOne()
+  setWindowTitle(Messages.NewGraphWizard_shellTitleEmpty_text)
 
   /**
    * Adds any last-minute pages to this wizard.
@@ -90,22 +86,28 @@ class WizardGraphNew extends Wizard with INewWizard with XLoggable {
    *   that the finish request was refused
    */
   @log
-  def performFinish() = try {
-    val marker = GraphMarker.createInTheWorkspace(UUID.randomUUID(), one.getModelLocation(), Element.timestamp(), Payload.origin, Payload.defaultSerialization)
-    if (!marker.markerIsValid) {
-      val status = new Status(IStatus.ERROR, Messages.wizardGraphNewPageOneTitle_text, Messages.creationError_text)
-      ErrorDialog.openError(one.getShell(), CoreMessages.error_text + ".", Messages.creationError_text, status)
-      throw new IllegalStateException(marker + " is not valid.")
-      false
-    } else {
-      result = Some(marker)
+  def performFinish() = {
+    val location = one.getGraphLocation()
+    val id = location.getName()
+    try {
+      //      val marker = Payload.createModel(location)
+      //      if (Payload.acquireModel(marker).isEmpty) {
+      //        val status = new Status(IStatus.ERROR, Messages.ModelCreationWizardPageOne_title_text,
+      //          Messages.ModelCreationWizardPageOne_creationError_text)
+      //        ErrorDialog.openError(one.getShell(), CoreMessages.error_text + ".",
+      //          Messages.ModelCreationWizardPageOne_creationError_text, status)
+      //        false
+      //      } else {
+      //        result = Some(marker)
+      //        true
+      //      }
       true
+    } catch {
+      case e: Throwable ⇒
+        //        val status = App.throwableToMultiStatus(e, App.bundle(getClass))
+        //        ErrorDialog.openError(one.getShell(), CoreMessages.error_text + ".",
+        //          Messages.ModelCreationWizardPageOne_creationError_text, status)
+        false
     }
-  } catch {
-    case e: Throwable ⇒
-      val status = App.throwableToMultiStatus(e, App.bundle(getClass))
-      ErrorDialog.openError(one.getShell(), CoreMessages.error_text + ".",
-        Messages.creationError_text, status)
-      false
   }
 }

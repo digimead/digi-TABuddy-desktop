@@ -50,7 +50,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, SComp
 import org.eclipse.jface.viewers.TableViewerColumn
 import org.eclipse.swt.custom.{ CTabItem, TableTreeItem }
 import org.eclipse.swt.dnd.{ DragSource, DropTarget }
-import org.eclipse.swt.widgets.{ Caret, Composite, Control, CoolItem, ExpandItem, Menu, MenuItem, ScrollBar, Shell, TabItem, TableColumn, TableItem, TaskBar, TaskItem, ToolItem, ToolTip, TreeColumn, TreeItem, Widget }
+import org.eclipse.swt.widgets.{ Caret, Composite, Control, CoolItem, ExpandItem, Menu, MenuItem, ScrollBar, Shell, TabItem, Table, TableColumn, TableItem, TaskBar, TaskItem, ToolItem, ToolTip, TreeColumn, TreeItem, Widget }
 import scala.annotation.tailrec
 import scala.concurrent.Future
 import scala.ref.WeakReference
@@ -67,11 +67,19 @@ trait Generic {
    */
   def <>[T, S](b: Builder[_])(f: T ⇒ S) = f(b.asInstanceOf[T])
   /** Adjust table viewer column width. */
-  def adjustTableViewerColumnWidth(viewerColumn: TableViewerColumn, padding: Int, n: Int = 3) {
-    val bounds = viewerColumn.getViewer.getControl.getBounds()
-    val column = viewerColumn.getColumn()
+  def adjustViewerColumnWidth(viewerColumn: TableViewerColumn, padding: Int): Unit =
+    adjustViewerColumnWidth(viewerColumn.getViewer().getControl(), viewerColumn.getColumn(), padding, 3)
+  /** Adjust table viewer column width. */
+  def adjustViewerColumnWidth(viewerColumn: TableViewerColumn, padding: Int, n: Int): Unit =
+    adjustViewerColumnWidth(viewerColumn.getViewer().getControl(), viewerColumn.getColumn(), padding, n)
+  /** Adjust table viewer column width. */
+  def adjustViewerColumnWidth(viewerControl: Control, column: TableColumn, padding: Int): Unit =
+    adjustViewerColumnWidth(viewerControl, column, padding, 3)
+  /** Adjust table viewer column width. */
+  def adjustViewerColumnWidth(viewerControl: Control, column: TableColumn, padding: Int, minimumWidthN: Int) {
+    val bounds = viewerControl.getBounds()
     column.pack()
-    column.setWidth(math.min(column.getWidth() + padding, bounds.width / n))
+    column.setWidth(math.min(column.getWidth() + padding, bounds.width / minimumWidthN))
   }
   /** Find SWT widget shell. */
   def findShell(widget: Widget): Option[Shell] = {

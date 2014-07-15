@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,22 +41,27 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.logic.ui.action
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.Config
-import org.digimead.tabuddy.desktop.logic.api.XConfig
+import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Action
+import org.eclipse.ui.dialogs.PreferencesUtil
 
-package object logic {
-  lazy val default = new NewBindingModule(module ⇒ {
-    module.bind[XConfig] toModuleSingle { implicit module ⇒ new Config }
-  })
-  lazy val defaultBundle = default ~
-    command.default ~ command.digest.default ~ command.encryption.default ~ command.signature.default ~
-    comparator.default ~ filter.default ~ operation.default ~
-    payload.default ~ payload.marker.serialization.encryption.default ~ payload.marker.serialization.signature.default ~ payload.view.default ~
-    ui.default ~ ui.preference.default ~
-    ui.support.digest.default ~ ui.support.signature.default ~ ui.support.encryption.default
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.Default$DI$")
+/**
+ * Open preferences.
+ */
+class ActionPreferences @Inject() (windowContext: Context) extends Action("Preferences") with XLoggable {
+  @log
+  override def run = {
+    UI.getActiveShell match {
+      case Some(shell) ⇒
+        val dialog = PreferencesUtil.createPreferenceDialogOn(shell, null, null, null)
+        dialog.open()
+      case None ⇒
+    }
+  }
 }

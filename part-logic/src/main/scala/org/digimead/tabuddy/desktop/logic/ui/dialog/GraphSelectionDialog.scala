@@ -139,9 +139,9 @@ class GraphSelectionDialog @Inject() (
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnOrigin, Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnCreated, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnOrigin, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnCreated, Default.columnPadding)
         getTableViewer.refresh()
       }
     }

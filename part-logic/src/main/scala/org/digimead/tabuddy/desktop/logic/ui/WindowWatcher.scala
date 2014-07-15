@@ -113,7 +113,7 @@ class WindowWatcher extends Actor with XLoggable {
     //    file.add(action.ActionSaveModel())
     //    file.add(action.ActionDeleteModel())
     //file.add(action.ActionCloseGraph())
-    // file.add(ContextInjectionFactory.make(classOf[action.ActionGraphNew], window.windowContext))
+    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphNew], window.windowContext))
     file.add(ContextInjectionFactory.make(classOf[action.ActionGraphOpen], window.windowContext))
     file.add(new Separator())
     file.add(ContextInjectionFactory.make(classOf[action.ActionGraphClose], window.windowContext))
