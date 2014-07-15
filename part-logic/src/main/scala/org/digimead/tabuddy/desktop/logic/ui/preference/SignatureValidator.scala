@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,53 +43,25 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.preference
 
+import java.util.ArrayList
 import org.digimead.tabuddy.desktop.core.Preferences
 import org.digimead.tabuddy.desktop.core.definition.IPreferencePage
-import org.eclipse.jface.preference.{ FieldEditor ⇒ JFieldEditor, FieldEditorPreferencePage, IPreferenceStore, PreferenceManager }
-import org.eclipse.jface.viewers.ListViewer
-import org.eclipse.swt.SWT
-import org.eclipse.swt.layout.{ FillLayout, GridData }
-import org.eclipse.swt.widgets.{ Button, Composite }
-import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.Validator
-import org.eclipse.jface.preference.PreferenceStore
-import org.eclipse.jface.viewers.LabelProvider
-import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.api.XValidator
-import org.eclipse.jface.viewers.TableViewer
-import org.eclipse.jface.viewers.TableViewerColumn
-import org.eclipse.jface.viewers.ColumnLabelProvider
-import org.eclipse.ui.PlatformUI
-import org.eclipse.ui.ISharedImages
-import org.eclipse.jface.layout.TableColumnLayout
-import org.eclipse.jface.viewers.ColumnWeightData
-import org.eclipse.jface.viewers.ArrayContentProvider
-import scala.collection.mutable.ArrayBuffer
-import java.util.ArrayList
 import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.support.DecoratingStyledCellLabelProviderExt
 import org.digimead.tabuddy.desktop.logic.Default
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.Validator
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.api.XValidator
+import org.eclipse.jface.preference.{ FieldEditor ⇒ JFieldEditor, FieldEditorPreferencePage, PreferenceManager, PreferenceStore }
+import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnLabelProvider, ColumnViewer, ColumnViewerToolTipSupport, DecorationOverlayIcon }
+import org.eclipse.jface.viewers.{ IDecoration, IDecorationContext, ILabelProviderListener, LabelDecorator, StyledString, TableViewer, TableViewerColumn, ViewerCell }
 import org.eclipse.jface.viewers.DelegatingStyledCellLabelProvider.IStyledLabelProvider
-import org.eclipse.jface.viewers.StyledString
-import org.eclipse.jface.viewers.DecoratingStyledCellLabelProvider
-import org.eclipse.jface.viewers.LabelDecorator
-import org.eclipse.swt.graphics.Image
-import org.eclipse.jface.viewers.IDecorationContext
-import org.eclipse.jface.viewers.DecorationOverlayIcon
-import org.eclipse.jface.viewers.IDecoration
-import org.eclipse.jface.viewers.ILabelProviderListener
-import org.eclipse.ui.internal.WorkbenchImages
-import org.eclipse.ui.internal.IWorkbenchGraphicConstants
-import org.eclipse.ui.internal.WorkbenchPlugin
-import org.eclipse.jface.viewers.ColumnViewerToolTipSupport
-import org.eclipse.jface.viewers.ILabelDecorator
-import org.eclipse.swt.graphics.Color
-import org.eclipse.jface.viewers.CellLabelProvider
-import org.eclipse.swt.graphics.Font
-import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.layout.RowLayout
-import org.eclipse.swt.widgets.Text
-import org.eclipse.swt.widgets.Event
-import org.eclipse.jface.viewers.ViewerCell
-import org.eclipse.jface.viewers.ColumnViewer
 import org.eclipse.jface.window.ToolTip
+import org.eclipse.swt.SWT
+import org.eclipse.swt.graphics.Image
+import org.eclipse.swt.layout.{ FillLayout, GridData, RowLayout }
+import org.eclipse.swt.widgets.{ Button, Composite, Event, Text }
+import org.eclipse.ui.{ ISharedImages, PlatformUI }
+import org.eclipse.ui.internal.WorkbenchPlugin
 
 /**
  * Signature validator preference page.
@@ -160,7 +132,7 @@ object SignatureValidator {
     protected def getTableControl(parent: Composite): TableViewer = tableViewer getOrElse {
       val viewer = new TableViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL)
       val viewerColumn = new TableViewerColumn(viewer, SWT.NONE)
-      viewerColumn.setLabelProvider(new ViewDecoratingStyledCellLabelProvider(new ViewLabelProvider(), new ViewLabelDecorator(), null))
+      viewerColumn.setLabelProvider(new DecoratingStyledCellLabelProviderExt(new ViewLabelProvider(), new ViewLabelDecorator(), null))
       viewer.setContentProvider(ArrayContentProvider.getInstance())
       viewer.setInput(new ArrayList[XValidator]())
       ViewColumnViewerToolTipSupport.enableFor(viewer)
@@ -221,50 +193,6 @@ object SignatureValidator {
     override def addListener(listener: ILabelProviderListener) {}
     override def isLabelProperty(element: AnyRef, property: String): Boolean = false
     override def removeListener(listener: ILabelProviderListener) {}
-  }
-  class ViewDecoratingStyledCellLabelProvider(labelProvider: IStyledLabelProvider, decorator: ILabelDecorator, decorationContext: IDecorationContext)
-    extends DecoratingStyledCellLabelProvider(labelProvider, decorator, decorationContext) {
-
-    override def getToolTipBackgroundColor(obj: AnyRef): Color = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipBackgroundColor(obj)
-      case _ ⇒ super.getToolTipBackgroundColor(obj)
-    }
-    override def getToolTipDisplayDelayTime(obj: AnyRef): Int = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipDisplayDelayTime(obj)
-      case _ ⇒ super.getToolTipDisplayDelayTime(obj)
-    }
-    override def getToolTipFont(obj: AnyRef): Font = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipFont(obj)
-      case _ ⇒ super.getToolTipFont(obj)
-    }
-    override def getToolTipForegroundColor(obj: AnyRef): Color = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipForegroundColor(obj)
-      case _ ⇒ super.getToolTipForegroundColor(obj)
-    }
-    override def getToolTipImage(obj: AnyRef): Image = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipImage(obj)
-      case _ ⇒ super.getToolTipImage(obj)
-    }
-    override def getToolTipShift(obj: AnyRef): Point = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipShift(obj)
-      case _ ⇒ super.getToolTipShift(obj)
-    }
-    override def getToolTipStyle(obj: AnyRef): Int = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipStyle(obj)
-      case _ ⇒ super.getToolTipStyle(obj)
-    }
-    override def getToolTipText(obj: AnyRef): String = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipText(obj)
-      case _ ⇒ super.getToolTipText(obj)
-    }
-    override def getToolTipTimeDisplayed(obj: AnyRef): Int = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.getToolTipTimeDisplayed(obj)
-      case _ ⇒ super.getToolTipTimeDisplayed(obj)
-    }
-    override def useNativeToolTip(obj: AnyRef): Boolean = labelProvider match {
-      case labelProvider: CellLabelProvider ⇒ labelProvider.useNativeToolTip(obj)
-      case _ ⇒ super.useNativeToolTip(obj)
-    }
   }
   class ViewColumnViewerToolTipSupport(viewer: ColumnViewer, style: Int, manualActivation: Boolean) extends ColumnViewerToolTipSupport(viewer, style, manualActivation) {
 

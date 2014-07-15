@@ -43,45 +43,52 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.action
 
+import java.util.concurrent.{ Callable, CancellationException }
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.{ UI, Wizards }
 import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.digimead.tabuddy.desktop.logic.Messages
-import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphNew
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.ui.view
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
-import org.digimead.tabuddy.desktop.core.ui.Wizards
-import java.util.concurrent.CancellationException
+import scala.concurrent.Future
 
 /**
  * Create new graph.
  */
 class ActionGraphNew @Inject() (windowContext: Context) extends Action(Messages.newFile_text) with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+
   @log
   override def run = {
     UI.getActiveShell match {
       case Some(shell) ⇒
-        App.execNGet {
+        val callable = App.exec {
           Wizards.open("org.digimead.tabuddy.desktop.logic.ui.wizard.NewGraphWizard", shell, None) match {
-            case marker: GraphMarker ⇒
-              if (!marker.markerIsValid)
-                throw new IllegalStateException(marker + " is not valid.")
+            case callable: Callable[_] ⇒
+              Future {
+                // We leave App.exec section...
+                // Block UI thread
+                val marker = callable.asInstanceOf[Callable[GraphMarker]].call()
+                if (!marker.markerIsValid)
+                  throw new IllegalStateException(marker + " is not valid.")
+                onGraphCreated(marker)
+              } onFailure { case e: Throwable ⇒ log.error("Error while ActionGraphNew: " + e.getMessage(), e) }
             case other if other == org.eclipse.jface.window.Window.CANCEL ⇒
               throw new CancellationException("Unable to create new graph. Operation canceled.")
             case other ⇒
               throw new IllegalStateException(s"Unable to create new graph. Result ${other}.")
           }
-        }
+        }(App.LongRunnable)
+
       case None ⇒
         throw new IllegalStateException("Unable to create new graph dialog without parent shell.")
     }

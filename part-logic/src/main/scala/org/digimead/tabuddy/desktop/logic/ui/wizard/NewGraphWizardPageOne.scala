@@ -44,36 +44,49 @@
 package org.digimead.tabuddy.desktop.logic.ui.wizard
 
 import java.io.File
+import java.security.PublicKey
+import java.util.{ ArrayList, UUID }
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.{ Core, Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
-import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.core.ui.support.{ StatefulMessageManager, SymbolValidator, Validator }
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
 import org.digimead.tabuddy.desktop.logic.payload.Payload
 import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.encryption.Encryption
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.{ Validator ⇒ SValidator }
+import org.digimead.tabuddy.desktop.logic.payload.marker.serialization.signature.api.XValidator
 import org.digimead.tabuddy.desktop.logic.ui.support.digest.DigestAdapter
 import org.digimead.tabuddy.desktop.logic.ui.support.encryption.EncryptionAdapter
 import org.digimead.tabuddy.desktop.logic.ui.support.signature.SignatureAdapter
-import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.model.serialization.{ Serialization, digest, signature }
+import org.eclipse.core.databinding.DataBindingContext
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.dialogs.TitleAreaDialog
+import org.eclipse.jface.dialogs.{ IMessageProvider, TitleAreaDialog }
 import org.eclipse.jface.viewers.{ ComboViewer, LabelProvider, StructuredSelection }
 import org.eclipse.jface.window.Window
 import org.eclipse.jface.wizard.{ Wizard, WizardPage }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, SelectionAdapter, SelectionEvent }
 import org.eclipse.swt.widgets.{ Composite ⇒ JComposite, DirectoryDialog, Event, Listener, Shell, Text }
+import org.eclipse.ui.internal.forms.MessageManager
 import scala.language.reflectiveCalls
-import org.eclipse.jface.dialogs.IMessageProvider
-import org.eclipse.core.databinding.DataBindingContext
 
+/**
+ * NewGraphWizard first page.
+ */
 class NewGraphWizardPageOne extends WizardPage(Messages.NewGraphWizardPageOne_title_text) with XLoggable {
   /** Page view. */
-  protected var view: Option[NewGraphWizardPageOneView] = None
+  protected var view: Option[NewGraphWizardPageOne.Composite] = None
+  /** Message manager messages field. */
+  protected val messageManagerMessagesField = {
+    val field = classOf[MessageManager].getDeclaredField("messages")
+    if (!field.isAccessible())
+      field.setAccessible(true)
+    field
+  }
 
   ContextInjectionFactory.inject(this, Core.context)
   setTitle(Messages.NewGraphWizardPageOne_title_text)
@@ -83,15 +96,8 @@ class NewGraphWizardPageOne extends WizardPage(Messages.NewGraphWizardPageOne_ti
   def createControl(parent: JComposite) {
     val view = new NewGraphWizardPageOne.Composite(updateOK, parent, SWT.NONE)
     this.view = Some(view)
-
-    // common part
     setControl(view)
     setPageComplete(false)
-    //    val mmng = view.getForm().getMessageManager()
-    //            mmng.addMessage("textLength",
-    //          "Text is longer than 0 characters", null,
-    //          IMessageProvider.INFORMATION, signatureViewer.getCCombo())
-
     view.idField.addChangeListener { (id, event) ⇒
       val newId = id.trim
       if (newId.isEmpty()) {
@@ -103,51 +109,48 @@ class NewGraphWizardPageOne extends WizardPage(Messages.NewGraphWizardPageOne_ti
       }
     }
   }
-  /** Get graph location. */
-  def getGraphLocation(): File = {
-    //    val location = new File(locationField.value.trim)
-    //    val id = idField.value.trim
-    //    new File(location, id)
-    null
-  }
+  /** Get graph parameters. */
+  def getGraphParameters() = for {
+    view ← view
+    id ← Option(view.idField.value)
+    locationField ← Option(view.locationField.value)
+    containerEncryption ← Option(view.containerEncryptionField.value).map { adapter ⇒ (adapter.identifier, view.containerEncryptionParameters) }
+    contentEncryption ← Option(view.contentEncryptionField.value).map { adapter ⇒ (adapter.identifier, view.contentEncryptionParameters) }
+    digestAcquireField = Option(view.digestAcquireField.value) match {
+      case Some(NewGraphWizardPageOne.Acquire.Digest.Optional) ⇒ Some(true)
+      case Some(NewGraphWizardPageOne.Acquire.Digest.Required) ⇒ Some(false)
+      case _ ⇒ None
+    }
+    digestFreezeField ← Option(view.digestFreezeField.value).map { adapter ⇒ (adapter.identifier, view.digestFreezeParameters) }
+    serializationField ← Option(view.serializationField.value)
+    signatureAcquireField ← Option(view.signatureAcquireField.value)
+    signatureFreezeField ← Option(view.signatureFreezeField.value).map { adapter ⇒ (adapter.identifier, view.signatureFreezeParameters) }
+  } yield (id, locationField, containerEncryption, contentEncryption, digestAcquireField, digestFreezeField,
+    serializationField, signatureAcquireField, signatureFreezeField)
 
   /** Update OK state. */
-  protected def updateOK() = {
-    //    val newId = idField.value.trim
-    //    val newLocation = Option(locationField.value).map(_.trim()).getOrElse("")
-    //    val ok = {
-    //      ok
-    //    } && {
-    //    } && {
-    //      // validate model container
-    //      val location = new File(newLocation)
-    //      var ok = location.exists() && location.canWrite()
-    //      if (ok) {
-    //        // validate model directory
-    //        val modelDirectory = new File(location, newId)
-    //        if (modelDirectory.exists()) {
-    //          setErrorMessage(CMessages.warningMessage_text.format(Messages.locationIsAlreadyExists_text.format(modelDirectory)))
-    //          ok = false
-    //        } else {
-    //          // validate model descriptor
-    //          //          val modelDescriptor = new File(location, newId + "." + Payload.extensionModel)
-    //          //          if (modelDescriptor.exists()) {
-    //          //            setErrorMessage(Messages.locationIsAlreadyExists_text.format(modelDescriptor))
-    //          //            ok = false
-    //          //          }
-    //        }
-    //      } else
-    //        setErrorMessage(CMessages.warningMessage_text.format(Messages.locationIsIncorrect_text))
-    //      ok
-    //    }
-    //    if (ok) setErrorMessage(null)
-    //    setPageComplete(ok)
+  protected def updateOK(mmng: StatefulMessageManager) = {
+    val messages = mmng.getState().filter {
+      case (_, IMessageProvider.ERROR) ⇒ true
+      case (_, IMessageProvider.WARNING) ⇒ true
+      case (_, IMessageProvider.INFORMATION) ⇒ false
+      case (_, IMessageProvider.NONE) ⇒ false
+    }
+    if (messages.isEmpty) {
+      setErrorMessage(null)
+      setPageComplete(true)
+    } else {
+      setPageComplete(false)
+    }
   }
+  /** Get message manager state. */
+  protected def getMessageManagerState(mmng: MessageManager) =
+    messageManagerMessagesField.get(mmng).asInstanceOf[ArrayList[AnyRef]]
 }
 
 object NewGraphWizardPageOne extends XLoggable {
   /**
-   * Acquire combo elements
+   * Acquire combo elements.
    */
   object Acquire {
     object Digest {
@@ -157,11 +160,34 @@ object NewGraphWizardPageOne extends XLoggable {
       object Required
     }
     object Signature {
-      object SelectionRequired
+      object SelectionRequired extends XValidator {
+        /** Unique ID. */
+        val id: UUID = UUID.randomUUID()
+        /** Validator name. */
+        val name: Symbol = 'stub
+        /** Validator description. */
+        val description: String = ""
+        /** Get validator rule. */
+        def rule: XValidator.Rule = null
+        /** Validation routine. */
+        def validator: Option[PublicKey] ⇒ Boolean = null
+      }
+      object Disabled extends XValidator {
+        /** Unique ID. */
+        val id: UUID = UUID.randomUUID()
+        /** Validator name. */
+        val name: Symbol = 'stub
+        /** Validator description. */
+        val description: String = ""
+        /** Get validator rule. */
+        def rule: XValidator.Rule = null
+        /** Validation routine. */
+        def validator: Option[PublicKey] ⇒ Boolean = null
+      }
     }
   }
   /**
-   * Message manager identificators
+   * Message manager identificators.
    */
   object FormMessages {
     object containerEncryptionFieldError
@@ -176,7 +202,7 @@ object NewGraphWizardPageOne extends XLoggable {
   /**
    * NewGraphWizardPageOne content
    */
-  class Composite(stateCallback: () ⇒ _, parent: JComposite, style: Int) extends NewGraphWizardPageOneView(parent, style) {
+  class Composite(stateCallback: StatefulMessageManager ⇒ _, parent: JComposite, style: Int) extends NewGraphWizardPageOneView(parent, style) {
     /** Any adapter type: DigestAdapter, EncryptionAdapter or SignatureAdapter */
     type AnyAdapter[A] = { def parameters: Boolean; def dialog(parent: Shell, default: Option[A], tag: String): Option[AnyDialog[A]] }
     /** Any dialog type: DigestAdapter.Dialog, EncryptionAdapter.Dialog or SignatureAdapter.Dialog */
@@ -187,27 +213,31 @@ object NewGraphWizardPageOne extends XLoggable {
     /** Graph container encryption adapter. */
     val containerEncryptionField = WritableValue[EncryptionAdapter](EncryptionAdapter.Empty)
     /** Graph container encryption parameters. */
-    protected var containerEncryptionParameters = Option.empty[Encryption.Parameters]
+    var containerEncryptionParameters = Option.empty[Encryption.Parameters]
     /** Graph content encryption adapter. */
     val contentEncryptionField = WritableValue[EncryptionAdapter](EncryptionAdapter.Empty)
     /** Graph content encryption parameters. */
-    protected var contentEncryptionParameters = Option.empty[Encryption.Parameters]
+    var contentEncryptionParameters = Option.empty[Encryption.Parameters]
     /** Digest validation.*/
     val digestAcquireField = WritableValue[AnyRef](Acquire.Digest.SelectionRequired)
     /** Digest calculator. */
     val digestFreezeField = WritableValue[DigestAdapter](DigestAdapter.Empty)
     /** Digest calculator parameters. */
-    protected var digestFreezeParameters = Option.empty[digest.Mechanism.Parameters]
+    var digestFreezeParameters = Option.empty[digest.Mechanism.Parameters]
     /** Graph identifier. */
     val idField = WritableValue("")
     /** Graph container. */
     val locationField = WritableValue(Logic.graphContainer.getAbsolutePath())
-    /** Graph serialization adapter. */
+    /** Serialization adapter. */
     val serializationField = WritableValue[Serialization.Identifier](Payload.defaultSerialization)
-    /** Graph signature adapter. */
+    /** Signature validation.*/
+    val signatureAcquireField = WritableValue[XValidator](Acquire.Signature.SelectionRequired)
+    /** Signature generator. */
     val signatureFreezeField = WritableValue[SignatureAdapter](SignatureAdapter.Empty)
-    /** Graph signature parameters. */
-    protected var signatureFreezeParameters = Option.empty[signature.Mechanism.Parameters]
+    /** Signature generator parameters. */
+    var signatureFreezeParameters = Option.empty[signature.Mechanism.Parameters]
+    /** Stateful MessageManager */
+    protected lazy val mmng = StatefulMessageManager(getForm().getMessageManager())
 
     initializeUI()
     initializeBindings()
@@ -217,7 +247,6 @@ object NewGraphWizardPageOne extends XLoggable {
 
     /** Update form state. */
     def updateState() {
-      val mmng = getForm().getMessageManager()
       val newId = idField.value.trim
       val newLocation = Option(locationField.value).map(_.trim()).getOrElse("")
 
@@ -276,11 +305,16 @@ object NewGraphWizardPageOne extends XLoggable {
         mmng.removeMessage(FormMessages.signatureFreezeFieldError, getComboViewerSignatureFreeze().getCCombo())
 
       if (digestAcquireField.value == Acquire.Digest.SelectionRequired)
-        mmng.addMessage(FormMessages.digestFreezeFieldError, Messages.NewGraphWizardPageOne_digestValidationIsNotSelected_text, null, IMessageProvider.WARNING, getComboViewerDigestAcquire().getCCombo())
+        mmng.addMessage(FormMessages.digestAcquireFieldError, Messages.NewGraphWizardPageOne_digestValidationIsNotSelected_text, null, IMessageProvider.WARNING, getComboViewerDigestAcquire().getCCombo())
       else
-        mmng.removeMessage(FormMessages.digestFreezeFieldError, getComboViewerDigestAcquire().getCCombo())
+        mmng.removeMessage(FormMessages.digestAcquireFieldError, getComboViewerDigestAcquire().getCCombo())
 
-      stateCallback()
+      if (signatureAcquireField.value == Acquire.Signature.SelectionRequired)
+        mmng.addMessage(FormMessages.signatureAcquireFieldError, Messages.NewGraphWizardPageOne_signatureValidationIsNotSelected_text, null, IMessageProvider.WARNING, getComboViewerSignatureAcquire().getCCombo())
+      else
+        mmng.removeMessage(FormMessages.signatureAcquireFieldError, getComboViewerSignatureAcquire().getCCombo())
+
+      stateCallback(mmng)
     }
 
     /** Initialize UI part. */
@@ -393,6 +427,16 @@ object NewGraphWizardPageOne extends XLoggable {
       digestAcquireViewer.add(Acquire.Digest.Required)
 
       // signature acquire
+      val signatureAcquireViewer = getComboViewerSignatureAcquire()
+      signatureAcquireViewer.setLabelProvider(new LabelProvider() {
+        override def getText(element: AnyRef): String = element match {
+          case Acquire.Signature.SelectionRequired ⇒ Messages.NewGraphWizardPageOne_selectSignatureValidation_text.capitalize
+          case Acquire.Signature.Disabled ⇒ Messages.NewGraphWizardPageOne_signatureValidationIsDisabled_text.capitalize
+          case validator: XValidator ⇒ s"${validator.name.name.capitalize} - ${validator.description}"
+          case unknown ⇒ super.getText(unknown)
+        }
+      })
+      (Acquire.Signature.SelectionRequired +: Acquire.Signature.Disabled +: SValidator.validators().toSeq.sortBy(_.name.name.capitalize)).foreach(signatureAcquireViewer.add)
     }
     /** Initialize binding part. */
     protected def initializeBindings() {
@@ -409,6 +453,8 @@ object NewGraphWizardPageOne extends XLoggable {
         ViewersObservables.observeSingleSelection(getComboViewerDigestAcquire())), digestAcquireField)
       bindingContext.bindValue(ViewersObservables.observeDelayedValue(50,
         ViewersObservables.observeSingleSelection(getComboViewerDigestFreeze())), digestFreezeField)
+      bindingContext.bindValue(ViewersObservables.observeDelayedValue(50,
+        ViewersObservables.observeSingleSelection(getComboViewerSignatureAcquire())), signatureAcquireField)
       bindingContext.bindValue(ViewersObservables.observeDelayedValue(50,
         ViewersObservables.observeSingleSelection(getComboViewerSignatureFreeze())), signatureFreezeField)
 
@@ -427,6 +473,7 @@ object NewGraphWizardPageOne extends XLoggable {
       contentEncryptionField.addChangeListener { (_, event) ⇒ updateState }
       digestAcquireField.addChangeListener { (_, event) ⇒ updateState }
       digestFreezeField.addChangeListener { (_, event) ⇒ updateState }
+      signatureAcquireField.addChangeListener { (_, event) ⇒ updateState }
       signatureFreezeField.addChangeListener { (_, event) ⇒ updateState }
     }
     /** Initialize default values. */
@@ -437,6 +484,7 @@ object NewGraphWizardPageOne extends XLoggable {
       getComboViewerDigestFreeze().setSelection(new StructuredSelection(DigestAdapterSelectionRequired))
       getComboViewerSignatureFreeze().setSelection(new StructuredSelection(SignatureAdapterSelectionRequired))
       getComboViewerDigestAcquire().setSelection(new StructuredSelection(Acquire.Digest.SelectionRequired))
+      getComboViewerSignatureAcquire().setSelection(new StructuredSelection(Acquire.Signature.SelectionRequired))
     }
     /** On dispose callback. */
     protected def onDispose {
@@ -446,10 +494,12 @@ object NewGraphWizardPageOne extends XLoggable {
       containerEncryptionField.dispose()
       contentEncryptionField.dispose()
       digestFreezeField.dispose()
+      digestAcquireField.dispose()
       idField.dispose()
       locationField.dispose()
       serializationField.dispose()
       signatureFreezeField.dispose()
+      signatureAcquireField.dispose()
     }
     /** Get new model location path. */
     protected def selectGraphLocation(shell: Shell) = {
@@ -475,12 +525,12 @@ object NewGraphWizardPageOne extends XLoggable {
       }
       // Add adapter listener for combo box
       val adapterListener = adapterField.addChangeListener { (adapter, event) ⇒
-        getForm().getMessageManager().removeMessages(comboViewer.getCCombo())
-        getForm().getMessageManager().removeMessages(text)
+        mmng.removeMessages(comboViewer.getCCombo())
+        mmng.removeMessages(text)
         if (adapter.parameters) {
           text.setEnabled(true)
           text.setMessage(Messages.selectToSetParameters)
-          getForm().getMessageManager().addMessage(FormMessages.containerEncryptionFieldError,
+          mmng.addMessage(FormMessages.containerEncryptionFieldError,
             Messages.parametersRequired.capitalize, null, IMessageProvider.WARNING, text)
         } else {
           text.setEnabled(false)
@@ -503,19 +553,19 @@ object NewGraphWizardPageOne extends XLoggable {
                 fnSetter(None)
                 text.setText("")
                 text.setToolTipText(null)
-                getForm().getMessageManager().addMessage(FormMessages.containerEncryptionFieldError,
-                  error, null, IMessageProvider.ERROR, text)
+                mmng.addMessage(FormMessages.containerEncryptionFieldError, error, null, IMessageProvider.ERROR, text)
               case result @ Some(Right(value)) ⇒
                 fnSetter(Some(value))
                 text.setText(value.toString())
                 text.setToolTipText(value.toString())
-                getForm().getMessageManager().removeMessages(text)
+                mmng.removeMessages(text)
               case None ⇒
                 log.fatal("Expect value with parameters")
                 fnSetter(None)
                 text.setText("")
                 text.setToolTipText(null)
             }
+            updateState
           }
           text.traverse(SWT.TRAVERSE_ESCAPE)
         }

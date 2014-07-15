@@ -65,7 +65,7 @@ trait Thread {
   /** Execute a runnable in the event thread. */
   def exec[T](f: ⇒ T)(implicit duration: App.EventLoopRunnableDuration = App.ShortRunnable): Unit =
     if (isEventLoop) {
-      try if (debug) {
+      try if (duration == App.ShortRunnable && debug) {
         val t = new Throwable(s"Entry point from ${java.lang.Thread.currentThread.getName()}.")
         val ts = System.currentTimeMillis()
         f
