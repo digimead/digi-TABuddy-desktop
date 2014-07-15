@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,18 +41,18 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic.ui.wizard;
+package org.digimead.tabuddy.desktop.logic.ui.support.encryption;
 
 import java.util.ResourceBundle;
 
 import org.eclipse.jface.viewers.ComboViewer;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.CCombo;
 import org.eclipse.swt.events.DisposeEvent;
 import org.eclipse.swt.events.DisposeListener;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
@@ -64,13 +64,15 @@ import org.eclipse.ui.forms.widgets.FormToolkit;
  *
  * @author ezh
  */
-public class WizardGraphNewPageOneView extends Composite {
+public class DESAdapterSkel extends Composite {
 	private static final ResourceBundle BUNDLE = getResourceBundle();
 	private final FormToolkit toolkit = new FormToolkit(Display.getCurrent());
-	private Text txtModelIdentificator;
-	private Text txtModelLocation;
-	private Combo combo;
-	private Button btnModelLocation;
+	private Text txtSecret;
+	private Text txtInitializationVector;
+	private ComboViewer comboViewerKeyStrength;
+	private Button btnInitializationVector;
+	private Button btnSecretShow;
+	private Button btnInitializationVectorShow;
 
 	/**
 	 * Get ResourceBundle from Scala environment.
@@ -95,7 +97,7 @@ public class WizardGraphNewPageOneView extends Composite {
 	 * @param parent
 	 * @param style
 	 */
-	public WizardGraphNewPageOneView(Composite parent, int style) {
+	public DESAdapterSkel(Composite parent, int style) {
 		super(parent, SWT.BORDER);
 		addDisposeListener(new DisposeListener() {
 			public void widgetDisposed(DisposeEvent e) {
@@ -104,48 +106,60 @@ public class WizardGraphNewPageOneView extends Composite {
 		});
 		toolkit.adapt(this);
 		toolkit.paintBordersFor(this);
-		setLayout(new GridLayout(3, false));
+		setLayout(new GridLayout(5, false));
 
-		Label lblModelIdentificator = toolkit.createLabel(this, BUNDLE.getString("lblModelIdentificator_text"), SWT.NONE);
-		lblModelIdentificator.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		Label lblSecret = toolkit.createLabel(this, BUNDLE.getString("Adapter_lblSecret_text"), SWT.NONE);
+		lblSecret.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
 
-		txtModelIdentificator = toolkit.createText(this, "", SWT.NONE);
-		txtModelIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		txtSecret = toolkit.createText(this, "", SWT.PASSWORD);
+		txtSecret.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
+
+		btnSecretShow = toolkit.createButton(this, "", SWT.CHECK);
+
+		Label lblKeyStrength = toolkit.createLabel(this, BUNDLE.getString("Adapter_lblKeyStrength_text"), SWT.NONE);
+		lblKeyStrength.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+
+		CCombo comboKeyStrength = new CCombo(this, SWT.READ_ONLY);
+		comboViewerKeyStrength = new ComboViewer(comboKeyStrength);
+		comboKeyStrength.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 4, 1));
+		toolkit.adapt(comboKeyStrength);
+		toolkit.paintBordersFor(comboKeyStrength);
+
+		Label lblInitializationVector = toolkit.createLabel(this, BUNDLE.getString("Adapter_lblInitializationVector_text"), SWT.NONE);
+		lblInitializationVector.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
 		new Label(this, SWT.NONE);
 
-		Label lblModelLocation = toolkit.createLabel(this, BUNDLE.getString("lblModelLocation_text"), SWT.NONE);
-		lblModelLocation.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		btnInitializationVector = toolkit.createButton(this, "", SWT.CHECK | SWT.CENTER);
 
-		txtModelLocation = toolkit.createText(this, "", SWT.NONE);
-		txtModelLocation.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		txtInitializationVector = toolkit.createText(this, "", SWT.PASSWORD);
+		txtInitializationVector.setEnabled(false);
+		txtInitializationVector.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
 
-		btnModelLocation = toolkit.createButton(this, BUNDLE.getString("btnModelLocation_text"), SWT.NONE);
-
-		Label lblModelSerialization = toolkit.createLabel(this, BUNDLE.getString("lblModelSerialization_text"), SWT.NONE);
-		lblModelSerialization.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
-
-		ComboViewer comboViewer = new ComboViewer(this, SWT.READ_ONLY);
-		combo = comboViewer.getCombo();
-		combo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
-		toolkit.adapt(combo);
-		toolkit.paintBordersFor(combo);
-		new Label(this, SWT.NONE);
-
+		btnInitializationVectorShow = toolkit.createButton(this, "", SWT.CHECK);
+		btnInitializationVectorShow.setEnabled(false);
 	}
 
-	public Text getTxtModelIdentificator() {
-		return txtModelIdentificator;
+	public ComboViewer getComboViewerKeyStrength() {
+		return comboViewerKeyStrength;
 	}
 
-	public Text getTxtModelLocation() {
-		return txtModelLocation;
+	public Text getTxtSecret() {
+		return txtSecret;
 	}
 
-	public Combo getCombo() {
-		return combo;
+	public Button getBtnInitializationVector() {
+		return btnInitializationVector;
 	}
 
-	public Button getBtnModelLocation() {
-		return btnModelLocation;
+	public Text getTxtInitializationVector() {
+		return txtInitializationVector;
+	}
+
+	public Button getBtnSecretShow() {
+		return btnSecretShow;
+	}
+
+	public Button getBtnInitializationVectorShow() {
+		return btnInitializationVectorShow;
 	}
 }
