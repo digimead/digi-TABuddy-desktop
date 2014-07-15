@@ -339,7 +339,7 @@ object AppService extends XLoggable {
   private val disposeableLock = new Object
 
   /** Main service implementation. */
-  def inner() = DI.implementation
+  def inner = DI.implementation
 
   override def toString = "core.AppService[Singleton]"
 

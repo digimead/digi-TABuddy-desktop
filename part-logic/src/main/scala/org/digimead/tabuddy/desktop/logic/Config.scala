@@ -100,7 +100,7 @@ class Config(implicit val bindingModule: BindingModule) extends XConfig with XLo
 object Config extends XLoggable {
   implicit def config2implementation(c: Config.type): XConfig = c.inner
 
-  /** Get config implementation. */
+  /** Get Config implementation. */
   def inner = DI.implementation
 
   /**

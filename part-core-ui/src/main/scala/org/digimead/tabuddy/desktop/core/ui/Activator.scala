@@ -122,6 +122,7 @@ class Activator extends BundleActivator with XLoggable {
     // Mark UI as unavailable; see App.isUIAvailable
     App.watch(App.UIFlag) off ()
     App.watch(Activator) off {}
+    App.watch(UI).waitForStop(Timeout.long)
     try {
       // Stop component actors.
       val inbox = Inbox.create(App.system)

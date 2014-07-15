@@ -111,6 +111,7 @@ class Activator extends BundleActivator with XLoggable {
     log.debug("Stop TABuddy Desktop logic.")
     Logic ! App.Message.Inconsistent(Logic, None)
     App.watch(Activator) off {}
+    App.watch(Logic).waitForStop(Timeout.long)
     try {
       // Stop component actors.
       val inbox = Inbox.create(App.system)

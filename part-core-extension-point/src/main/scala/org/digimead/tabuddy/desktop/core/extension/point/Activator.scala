@@ -43,9 +43,8 @@
 
 package org.digimead.tabuddy.desktop.core.extension.point
 
-import org.osgi.framework.BundleActivator
-import org.osgi.framework.BundleContext
 import org.digimead.digi.lib.log.api.XLoggable
+import org.osgi.framework.{ BundleActivator, BundleContext }
 
 /**
  * OSGi entry point.

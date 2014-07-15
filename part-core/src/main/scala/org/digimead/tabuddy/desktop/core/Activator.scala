@@ -145,6 +145,8 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
         EventLoop.thread.stopEventLoop(EventLoop.Code.Error)
       }
     }
+    App.watch(Core).waitForStop(Timeout.long)
+    App.watch(EventLoop).waitForStop(Timeout.long)
     // Stop component actors.
     val inbox = Inbox.create(App.system)
     inbox.watch(Core)
