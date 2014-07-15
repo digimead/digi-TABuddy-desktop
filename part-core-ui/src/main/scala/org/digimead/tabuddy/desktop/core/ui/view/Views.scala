@@ -72,7 +72,7 @@ object Views {
   implicit def configurator2implementation(c: Views.type): Views = c.inner
 
   /** Views implementation. */
-  def inner(): Views = DI.implementation
+  def inner: Views = DI.implementation
 
   /**
    * Dependency injection routines

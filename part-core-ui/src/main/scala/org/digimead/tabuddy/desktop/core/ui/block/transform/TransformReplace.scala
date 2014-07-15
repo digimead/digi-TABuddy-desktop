@@ -94,7 +94,7 @@ class TransformReplace extends XLoggable {
 object TransformReplace {
   implicit def transform2implementation(t: TransformReplace.type): TransformReplace = inner
 
-  def inner(): TransformReplace = DI.implementation
+  def inner: TransformReplace = DI.implementation
 
   /**
    * Dependency injection routines

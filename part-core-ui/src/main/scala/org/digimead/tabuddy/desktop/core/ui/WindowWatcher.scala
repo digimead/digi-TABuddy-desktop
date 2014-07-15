@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, WindowMenu, W
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.eclipse.core.runtime.jobs.Job
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IContributionItem, Separator }
 import org.eclipse.ui.actions.CompoundContributionItem
 
@@ -101,6 +102,7 @@ class WindowWatcher extends Actor with XLoggable {
     showView.add(new WindowWatcher.ListView)
     file.add(new Separator())
     file.add(action.ActionExit)
+    file.add(ContextInjectionFactory.make(classOf[action.ActionPreferences], window.windowContext))
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */

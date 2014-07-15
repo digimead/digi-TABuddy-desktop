@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,9 +41,27 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.definition
+package org.digimead.tabuddy.desktop.core.ui.action
+
+import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Action
+import org.eclipse.ui.dialogs.PreferencesUtil
 
 /**
- * Wizard that creates something new.
+ * Open preferences.
  */
-trait INewWizard extends IWizard
+class ActionPreferences @Inject() (windowContext: Context) extends Action("Preferences") with XLoggable {
+  @log
+  override def run = {
+    UI.getActiveShell match {
+      case Some(shell) ⇒
+        val dialog = PreferencesUtil.createPreferenceDialogOn(shell, null, null, null)
+        dialog.open()
+      case None ⇒
+    }
+  }
+}

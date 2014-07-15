@@ -104,7 +104,7 @@ object Wizards {
   implicit def registry2implementation(w: Wizards.type): Wizards = w.inner
 
   /** Wizards implementation. */
-  def inner(): Wizards = DI.implementation
+  def inner: Wizards = DI.implementation
 
   /**
    * WizardDialog modification without ProgressMonitorPart

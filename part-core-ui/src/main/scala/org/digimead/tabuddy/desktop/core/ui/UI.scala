@@ -178,6 +178,7 @@ class UI extends akka.actor.Actor with XLoggable {
         UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
       catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       App.execNGet { Resources.start(App.bundle(getClass).getBundleContext()) }(App.LongRunnable)
+      App.execNGet { (new InfrastructureFixes).fix() }(App.LongRunnable)
       view.Views.configure()
       command.Commands.configure()
       WindowSupervisor ! App.Message.Restore(None, None)

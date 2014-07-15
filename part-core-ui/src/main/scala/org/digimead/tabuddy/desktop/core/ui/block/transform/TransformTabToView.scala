@@ -125,7 +125,7 @@ class TransformTabToView extends XLoggable {
 object TransformTabToView {
   implicit def transform2implementation(t: TransformTabToView.type): TransformTabToView = inner
 
-  def inner(): TransformTabToView = DI.implementation
+  def inner: TransformTabToView = DI.implementation
 
   /**
    * Dependency injection routines

@@ -79,7 +79,7 @@ class TransformAttachView extends XLoggable {
 object TransformAttachView {
   implicit def transform2implementation(t: TransformAttachView.type): TransformAttachView = inner
 
-  def inner(): TransformAttachView = DI.implementation
+  def inner: TransformAttachView = DI.implementation
 
   /**
    * Dependency injection routines

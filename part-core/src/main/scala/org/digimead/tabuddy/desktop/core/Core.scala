@@ -215,6 +215,7 @@ class Core extends akka.actor.Actor with XLoggable {
           log.error("Unable to start workbench: " + e.getMessage, e)
           throw e
       }
+      App.execNGet { Preferences.start(App.bundle(getClass).getBundleContext()) }(App.LongRunnable)
       command.Commands.configure()
       Console ! Console.Message.Notice("\n" + Console.welcomeMessage())
       Console ! App.Message.Start(Console, None)
@@ -227,6 +228,7 @@ class Core extends akka.actor.Actor with XLoggable {
     App.watch(Core) off {
       self ! App.Message.Inconsistent(Core, None)
       command.Commands.unconfigure()
+      App.execNGet { Preferences.stop(App.bundle(getClass).getBundleContext()) }
       if (App.isUIAvailable)
         Core.DI.approvers.foreach(Operation.history.removeOperationApprover)
       val lost = inconsistentSet - Core

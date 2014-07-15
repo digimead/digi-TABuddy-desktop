@@ -218,11 +218,11 @@ class Resources extends BundleActivator with XLoggable {
      * From org.eclipse.jface.fieldassist.FieldDecorationRegistry:
      *
      * Registers a field decoration using the specified id. The lifecyle of the
-	 * supplied image should be managed by the client. That is, it will never be
-	 * disposed by this registry and the decoration should be removed from the
-	 * registry if the image is ever disposed elsewhere.
-	 *
-	 * fucking Eclipse code monkey...
+	   * supplied image should be managed by the client. That is, it will never be
+	   * disposed by this registry and the decoration should be removed from the
+	   * registry if the image is ever disposed elsewhere.
+	   *
+	   * fucking Eclipse code monkey...
      */
     lazy val error = FieldDecorationRegistry.getDefault().getFieldDecoration(FieldDecorationRegistry.DEC_ERROR).getImage()
     lazy val required = FieldDecorationRegistry.getDefault().getFieldDecoration(FieldDecorationRegistry.DEC_REQUIRED).getImage()
@@ -233,12 +233,12 @@ class Resources extends BundleActivator with XLoggable {
  * Application UI resources.
  */
 object Resources extends XLoggable {
-  implicit def resources2implementation(c: Resources.type): Resources = c.inner
+  implicit def resources2implementation(r: Resources.type): Resources = r.inner
 
-  /** Resources implementation. */
-  def inner() = DI.implementation
+  /** Get Resources implementation. */
+  def inner = DI.implementation
   /** Application initial locale that is used for Locale.setDefault. */
-  def initialLocale() = DI.locale
+  def initialLocale = DI.locale
 
   sealed trait IconTheme {
     val name: String
