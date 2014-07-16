@@ -71,7 +71,7 @@ object CommandGraphDelete extends XLoggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case (Some(marker: GraphMarker), _, _) ⇒
-          val exchanger = new Exchanger[Operation.Result[XGraphMarker]]()
+          val exchanger = new Exchanger[Operation.Result[GraphMarker.Generic]]()
           OperationGraphDelete(marker.uuid, false).foreach { operation ⇒
             operation.getExecuteJob() match {
               case Some(job) ⇒

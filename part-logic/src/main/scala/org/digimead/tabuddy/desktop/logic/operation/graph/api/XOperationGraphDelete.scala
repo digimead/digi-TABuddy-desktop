@@ -52,7 +52,7 @@ import org.digimead.tabuddy.model.graph.Graph
 /**
  * OperationGraphDelete base trait.
  */
-trait XOperationGraphDelete {
+trait XOperationGraphDelete[T <: XGraphMarker.Generic] {
   checkSubclass()
 
   /**
@@ -62,7 +62,7 @@ trait XOperationGraphDelete {
    * @param askBefore askUser before delete
    * @return deleted graph marker UUID
    */
-  def apply(markerUUID: UUID, askBefore: Boolean): XGraphMarker
+  def apply(markerUUID: UUID, askBefore: Boolean): T
   /**
    * Delete graph.
    *
@@ -70,7 +70,7 @@ trait XOperationGraphDelete {
    * @param askBefore askUser before delete
    * @return deleted graph marker UUID
    */
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): XGraphMarker
+  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): T
   /**
    * Create 'Delete graph' operation.
    *
@@ -78,7 +78,7 @@ trait XOperationGraphDelete {
    * @param askBefore askUser before delete
    * @return 'Delete graph' operation
    */
-  def operation(markerUUID: UUID, askBefore: Boolean): XOperation[XGraphMarker]
+  def operation(markerUUID: UUID, askBefore: Boolean): XOperation[T]
   /**
    * Create 'Delete graph' operation.
    *
@@ -86,7 +86,7 @@ trait XOperationGraphDelete {
    * @param askBefore askUser before delete
    * @return 'Delete graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], askBefore: Boolean): XOperation[XGraphMarker]
+  def operation(graph: Graph[_ <: Model.Like], askBefore: Boolean): XOperation[T]
 
   /**
    * Checks that this class can be subclassed.

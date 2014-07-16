@@ -48,13 +48,13 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationCreateElementFromTemplate
-import org.digimead.tabuddy.desktop.logic.payload.api.XElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.model.element.Element
 
 /**
  * OperationCreateElementFromTemplate base trait.
  */
-trait OperationCreateElementFromTemplate extends XOperationCreateElementFromTemplate {
+trait OperationCreateElementFromTemplate extends XOperationCreateElementFromTemplate[ElementTemplate] {
   /**
    * Create 'Create a new element from template' operation.
    *
@@ -62,7 +62,7 @@ trait OperationCreateElementFromTemplate extends XOperationCreateElementFromTemp
    * @param container container for the new element
    * @return 'Create a new element from template' operation
    */
-  override def operation(template: XElementTemplate, container: Element): OperationCreateElementFromTemplate.Abstract
+  override def operation(template: ElementTemplate, container: Element): OperationCreateElementFromTemplate.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -96,7 +96,7 @@ object OperationCreateElementFromTemplate extends XLoggable {
    * @return 'Create a new element from template' operation
    */
   @log
-  def apply(template: XElementTemplate, container: Element): Option[Abstract] =
+  def apply(template: ElementTemplate, container: Element): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(template, container))
@@ -106,7 +106,7 @@ object OperationCreateElementFromTemplate extends XLoggable {
     }
 
   /** Bridge between abstract XOperation[Element] and concrete Operation[Element] */
-  abstract class Abstract(val template: XElementTemplate, val container: Element)
+  abstract class Abstract(val template: ElementTemplate, val container: Element)
     extends Operation[Element](s"Create a new element from $template for $container.") {
     this: XLoggable ⇒
   }
@@ -114,6 +114,6 @@ object OperationCreateElementFromTemplate extends XLoggable {
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationCreateElementFromTemplate]
+    lazy val operation = injectOptional[XOperationCreateElementFromTemplate[_]]
   }
 }

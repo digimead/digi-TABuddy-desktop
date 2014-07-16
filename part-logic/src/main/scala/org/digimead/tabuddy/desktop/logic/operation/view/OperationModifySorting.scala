@@ -48,14 +48,14 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifySorting
-import org.digimead.tabuddy.desktop.logic.payload.view.api.XSorting
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifySorting base trait.
  */
-trait OperationModifySorting extends XOperationModifySorting {
+trait OperationModifySorting extends XOperationModifySorting[Sorting] {
   /**
    * Create 'Modify sorting' operation.
    *
@@ -64,7 +64,7 @@ trait OperationModifySorting extends XOperationModifySorting {
    * @param sortingList the list of exists sortings
    * @return 'Modify sorting' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], sorting: XSorting, sortingList: Set[XSorting]): OperationModifySorting.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], sorting: Sorting, sortingList: Set[Sorting]): OperationModifySorting.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -99,7 +99,7 @@ object OperationModifySorting extends XLoggable {
    * @return 'Modify sorting' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], sorting: XSorting, sortingList: Set[XSorting]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], sorting: Sorting, sortingList: Set[Sorting]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, sorting, sortingList))
@@ -108,15 +108,15 @@ object OperationModifySorting extends XLoggable {
         None
     }
 
-  /** Bridge between abstract XOperation[XSorting] and concrete Operation[XSorting] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val sorting: XSorting, val sortingList: Set[XSorting])
-    extends Operation[XSorting](s"Edit sorting $sorting for graph $graph.") {
+  /** Bridge between abstract XOperation[Sorting] and concrete Operation[Sorting] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val sorting: Sorting, val sortingList: Set[Sorting])
+    extends Operation[Sorting](s"Edit sorting $sorting for graph $graph.") {
     this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationModifySorting]
+    lazy val operation = injectOptional[XOperationModifySorting[_]]
   }
 }

@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.graph.Graph
 /**
  * OperationModifyEnumerationList base trait.
  */
-trait XOperationModifyEnumerationList {
+trait XOperationModifyEnumerationList[T <: XEnumeration.Generic]{
   checkSubclass()
 
   /**
@@ -61,7 +61,7 @@ trait XOperationModifyEnumerationList {
    * @param enumerationList exists enumerations
    * @return the modified enumeration list
    */
-  def apply(graph: Graph[_ <: Model.Like], enumerationList: Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]): Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]
+  def apply(graph: Graph[_ <: Model.Like], enumerationList: Set[T]): Set[T]
   /**
    * Create 'Modify an enumeration list' operation.
    *
@@ -69,7 +69,7 @@ trait XOperationModifyEnumerationList {
    * @param enumerationList exists enumerations
    * @return 'Modify an enumeration list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], enumerationList: Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]): XOperation[Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]]
+  def operation(graph: Graph[_ <: Model.Like], enumerationList: Set[T]): XOperation[Set[T]]
 
   /**
    * Checks that this class can be subclassed.

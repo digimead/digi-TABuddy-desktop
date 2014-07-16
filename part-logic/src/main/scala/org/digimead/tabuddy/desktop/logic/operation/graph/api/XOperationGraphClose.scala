@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.graph.Graph
 /**
  * OperationGraphClose base trait.
  */
-trait XOperationGraphClose {
+trait XOperationGraphClose[T <: XGraphMarker.Generic] {
   checkSubclass()
 
   /**
@@ -60,7 +60,7 @@ trait XOperationGraphClose {
    * @param graph graph to close
    * @param force close graph without saving
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): XGraphMarker
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): T
   /**
    * Create 'Close graph' operation.
    *
@@ -68,7 +68,7 @@ trait XOperationGraphClose {
    * @param force close graph without saving
    * @return 'Close graph' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], force: Boolean): XOperation[XGraphMarker]
+  def operation(graph: Graph[_ <: Model.Like], force: Boolean): XOperation[T]
 
   /**
    * Checks that this class can be subclassed.

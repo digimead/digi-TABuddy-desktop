@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchemaList
-import org.digimead.tabuddy.desktop.logic.payload.api.XTypeSchema
+import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
@@ -72,7 +72,7 @@ object CommandModifyTypeSchemaList extends XLoggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case marker: GraphMarker ⇒
-          val exchanger = new Exchanger[Operation.Result[(Set[XTypeSchema], XTypeSchema)]]()
+          val exchanger = new Exchanger[Operation.Result[(Set[TypeSchema], TypeSchema)]]()
           marker.safeRead { state ⇒
             val (schemaList, activeSchema) = App.execNGet { (state.payload.typeSchemas.values.toSet, state.payload.typeSchema.value) }
             OperationModifyTypeSchemaList(state.graph, schemaList, activeSchema).foreach { operation ⇒

@@ -46,10 +46,12 @@ package org.digimead.tabuddy.desktop.logic.comparator
 import java.util.UUID
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.comparator.api.XComparator
-import org.digimead.tabuddy.desktop.logic.payload.api.XPropertyType
+import org.digimead.tabuddy.desktop.logic.payload.{ PropertyType, TemplateProperty }
 import org.digimead.tabuddy.model.element.Element
 
 class ByPropertyText extends XComparator[XComparator.Argument] with XLoggable {
+  type ComparatorTemplateProperty[T <: AnyRef with java.io.Serializable] = TemplateProperty[T]
+  type ComparatorPropertyType[T <: AnyRef with java.io.Serializable] = PropertyType[T]
   val id = UUID.fromString("84b24863-145a-40a7-aade-e25547c52b41")
   val name = "By property text"
   val description = "Compare two element's properties via text representation"
@@ -62,7 +64,7 @@ class ByPropertyText extends XComparator[XComparator.Argument] with XLoggable {
   /** Check whether comparation is available */
   def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
   /** Compare two element's properties */
-  def compare[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: XPropertyType[T], e1: Element, e2: Element, argument: Option[XComparator.Argument]): Int = {
+  def compare[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[T], e1: Element, e2: Element, argument: Option[XComparator.Argument]): Int = {
     val text1 = e1.eGet(propertyId, ptype.typeSymbol).map(value ⇒ ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
     val text2 = e2.eGet(propertyId, ptype.typeSymbol).map(value ⇒ ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
     text1.compareTo(text2)

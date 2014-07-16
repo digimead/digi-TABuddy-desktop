@@ -68,19 +68,19 @@ package object payload {
     module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.String" toSingle { StringType }
     module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Text" toSingle { TextType }
     /** The predefined template for Record element. */
-    module.bind[XElementTemplate.Builder] identifiedBy "Template.Record" toSingle {
-      new XElementTemplate.Builder { def apply(container: Record.Like) = Predefined.record(container) }
+    module.bind[XElementTemplate.Builder[_,_]] identifiedBy "Template.Record" toSingle {
+      new ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.record(container) }
     }
     /** The predefined template for Note element. */
-    module.bind[XElementTemplate.Builder] identifiedBy "Template.Note" toSingle {
-      new XElementTemplate.Builder { def apply(container: Record.Like) = Predefined.note(container) }
+    module.bind[XElementTemplate.Builder[_,_]] identifiedBy "Template.Note" toSingle {
+      new ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.note(container) }
     }
     /** The predefined template for Task element. */
-    module.bind[XElementTemplate.Builder] identifiedBy "Template.Task" toSingle {
-      new XElementTemplate.Builder { def apply(container: Record.Like) = Predefined.task(container) }
+    module.bind[XElementTemplate.Builder[_,_]] identifiedBy "Template.Task" toSingle {
+      new ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.task(container) }
     }
     /** The default predefined type schema. */
-    module.bind[XTypeSchema] identifiedBy "Schema.Default" toSingle {
+    module.bind[XTypeSchema[_]] identifiedBy "Schema.Default" toSingle {
       // add simple localized type schema
       TypeSchema(UUID.fromString("4ce08a80-6f10-11e2-bcfd-0800200c9a66"),
         Messages.localizedTypeSchemaName_text,

@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.graph.Graph
 /**
  * OperationModifyXView base trait.
  */
-trait XOperationModifyView {
+trait XOperationModifyView[T <: XView] {
   checkSubclass()
 
   /**
@@ -62,7 +62,7 @@ trait XOperationModifyView {
    * @param viewList exists views
    * @return the modified view
    */
-  def apply(graph: Graph[_ <: Model.Like], view: XView, viewList: Set[XView]): XView
+  def apply(graph: Graph[_ <: Model.Like], view: T, viewList: Set[T]): XView
   /**
    * Create 'Modify view' operation.
    *
@@ -71,7 +71,7 @@ trait XOperationModifyView {
    * @param viewList exists views
    * @return 'Modify view' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], view: XView, viewList: Set[XView]): XOperation[XView]
+  def operation(graph: Graph[_ <: Model.Like], view: T, viewList: Set[T]): XOperation[T]
 
   /**
    * Checks that this class can be subclassed.

@@ -72,7 +72,7 @@ object CommandGraphClose extends XLoggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case Some((Some(marker: GraphMarker), _, _)) ⇒
-          val exchanger = new Exchanger[Operation.Result[XGraphMarker]]()
+          val exchanger = new Exchanger[Operation.Result[GraphMarker.Generic]]()
           val graph = marker.safeRead(_.graph)
           OperationGraphClose(graph, true).foreach { operation ⇒
             operation.getExecuteJob() match {

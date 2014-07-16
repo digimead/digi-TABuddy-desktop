@@ -55,7 +55,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySortingList
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.XSorting
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
 
@@ -72,7 +72,7 @@ object CommandModifySortingList extends XLoggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case marker: GraphMarker ⇒
-          val exchanger = new Exchanger[Operation.Result[Set[XSorting]]]()
+          val exchanger = new Exchanger[Operation.Result[Set[Sorting]]]()
           marker.safeRead { state ⇒
             OperationModifySortingList(state.graph, App.execNGet { state.payload.viewSortings.values.toSet }).foreach { operation ⇒
               operation.getExecuteJob() match {

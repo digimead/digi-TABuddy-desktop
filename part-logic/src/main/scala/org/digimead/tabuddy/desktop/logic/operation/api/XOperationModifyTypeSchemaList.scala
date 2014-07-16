@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.graph.Graph
 /**
  * OperationModifyTypeSchemaList base trait.
  */
-trait XOperationModifyTypeSchemaList {
+trait XOperationModifyTypeSchemaList[T <: XTypeSchema.Generic] {
   checkSubclass()
 
   /**
@@ -62,7 +62,7 @@ trait XOperationModifyTypeSchemaList {
    * @param activeSchema the active type schema
    * @return the modified type schema list, the active type schema
    */
-  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[XTypeSchema], activeSchema: XTypeSchema): (Set[XTypeSchema], XTypeSchema)
+  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[T], activeSchema: T): (Set[T], T)
   /**
    * Create 'Modify a type schema list' operation.
    *
@@ -71,7 +71,7 @@ trait XOperationModifyTypeSchemaList {
    * @param activeSchema the active type schema
    * @return 'Modify a type schema list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[XTypeSchema], activeSchema: XTypeSchema): XOperation[(Set[XTypeSchema], XTypeSchema)]
+  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[T], activeSchema: T): XOperation[(Set[T], T)]
 
   /**
    * Checks that this class can be subclassed.

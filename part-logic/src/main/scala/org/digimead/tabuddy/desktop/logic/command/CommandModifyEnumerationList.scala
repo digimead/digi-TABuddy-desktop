@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.definition.command.Command
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumerationList
-import org.digimead.tabuddy.desktop.logic.payload.api.XEnumeration
+import org.digimead.tabuddy.desktop.logic.payload.Enumeration
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.core.runtime.jobs.Job
 import scala.concurrent.Future
@@ -72,7 +72,7 @@ object CommandModifyEnumerationList extends XLoggable {
     (activeContext, parserContext, parserResult) ⇒ Future {
       parserResult match {
         case marker: GraphMarker ⇒
-          val exchanger = new Exchanger[Operation.Result[Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]]]()
+          val exchanger = new Exchanger[Operation.Result[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]]]()
           marker.safeRead { state ⇒
             OperationModifyEnumerationList(state.graph, App.execNGet { state.payload.enumerations.values.toSet }).foreach { operation ⇒
               operation.getExecuteJob() match {

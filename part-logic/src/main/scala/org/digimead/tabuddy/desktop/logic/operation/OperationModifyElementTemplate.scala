@@ -48,14 +48,14 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationModifyElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.api.XElementTemplate
+import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyElementTemplate base trait.
  */
-trait OperationModifyElementTemplate extends XOperationModifyElementTemplate {
+trait OperationModifyElementTemplate extends XOperationModifyElementTemplate[ElementTemplate] {
   /**
    * Create 'Modify filter' operation.
    *
@@ -64,7 +64,7 @@ trait OperationModifyElementTemplate extends XOperationModifyElementTemplate {
    * @param filterList the list of exists filters
    * @return 'Modify filter' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], template: XElementTemplate, templateList: Set[XElementTemplate]): OperationModifyElementTemplate.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], template: ElementTemplate, templateList: Set[ElementTemplate]): OperationModifyElementTemplate.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -99,7 +99,7 @@ object OperationModifyElementTemplate extends XLoggable {
    * @return 'Modify an element template' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], template: XElementTemplate, templateList: Set[XElementTemplate]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], template: ElementTemplate, templateList: Set[ElementTemplate]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, template, templateList))
@@ -109,14 +109,14 @@ object OperationModifyElementTemplate extends XLoggable {
     }
 
   /** Bridge between abstract XOperation[ElementTemplate] and concrete Operation[ElementTemplate] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val template: XElementTemplate, val templateList: Set[XElementTemplate])
-    extends Operation[XElementTemplate](s"Edit $template for graph $graph.") {
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val template: ElementTemplate, val templateList: Set[ElementTemplate])
+    extends Operation[ElementTemplate](s"Edit $template for graph $graph.") {
     this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationModifyElementTemplate]
+    lazy val operation = injectOptional[XOperationModifyElementTemplate[_]]
   }
 }

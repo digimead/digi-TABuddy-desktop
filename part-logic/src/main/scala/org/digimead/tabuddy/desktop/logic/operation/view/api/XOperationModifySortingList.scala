@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.graph.Graph
 /**
  * OperationModifyXSortingList base trait.
  */
-trait XOperationModifySortingList {
+trait XOperationModifySortingList[T <: XSorting] {
   checkSubclass()
 
   /**
@@ -61,7 +61,7 @@ trait XOperationModifySortingList {
    * @param sortingList exists sortings
    * @return the modified sorting list
    */
-  def apply(graph: Graph[_ <: Model.Like], sortingList: Set[XSorting]): Set[XSorting]
+  def apply(graph: Graph[_ <: Model.Like], sortingList: Set[T]): Set[T]
   /**
    * Create 'Modify sorting list' operation.
    *
@@ -69,7 +69,7 @@ trait XOperationModifySortingList {
    * @param sortingList exists sortings
    * @return 'Modify sorting list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], sortingList: Set[XSorting]): XOperation[Set[XSorting]]
+  def operation(graph: Graph[_ <: Model.Like], sortingList: Set[T]): XOperation[Set[T]]
 
   /**
    * Checks that this class can be subclassed.

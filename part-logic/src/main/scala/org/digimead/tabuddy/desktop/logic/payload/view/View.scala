@@ -87,9 +87,9 @@ class View(
     new View(id, name, description, availability, fields, filters, sortings).asInstanceOf[this.type]
 
   def canEqual(other: Any) =
-    other.isInstanceOf[XView]
+    other.isInstanceOf[View]
   override def equals(other: Any) = other match {
-    case that: XView ⇒
+    case that: View ⇒
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId
@@ -107,7 +107,7 @@ object View extends XLoggable {
   val collectionMaximum = 10000
 
   /** Add view element. */
-  def add(marker: GraphMarker, view: XView) = marker.safeUpdate { state ⇒
+  def add(marker: GraphMarker, view: View) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewDefinition(state.graph)
     val element = (container | RecordLocation(view.elementId)).eRelative
     element.eRemoveAll()
@@ -141,7 +141,7 @@ object View extends XLoggable {
     } element.eSet[String](getFieldIDSorting(i), sorting.toString())
   }
   /** The deep comparison of two sortings */
-  def compareDeep(a: XView, b: XView): Boolean =
+  def compareDeep(a: View, b: View): Boolean =
     (a eq b) || (a == b && a.description == b.description && a.availability == b.availability && a.name == b.name &&
       // fields sequence order is important
       a.fields.sameElements(b.fields) &&
@@ -230,7 +230,7 @@ object View extends XLoggable {
     if (result.contains(View.displayName)) result else result + View.displayName
   }
   /** Update only modified view definitions. */
-  def save(marker: GraphMarker, views: Set[XView]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, views: Set[View]) = marker.safeUpdate { state ⇒
     log.debug("Save view definition list for graph " + state.graph)
     val oldViews = App.execNGet { state.payload.viewDefinitions.values }
     val newViews = views - displayName
@@ -248,7 +248,7 @@ object View extends XLoggable {
     }
   }
   /** Remove view element. */
-  def remove(marker: GraphMarker, view: XView) = marker.safeUpdate { state ⇒
+  def remove(marker: GraphMarker, view: View) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewDefinition(state.graph)
     container.eNode.safeWrite { node ⇒ node.children.find(_.rootBox.e.eId == view.elementId).foreach(node -= _) }
   }

@@ -51,15 +51,16 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphClose
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.widgets.MessageBox
 
-/** 'Close graph' operation. */
-class OperationGraphClose extends XOperationGraphClose with XLoggable {
+/**
+ * 'Close graph' operation.
+ */
+class OperationGraphClose extends XOperationGraphClose[GraphMarker.Generic] with XLoggable {
   /**
    * Close graph.
    *
@@ -67,7 +68,7 @@ class OperationGraphClose extends XOperationGraphClose with XLoggable {
    * @param force close graph without saving
    * @return the same marker or read only marker if current one is deleted
    */
-  def apply(graph: Graph[_ <: Model.Like], force: Boolean): XGraphMarker = {
+  def apply(graph: Graph[_ <: Model.Like], force: Boolean): GraphMarker.Generic = {
     @volatile var closeApproved = force
     val marker = GraphMarker(graph)
     while (true) {
@@ -161,7 +162,7 @@ class OperationGraphClose extends XOperationGraphClose with XLoggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[GraphMarker.Generic] = {
       require(canExecute, "Execution is disabled.")
       try {
         val result = Option(OperationGraphClose.this(graph, force))
@@ -172,9 +173,9 @@ class OperationGraphClose extends XOperationGraphClose with XLoggable {
           Operation.Result.Error(s"Unable to close $graph: " + e.getMessage(), e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[GraphMarker.Generic] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[GraphMarker.Generic] =
       throw new UnsupportedOperationException
   }
 }
@@ -196,13 +197,13 @@ object OperationGraphClose extends XLoggable {
 
   /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean)
-    extends Operation[XGraphMarker](s"Close $graph.") {
+    extends Operation[GraphMarker.Generic](s"Close $graph.") {
     this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationGraphClose] getOrElse new OperationGraphClose
+    lazy val operation = injectOptional[XOperationGraphClose[_]] getOrElse new OperationGraphClose
   }
 }

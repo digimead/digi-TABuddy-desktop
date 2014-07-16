@@ -75,9 +75,11 @@ trait PropertyType[T <: AnySRef] extends XPropertyType[T] {
   val typeClass: Class[T]
   /** The type symbol */
   lazy val typeSymbol: Symbol = DSLType.classSymbolMap(typeClass)
+
+  /** Get explicit general property type. */
+  def **(): PropertyType[AnyRef with java.io.Serializable] = this.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]]
   /** The property that contains an adapter for the given type */
   def adapter(): PropertyType.Adapter[T]
-
   /**
    * Result of comparing 'value1' with 'value2'.
    * returns `x' where
@@ -121,7 +123,7 @@ object PropertyType extends XLoggable {
   type genericEditor = Editor[AnySRef]
 
   /** Get the default type class (for new element property, for example) */
-  def defaultType(): XPropertyType[_ <: AnySRef] = DI.types.get('String).getOrElse(DI.types.head._2)
+  def defaultType(): PropertyType[_ <: AnySRef] = DI.types.get('String).getOrElse(DI.types.head._2)
   /** Get type wrapper map */
   def container = DI.types
   /** Get type wrapper of the specific type */
@@ -276,7 +278,7 @@ object PropertyType extends XLoggable {
      *  1. an instance of api.PropertyType
      *  2. has name that starts with "PropertyType."
      */
-    private def injectTypes(): immutable.HashMap[Symbol, XPropertyType[_ <: AnySRef]] = {
+    private def injectTypes(): immutable.HashMap[Symbol, PropertyType[_ <: AnySRef]] = {
       val types = bindingModule.bindings.filter {
         case (key, value) ⇒ classOf[XPropertyType[_ <: AnySRef]].isAssignableFrom(key.m.runtimeClass)
       }.map {
@@ -284,13 +286,13 @@ object PropertyType extends XLoggable {
           key.name match {
             case Some(name) if name.startsWith("PropertyType.") ⇒
               log.debug(s"'${name}' loaded.")
-              bindingModule.injectOptional(key).asInstanceOf[Option[XPropertyType[_ <: AnySRef]]]
+              bindingModule.injectOptional(key).asInstanceOf[Option[PropertyType[_ <: AnySRef]]]
             case _ ⇒
               log.debug(s"'${key.name.getOrElse("Unnamed")}' property type skipped.")
               None
           }
       }.flatten.toSeq
-      val result = immutable.HashMap[Symbol, XPropertyType[_ <: AnySRef]](types.map(n ⇒ (n.id, n)): _*)
+      val result = immutable.HashMap[Symbol, PropertyType[_ <: AnySRef]](types.map(n ⇒ (n.id, n)): _*)
       assert(result.nonEmpty, "Unable to start application with empty properyTypes map.")
 
       result.values.foreach(ptype ⇒ try {

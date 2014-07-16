@@ -46,9 +46,14 @@ package org.digimead.tabuddy.desktop.logic.comparator.api
 import java.util.UUID
 import org.digimead.tabuddy.desktop.logic.payload.api.{ XPropertyType, XTemplateProperty }
 import org.digimead.tabuddy.model.element.Element
+import scala.language.higherKinds
 
-/** The Base interface of the model comparator */
+/**
+ * The base interface of the model comparator.
+ */
 trait XComparator[T <: XComparator.Argument] {
+  type ComparatorTemplateProperty[T <: AnyRef with java.io.Serializable] <: XTemplateProperty[T, _ <: XPropertyType[T]]
+  type ComparatorPropertyType[T <: AnyRef with java.io.Serializable] <: XPropertyType[T]
   /** The comparator identificator */
   val id: UUID
   /** The comparator name */
@@ -58,6 +63,8 @@ trait XComparator[T <: XComparator.Argument] {
   /** The flag determines whether or not the comparator uses an argument */
   val isArgumentSupported: Boolean
 
+  /** Returns the generic type filter */
+  def ** = this.asInstanceOf[XComparator[XComparator.Argument]]
   /** Convert Argument instance to the serialized string */
   def argumentToString(argument: T): String
   /** Convert Argument instance to the text representation for the user */
@@ -65,10 +72,10 @@ trait XComparator[T <: XComparator.Argument] {
   /** Check whether comparation is available */
   def canCompare(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean
   /** Compare two element's properties */
-  def compare[U <: AnyRef with java.io.Serializable](property: XTemplateProperty[U], e1: Element, e2: Element, argument: Option[T]): Int =
-    compare(property.id, property.ptype, e1, e2, argument)
+  def compare[U <: AnyRef with java.io.Serializable](property: ComparatorTemplateProperty[U], e1: Element, e2: Element, argument: Option[T]): Int =
+    compare(property.id, property.ptype.asInstanceOf[ComparatorPropertyType[U]], e1, e2, argument)
   /** Compare two element's properties */
-  def compare[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: XPropertyType[U], e1: Element, e2: Element, argument: Option[T]): Int
+  def compare[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: ComparatorPropertyType[U], e1: Element, e2: Element, argument: Option[T]): Int
   /** Convert the serialized argument to Argument instance */
   def stringToArgument(argument: String): Option[T]
   /** Convert the serialized argument to the text representation for the user */

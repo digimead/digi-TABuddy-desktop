@@ -48,14 +48,14 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationModifyTypeSchemaList
-import org.digimead.tabuddy.desktop.logic.payload.api.XTypeSchema
+import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyTypeSchemaList base trait.
  */
-trait OperationModifyTypeSchemaList extends XOperationModifyTypeSchemaList {
+trait OperationModifyTypeSchemaList extends XOperationModifyTypeSchemaList[TypeSchema] {
   /**
    * Create 'Modify a type schema list' operation.
    *
@@ -64,7 +64,7 @@ trait OperationModifyTypeSchemaList extends XOperationModifyTypeSchemaList {
    * @param activeSchema the active type schema
    * @return 'Modify a type schema list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[XTypeSchema], activeSchema: XTypeSchema): OperationModifyTypeSchemaList.Abstract
+  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema], activeSchema: TypeSchema): OperationModifyTypeSchemaList.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -99,7 +99,7 @@ object OperationModifyTypeSchemaList extends XLoggable {
    * @return 'Modify a type schema list' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[XTypeSchema], activeSchema: XTypeSchema): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema], activeSchema: TypeSchema): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, schemaList, activeSchema))
@@ -108,14 +108,14 @@ object OperationModifyTypeSchemaList extends XLoggable {
         None
     }
 
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val before: Set[XTypeSchema], val active: XTypeSchema)
-    extends Operation[(Set[XTypeSchema], XTypeSchema)](s"Edit type schema list for graph $graph.") {
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val before: Set[TypeSchema], val active: TypeSchema)
+    extends Operation[(Set[TypeSchema], TypeSchema)](s"Edit type schema list for graph $graph.") {
     this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationModifyTypeSchemaList]
+    lazy val operation = injectOptional[XOperationModifyTypeSchemaList[_]]
   }
 }

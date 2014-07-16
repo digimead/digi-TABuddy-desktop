@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.graph.Graph
 /**
  * OperationModifyElementTemplate base trait.
  */
-trait XOperationModifyElementTemplate {
+trait XOperationModifyElementTemplate[T <: XElementTemplate.Generic] {
   checkSubclass()
 
   /**
@@ -62,7 +62,7 @@ trait XOperationModifyElementTemplate {
    * @param templateList exists element templates
    * @return the modified element template
    */
-  def apply(graph: Graph[_ <: Model.Like], template: XElementTemplate, templateList: Set[XElementTemplate]): XElementTemplate
+  def apply(graph: Graph[_ <: Model.Like], template: T, templateList: Set[T]): T
   /**
    * Create 'Modify an element template' operation.
    *
@@ -71,7 +71,7 @@ trait XOperationModifyElementTemplate {
    * @param templateList exists element templates
    * @return 'Modify an element template' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], template: XElementTemplate, templateList: Set[XElementTemplate]): XOperation[XElementTemplate]
+  def operation(graph: Graph[_ <: Model.Like], template: T, templateList: Set[T]): XOperation[T]
 
   /**
    * Checks that this class can be subclassed.

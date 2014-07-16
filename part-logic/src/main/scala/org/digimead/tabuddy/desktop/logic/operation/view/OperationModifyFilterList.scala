@@ -48,14 +48,14 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifyFilterList
-import org.digimead.tabuddy.desktop.logic.payload.view.api.XFilter
+import org.digimead.tabuddy.desktop.logic.payload.view.Filter
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyFilterList base trait.
  */
-trait OperationModifyFilterList extends XOperationModifyFilterList {
+trait OperationModifyFilterList extends XOperationModifyFilterList[Filter] {
   /**
    * Create 'Modify filter list' operation.
    *
@@ -63,7 +63,7 @@ trait OperationModifyFilterList extends XOperationModifyFilterList {
    * @param filterList exists filters
    * @return 'Modify filter list' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], filterList: Set[XFilter]): OperationModifyFilterList.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], filterList: Set[Filter]): OperationModifyFilterList.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -97,7 +97,7 @@ object OperationModifyFilterList extends XLoggable {
    * @return 'Modify filter list' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], filterList: Set[XFilter]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], filterList: Set[Filter]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, filterList))
@@ -106,15 +106,15 @@ object OperationModifyFilterList extends XLoggable {
         None
     }
 
-  /** Bridge between abstract XOperation[Set[XFilter]] and concrete Operation[Set[XFilter]] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val filterList: Set[XFilter])
-    extends Operation[Set[XFilter]](s"Edit filter list for graph $graph.") {
+  /** Bridge between abstract XOperation[Set[Filter]] and concrete Operation[Set[Filter]] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val filterList: Set[Filter])
+    extends Operation[Set[Filter]](s"Edit filter list for graph $graph.") {
     this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationModifyFilterList]
+    lazy val operation = injectOptional[XOperationModifyFilterList[_]]
   }
 }

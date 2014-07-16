@@ -50,13 +50,14 @@ import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.graph.api.XOperationGraphDelete
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.marker.api.XGraphMarker
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
-/** 'Delete graph' operation. */
-class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
+/**
+ * 'Delete graph' operation.
+ */
+class OperationGraphDelete extends XOperationGraphDelete[GraphMarker.Generic] with XLoggable {
   protected val operationLock = new Object()
   /**
    * Delete graph.
@@ -65,7 +66,7 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
    * @param askBefore askUser before delete
    * @return deleted graph read only marker
    */
-  def apply(markerUUID: UUID, askBefore: Boolean): XGraphMarker = {
+  def apply(markerUUID: UUID, askBefore: Boolean): GraphMarker.Generic = {
     GraphMarker.globalRWL.writeLock().lock()
     try delete(GraphMarker(markerUUID), askBefore)
     finally GraphMarker.globalRWL.writeLock().unlock()
@@ -77,7 +78,7 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
    * @param askBefore askUser before delete
    * @return deleted graph read only marker
    */
-  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): XGraphMarker = {
+  def apply(graph: Graph[_ <: Model.Like], askBefore: Boolean): GraphMarker.Generic = {
     GraphMarker.globalRWL.writeLock().lock()
     try delete(GraphMarker(graph), askBefore)
     finally GraphMarker.globalRWL.writeLock().unlock()
@@ -123,7 +124,7 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
    * @param askBefore askUser before delete
    * @return deleted graph read only marker
    */
-  protected def delete(marker: GraphMarker, askBefore: Boolean): XGraphMarker = marker.safeUpdate { state ⇒
+  protected def delete(marker: GraphMarker, askBefore: Boolean): GraphMarker.Generic = marker.safeUpdate { state ⇒
     log.info(s"Delete graph with ${marker}.")
     if (!marker.markerIsValid)
       throw new IllegalStateException(marker + " is not valid.")
@@ -142,7 +143,7 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[GraphMarker.Generic] = {
       require(canExecute, "Execution is disabled.")
       try {
         val result = Option {
@@ -157,9 +158,9 @@ class OperationGraphDelete extends XOperationGraphDelete with XLoggable {
           Operation.Result.Error(s"Unable to delete graph with ${marker}: " + e.getMessage(), e)
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[GraphMarker.Generic] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[XGraphMarker] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[GraphMarker.Generic] =
       throw new UnsupportedOperationException
   }
 }
@@ -191,13 +192,13 @@ object OperationGraphDelete extends XLoggable {
 
   /** Bridge between abstract XOperation[XGraphMarker] and concrete Operation[XGraphMarker] */
   abstract class Abstract(val marker: GraphMarker, val askBefore: Boolean)
-    extends Operation[XGraphMarker](s"Delete graph with $marker.") {
+    extends Operation[GraphMarker.Generic](s"Delete graph with $marker.") {
     this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationGraphDelete] getOrElse new OperationGraphDelete
+    lazy val operation = injectOptional[XOperationGraphDelete[_]] getOrElse new OperationGraphDelete
   }
 }

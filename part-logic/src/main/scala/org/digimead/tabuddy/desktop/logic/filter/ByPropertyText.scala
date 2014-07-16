@@ -46,10 +46,12 @@ package org.digimead.tabuddy.desktop.logic.filter
 import java.util.UUID
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.filter.api.XFilter
-import org.digimead.tabuddy.desktop.logic.payload.api.XPropertyType
+import org.digimead.tabuddy.desktop.logic.payload.{ PropertyType, TemplateProperty }
 import org.digimead.tabuddy.model.element.Element
 
 class ByPropertyText extends XFilter[ByPropertyTextArgument] with XLoggable {
+  type FilterTemplateProperty[T <: AnyRef with java.io.Serializable] = TemplateProperty[T]
+  type FilterPropertyType[T <: AnyRef with java.io.Serializable] = PropertyType[T]
   val id = UUID.fromString("74db4f4c-261c-443c-b014-fae7d864357b")
   val name = "By property text"
   val description = "Compare two element's properties via text representation"
@@ -62,10 +64,10 @@ class ByPropertyText extends XFilter[ByPropertyTextArgument] with XLoggable {
   /** Check whether filtering is available */
   def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean = true
   /** Filter element property */
-  def filter[T <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: XPropertyType[T], e: Element, argument: Option[ByPropertyTextArgument]): Boolean =
+  def filter[A <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: PropertyType[A], e: Element, argument: Option[ByPropertyTextArgument]): Boolean =
     argument match {
       case Some(argument) ⇒
-        val text = e.eGet(propertyId, ptype.typeSymbol).map(value ⇒ ptype.valueToString(value.get.asInstanceOf[T])).getOrElse("").trim
+        val text = e.eGet(propertyId, ptype.typeSymbol).map(value ⇒ ptype.valueToString(value.get.asInstanceOf[A])).getOrElse("").trim
         text.toLowerCase().contains(argument.value.toLowerCase())
       case None ⇒
         log.warn("argument is absent")

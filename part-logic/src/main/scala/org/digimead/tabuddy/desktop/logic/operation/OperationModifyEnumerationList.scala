@@ -48,14 +48,14 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.api.XOperationModifyEnumerationList
-import org.digimead.tabuddy.desktop.logic.payload.api.XEnumeration
+import org.digimead.tabuddy.desktop.logic.payload.Enumeration
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyEnumerationList base trait.
  */
-trait OperationModifyEnumerationList extends XOperationModifyEnumerationList {
+trait OperationModifyEnumerationList extends XOperationModifyEnumerationList[Enumeration[_ <: AnyRef with java.io.Serializable]] {
   /**
    * Create 'Modify an enumeration list' operation.
    *
@@ -63,7 +63,7 @@ trait OperationModifyEnumerationList extends XOperationModifyEnumerationList {
    * @param enumerationList exists enumerations
    * @return 'Modify an enumeration list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], enumerationList: Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]): OperationModifyEnumerationList.Abstract
+  def operation(graph: Graph[_ <: Model.Like], enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]]): OperationModifyEnumerationList.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -97,7 +97,7 @@ object OperationModifyEnumerationList extends XLoggable {
    * @return 'Modify an enumeration list' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], enumerationList: Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, enumerationList))
@@ -106,8 +106,8 @@ object OperationModifyEnumerationList extends XLoggable {
         None
     }
 
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val enumerationList: Set[XEnumeration[_ <: AnyRef with java.io.Serializable]])
-    extends Operation[Set[XEnumeration[_ <: AnyRef with java.io.Serializable]]](s"Edit enumeration list for graph ${graph}.") {
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val enumerationList: Set[Enumeration[_ <: AnyRef with java.io.Serializable]])
+    extends Operation[Set[Enumeration[_ <: AnyRef with java.io.Serializable]]](s"Edit enumeration list for graph ${graph}.") {
     this: XLoggable ⇒
   }
 
@@ -115,6 +115,6 @@ object OperationModifyEnumerationList extends XLoggable {
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationModifyEnumerationList]
+    lazy val operation = injectOptional[XOperationModifyEnumerationList[_]]
   }
 }

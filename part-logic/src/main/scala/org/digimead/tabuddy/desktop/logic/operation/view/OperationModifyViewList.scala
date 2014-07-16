@@ -48,14 +48,14 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.logic.operation.view.api.XOperationModifyViewList
-import org.digimead.tabuddy.desktop.logic.payload.view.api.XView
+import org.digimead.tabuddy.desktop.logic.payload.view.View
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 
 /**
  * OperationModifyViewList base trait.
  */
-trait OperationModifyViewList extends XOperationModifyViewList {
+trait OperationModifyViewList extends XOperationModifyViewList[View] {
   /**
    * Create 'Modify view list' operation.
    *
@@ -63,7 +63,7 @@ trait OperationModifyViewList extends XOperationModifyViewList {
    * @param viewList exists views
    * @return 'Modify view list' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], viewList: Set[XView]): OperationModifyViewList.Abstract
+  override def operation(graph: Graph[_ <: Model.Like], viewList: Set[View]): OperationModifyViewList.Abstract
 
   /**
    * Checks that this class can be subclassed.
@@ -97,7 +97,7 @@ object OperationModifyViewList extends XLoggable {
    * @return 'Modify view list' operation
    */
   @log
-  def apply(graph: Graph[_ <: Model.Like], viewList: Set[XView]): Option[Abstract] =
+  def apply(graph: Graph[_ <: Model.Like], viewList: Set[View]): Option[Abstract] =
     operation match {
       case Some(operation) ⇒
         Some(operation.operation(graph, viewList))
@@ -106,15 +106,15 @@ object OperationModifyViewList extends XLoggable {
         None
     }
 
-  /** Bridge between abstract XOperation[Set[XView]] and concrete Operation[Set[XView]] */
-  abstract class Abstract(val graph: Graph[_ <: Model.Like], val viewList: Set[XView])
-    extends Operation[Set[XView]](s"Edit view list for graph $graph.") {
+  /** Bridge between abstract XOperation[Set[View]] and concrete Operation[Set[View]] */
+  abstract class Abstract(val graph: Graph[_ <: Model.Like], val viewList: Set[View])
+    extends Operation[Set[View]](s"Edit view list for graph $graph.") {
     this: XLoggable ⇒
   }
   /**
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    lazy val operation = injectOptional[XOperationModifyViewList]
+    lazy val operation = injectOptional[XOperationModifyViewList[_]]
   }
 }

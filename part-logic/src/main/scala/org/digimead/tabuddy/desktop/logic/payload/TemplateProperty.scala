@@ -43,7 +43,6 @@
 
 package org.digimead.tabuddy.desktop.logic.payload
 
-import org.digimead.tabuddy.desktop.logic.payload.api.XPropertyType
 import org.digimead.tabuddy.desktop.logic.payload.api.XTemplateProperty
 
 class TemplateProperty[T <: AnySRef](
@@ -54,13 +53,15 @@ class TemplateProperty[T <: AnySRef](
   /** The property that representing an attached enumeration if any */
   val enumeration: Option[Symbol],
   /** The property that representing a type from the UI point of view */
-  val ptype: XPropertyType[T],
+  val ptype: PropertyType[T],
   /** The default value */
   val defaultValue: Option[T] = None)(implicit m: Manifest[T]) extends TemplateProperty.Interface[T] {
+  /** Get explicit general template property. */
+  def **(): TemplateProperty[AnyRef with java.io.Serializable] = this.asInstanceOf[TemplateProperty[AnyRef with java.io.Serializable]]
   /** The copy constructor */
   def copy(defaultValue: Option[T] = this.defaultValue,
     enumeration: Option[Symbol] = this.enumeration,
-    ptype: XPropertyType[T] = this.ptype,
+    ptype: PropertyType[T] = this.ptype,
     id: Symbol = this.id,
     required: Boolean = this.required) =
     new TemplateProperty[T](id, required, enumeration, ptype, defaultValue).asInstanceOf[this.type]
@@ -71,19 +72,19 @@ class TemplateProperty[T <: AnySRef](
  */
 object TemplateProperty {
   /** The deep comparison of two template properties */
-  def compareDeep(a: XTemplateProperty[_ <: AnySRef], b: XTemplateProperty[_ <: AnySRef]): Boolean =
+  def compareDeep(a: TemplateProperty[_ <: AnySRef], b: TemplateProperty[_ <: AnySRef]): Boolean =
     (a eq b) || (a == b && a.ptype == b.ptype && a.defaultValue == b.defaultValue && a.enumeration == b.enumeration && a.required == b.required)
 
   /**
    * the model.dsl.DSLType from the application point of view
    */
-  private[TemplateProperty] trait Interface[T <: AnySRef] extends XTemplateProperty[T] {
+  private[TemplateProperty] trait Interface[T <: AnySRef] extends XTemplateProperty[T, PropertyType[T]] {
     /** The default value */
     val defaultValue: Option[T]
     /** The property that representing an attached enumeration if any */
     val enumeration: Option[Symbol]
     /** The property that representing a type from the UI point of view */
-    val ptype: XPropertyType[T]
+    val ptype: PropertyType[T]
     /** The property name */
     val id: Symbol
     /** Is the property required */
@@ -92,14 +93,14 @@ object TemplateProperty {
     /** The copy constructor */
     def copy(defaultValue: Option[T] = this.defaultValue,
       enumeration: Option[Symbol] = this.enumeration,
-      ptype: XPropertyType[T] = this.ptype,
+      ptype: PropertyType[T] = this.ptype,
       id: Symbol = this.id,
       required: Boolean = this.required): this.type
 
     def canEqual(other: Any) =
-      other.isInstanceOf[XTemplateProperty[T]]
+      other.isInstanceOf[Interface[T]]
     override def equals(other: Any) = other match {
-      case that: XTemplateProperty[T] ⇒
+      case that: Interface[T] ⇒
         (this eq that) || {
           that.canEqual(this) &&
             defaultValue == that.defaultValue &&

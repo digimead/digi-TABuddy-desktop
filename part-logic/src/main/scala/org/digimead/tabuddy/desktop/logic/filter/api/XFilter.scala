@@ -46,9 +46,14 @@ package org.digimead.tabuddy.desktop.logic.filter.api
 import java.util.UUID
 import org.digimead.tabuddy.desktop.logic.payload.api.{ XPropertyType, XTemplateProperty }
 import org.digimead.tabuddy.model.element.Element
+import scala.language.higherKinds
 
-/** The Base interface of the model filter */
+/**
+ * The base interface of the model filter.
+ */
 trait XFilter[T <: XFilter.Argument] {
+  type FilterTemplateProperty[T <: AnyRef with java.io.Serializable] <: XTemplateProperty[T, _ <: XPropertyType[T]]
+  type FilterPropertyType[T <: AnyRef with java.io.Serializable] <: XPropertyType[T]
   /** The comparator identificator */
   val id: UUID
   /** The comparator name */
@@ -58,6 +63,8 @@ trait XFilter[T <: XFilter.Argument] {
   /** The flag determines whether or not the comparator uses an argument */
   val isArgumentSupported: Boolean
 
+  /** Returns the generic type filter */
+  def ** = this.asInstanceOf[XFilter[XFilter.Argument]]
   /** Convert Argument instance to the serialized string */
   def argumentToString(argument: T): String
   /** Convert Argument instance to the text representation for the user */
@@ -65,12 +72,10 @@ trait XFilter[T <: XFilter.Argument] {
   /** Check whether filtering is available */
   def canFilter(clazz: Class[_ <: AnyRef with java.io.Serializable]): Boolean
   /** Filter element property */
-  def filter[U <: AnyRef with java.io.Serializable](property: XTemplateProperty[U], e: Element, argument: Option[T]): Boolean =
-    filter(property.id, property.ptype, e, argument)
+  def filter[U <: AnyRef with java.io.Serializable](property: FilterTemplateProperty[U], e: Element, argument: Option[T]): Boolean =
+    filter(property.id, property.ptype.asInstanceOf[FilterPropertyType[U]], e, argument)
   /** Filter element property */
-  def filter[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: XPropertyType[U], e: Element, argument: Option[T]): Boolean
-  /** Returns the generic type filter */
-  def generic = this.asInstanceOf[XFilter[XFilter.Argument]]
+  def filter[U <: AnyRef with java.io.Serializable](propertyId: Symbol, ptype: FilterPropertyType[U], e: Element, argument: Option[T]): Boolean
   /** Convert the serialized argument to Argument instance */
   def stringToArgument(argument: String): Option[T]
   /** Convert the serialized argument to the text representation for the user */

@@ -53,6 +53,25 @@ import scala.collection.JavaConversions.{ asJavaCollection, asScalaSet, mapAsSca
 trait Context {
   this: XLoggable with Generic ⇒
 
+  /** Dump context hierarchy. */
+  def contextDump(ctx: IEclipseContext, filter: String ⇒ Boolean, brief: Boolean): String = {
+    val head = s"Context: $ctx [parrent '${ctx.getParent()}']"
+    val staticKeys = ctx.asInstanceOf[EclipseContext].localData().keys
+    val dynamicKeys = ctx.asInstanceOf[EclipseContext].cachedCachedContextFunctions().keys
+    val entries = if (brief)
+      (staticKeys ++ dynamicKeys).filter(filter).toSeq.sorted.map(key ⇒
+        if (dynamicKeys.contains(key))
+          "* " + key // dynamic value
+        else
+          key)
+    else
+      (staticKeys ++ dynamicKeys).filter(filter).toSeq.sorted.map(key ⇒
+        if (dynamicKeys.contains(key))
+          "* " + key + ": " + ctx.getLocal(key) // dynamic value
+        else
+          key + ": " + ctx.getLocal(key))
+    (head +: entries.map("  " + _)).mkString("\n")
+  }
   /** Dump context hierarchy acquired from Core context. */
   def contextDumpHierarchy(filter: String ⇒ Boolean = (key) ⇒ true, brief: Boolean = true): String =
     contextDumpHierarchy(Core.context, filter, brief)

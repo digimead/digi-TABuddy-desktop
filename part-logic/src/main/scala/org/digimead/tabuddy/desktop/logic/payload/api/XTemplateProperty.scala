@@ -46,24 +46,22 @@ package org.digimead.tabuddy.desktop.logic.payload.api
 /**
  * the model.dsl.DSLType from the application point of view
  */
-trait XTemplateProperty[T <: AnyRef with java.io.Serializable] extends Equals {
+trait XTemplateProperty[A <: AnyRef with java.io.Serializable, B <: XPropertyType[A]] extends Equals {
   /** The default value */
-  val defaultValue: Option[T]
+  val defaultValue: Option[A]
   /** The property that representing an attached enumeration if any */
   val enumeration: Option[Symbol]
   /** The property that representing a type from the UI point of view */
-  val ptype: XPropertyType[T]
+  val ptype: B
   /** The property name */
   val id: Symbol
   /** Is the property required */
   val required: Boolean
 
-  /** Get explicit general template property. */
-  def **(): XPropertyType[AnyRef with java.io.Serializable] = this.asInstanceOf[XPropertyType[AnyRef with java.io.Serializable]]
   /** The copy constructor */
-  def copy(defaultValue: Option[T] = this.defaultValue,
+  def copy(defaultValue: Option[A] = this.defaultValue,
     enumeration: Option[Symbol] = this.enumeration,
-    ptype: XPropertyType[T] = this.ptype,
+    ptype: B = this.ptype,
     id: Symbol = this.id,
     required: Boolean = this.required): this.type
 }

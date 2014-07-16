@@ -50,7 +50,7 @@ import org.digimead.tabuddy.model.element.Element
 /**
  * OperationCreateElementFromTemplate base trait.
  */
-trait XOperationCreateElementFromTemplate {
+trait XOperationCreateElementFromTemplate[T <: XElementTemplate.Generic] {
   checkSubclass()
 
   /**
@@ -60,7 +60,7 @@ trait XOperationCreateElementFromTemplate {
    * @param container container for the new element
    * @return the modified element
    */
-  def apply(template: XElementTemplate, container: Element): Element
+  def apply(template: T, container: Element): Element
   /**
    * Create 'Create a new element from template' operation.
    *
@@ -68,7 +68,7 @@ trait XOperationCreateElementFromTemplate {
    * @param container container for the new element
    * @return 'Create a new element from template' operation
    */
-  def operation(template: XElementTemplate, container: Element): XOperation[Element]
+  def operation(template: T, container: Element): XOperation[Element]
 
   /**
    * Checks that this class can be subclassed.

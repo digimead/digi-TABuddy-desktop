@@ -64,8 +64,6 @@ trait XPropertyType[A <: AnyRef with java.io.Serializable] extends Equals {
   /** The property that contains an adapter for the given type. */
   def adapter(): XPropertyType.Adapter[A]
 
-  /** Get explicit general property type. */
-  def **(): XPropertyType[AnyRef with java.io.Serializable] = this.asInstanceOf[XPropertyType[AnyRef with java.io.Serializable]]
   /**
    * Result of comparing 'value1' with 'value2'.
    * returns `x' where
@@ -91,6 +89,7 @@ trait XPropertyType[A <: AnyRef with java.io.Serializable] extends Equals {
 }
 
 object XPropertyType extends XLoggable {
+  type Generic = XPropertyType[_ <: AnyRef with java.io.Serializable]
   /**
    * Element property adapter
    */

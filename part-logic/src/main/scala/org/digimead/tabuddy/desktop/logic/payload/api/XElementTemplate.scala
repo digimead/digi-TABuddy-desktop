@@ -48,9 +48,9 @@ import org.digimead.tabuddy.model.element.Element
 import scala.collection.immutable
 
 /**
- * model.Element from the application point of view
+ * model.Element interface from the point of view of TA Buddy
  */
-trait XElementTemplate extends Equals {
+trait XElementTemplate[A <: XTemplatePropertyGroup, B <: XTemplateProperty[_ <: AnyRef with java.io.Serializable, _ <: XPropertyType[_ <: AnyRef with java.io.Serializable]]] extends Equals {
   /** Availability flag for user (some template may exists, but not involved in new element creation). */
   val availability: Boolean
   /** The template name. */
@@ -66,7 +66,7 @@ trait XElementTemplate extends Equals {
    * or map of form fields from the application point of view.
    * Key - property group, Value - sequence of element properties
    */
-  val properties: XElementTemplate.propertyMap
+  val properties: XElementTemplate.PropertyMap[A, B]
 
   /** The copy constructor. */
   def copy(availability: Boolean = this.availability,
@@ -74,7 +74,7 @@ trait XElementTemplate extends Equals {
     element: Element#RelativeType = this.element,
     factory: (Element, Symbol, Symbol) ⇒ Element = this.factory,
     id: Symbol = this.id,
-    properties: XElementTemplate.propertyMap = this.properties): this.type
+    properties: XElementTemplate.PropertyMap[A, B] = this.properties): this.type
   /** Returns an ID for the availability field. */
   def getFieldIDAvailability(): Symbol
   /** Returns an ID for the name field. */
@@ -98,6 +98,10 @@ trait XElementTemplate extends Equals {
 }
 
 object XElementTemplate {
-  type propertyMap = immutable.HashMap[XTemplatePropertyGroup, Seq[XTemplateProperty[_ <: AnyRef with java.io.Serializable]]]
-  trait Builder extends Function1[Record.Like, XElementTemplate]
+  type Generic = XElementTemplate[_ <: XTemplatePropertyGroup, _ <: XTemplateProperty[_ <: AnyRef with java.io.Serializable, _ <: XPropertyType[_ <: AnyRef with java.io.Serializable]]]
+  type PropertyMap[A <: XTemplatePropertyGroup, B <: XTemplateProperty[_ <: AnyRef with java.io.Serializable, _ <: XPropertyType[_ <: AnyRef with java.io.Serializable]]] = immutable.HashMap[A, Seq[B]]
+  /**
+   * ElementTemplate builder.
+   */
+  trait Builder[A <: XTemplatePropertyGroup, B <: XTemplateProperty[_ <: AnyRef with java.io.Serializable, _ <: XPropertyType[_ <: AnyRef with java.io.Serializable]]] extends Function1[Record.Like, XElementTemplate[A, B]]
 }

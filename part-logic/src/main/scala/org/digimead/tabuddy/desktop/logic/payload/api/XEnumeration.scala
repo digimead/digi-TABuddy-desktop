@@ -46,14 +46,14 @@ package org.digimead.tabuddy.desktop.logic.payload.api
 import org.digimead.tabuddy.model.element.Element
 
 /**
- * The base enumeration interface
- * The equality is based on element reference
+ * The base enumeration interface.
+ * The equality is based on the element reference.
  */
-trait XEnumeration[T <: AnyRef with java.io.Serializable] extends Equals {
+trait XEnumeration[A <: AnyRef with java.io.Serializable, B <: XPropertyType[A], C <: XTemplateProperty[A, B], D <: XEnumeration.Constant[A, B]] extends Equals {
   /** Availability flag for user (some enumeration may exists, but not involved in new element creation). */
   val availability: Boolean
   /** The sequence of enumeration constants. */
-  val constants: Set[XEnumeration.Constant[T]]
+  val constants: Set[D]
   /** The enumeration element. */
   val element: Element#RelativeType
   /** The enumeration id/name. */
@@ -61,21 +61,19 @@ trait XEnumeration[T <: AnyRef with java.io.Serializable] extends Equals {
   /** The enumeration name. */
   val name: String
   /** The type wrapper. */
-  val ptype: XPropertyType[T]
+  val ptype: B
 
-  /** Get explicit general enumeration. */
-  def **(): XEnumeration[AnyRef with java.io.Serializable] = this.asInstanceOf[XEnumeration[AnyRef with java.io.Serializable]]
   /** The copy constructor. */
   def copy(availability: Boolean = this.availability,
-    constants: Set[XEnumeration.Constant[T]] = this.constants,
+    constants: Set[D] = this.constants,
     element: Element#RelativeType = this.element,
     id: Symbol = this.id,
     name: String = this.name,
-    ptype: XPropertyType[T] = this.ptype): this.type
+    ptype: B = this.ptype): this.type
   /** Get the specific constant for the property or the first entry. */
-  def getConstantSafe(property: XTemplateProperty[T]): XEnumeration.Constant[T]
+  def getConstantSafe(property: C): D
   /** Get the specific constant for the value or the first entry. */
-  def getConstantSafe(value: T): XEnumeration.Constant[T]
+  def getConstantSafe(value: A): D
   /** Returns an identificator for the availability field. */
   def getFieldIDAvailability(): Symbol
   /** Returns an identificator for the name field. */
@@ -91,16 +89,19 @@ trait XEnumeration[T <: AnyRef with java.io.Serializable] extends Equals {
 }
 
 object XEnumeration {
+  type Generic = XEnumeration[_ <: AnyRef with java.io.Serializable, _ <: XPropertyType[_ <: AnyRef with java.io.Serializable],
+    _ <: XTemplateProperty[_ <: AnyRef with java.io.Serializable, _ <: XPropertyType[_ <: AnyRef with java.io.Serializable]],
+    _ <: XEnumeration.Constant[_, _ <: XPropertyType[_ <: AnyRef with java.io.Serializable]]]
   /**
-   * The enumeration constant class
-   * The equality is based on constant value
+   * The enumeration constant class.
+   * The equality is based on the constant value.
    */
-  trait Constant[T <: AnyRef with java.io.Serializable] extends Equals {
-    val value: T
+  trait Constant[A <: AnyRef with java.io.Serializable, B <: XPropertyType[A]] extends Equals {
+    val value: A
     val alias: String
     val description: String
-    val ptype: XPropertyType[T]
-    val m: Manifest[T]
+    val ptype: B
+    val m: Manifest[A]
     /** The enumeration constant user's representation */
     val view: String
   }

@@ -44,9 +44,11 @@
 package org.digimead.tabuddy.desktop.logic.payload.api
 
 import java.util.UUID
-import scala.collection.immutable
 
-trait XTypeSchema extends Equals {
+/**
+ * TypeSchema interface
+ */
+trait XTypeSchema[T <: XTypeSchema.Entity[_ <: AnyRef with java.io.Serializable]] extends Equals {
   /** The type schema id */
   val id: UUID
   /** The type schema name */
@@ -54,12 +56,31 @@ trait XTypeSchema extends Equals {
   /** The type schema description */
   val description: String
   /** Type schema entities */
-  val entity: immutable.HashMap[Symbol, XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]]
+  val entity: Map[Symbol, T]
 
   /** The copy constructor */
   def copy(id: UUID = this.id,
     name: String = this.name,
     description: String = this.description,
-    entity: immutable.HashMap[Symbol, XTypeSchemaEntity[_ <: AnyRef with java.io.Serializable]] = this.entity): this.type
+    entity: Map[Symbol, T] = this.entity): this.type
   def canEqual(other: Any): Boolean
+}
+
+object XTypeSchema {
+  type Generic = XTypeSchema[_ <: XTypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]
+  /**
+   * TypeSchema entity interface
+   */
+  trait Entity[T <: AnyRef with java.io.Serializable] extends Equals {
+    /** The property type id */
+    val ptypeId: Symbol
+    /** typeSymbol alias */
+    val alias: String
+    /** Availability flag for user (some types may exists, but not involved in new element template creation) */
+    val availability: Boolean
+    /** The entity description */
+    val description: String
+    /** The type schema entity user's representation */
+    val view: String
+  }
 }

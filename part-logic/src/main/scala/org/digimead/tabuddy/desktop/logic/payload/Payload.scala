@@ -50,9 +50,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.{ WritableMap, WritableValue }
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.api.{ XElementTemplate, XEnumeration, XPropertyType, XTypeSchema }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.{ XFilter, XSorting, XView }
 import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.model.serialization.Serialization
 
@@ -60,11 +58,11 @@ import org.digimead.tabuddy.model.serialization.Serialization
  * Singleton that contains information related to specific graph.
  */
 /*
- * Most of lazy fields of this class is initialized from event loop at GraphMarker.initializePayload
+ * Most of lazy fields of this class is initialized from the event loop at GraphMarker.initializePayload
  */
 class Payload(val marker: GraphMarker) extends XLoggable {
   /** The property representing all available element templates for user, contains at least one predefined element. */
-  lazy val elementTemplates = WritableMap[Symbol, XElementTemplate]
+  lazy val elementTemplates = WritableMap[Symbol, ElementTemplate]
   /** The property representing original element templates. */
   lazy val originalElementTemplates = {
     /*
@@ -81,63 +79,63 @@ class Payload(val marker: GraphMarker) extends XLoggable {
     original
   }
   /** The property representing all available enumerations. */
-  lazy val enumerations = WritableMap[Symbol, XEnumeration[_ <: AnyRef with java.io.Serializable]]
+  lazy val enumerations = WritableMap[Symbol, Enumeration[_ <: AnyRef with java.io.Serializable]]
   /** Predefined type schemas that are available for this application. */
-  lazy val predefinedTypeSchemas: Seq[XTypeSchema] = TypeSchema.predefined
+  lazy val predefinedTypeSchemas: Seq[TypeSchema] = TypeSchema.predefined
   /** The property representing all available type schemas */
-  lazy val typeSchemas = WritableMap[UUID, XTypeSchema]
+  lazy val typeSchemas = WritableMap[UUID, TypeSchema]
   /** The property representing the active type schema */
-  lazy val typeSchema = WritableValue[XTypeSchema]
+  lazy val typeSchema = WritableValue[TypeSchema]
   /** The property representing all available view definitions */
-  lazy val viewDefinitions = WritableMap[UUID, XView]
+  lazy val viewDefinitions = WritableMap[UUID, View]
   /** The property representing all available view filters */
-  lazy val viewFilters = WritableMap[UUID, XFilter]
+  lazy val viewFilters = WritableMap[UUID, Filter]
   /** The property representing all available view sortings */
-  lazy val viewSortings = WritableMap[UUID, XSorting]
+  lazy val viewSortings = WritableMap[UUID, Sorting]
 
   /** Get user enumerations */
-  def getAvailableElementTemplates(): List[XElementTemplate] =
+  def getAvailableElementTemplates(): List[ElementTemplate] =
     App.execNGet { elementTemplates.values.filter(_.availability).toList }
   /** Get user enumerations */
-  def getAvailableEnumerations(): List[XEnumeration[_ <: AnyRef with java.io.Serializable]] =
+  def getAvailableEnumerations(): List[Enumeration[_ <: AnyRef with java.io.Serializable]] =
     App.execNGet { enumerations.values.filter(_.availability).toList }
   /** Get user types */
-  def getAvailableTypes(defaultValue: Boolean = true): List[XPropertyType[_ <: AnyRef with java.io.Serializable]] = App.execNGet {
+  def getAvailableTypes(defaultValue: Boolean = true): List[PropertyType[_ <: AnyRef with java.io.Serializable]] = App.execNGet {
     val currentTypeSchema = typeSchema.value
     PropertyType.container.values.toList.filter(ptype ⇒
       currentTypeSchema.entity.get(ptype.id).map(_.availability).getOrElse(defaultValue))
   }
   /** Get all available view definitions. */
-  def getAvailableViewDefinitions(): Set[XView] = App.execNGet {
+  def getAvailableViewDefinitions(): Set[View] = App.execNGet {
     val result = View.displayName +: viewDefinitions.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(View.displayName) else result.toSet
   }
   /** Get all available view filters. */
-  def getAvailableViewFilters(): Set[XFilter] = App.execNGet {
+  def getAvailableViewFilters(): Set[Filter] = App.execNGet {
     val result = Filter.allowAllFilter +: viewFilters.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(Filter.allowAllFilter) else result.toSet
   }
   /** Get all available view sortings. */
-  def getAvailableViewSortings(): Set[XSorting] = App.execNGet {
+  def getAvailableViewSortings(): Set[Sorting] = App.execNGet {
     val result = Sorting.simpleSorting +: viewSortings.values.filter(_.availability).toList.sortBy(_.name)
     if (result.isEmpty) Set(Sorting.simpleSorting) else result.toSet
   }
   /** Get selected view definitions. */
-  def getSelectedViewDefinition(context: Context, local: Boolean = false): Option[XView] = {
+  def getSelectedViewDefinition(context: Context, local: Boolean = false): Option[View] = {
     if (local)
       Option(context.getLocal(Logic.Id.selectedView).asInstanceOf[UUID])
     else
       Option(context.get(Logic.Id.selectedView).asInstanceOf[UUID])
   } flatMap (viewDefinitions.get)
   /** Get selected view filter. */
-  def getSelectedViewFilter(context: Context, local: Boolean = false): Option[XFilter] = {
+  def getSelectedViewFilter(context: Context, local: Boolean = false): Option[Filter] = {
     if (local)
       Option(context.getLocal(Logic.Id.selectedFilter).asInstanceOf[UUID])
     else
       Option(context.get(Logic.Id.selectedFilter).asInstanceOf[UUID])
   } flatMap (viewFilters.get)
   /** Get selected view sorting. */
-  def getSelectedViewSorting(context: Context, local: Boolean = false): Option[XSorting] = {
+  def getSelectedViewSorting(context: Context, local: Boolean = false): Option[Sorting] = {
     if (local)
       Option(context.getLocal(Logic.Id.selectedSorting).asInstanceOf[UUID])
     else

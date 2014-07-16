@@ -83,9 +83,9 @@ class Filter(
     new Filter(id, name, description, availability, rules).asInstanceOf[this.type]
 
   def canEqual(other: Any) =
-    other.isInstanceOf[XFilter]
+    other.isInstanceOf[Filter]
   override def equals(other: Any) = other match {
-    case that: XFilter ⇒
+    case that: Filter ⇒
       (this eq that) || {
         that.canEqual(this) &&
           elementId == that.elementId // elementId == UUID
@@ -102,7 +102,7 @@ object Filter extends XLoggable {
   val collectionMaximum = 100
 
   /** Add filter element. */
-  def add(marker: GraphMarker, filter: XFilter) = marker.safeUpdate { state ⇒
+  def add(marker: GraphMarker, filter: Filter) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewFilter(state.graph)
     val element = (container | RecordLocation(filter.elementId)).eRelative
     // remove all element properties
@@ -126,7 +126,7 @@ object Filter extends XLoggable {
     }
   }
   /** The deep comparison of two filters */
-  def compareDeep(a: XFilter, b: XFilter): Boolean =
+  def compareDeep(a: Filter, b: Filter): Boolean =
     (a eq b) || (a == b && a.description == b.description && a.availability == b.availability && a.name == b.name &&
       a.rules.size == b.rules.size && a.rules.toSeq.sortBy(_.hashCode).sameElements(b.rules.toSeq.sortBy(_.hashCode)))
   /** Load filter from element */
@@ -190,7 +190,7 @@ object Filter extends XLoggable {
     if (result.contains(Filter.allowAllFilter)) result else result + Filter.allowAllFilter
   }
   /** Update only modified view filters. */
-  def save(marker: GraphMarker, filters: Set[XFilter]) = marker.safeUpdate { state ⇒
+  def save(marker: GraphMarker, filters: Set[Filter]) = marker.safeUpdate { state ⇒
     log.debug("Save view filter list for graph " + state.graph)
     val oldFilters = App.execNGet { state.payload.viewFilters.values }
     val newFilters = filters - allowAllFilter
@@ -208,7 +208,7 @@ object Filter extends XLoggable {
     }
   }
   /** Remove filter element. */
-  def remove(marker: GraphMarker, filter: XFilter) = marker.safeUpdate { state ⇒
+  def remove(marker: GraphMarker, filter: Filter) = marker.safeUpdate { state ⇒
     val container = PredefinedElements.eViewFilter(state.graph)
     container.eNode.safeWrite { node ⇒ node.children.find(_.rootBox.e.eId == filter.elementId).foreach(node -= _) }
   }

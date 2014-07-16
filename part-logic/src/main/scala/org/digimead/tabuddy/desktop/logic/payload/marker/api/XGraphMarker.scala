@@ -56,7 +56,7 @@ import scala.collection.immutable
  * Graph marker is an object that holds an association between real graph at client
  *   and Eclipse IResource within container(project).
  */
-trait XGraphMarker {
+trait XGraphMarker[A <: XTypeSchema[_ <: XTypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]] {
   /** Autoload property file if suitable information needed. */
   val autoload: Boolean
   /** Container IResource unique id. */
@@ -98,7 +98,7 @@ trait XGraphMarker {
   // This value is modified only if there is a valid local copy.
   def graphStored: Element.Timestamp
   /** Load type schemas from local storage. */
-  def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[XTypeSchema]
+  def loadTypeSchemas(storage: Option[URI] = None): immutable.HashSet[A]
   /** The validation flag indicating whether the marker is consistent. */
   def markerIsValid: Boolean
   /** Marker last access/last load timestamp. */
@@ -108,12 +108,13 @@ trait XGraphMarker {
   /** Save marker properties. */
   def markerSave()
   /** Save type schemas to the local storage. */
-  def saveTypeSchemas(schemas: immutable.Set[XTypeSchema], sData: SData)
+  def saveTypeSchemas(schemas: immutable.Set[A], sData: SData)
   /** Get signature settings. */
   def signature: XGraphMarker.Signature
 }
 
 object XGraphMarker {
+  type Generic = XGraphMarker[_ <: XTypeSchema[_ <: XTypeSchema.Entity[_ <: AnyRef with java.io.Serializable]]]
   /**
    * Digest parameters.
    *

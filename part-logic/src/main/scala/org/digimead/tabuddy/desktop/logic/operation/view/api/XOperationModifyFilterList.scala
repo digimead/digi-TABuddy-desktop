@@ -51,7 +51,7 @@ import org.digimead.tabuddy.model.graph.Graph
 /**
  * OperationModifyXFilterList base trait.
  */
-trait XOperationModifyFilterList {
+trait XOperationModifyFilterList[T <: XFilter] {
   checkSubclass()
 
   /**
@@ -61,7 +61,7 @@ trait XOperationModifyFilterList {
    * @param filterList exists filters
    * @return the modified filter list
    */
-  def apply(graph: Graph[_ <: Model.Like], filterList: Set[XFilter]): Set[XFilter]
+  def apply(graph: Graph[_ <: Model.Like], filterList: Set[T]): Set[T]
   /**
    * Create 'Modify filter list' operation.
    *
@@ -69,7 +69,7 @@ trait XOperationModifyFilterList {
    * @param filterList exists filters
    * @return 'Modify filter list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], filterList: Set[XFilter]): XOperation[Set[XFilter]]
+  def operation(graph: Graph[_ <: Model.Like], filterList: Set[T]): XOperation[Set[T]]
 
   /**
    * Checks that this class can be subclassed.
