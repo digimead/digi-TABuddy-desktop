@@ -111,6 +111,8 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
   protected def assignGraphMarker(marker: GraphMarker) = for {
     body ← body
     content ← content
+    parent ← parent
+    parentContext ← parent.getContext()
     layout = body.getLayout().asInstanceOf[StackLayout]
   } if (marker.graphIsOpen()) {
     layout.topControl = content
@@ -119,7 +121,8 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
       View.this.loading = None
       loading.dispose()
     }
-    viewContext.set(classOf[GraphMarker], marker)
+    GraphMarker.bind(marker, parentContext)
+    GraphMarker.bind(marker, viewContext)
     App.publish(App.Message.Update(marker, self))
   } else
     container ! App.Message.Destroy(None, self)

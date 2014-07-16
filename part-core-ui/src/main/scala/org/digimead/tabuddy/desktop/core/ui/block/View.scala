@@ -345,7 +345,7 @@ object View extends XLoggable {
             contentContext.runAndTrack(new ViewTitleRunAndTrack(WeakReference(observable)))
             observable
           case None ⇒
-            throw new IllegalStateException(s"Actor with name ${actorName} in unknown in factory ${this}.")
+            throw new IllegalStateException(s"Actor with name ${actorName} is unknown at factory ${this}. Is it registered with `def IView.preStart()`?")
         }
       } finally factoryRWL.readLock().unlock()
     }

@@ -45,12 +45,12 @@ package org.digimead.tabuddy.desktop.view.modification.ui.action
 
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
 import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySortingList
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.view.modification.Messages
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
@@ -59,7 +59,7 @@ import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
 import org.eclipse.swt.widgets.Event
 
 /** Modify sorting list. */
-class ActionModifySortingList @Inject() (windowContext: Context) extends JFaceAction(Messages.sortings_text) with Loggable {
+class ActionModifySortingList @Inject() (windowContext: Context) extends JFaceAction(Messages.sortings_text) with XLoggable {
   /** Flag indicating whether the action is enabled. */
   @volatile protected var vContext = Option.empty[Context]
 
@@ -105,7 +105,7 @@ class ActionModifySortingList @Inject() (windowContext: Context) extends JFaceAc
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
   /** Invoked on view activation. */
   @Inject @Optional
-  protected def onViewChanged(@Active vComposite: VComposite): Unit = {
+  protected def onViewChanged(@Active vComposite: VComposite, @Optional @Active marker: GraphMarker): Unit = {
     vContext = vComposite.getContext
     App.exec { updateEnabled() }
   }
