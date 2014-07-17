@@ -41,42 +41,49 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar
+package org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar.editor
 
-import org.digimead.digi.lib.api.XDependencyInjection
+import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar.element.{ Delete, Edit, New }
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
-import org.eclipse.jface.action.{ CoolBarManager, ToolBarManager }
-import org.eclipse.swt.SWT
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.model.editor.ui.view.editor.Content
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.{ Action, IAction }
 import scala.language.implicitConversions
 
 /**
- * Element actions toolbar.
+ * 'CollapseAll' action for an editor bar.
  */
-class ElementBar {
-  /** Create toolbar. */
-  def create(coolBar: CoolBarManager, context: Context) {
-    val toolBar = new ToolBarManager(SWT.NONE)
-    toolBar.add(ContextInjectionFactory.make(classOf[New], context))
-    toolBar.add(ContextInjectionFactory.make(classOf[Edit], context))
-    toolBar.add(ContextInjectionFactory.make(classOf[Delete], context))
-    coolBar.add(toolBar)
+class CollapseAll @Inject() (context: Context) extends Action(CMessages.collapseAll_text) with XLoggable {
+  if (context.get(classOf[VComposite]) == null)
+    throw new IllegalArgumentException(s"${context} does not contain VComposite.")
+
+  override def isEnabled(): Boolean = super.isEnabled &&
+    context.get(classOf[GraphMarker]) != null
+
+  /** Runs this action. */
+  @log
+  override def run = for {
+    composite ← Option(context.get(classOf[VComposite]))
+    marker ← Option(context.get(classOf[GraphMarker]))
+  } composite.getChildren() match {
+    case Array(content: Content) ⇒
+      content.ActionCollapseAll()
+    case unexpected ⇒
+      log.fatal(s"Unexpected children ${unexpected} for ${composite}")
   }
-}
 
-object ElementBar {
-  implicit def bar2implementation(b: ElementBar.type): ElementBar = b.inner
-
-  /** Get ElementBar implementation. */
-  def inner = DI.implementation
-
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends XDependencyInjection.PersistentInjectable {
-    /** ElementBar implementation. */
-    lazy val implementation = injectOptional[ElementBar] getOrElse new ElementBar
-  }
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+  /** Invoked on marker modification. */
+  @Inject @Optional
+  protected def onMarkerChanged(@Optional marker: GraphMarker): Unit = App.exec { updateEnabled() }
 }

@@ -90,54 +90,58 @@ trait ContentActions {
   object ActionElementDelete extends Action(Messages.delete_text) {
     override def run = {}
   }
-  /** Toggle visibility of identificators in the view. */
-  object ActionToggleIdentificators extends Action(CMessages.identificators_text, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-    ContentActions.this.getParent.getContext.foreach { context ⇒
-      context.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
-      ContextInjectionFactory.inject(this, context)
-    }
-
-    def apply() = Table.toggleColumnId(isChecked(), ContentActions.this)
-    /** Update checked state from context of the current view. */
-    @Inject @Optional
-    def onStateOfToggleIdentificatorChanged(@Named(ModelEditor.Id.stateOfToggleIdentificator) checked: java.lang.Boolean) =
-      Option(checked) foreach (checked ⇒ App.exec {
-        if (checked != isChecked()) {
-          setChecked(checked)
-          apply()
-        }
-      })
-    override def run() = {
-      ContentActions.this.getParent.getContext.foreach(_.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean))
-      apply()
-    }
-  }
   /** Toggle visibility of empty rows in the view. */
   object ActionToggleEmpty extends Action(Messages.emptyRows_text, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-    ContentActions.this.getParent.getContext.foreach { context ⇒
+    ContextInjectionFactory.inject(this, context)
+    App.exec {
+      setChecked(true)
       context.set(ModelEditor.Id.stateOfToggleEmpty, isChecked(): java.lang.Boolean)
-      ContextInjectionFactory.inject(this, context)
     }
 
-    def apply() = Table.toggleEmptyRows(!isChecked(), ContentActions.this)
-    /** Update checked state from context of the current view. */
+    /** Update checked state of this action. */
     @Inject @Optional
-    def onStateOfToggleIdentificatorChanged(@Named(ModelEditor.Id.stateOfToggleEmpty) checked: java.lang.Boolean) =
+    def onStateChanged(@Named(ModelEditor.Id.stateOfToggleEmpty) checked: java.lang.Boolean) =
       Option(checked) foreach (checked ⇒ App.exec {
         if (checked != isChecked()) {
           setChecked(checked)
           apply()
         }
       })
-    override def run() = apply()
+    def apply() = App.exec { Table.toggleEmptyRows(!isChecked(), ContentActions.this) }
+    override def run() = {
+      context.set(ModelEditor.Id.stateOfToggleEmpty, isChecked(): java.lang.Boolean)
+      apply()
+    }
   }
   object ActionToggleExpand extends Action(Messages.expandNew_text, IAction.AS_CHECK_BOX) {
     setChecked(false)
 
     def apply() = Tree.toggleAutoExpand(isChecked(), ContentActions.this)
     override def run() = apply()
+  }
+  /** Toggle visibility of identificators in the view. */
+  object ActionToggleIdentificators extends Action(CMessages.identificators_text, IAction.AS_CHECK_BOX) {
+    ContextInjectionFactory.inject(this, context)
+    App.exec {
+      setChecked(true)
+      context.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
+    }
+
+    def apply() = App.exec { Table.toggleColumnId(isChecked(), ContentActions.this) }
+    override def run() = {
+      context.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
+      apply()
+    }
+
+    /** Update checked state of this action. */
+    @Inject @Optional
+    protected def onStateChanged(@Named(ModelEditor.Id.stateOfToggleIdentificator) checked: java.lang.Boolean) =
+      Option(checked) foreach (checked ⇒ App.exec {
+        if (checked != isChecked()) {
+          setChecked(checked)
+          apply()
+        }
+      })
   }
   object ActionHideTree extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(false)

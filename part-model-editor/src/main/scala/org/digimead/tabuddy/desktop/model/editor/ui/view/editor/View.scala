@@ -212,29 +212,11 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
     App.publish(App.Message.Update(marker, self))
   } else
     container ! App.Message.Destroy(None, self)
-  /**
-   * Create view content.
-   * @return content container.
-   */
-  //  protected def create(parent: VComposite): Option[Composite] = {
-  //    if (view.nonEmpty)
-  //      throw new IllegalStateException("Unable to create view. It is already created.")
-  //    App.assertEventThread(false)
-  //    view = Option(parent)
-  //    val content = App.execNGet {
-  //      //parent.getContext.set(Data.Id.featureViewDefinition, java.lang.Boolean.TRUE)
-  //      new editor.View(parent, SWT.NONE)
-  //    }
-  //    Some(content)
-  //  }
   /** Creates and returns this window's contents. */
   protected def createContents(parent: VComposite): Composite = {
+    viewContext.set(Logic.Feature.viewDefinition, java.lang.Boolean.TRUE)
     viewContext.set("style", SWT.NONE: Integer)
     val content = ContextInjectionFactory.make(classOf[Content], viewContext)
-
-    //new Content(viewContext, parent, SWT.NONE)
-    //    content.initializeSWT()
-    //    JFX.exec { content.initializeJFX() }
     this.content = Some(content)
     content.addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) = {

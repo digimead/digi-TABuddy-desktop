@@ -394,7 +394,6 @@ object Tree extends XLoggable {
       Option(v.getControl().getData(Tree.widgetDataKey_WeakReferenceView)) match {
         case Some(viewRef: WeakReference[_]) ⇒
           viewRef.get.asInstanceOf[Option[Content]].foreach { view ⇒
-          println("!!!!!!!!!!+++ " + newInput)
             if (view.tree.treeViewer.getInput() == newInput)
               log.warn("JFace bug, WTF? event fired, but input is not changed")
             view.tree.onInputChanged(newInput.asInstanceOf[TreeProxy.Item])

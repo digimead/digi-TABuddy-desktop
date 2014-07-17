@@ -41,42 +41,49 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar
+package org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar.editor
 
-import org.digimead.digi.lib.api.XDependencyInjection
+import javax.inject.{ Inject, Named }
+import org.digimead.digi.lib.aop.log
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar.element.{ Delete, Edit, New }
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
-import org.eclipse.jface.action.{ CoolBarManager, ToolBarManager }
-import org.eclipse.swt.SWT
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.model.editor.ModelEditor
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.{ Action, IAction }
 import scala.language.implicitConversions
 
 /**
- * Element actions toolbar.
+ * 'ToggleEmpty' action for an editor bar.
  */
-class ElementBar {
-  /** Create toolbar. */
-  def create(coolBar: CoolBarManager, context: Context) {
-    val toolBar = new ToolBarManager(SWT.NONE)
-    toolBar.add(ContextInjectionFactory.make(classOf[New], context))
-    toolBar.add(ContextInjectionFactory.make(classOf[Edit], context))
-    toolBar.add(ContextInjectionFactory.make(classOf[Delete], context))
-    coolBar.add(toolBar)
-  }
-}
+class ToggleEmpty @Inject() (context: Context) extends Action(CMessages.emptyRows_text, IAction.AS_CHECK_BOX) with XLoggable {
+  if (context.get(classOf[VComposite]) == null)
+    throw new IllegalArgumentException(s"${context} does not contain VComposite.")
 
-object ElementBar {
-  implicit def bar2implementation(b: ElementBar.type): ElementBar = b.inner
+  override def isEnabled(): Boolean = super.isEnabled &&
+    context.get(classOf[GraphMarker]) != null
 
-  /** Get ElementBar implementation. */
-  def inner = DI.implementation
+  /** Update checked state from context. */
+  @Inject @Optional
+  def onStateChanged(@Named(ModelEditor.Id.stateOfToggleEmpty) checked: java.lang.Boolean) =
+    Option(checked) foreach { checked ⇒ App.exec { if (checked != isChecked()) setChecked(checked) } }
 
-  /**
-   * Dependency injection routines
-   */
-  private object DI extends XDependencyInjection.PersistentInjectable {
-    /** ElementBar implementation. */
-    lazy val implementation = injectOptional[ElementBar] getOrElse new ElementBar
-  }
+  /** Runs this action, passing the triggering SWT event. */
+  @log
+  override def run = for {
+    composite ← Option(context.get(classOf[VComposite]))
+    marker ← Option(context.get(classOf[GraphMarker]))
+  } context.set(ModelEditor.Id.stateOfToggleEmpty, isChecked(): java.lang.Boolean)
+
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+  /** Invoked on marker modification. */
+  @Inject @Optional
+  protected def onMarkerChanged(@Optional marker: GraphMarker): Unit = App.exec { updateEnabled() }
 }

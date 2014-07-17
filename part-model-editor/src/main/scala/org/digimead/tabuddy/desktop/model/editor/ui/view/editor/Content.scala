@@ -45,20 +45,22 @@ package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
 import javax.inject.{ Inject, Named }
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.ResourceManager
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, TemplateProperty }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, TemplateProperty }
 import org.digimead.tabuddy.desktop.model.editor.Messages
+import org.digimead.tabuddy.desktop.model.editor.ModelEditor
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.CoolBarManager
+import org.eclipse.jface.action.MenuManager
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StyleRange
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
@@ -66,7 +68,6 @@ import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.widgets.{ Event, Listener, Widget }
 import scala.collection.{ immutable, mutable }
-import org.eclipse.jface.action.MenuManager
 
 class Content @Inject() (val context: Context, parent: VComposite, @Named("style") style: Integer)
   extends ContentSkel(parent, style) with ContentActions with XLoggable {
@@ -98,6 +99,9 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
   initializeUI()
   //initializeBindings()
   //initializeDefaults()
+  this.addDisposeListener(new DisposeListener {
+    def widgetDisposed(e: DisposeEvent) = onDispose
+  })
 
   /** Returns the view's parent, which must be a VComposite. */
   override def getParent(): VComposite = parent
@@ -330,6 +334,7 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
     // Initialize coolbar
     val coolBar = getCoolBarManager()
     bar.ElementBar.create(coolBar, context)
+    bar.EditorBar.create(coolBar, context)
     coolBar.refresh()
     coolBar.update(true)
     // Initialize tree
@@ -372,6 +377,9 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
       ActionToggleIdentificators()
       ActionAutoResize(true)
     }
+  }
+  /** On dispose callback. */
+  protected def onDispose {
   }
   /** Recreate table columns with preserve table selected elements */
   protected def recreateSmart() {
@@ -472,10 +480,6 @@ object Content extends XLoggable {
   protected[editor] val COLUMN_ID = "id"
   /** The column special identifier */
   protected[editor] val COLUMN_NAME = "name"
-  /** Structural changes(e.g. addition or removal of elements) aggregator */
-  //private val refreshEventsExpandAggregator = WritableValue(Set[Element[_ <: Stash]]())
-  /** All views. */
-  val views = new ViewWeakHashMap // with mutable.SynchronizedMap[View, Unit]
   /** withRedraw counter that allows nested usage. It is valid only within UI thread. */
   protected var withRedrawCounter = 0
 

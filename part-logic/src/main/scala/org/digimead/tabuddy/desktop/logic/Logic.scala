@@ -304,8 +304,6 @@ object Logic {
    * List of predefined identifiers that are used as context keys.
    */
   object Id {
-    /** Value of the various UI elements with model id [String] value. */
-    final val modelIdUserInput = "org.digimead.tabuddy.desktop.logic/modelIdUserInput"
     /** Value of the selected model element [Element]. */
     final val selectedElement = "org.digimead.tabuddy.desktop.logic/selectedElement"
     /** Value of the selected view ID [UUID]. */

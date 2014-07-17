@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,76 +41,43 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.logic
+package org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar
 
-import com.escalatesoft.subcut.inject.{ BindingModule, Injectable }
-import java.io.{ File, FileOutputStream }
-import org.digimead.configgy.Configgy
 import org.digimead.digi.lib.api.XDependencyInjection
-import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.logic.api.XConfig
-import org.osgi.framework.BundleContext
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar.editor.{ CollapseAll, ExpandAll, ToggleEmpty, ToggleIdentificators }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.jface.action.{ CoolBarManager, ToolBarManager }
+import org.eclipse.swt.SWT
 import scala.language.implicitConversions
 
 /**
- * Bridge between Configgy and TA Buddy
+ * Editor actions toolbar.
  */
-class Config(implicit val bindingModule: BindingModule) extends XConfig with XLoggable with Injectable {
-  @volatile var ready = false
-  val location = inject[File]("Config")
-  private val modificationLock = new Object
-
-  /** Get persistence key for specific class */
-  def persistenceKey(clazz: Class[_], key: String): String =
-    "persistence.settings." + clazz.getName.replaceAll("""[^\w\.]""", "_") + "." + key
-  def start(context: BundleContext) = modificationLock.synchronized {
-    log.info("Initialize configuration from " + location)
-    try {
-      if (location.exists())
-        Configgy.setup(new Configgy.DefaultInitFromFile(location))
-      else {
-        log.info(s"Configuration $location not found, creating new.")
-        Configgy.setup(new Configgy.DefaultInit)
-      }
-    } catch {
-      // catch all throwables, create empty configuration
-      case e: Throwable ⇒
-        log.warn("Unable to load configuration: " + e.getMessage())
-        Configgy.setup(new Configgy.DefaultInit)
-    }
-    ready = true
-  }
-  /** Save configuration. */
-  def save(): Unit = modificationLock.synchronized {
-    if (!ready) {
-      log.warn("Skip configuration saving: not ready")
-      return
-    }
-    if (!location.exists())
-      location.getParentFile().mkdirs()
-    val data = Configgy.toConfigString
-    val f = new FileOutputStream(location)
-    f.write(data.getBytes(io.Codec.UTF8.charSet))
-    f.close
-  }
-  def stop(context: BundleContext) = modificationLock.synchronized {
-    log.info("Save configuration to " + location)
-    save()
-    ready = false
+class EditorBar {
+  /** Create toolbar. */
+  def create(coolBar: CoolBarManager, context: Context) {
+    val toolBar = new ToolBarManager(SWT.NONE)
+    toolBar.add(ContextInjectionFactory.make(classOf[ToggleIdentificators], context))
+    toolBar.add(ContextInjectionFactory.make(classOf[ToggleEmpty], context))
+    toolBar.add(ContextInjectionFactory.make(classOf[ExpandAll], context))
+    toolBar.add(ContextInjectionFactory.make(classOf[CollapseAll], context))
+    coolBar.add(toolBar)
   }
 }
 
-object Config extends XLoggable {
-  implicit def config2implementation(c: Config.type): XConfig = c.inner
+object EditorBar {
+  implicit def bar2implementation(b: EditorBar.type): EditorBar = b.inner
 
-  /** Get Config implementation. */
+  /** Get EditorBar implementation. */
   def inner = DI.implementation
 
   /**
    * Dependency injection routines
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
-    /** Config implementation. */
-    lazy val implementation = inject[XConfig]
+    /** EditorBar implementation. */
+    lazy val implementation = injectOptional[EditorBar] getOrElse new EditorBar
   }
 }
