@@ -109,8 +109,8 @@ class WindowWatcher extends Actor with XLoggable {
   @log
   protected def adjustToolbar(window: AppWindow) {
     val commonToolBar = WindowToolbar(window, WindowWatcher.commonToolbar)
-    //commonToolBar.getToolBarManager().add(action.ActionExit)
-    //commonToolBar.getToolBarManager().add(action.ActionTest)
+    commonToolBar.getToolBarManager().add(action.ActionExit)
+    commonToolBar.getToolBarManager().add(action.ActionTest)
     window.getCoolBarManager2().update(true)
   }
 }

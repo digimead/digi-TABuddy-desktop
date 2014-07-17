@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,36 +41,48 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor.ui.wizard
+package org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar.element
 
+import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.XDependencyInjection
-import org.digimead.tabuddy.desktop.core.ui.Resources
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.eclipse.e4.core.di.annotations.Optional
+import org.eclipse.jface.action.{ Action, IAction }
 import scala.language.implicitConversions
 
-class Wizards {
-  /** Configure component wizards. */
+/**
+ * 'Edit' action for an element bar.
+ */
+class Edit @Inject() (context: Context) extends Action(CMessages.edit_text) with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+
+  if (context.get(classOf[VComposite]) == null)
+    throw new IllegalArgumentException(s"${context} does not contain VComposite.")
+
+  override def isEnabled(): Boolean = super.isEnabled &&
+    context.get(classOf[GraphMarker]) != null
+
+  /** Runs this action, passing the triggering SWT event. */
   @log
-  def configure() {
-    Resources.registerWizard(classOf[ModelCreationWizard])
+  override def run = for {
+    composite ← Option(context.get(classOf[VComposite]))
+    marker ← Option(context.get(classOf[GraphMarker]))
+  } {
+    // invoke edit
   }
-  @log /** Unconfigure component wizards. */
-  def unconfigure() {
-    Resources.unregisterWizard(classOf[ModelCreationWizard])
-  }
-}
 
-object Wizards {
-  implicit def configurator2implementation(w: Wizards.type): Wizards = w.inner
-
-  /** Wizards implementation. */
-  def inner(): Wizards = DI.implementation
-
-  /**
-   * Dependency injection routines.
-   */
-  private object DI extends XDependencyInjection.PersistentInjectable {
-    /** Wizards implementation */
-    lazy val implementation = injectOptional[Wizards] getOrElse new Wizards
-  }
+  /** Update enabled action state. */
+  protected def updateEnabled() = if (isEnabled)
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
+  else
+    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
+  /** Invoked on marker modification. */
+  @Inject @Optional
+  protected def onMarkerChanged(@Optional marker: GraphMarker): Unit = App.exec { updateEnabled() }
 }

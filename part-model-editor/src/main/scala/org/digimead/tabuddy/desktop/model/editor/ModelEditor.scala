@@ -125,13 +125,12 @@ class ModelEditor extends akka.actor.Actor with XLoggable {
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(ModelEditor) on {
       self ! App.Message.Inconsistent(ModelEditor, None)
-      // Initialize lazy actors
+      // initialize lazy actors
       ModelEditor.actor
-      windowWatcherRef
-
-      ui.view.Views.configure
-      ui.wizard.Wizards.configure
-      //Approver.start()
+      if (App.isUIAvailable) {
+        windowWatcherRef
+        ui.view.Views.configure
+      }
       Console ! Console.Message.Notice("ModelEditor component is started.")
       self ! App.Message.Consistent(ModelEditor, None)
     }
@@ -141,9 +140,9 @@ class ModelEditor extends akka.actor.Actor with XLoggable {
   protected def onGUIStopped() = initializationLock.synchronized {
     App.watch(ModelEditor) off {
       self ! App.Message.Inconsistent(ModelEditor, None)
-      //Actions.unconfigure
-      ui.wizard.Wizards.unconfigure
-      ui.view.Views.unconfigure
+      if (App.isUIAvailable) {
+        ui.view.Views.unconfigure
+      }
       val lost = inconsistentSet - ModelEditor
       if (lost.nonEmpty)
         log.fatal("Inconsistent elements detected: " + lost)

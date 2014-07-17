@@ -43,9 +43,8 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
-import scala.collection.mutable
-
 import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
+import scala.collection.mutable
 
 trait TreeFields {
   /** List of expanded elements */

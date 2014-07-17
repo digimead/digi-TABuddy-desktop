@@ -41,27 +41,27 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor.ui
+package org.digimead.tabuddy.desktop.model.editor.ui.view
 
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-import language.implicitConversions
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.ui.Resources
+import scala.language.implicitConversions
 
 /**
  * Configurator responsible for configure/unconfigure application views.
  */
-class Views extends Loggable {
+class Views extends XLoggable {
   /** Configure component views. */
   @log
   def configure() {
-    Resources.registerViewFactory(view.Editor.factory, true)
+    Resources.registerViewFactory(editor.View.factory, true)
   }
   /** Unconfigure component views. */
   @log
   def unconfigure() {
-    Resources.unregisterViewFactory(view.Editor.factory)
+    Resources.unregisterViewFactory(editor.View.factory)
   }
 }
 
@@ -74,7 +74,7 @@ object Views {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Views implementation */
     lazy val implementation = injectOptional[Views] getOrElse new Views
   }

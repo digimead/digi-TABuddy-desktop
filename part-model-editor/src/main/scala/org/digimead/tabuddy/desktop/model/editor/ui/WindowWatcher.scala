@@ -43,19 +43,17 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui
 
-import akka.actor.{ Actor, ActorRef, Props }
+import akka.actor.{ Actor, Props, actorRef2Scala }
+import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
-import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
-import org.eclipse.jface.action.Separator
-import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
-import java.util.UUID
+import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor.WindowPointer
+import org.digimead.tabuddy.desktop.core.ui.block.WindowToolbar
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 
 /**
  * Register action in new windows.
@@ -108,19 +106,10 @@ class WindowWatcher extends Actor with XLoggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(Left(window), ui.WindowWatcher.fileMenu)
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphNew], window.windowContext))
-    window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val modelToolBar = WindowToolbar(window, WindowWatcher.modelToolbar)
-    //    modelToolBar.getToolBarManager().add(new ContributionSelectModel)
-    //    modelToolBar.getToolBarManager().add(WindowWatcherLockModel())
-    //    modelToolBar.getToolBarManager().add(WindowWatcherSaveModel())
-    //    modelToolBar.getToolBarManager().add(WindowWatcherDeleteModel())
-    window.getCoolBarManager2().update(true)
   }
 
   /**
@@ -138,11 +127,6 @@ object WindowWatcher {
   lazy val modelToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#model") }
   /** View menu descriptor. */
   lazy val viewMenu = App.execNGet { WindowMenu.Descriptor("&View", None, getClass.getName() + "#view") }
-  // Initialize descendant actor singletons
-  //  WindowWatcherCloseModel
-  //  WindowWatcherDeleteModel
-  //  WindowWatcherLockModel
-  //  WindowWatcherSaveModel
 
   /** WindowWatcher actor reference configuration object. */
   def props = DI.props

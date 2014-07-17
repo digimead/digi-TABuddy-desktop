@@ -43,21 +43,19 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
+import javax.inject.{ Inject, Named }
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.model.editor.{ Messages, ModelEditor }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
-import org.eclipse.jface.action.Action
-import org.eclipse.jface.action.IAction
-import javax.inject.Inject
-import javax.inject.Named
-import org.digimead.tabuddy.desktop.model.editor.Messages
-import org.digimead.tabuddy.desktop.model.editor.ModelEditor
+import org.eclipse.jface.action.{ Action, IAction }
 
 /**
  * TableView actions.
  */
-trait ViewActions {
-  this: View ⇒
+trait ContentActions {
+  this: Content ⇒
 
   object ActionAutoResize extends Action(Messages.autoresize_key) {
     setChecked(true)
@@ -70,15 +68,15 @@ trait ViewActions {
     }
   }
   object ActionCollapseAll extends Action(Messages.collapseAll_text) {
-    def apply() = View.withRedrawDelayed(ViewActions.this) {
-      Tree.collapseAll(ViewActions.this)
+    def apply() = Content.withRedrawDelayed(ContentActions.this) {
+      Tree.collapseAll(ContentActions.this)
       ActionAutoResize(false)
     }
     override def run() = apply()
   }
   object ActionExpandAll extends Action(Messages.expandAll_text) {
-    def apply() = View.withRedrawDelayed(ViewActions.this) {
-      Tree.expandAll(ViewActions.this)
+    def apply() = Content.withRedrawDelayed(ContentActions.this) {
+      Tree.expandAll(ContentActions.this)
       ActionAutoResize(false)
     }
     override def run() = apply()
@@ -93,14 +91,14 @@ trait ViewActions {
     override def run = {}
   }
   /** Toggle visibility of identificators in the view. */
-  object ActionToggleIdentificators extends Action(Messages.identificators_text, IAction.AS_CHECK_BOX) {
+  object ActionToggleIdentificators extends Action(CMessages.identificators_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    ViewActions.this.getParent.getContext.foreach { context ⇒
+    ContentActions.this.getParent.getContext.foreach { context ⇒
       context.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean)
       ContextInjectionFactory.inject(this, context)
     }
 
-    def apply() = Table.toggleColumnId(isChecked(), ViewActions.this)
+    def apply() = Table.toggleColumnId(isChecked(), ContentActions.this)
     /** Update checked state from context of the current view. */
     @Inject @Optional
     def onStateOfToggleIdentificatorChanged(@Named(ModelEditor.Id.stateOfToggleIdentificator) checked: java.lang.Boolean) =
@@ -111,19 +109,19 @@ trait ViewActions {
         }
       })
     override def run() = {
-      ViewActions.this.getParent.getContext.foreach(_.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean))
+      ContentActions.this.getParent.getContext.foreach(_.set(ModelEditor.Id.stateOfToggleIdentificator, isChecked(): java.lang.Boolean))
       apply()
     }
   }
   /** Toggle visibility of empty rows in the view. */
   object ActionToggleEmpty extends Action(Messages.emptyRows_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    ViewActions.this.getParent.getContext.foreach { context ⇒
+    ContentActions.this.getParent.getContext.foreach { context ⇒
       context.set(ModelEditor.Id.stateOfToggleEmpty, isChecked(): java.lang.Boolean)
       ContextInjectionFactory.inject(this, context)
     }
 
-    def apply() = Table.toggleEmptyRows(!isChecked(), ViewActions.this)
+    def apply() = Table.toggleEmptyRows(!isChecked(), ContentActions.this)
     /** Update checked state from context of the current view. */
     @Inject @Optional
     def onStateOfToggleIdentificatorChanged(@Named(ModelEditor.Id.stateOfToggleEmpty) checked: java.lang.Boolean) =
@@ -138,7 +136,7 @@ trait ViewActions {
   object ActionToggleExpand extends Action(Messages.expandNew_text, IAction.AS_CHECK_BOX) {
     setChecked(false)
 
-    def apply() = Tree.toggleAutoExpand(isChecked(), ViewActions.this)
+    def apply() = Tree.toggleAutoExpand(isChecked(), ContentActions.this)
     override def run() = apply()
   }
   object ActionHideTree extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
@@ -158,13 +156,13 @@ trait ViewActions {
    */
   object ActionToggleSystem extends Action(Messages.systemElements_text, IAction.AS_CHECK_BOX) {
     setChecked(false)
-    ViewActions.this.getParent.getContext.foreach { context ⇒
+    ContentActions.this.getParent.getContext.foreach { context ⇒
       context.set(ModelEditor.Id.stateOfToggleSystem, isChecked(): java.lang.Boolean)
       ContextInjectionFactory.inject(this, context)
     }
 
-    def apply() = View.withRedrawDelayed(ViewActions.this) {
-      Tree.toggleSystemElementsFilter(!isChecked(), ViewActions.this)
+    def apply() = Content.withRedrawDelayed(ContentActions.this) {
+      Tree.toggleSystemElementsFilter(!isChecked(), ContentActions.this)
       ActionAutoResize(false)
     }
     /** Update checked state from context of the current view. */

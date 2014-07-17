@@ -43,10 +43,9 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
-import scala.collection.mutable
-
 import org.digimead.tabuddy.desktop.model.editor.Default
 import org.eclipse.jface.viewers.TableViewerColumn
+import scala.collection.mutable
 
 trait TableFields {
   /** Actual sorting direction. */

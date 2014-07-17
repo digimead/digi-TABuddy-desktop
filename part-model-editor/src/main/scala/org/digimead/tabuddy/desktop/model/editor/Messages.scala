@@ -46,6 +46,7 @@ package org.digimead.tabuddy.desktop.model.editor
 import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
+import org.digimead.tabuddy.desktop.core.definition.BaseResourceBundle
 
 /**
  * Resource bundle implementation.
@@ -53,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.definition.NLS
  * This code is directly evaluated in IDE (WindowBuilderPro).
  * Any runtime references that may prevent creation are prohibited.
  */
-class Messages extends ResourceBundle {
+class Messages extends ResourceBundle with BaseResourceBundle {
   def getKeys() = new java.util.Enumeration[String] {
     private val iterator = Messages.T.messages.keys.iterator
     def hasMoreElements(): Boolean = iterator.hasNext
@@ -70,7 +71,6 @@ class Messages extends ResourceBundle {
 
 object Messages extends NLS with XLoggable {
   val autoresize_key = ""
-  val btnModelLocation_text = ""
   val collapseAll_text = ""
   val collapseRecursively_text = ""
   val creationError_text = ""
@@ -84,33 +84,24 @@ object Messages extends NLS with XLoggable {
   val expandNew_text = ""
   val expandRecursively_text = ""
   val hide_text = ""
-  val identificator_text = ""
-  val identificators_text = ""
-  val identifierIsEmpty_text = ""
+  val identifierIsEmpty_text = "Identifier is empty."
   val lastModification_text = ""
-  val lblModelIdentificator_hint_text = ""
-  val lblModelIdentificator_text = ""
-  val lblModelLocation_hint_text = ""
-  val lblModelLocation_text = ""
-  val lblModelSerialization_text = ""
-  val locationIsAlreadyExists_text = ""
-  val locationIsEmpty_text = ""
-  val locationIsIncorrect_text = ""
+  val locationIsAlreadyExists_text = "'%s' is already exists."
+  val locationIsEmpty_text = "Location is empty."
+  val locationIsIncorrect_text = "Unable to write to selected location."
   val markAsRoot_text = ""
   val name_text = ""
   val new_text = ""
   val path_text = ""
   val resetSorting_text = ""
   val select_text = ""
-  val shellTitleEmpty_text = ""
-  val shellTitle_text = ""
   val systemElements_text = ""
   val tableView_text = ""
   val table_text = ""
   val title_text = ""
   val tree_text = ""
-  val ModelCreationWizardPageOne_title_text = ""
-  val ModelCreationWizardPageOne_description_text = ""
+  val digest_text = "digest"
+  val signature_text = "signature"
 
   T.ranslate("org.digimead.tabuddy.desktop.model.editor.messages")
 }

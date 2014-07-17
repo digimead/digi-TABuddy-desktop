@@ -43,8 +43,7 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui.view.editor;
 
-import java.util.ResourceBundle;
-
+import org.digimead.tabuddy.desktop.core.definition.BaseResourceBundle;
 import org.eclipse.jface.action.CoolBarManager;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
@@ -61,8 +60,8 @@ import org.eclipse.swt.widgets.Label;
  *
  * @author ezh
  */
-public class TableViewSkel extends Composite {
-	private static final ResourceBundle BUNDLE = getResourceBundle();
+public class ContentSkel extends Composite {
+	private static final BaseResourceBundle BUNDLE = getResourceBundle();
 	private Button btnResetActiveElement;
 	private CoolBarManager coolBarManager;
 	private SashForm sashForm;
@@ -74,15 +73,15 @@ public class TableViewSkel extends Composite {
 	 *
 	 * @return ResourceBundle interface of NLS singleton.
 	 */
-	private static ResourceBundle getResourceBundle() {
+	private static BaseResourceBundle getResourceBundle() {
 		try {
-			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.editor.ui.Messages").newInstance();
+			return (BaseResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.editor.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.ui.messages");
+			return new BaseResourceBundle.Empty();
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.ui.messages");
+			return new BaseResourceBundle.Empty();
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.ui.messages");
+			return new BaseResourceBundle.Empty();
 		}
 	}
 
@@ -92,13 +91,14 @@ public class TableViewSkel extends Composite {
 	 * @param parent
 	 * @param style
 	 */
-	public TableViewSkel(Composite parent, int style) {
+	public ContentSkel(Composite parent, int style) {
 		super(parent, style);
-		setLayout(new GridLayout(3, false));
+		GridLayout gridLayout = new GridLayout(3, false);
+		setLayout(gridLayout);
 
 		coolBarManager = new CoolBarManager(SWT.FLAT);
 		CoolBar coolBar = coolBarManager.createControl(this);
-		coolBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
+		coolBar.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false, 3, 1));
 
 		sashForm = new SashForm(this, SWT.SMOOTH);
 		sashForm.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));

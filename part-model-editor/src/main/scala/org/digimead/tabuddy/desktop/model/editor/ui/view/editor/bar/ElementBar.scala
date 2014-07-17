@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,59 +41,44 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
+package org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar
 
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
-import org.digimead.tabuddy.desktop.model.editor.Messages
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.jface.action.{ Action, IAction }
-import org.eclipse.jface.util.ConfigureColumns
-import org.eclipse.jface.viewers.StructuredSelection
-import org.eclipse.jface.window.SameShellProvider
-import scala.concurrent.Future
+import org.digimead.tabuddy.desktop.model.editor.ui.view.editor.bar.element.{ Delete, Edit, New }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.jface.action.{ CoolBarManager, ToolBarManager }
+import org.eclipse.swt.SWT
+import scala.language.implicitConversions
 
 /**
- * Table actions
+ * Element actions toolbar.
  */
-trait TableActions {
-  this: Table ⇒
+class ElementBar {
+  lazy val toolBar = App.execNGet { new ToolBarManager(SWT.NONE) }
 
-  object ActionConfigureColumns extends Action("Configure Columns...") {
-    def apply() = ConfigureColumns.forTable(tableViewer.getTable(), new SameShellProvider(content.getShell()))
-    override def run() = apply()
+  /** Create toolbar. */
+  def create(coolBar: CoolBarManager, context: Context) {
+    val actionNew = App.execNGet {}
+    toolBar.add(ContextInjectionFactory.make(classOf[New], context))
+    toolBar.add(ContextInjectionFactory.make(classOf[Edit], context))
+    toolBar.add(ContextInjectionFactory.make(classOf[Delete], context))
+    coolBar.add(toolBar)
   }
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
-    setChecked(true)
-    def apply(immediately: Boolean = false) = if (immediately)
-      autoresize(true)
-    else {
-      implicit val ec = App.system.dispatcher
-      Future { autoresize(false) } onFailure {
-        case e: Exception ⇒ log.error(e.getMessage(), e)
-        case e ⇒ log.error(e.toString())
-      }
-    }
-    override def run = if (isChecked()) apply()
-  }
-  object ActionResetSorting extends Action(Messages.resetSorting_text) {
-    // column -1 is user defined sorting
-    def apply(immediately: Boolean = false) = {
-      val comparator = tableViewer.getComparator().asInstanceOf[Table.TableComparator]
-      comparator.column = -1
-      tableViewer.refresh()
-    }
-    override def run = apply()
-  }
-  class ActionSelectInTree(val element: Element) extends Action(Messages.select_text) {
-    def apply() = content.tree.treeViewer.setSelection(new StructuredSelection(TreeProxy.Item(element)), true)
-    override def run() = apply()
-  }
-  object ActionShowTree extends Action(Messages.tree_text) {
-    def apply() = {
-      content.ActionHideTree.setChecked(false)
-      content.ActionHideTree()
-    }
-    override def run() = apply()
+}
+
+object ElementBar {
+  implicit def bar2implementation(b: ElementBar.type): ElementBar = b.inner
+
+  /** Get ElementBar implementation. */
+  def inner = DI.implementation
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends XDependencyInjection.PersistentInjectable {
+    /** ElementBar implementation. */
+    lazy val implementation = injectOptional[ElementBar] getOrElse new ElementBar
   }
 }
