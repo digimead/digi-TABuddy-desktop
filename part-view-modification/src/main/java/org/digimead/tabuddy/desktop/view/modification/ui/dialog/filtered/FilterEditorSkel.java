@@ -111,7 +111,7 @@ public class FilterEditorSkel extends TitleAreaDialog {
 	 */
 	public FilterEditorSkel(Shell parentShell) {
 		super(parentShell);
-		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE);
+		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
 	}
 
 	/**

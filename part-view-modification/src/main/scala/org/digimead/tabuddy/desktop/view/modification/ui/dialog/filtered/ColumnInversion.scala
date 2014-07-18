@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.filtered
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
 import org.digimead.tabuddy.desktop.logic.payload.view.api
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
@@ -51,11 +51,11 @@ import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, CheckboxCellEd
 import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
 
-object ColumnInversion extends Loggable {
+object ColumnInversion extends XLoggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         if (item.not)
           cell.setText(Messages.yes_text)
         else
@@ -65,7 +65,7 @@ object ColumnInversion extends Loggable {
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         AvailableFilters.map.get(item.filter).map(c ⇒ "filter: " + c.description).getOrElse(null)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
@@ -85,14 +85,14 @@ object ColumnInversion extends Loggable {
     override protected def getCellEditor(element: AnyRef): CellEditor = new CheckboxCellEditor(null, SWT.CHECK | SWT.READ_ONLY)
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         Boolean.box(item.not)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         ""
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: api.Filter.Rule ⇒
+      case before: api.XFilter.Rule ⇒
         if (before.not != value.asInstanceOf[Boolean]) {
           val after = before.copy(not = value.asInstanceOf[Boolean])
           container.updateActualRule(before, after)

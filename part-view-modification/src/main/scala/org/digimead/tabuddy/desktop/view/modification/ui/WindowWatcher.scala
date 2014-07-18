@@ -45,10 +45,10 @@ package org.digimead.tabuddy.desktop.view.modification.ui
 
 import akka.actor.{ Actor, ActorRef, Props }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowToolbar }
+import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, SmartToolbarManager }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.view.modification.ui.action.ViewToolBarManager
@@ -59,7 +59,7 @@ import scala.ref.WeakReference
  * Register action in new windows.
  * There is no need subscribe to App.Message.Destroyed because SWT dispose will do all job.
  */
-class WindowWatcher extends Actor with Loggable {
+class WindowWatcher extends Actor with XLoggable {
   log.debug("Start actor " + self.path)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
@@ -104,15 +104,15 @@ class WindowWatcher extends Actor with Loggable {
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val viewToolBar = WindowToolbar(window, WindowWatcher.viewToolbar(window))
-    viewToolBar.getToolBarManager().add(new action.ContributionSelectView(WeakReference(window)))
-    viewToolBar.getToolBarManager().add(new action.ContributionSelectFilter(WeakReference(window)))
-    viewToolBar.getToolBarManager().add(new action.ContributionSelectSorting(WeakReference(window)))
-    window.getCoolBarManager2().update(true)
+    val viewToolBar = SmartToolbarManager(window, WindowWatcher.viewToolbar(window))
+    SmartToolbarManager.add(viewToolBar, ContextInjectionFactory.make(classOf[action.ContributionSelectView], window.windowContext))
+    SmartToolbarManager.add(viewToolBar, ContextInjectionFactory.make(classOf[action.ContributionSelectFilter], window.windowContext))
+    SmartToolbarManager.add(viewToolBar, ContextInjectionFactory.make(classOf[action.ContributionSelectSorting], window.windowContext))
+    window.getCoolBarManager().update(true)
   }
 }
 
-object WindowWatcher extends Loggable {
+object WindowWatcher extends XLoggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
 
@@ -120,7 +120,7 @@ object WindowWatcher extends Loggable {
   def props = DI.props
   /** Get view toolbar descriptor. */
   def viewToolbar(window: AppWindow) = App.execNGet {
-    WindowToolbar.Descriptor(getClass.getName() + "#view", () ⇒
+    SmartToolbarManager.Descriptor(getClass.getName() + "#view", () ⇒
       ContextInjectionFactory.make(classOf[ViewToolBarManager], window.windowContext))
   }
 
@@ -129,7 +129,7 @@ object WindowWatcher extends Loggable {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** WindowWatcher actor reference configuration object. */
     lazy val props = injectOptional[Props]("ViewModification.WindowWatcher") getOrElse Props[WindowWatcher]
   }

@@ -51,6 +51,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
 import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyViewList
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.View
 import org.digimead.tabuddy.desktop.view.modification.Messages
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
@@ -58,7 +59,9 @@ import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
 import org.eclipse.swt.widgets.Event
 
-/** Modify view list. */
+/**
+ * Modify view list.
+ */
 class ActionModifyViewList @Inject() (windowContext: Context) extends JFaceAction(Messages.views_text) with XLoggable {
   /** Flag indicating whether the action is enabled. */
   @volatile protected var vContext = Option.empty[Context]
@@ -75,18 +78,14 @@ class ActionModifyViewList @Inject() (windowContext: Context) extends JFaceActio
     context ← vContext
     marker ← Option(context.get(classOf[GraphMarker]))
   } marker.safeRead { state ⇒
-    OperationModifyViewList(state.graph, App.execNGet { state.payload.viewDefinitions.values.toSet }).foreach { operation ⇒
+    OperationModifyViewList(state.graph, App.execNGet { state.payload.getAvailableViewDefinitions().toSet }).foreach { operation ⇒
       operation.getExecuteJob() match {
         case Some(job) ⇒
           job.setPriority(Job.LONG)
           job.onComplete(_ match {
             case Operation.Result.OK(result, message) ⇒
               log.info(s"Operation completed successfully: ${result}")
-              result.foreach {
-                case (views) ⇒
-                  //View.save(sortings)
-                  log.___glance("RESULT " + result)
-              }
+              result.foreach { case (views) ⇒ View.save(marker, views) }
             case Operation.Result.Cancel(message) ⇒
               log.warn(s"Operation canceled, reason: ${message}.")
             case other ⇒

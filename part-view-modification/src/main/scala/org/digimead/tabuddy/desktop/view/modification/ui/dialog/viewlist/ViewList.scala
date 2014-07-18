@@ -43,24 +43,26 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.viewlist
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.RegexFilterListener
+import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyView
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.View
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
@@ -70,9 +72,8 @@ import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChanged
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
-import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.collection.{ immutable, mutable }
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class ViewList @Inject() (
@@ -87,8 +88,10 @@ class ViewList @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial view list. */
-  val initial: Set[view.api.View])
-  extends ViewListSkel(parentShell) with Dialog with Loggable {
+  val initial: Set[View])
+  extends ViewListSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual content */
   protected[viewlist] val actual = WritableList(initial.toList)
   /** The auto resize lock */
@@ -101,7 +104,7 @@ class ViewList @Inject() (
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing a selected view */
-  protected val selected = WritableValue[view.api.View]
+  protected val selected = WritableValue[View]
   /** Activate context on shell events. */
   protected val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
@@ -111,14 +114,14 @@ class ViewList @Inject() (
   /** Actual sortBy column index */
   @volatile private var sortColumn = 1
 
-  def getModifiedViews(): Set[view.api.View] = actual.sortBy(_.name).toSet
+  def getModifiedViews(): Set[View] = actual.sortBy(_.name).toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnName(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnName(), Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -139,7 +142,7 @@ class ViewList @Inject() (
     initTableViews()
     val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -162,7 +165,7 @@ class ViewList @Inject() (
     result
   }
   /** Generate new name: old name + ' Copy ' + N */
-  protected def getNewViewCopyName(name: String, viewList: List[view.api.View]): String = {
+  protected def getNewViewCopyName(name: String, viewList: List[View]): String = {
     val sameIds = immutable.HashSet(viewList.filter(_.name.startsWith(name)).map(_.name).toSeq: _*)
     var n = 0
     var newName = name + " " + Messages.copy_item_text
@@ -191,7 +194,7 @@ class ViewList @Inject() (
           case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: view.api.View ⇒
+              case before: View ⇒
                 if (before.availability != tableItem.getChecked()) {
                   val after = before.copy(availability = tableItem.getChecked())
                   updateActualView(before, after)
@@ -219,7 +222,7 @@ class ViewList @Inject() (
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() ⇒
-          val view = selection.getFirstElement().asInstanceOf[org.digimead.tabuddy.desktop.logic.payload.view.api.View]
+          val view = selection.getFirstElement().asInstanceOf[View]
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
           ActionRemove.setEnabled(org.digimead.tabuddy.desktop.logic.payload.view.View.displayName != view) // exclude predefined
@@ -249,13 +252,13 @@ class ViewList @Inject() (
   override protected def onActive = {
     updateOK()
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
   }
   /** Updates an actual element template */
-  protected[viewlist] def updateActualView(before: view.api.View, after: view.api.View) {
+  protected[viewlist] def updateActualView(before: View, after: View) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -264,88 +267,88 @@ class ViewList @Inject() (
   }
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
-    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(view.View.compareDeep(_, _)) }))
+    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(View.compareDeep(_, _)) }))
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked()) autoresize
   }
-  object ActionCreate extends Action(Messages.create_text) with Loggable {
+  object ActionCreate extends Action(Messages.create_text) with XLoggable {
     override def run = {
-      //      val newViewName = payload.generateNew(Messages.newViewName_text, " ", newName ⇒ actual.exists(_.name == newName))
-      //      val newView = new view.View(UUID.randomUUID(), newViewName, "", true, mutable.LinkedHashSet(), mutable.LinkedHashSet(), mutable.LinkedHashSet())
-      //      OperationModifyView(newView, actual.toSet).foreach { operation ⇒
-      //        operation.getExecuteJob() match {
-      //          case Some(job) ⇒
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) ⇒
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach {
-      //                  case (view) ⇒ App.exec {
-      //                    actual += view
-      //                    getTableViewer.setSelection(new StructuredSelection(view), true)
-      //                  }
-      //                }
-      //              case Operation.Result.Cancel(message) ⇒
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other ⇒
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None ⇒
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      val newViewName = payload.generateNew(Messages.newViewName_text, " ", newName ⇒ actual.exists(_.name == newName))
+      val newView = new View(UUID.randomUUID(), newViewName, "", true, mutable.LinkedHashSet(), mutable.LinkedHashSet(), mutable.LinkedHashSet())
+      OperationModifyView(graph, newView, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach {
+                  case (view) ⇒ App.exec {
+                    actual += view
+                    getTableViewer.setSelection(new StructuredSelection(view), true)
+                  }
+                }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
+  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
     override def run = Option(selected.value) foreach { selected ⇒
-      //      val name = getNewViewCopyName(selected.name, actual.toList)
-      //      val newView = selected.copy(id = UUID.randomUUID(), name = name)
-      //      OperationModifyView(newView, actual.toSet).foreach { operation ⇒
-      //        operation.getExecuteJob() match {
-      //          case Some(job) ⇒
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) ⇒
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach {
-      //                  case (view) ⇒ App.exec {
-      //                    assert(!actual.exists(_.id == view.id), "View %s already exists".format(view))
-      //                    actual += view
-      //                    getTableViewer.setSelection(new StructuredSelection(view), true)
-      //                  }
-      //                }
-      //              case Operation.Result.Cancel(message) ⇒
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other ⇒
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None ⇒
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      val name = getNewViewCopyName(selected.name, actual.toList)
+      val newView = selected.copy(id = UUID.randomUUID(), name = name)
+      OperationModifyView(graph, newView, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach {
+                  case (view) ⇒ App.exec {
+                    assert(!actual.exists(_.id == view.id), "View %s already exists".format(view))
+                    actual += view
+                    getTableViewer.setSelection(new StructuredSelection(view), true)
+                  }
+                }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = Option(selected.value) foreach { before ⇒
-      //      OperationModifyView(before, actual.toSet).foreach { operation ⇒
-      //        operation.getExecuteJob() match {
-      //          case Some(job) ⇒
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) ⇒
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach { case (after) ⇒ App.exec { updateActualView(before, after) } }
-      //              case Operation.Result.Cancel(message) ⇒
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other ⇒
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None ⇒
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      OperationModifyView(graph, before, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (after) ⇒ App.exec { updateActualView(before, after) } }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {
@@ -355,7 +358,7 @@ class ViewList @Inject() (
   }
 }
 
-object ViewList extends Loggable {
+object ViewList extends XLoggable {
   class ViewComparator(dialog: WeakReference[ViewList]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -379,8 +382,8 @@ object ViewList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val entity1 = e1.asInstanceOf[view.api.View]
-      val entity2 = e2.asInstanceOf[view.api.View]
+      val entity1 = e1.asInstanceOf[View]
+      val entity2 = e2.asInstanceOf[View]
       val rc = column match {
         case 0 ⇒ entity1.availability.compareTo(entity2.availability)
         case 1 ⇒ entity1.name.compareTo(entity2.name)
@@ -399,7 +402,7 @@ object ViewList extends Loggable {
   class ViewFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[view.api.View]
+      val item = element.asInstanceOf[View]
       pattern.matcher(item.name.toLowerCase()).matches() ||
         pattern.matcher(item.description.toLowerCase()).matches()
     }

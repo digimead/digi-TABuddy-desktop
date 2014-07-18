@@ -44,13 +44,13 @@
 package org.digimead.tabuddy.desktop.view.modification.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.View
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.View
 import org.digimead.tabuddy.desktop.view.modification.ui.dialog.viewlist.ViewList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -59,7 +59,7 @@ import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
 
 /** 'Modify view list' operation. */
-class OperationModifyViewList extends logic.operation.view.OperationModifyViewList with Loggable {
+class OperationModifyViewList extends logic.operation.view.OperationModifyViewList with XLoggable {
   /**
    * Modify view list.
    *
@@ -120,7 +120,7 @@ class OperationModifyViewList extends logic.operation.view.OperationModifyViewLi
   }
 
   class Implemetation(graph: Graph[_ <: Model.Like], viewList: Set[View])
-    extends logic.operation.view.OperationModifyViewList.Abstract(graph, viewList) with Loggable {
+    extends logic.operation.view.OperationModifyViewList.Abstract(graph, viewList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute

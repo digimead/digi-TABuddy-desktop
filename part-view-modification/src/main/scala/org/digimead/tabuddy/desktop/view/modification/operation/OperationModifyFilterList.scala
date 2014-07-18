@@ -44,13 +44,13 @@
 package org.digimead.tabuddy.desktop.view.modification.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Filter
 import org.digimead.tabuddy.desktop.view.modification.ui.dialog.filterlist.FilterList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -59,7 +59,7 @@ import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
 
 /** 'Modify filter list' operation. */
-class OperationModifyFilterList extends logic.operation.view.OperationModifyFilterList with Loggable {
+class OperationModifyFilterList extends logic.operation.view.OperationModifyFilterList with XLoggable {
   /**
    * Modify filter list.
    *
@@ -120,7 +120,7 @@ class OperationModifyFilterList extends logic.operation.view.OperationModifyFilt
   }
 
   class Implemetation(graph: Graph[_ <: Model.Like], filterList: Set[Filter])
-    extends logic.operation.view.OperationModifyFilterList.Abstract(graph, filterList) with Loggable {
+    extends logic.operation.view.OperationModifyFilterList.Abstract(graph, filterList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute

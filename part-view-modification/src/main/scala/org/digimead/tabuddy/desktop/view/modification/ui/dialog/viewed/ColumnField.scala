@@ -43,12 +43,12 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.viewed
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.view.modification.Default
 import org.eclipse.jface.viewers.{ CellLabelProvider, ViewerCell }
 import org.eclipse.swt.graphics.Point
 
-object ColumnField extends Loggable {
+object ColumnField extends XLoggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {

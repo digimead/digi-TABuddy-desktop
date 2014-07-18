@@ -44,13 +44,13 @@
 package org.digimead.tabuddy.desktop.view.modification.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.Sorting
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.digimead.tabuddy.desktop.view.modification.ui.dialog.sortlist.SortingList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -59,7 +59,7 @@ import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
 
 /** 'Modify sorting list' operation. */
-class OperationModifySortingList extends logic.operation.view.OperationModifySortingList with Loggable {
+class OperationModifySortingList extends logic.operation.view.OperationModifySortingList with XLoggable {
   /**
    * Modify sorting list.
    *
@@ -120,7 +120,7 @@ class OperationModifySortingList extends logic.operation.view.OperationModifySor
   }
 
   class Implemetation(graph: Graph[_ <: Model.Like], sortingList: Set[Sorting])
-    extends logic.operation.view.OperationModifySortingList.Abstract(graph, sortingList) with Loggable {
+    extends logic.operation.view.OperationModifySortingList.Abstract(graph, sortingList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute

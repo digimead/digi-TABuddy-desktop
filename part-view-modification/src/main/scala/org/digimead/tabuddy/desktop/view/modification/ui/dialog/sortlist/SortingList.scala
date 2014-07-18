@@ -43,24 +43,26 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.sortlist
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.RegexFilterListener
+import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifySorting
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
@@ -70,9 +72,8 @@ import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChanged
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
-import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.collection.{ immutable, mutable }
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class SortingList @Inject() (
@@ -87,8 +88,10 @@ class SortingList @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial sortirg list. */
-  val initial: Set[view.api.Sorting])
-  extends SortingListSkel(parentShell) with Dialog with Loggable {
+  val initial: Set[Sorting])
+  extends SortingListSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual content */
   protected[sortlist] val actual = WritableList(initial.toList)
   /** The auto resize lock */
@@ -101,7 +104,7 @@ class SortingList @Inject() (
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing a selected view */
-  protected val selected = WritableValue[view.api.Sorting]
+  protected val selected = WritableValue[Sorting]
   /** Activate context on shell events. */
   protected val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
@@ -111,14 +114,14 @@ class SortingList @Inject() (
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
 
-  def getModifiedSortings(): Set[view.api.Sorting] = actual.sortBy(_.name).toSet
+  def getModifiedSortings(): Set[Sorting] = actual.sortBy(_.name).toSet
 
   /** Auto resize table viewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnName(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnName(), Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -139,7 +142,7 @@ class SortingList @Inject() (
     initTableViews()
     val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -162,7 +165,7 @@ class SortingList @Inject() (
     result
   }
   /** Generate new name: old name + ' Copy' + N */
-  protected def getNewSortingCopyName(name: String, sortingList: List[view.api.Sorting]): String = {
+  protected def getNewSortingCopyName(name: String, sortingList: List[Sorting]): String = {
     val sameIds = immutable.HashSet(sortingList.filter(_.name.startsWith(name)).map(_.name).toSeq: _*)
     var n = 0
     var newName = name + " " + Messages.copy_item_text
@@ -189,7 +192,7 @@ class SortingList @Inject() (
           case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: view.api.Sorting ⇒
+              case before: Sorting ⇒
                 if (before.availability != tableItem.getChecked()) {
                   val after = before.copy(availability = tableItem.getChecked())
                   updateActualSorting(before, after)
@@ -217,10 +220,10 @@ class SortingList @Inject() (
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() ⇒
-          val sorting = selection.getFirstElement().asInstanceOf[view.api.Sorting]
+          val sorting = selection.getFirstElement().asInstanceOf[Sorting]
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
-          ActionRemove.setEnabled(view.Sorting.simpleSorting != sorting) // exclude predefined
+          ActionRemove.setEnabled(Sorting.simpleSorting != sorting) // exclude predefined
         case selection ⇒
           ActionCreateFrom.setEnabled(false)
           ActionEdit.setEnabled(false)
@@ -247,106 +250,106 @@ class SortingList @Inject() (
   override protected def onActive = {
     updateOK()
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
   }
   /** Updates an actual element template */
-  protected[sortlist] def updateActualSorting(before: view.api.Sorting, after: view.api.Sorting) {
+  protected[sortlist] def updateActualSorting(before: Sorting, after: Sorting) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
       getTableViewer.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewer.setSelection(new StructuredSelection(after), true)
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
   }
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
-    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(view.Sorting.compareDeep(_, _)) }))
+    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(Sorting.compareDeep(_, _)) }))
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked())
-      future { autoresize } onFailure {
+      Future { autoresize } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
   }
-  object ActionCreate extends Action(Messages.create_text) with Loggable {
+  object ActionCreate extends Action(Messages.create_text) with XLoggable {
     override def run = {
-      //      val newSortingName = payload.generateNew(Messages.newSortingName_text, " ", newName ⇒ actual.exists(_.name == newName))
-      //      val newSorting = new view.Sorting(UUID.randomUUID(), newSortingName, "", true, mutable.LinkedHashSet())
-      //      OperationModifySorting(newSorting, actual.toSet).foreach { operation ⇒
-      //        operation.getExecuteJob() match {
-      //          case Some(job) ⇒
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) ⇒
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach { case (sorting) ⇒ App.exec { actual += sorting } }
-      //              case Operation.Result.Cancel(message) ⇒
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other ⇒
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None ⇒
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      val newSortingName = payload.generateNew(Messages.newSortingName_text, " ", newName ⇒ actual.exists(_.name == newName))
+      val newSorting = new Sorting(UUID.randomUUID(), newSortingName, "", true, mutable.LinkedHashSet())
+      OperationModifySorting(graph, newSorting, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (sorting) ⇒ App.exec { actual += sorting } }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
+  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
     override def run = Option(selected.value) foreach { selected ⇒
-      //      val name = getNewSortingCopyName(selected.name, actual.toList)
-      //      val newSorting = selected.copy(id = UUID.randomUUID(), name = name)
-      //      OperationModifySorting(newSorting, actual.toSet).foreach { operation ⇒
-      //        operation.getExecuteJob() match {
-      //          case Some(job) ⇒
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) ⇒
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach {
-      //                  case (sorting) ⇒ App.exec {
-      //                    assert(!actual.exists(_.id == sorting.id), "Sorting %s already exists".format(sorting))
-      //                    actual += sorting
-      //                  }
-      //                }
-      //              case Operation.Result.Cancel(message) ⇒
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other ⇒
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None ⇒
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      val name = getNewSortingCopyName(selected.name, actual.toList)
+      val newSorting = selected.copy(id = UUID.randomUUID(), name = name)
+      OperationModifySorting(graph, newSorting, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach {
+                  case (sorting) ⇒ App.exec {
+                    assert(!actual.exists(_.id == sorting.id), "Sorting %s already exists".format(sorting))
+                    actual += sorting
+                  }
+                }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = Option(selected.value) foreach { before ⇒
-      //      OperationModifySorting(before, actual.toSet).foreach { operation ⇒
-      //        operation.getExecuteJob() match {
-      //          case Some(job) ⇒
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) ⇒
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach { case (after) ⇒ App.exec { updateActualSorting(before, after) } }
-      //              case Operation.Result.Cancel(message) ⇒
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other ⇒
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None ⇒
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      OperationModifySorting(graph, before, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (after) ⇒ App.exec { updateActualSorting(before, after) } }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {
@@ -356,7 +359,7 @@ class SortingList @Inject() (
   }
 }
 
-object SortingList extends Loggable {
+object SortingList extends XLoggable {
   class SortingComparator(dialog: WeakReference[SortingList]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -380,8 +383,8 @@ object SortingList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val entity1 = e1.asInstanceOf[view.api.Sorting]
-      val entity2 = e2.asInstanceOf[view.api.Sorting]
+      val entity1 = e1.asInstanceOf[Sorting]
+      val entity2 = e2.asInstanceOf[Sorting]
       val rc = column match {
         case 0 ⇒ entity1.name.compareTo(entity2.name)
         case 1 ⇒ entity1.description.compareTo(entity2.description)
@@ -399,7 +402,7 @@ object SortingList extends Loggable {
   class SortingFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[view.api.Sorting]
+      val item = element.asInstanceOf[Sorting]
       pattern.matcher(item.name.toLowerCase()).matches() ||
         pattern.matcher(item.description.toLowerCase()).matches()
     }

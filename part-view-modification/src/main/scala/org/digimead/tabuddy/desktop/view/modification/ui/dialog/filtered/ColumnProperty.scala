@@ -43,25 +43,25 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.filtered
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
 import org.digimead.tabuddy.desktop.logic.payload.view.api
 import org.digimead.tabuddy.desktop.view.modification.Default
 import org.eclipse.jface.viewers.{ CellLabelProvider, ViewerCell }
 import org.eclipse.swt.graphics.Point
 
-object ColumnProperty extends Loggable {
+object ColumnProperty extends XLoggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         cell.setText(item.property.name)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         AvailableFilters.map.get(item.filter).map(c ⇒ "filter: " + c.description).getOrElse(null)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())

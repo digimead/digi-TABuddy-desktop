@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.view.modification.ui.action
 
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
@@ -59,7 +59,7 @@ import scala.ref.WeakReference
 /**
  * ToolBar manager that contains ContributionSelectView, ContributionSelectFilter, ContributionSelectSorting
  */
-class ViewToolBarManager @Inject() (windowContext: Context) extends ToolBarManager with Loggable {
+class ViewToolBarManager @Inject() (windowContext: Context) extends ToolBarManager with XLoggable {
   /** CoolBar */
   @volatile protected var coolBarManager = WeakReference[CoolBarManager](null)
   /** Flag indicating whether the toolbar manager is visible. */

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,8 +43,9 @@
 
 package org.digimead.tabuddy.desktop.view
 
-import org.digimead.digi.lib.DependencyInjection
 import com.escalatesoft.subcut.inject.NewBindingModule
+import org.digimead.digi.lib.DependencyInjection
+import org.digimead.tabuddy.desktop.logic.operation.view.api.{ XOperationModifyFilter, XOperationModifyFilterList, XOperationModifySorting, XOperationModifySortingList, XOperationModifyView, XOperationModifyViewList }
 
 /**
  * View modification component contains:
@@ -56,29 +57,29 @@ import com.escalatesoft.subcut.inject.NewBindingModule
  *   modify view list dialog
  */
 package object modification {
-  lazy val default = new NewBindingModule(module => {
+  lazy val default = new NewBindingModule(module ⇒ {
     // implementation of logic.operation.view.OperationModifyFilter
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyFilter] toSingle {
+    module.bind[XOperationModifyFilter[_]] toSingle {
       new operation.OperationModifyFilter()
     }
     // implementation of logic.operation.view.OperationModifyFilterList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyFilterList] toSingle {
+    module.bind[XOperationModifyFilterList[_]] toSingle {
       new operation.OperationModifyFilterList()
     }
     // implementation of logic.operation.view.OperationModifySorting
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifySorting] toSingle {
+    module.bind[XOperationModifySorting[_]] toSingle {
       new operation.OperationModifySorting()
     }
     // implementation of logic.operation.view.OperationModifySortingList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifySortingList] toSingle {
+    module.bind[XOperationModifySortingList[_]] toSingle {
       new operation.OperationModifySortingList()
     }
     // implementation of logic.operation.view.OperationModifyView
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyView] toSingle {
+    module.bind[XOperationModifyView[_]] toSingle {
       new operation.OperationModifyView()
     }
     // implementation of logic.operation.view.OperationModifyViewList
-    module.bind[org.digimead.tabuddy.desktop.logic.operation.view.api.OperationModifyViewList] toSingle {
+    module.bind[XOperationModifyViewList[_]] toSingle {
       new operation.OperationModifyViewList()
     }
   })

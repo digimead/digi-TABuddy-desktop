@@ -47,16 +47,14 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ view ⇒ pview }
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
-import org.digimead.tabuddy.desktop.core.ui.support.{ RegexFilterListener, Validator }
+import org.digimead.tabuddy.desktop.core.ui.support.{ RegexFilterListener, TextValidator, Validator }
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -68,11 +66,10 @@ import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, Vi
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator, ViewerFilter }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent, VerifyEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem, Text }
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class ViewEditor @Inject() (
@@ -87,10 +84,12 @@ class ViewEditor @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial view definition. */
-  val view: pview.api.View,
+  val view: View,
   /** Initial view list. */
-  val viewList: List[pview.api.View])
-  extends ViewEditorSkel(parentShell) with Dialog with Loggable {
+  val viewList: List[View])
+  extends ViewEditorSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual fields */
   protected val actualFields = WritableList(view.fields.toList)
   /** The actual filters UUID */
@@ -98,12 +97,12 @@ class ViewEditor @Inject() (
   /** The actual sortings UUID */
   protected val actualSortings = WritableList(view.sortings.toList)
   /** All available filters */
-  protected val allFilters = WritableList((payload.getAvailableViewFilters - pview.Filter.allowAllFilter).toList.sortBy(_.name))
+  protected val allFilters = WritableList((payload.getAvailableViewFilters - Filter.allowAllFilter).toList.sortBy(_.name))
   /** All defined properties of the current model grouped by id */
   protected val allProperties: WritableList[Symbol] = WritableList(payload.elementTemplates.values.
     flatMap { template ⇒ template.properties.flatMap(_._2) }.map(property ⇒ property.id).toList.distinct.sortBy(_.name))
   /** All available sortings */
-  protected val allSortings = WritableList((payload.getAvailableViewSortings - pview.Sorting.simpleSorting).toList.sortBy(_.name))
+  protected val allSortings = WritableList((payload.getAvailableViewSortings - Sorting.simpleSorting).toList.sortBy(_.name))
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The property representing current enumeration availability */
@@ -138,10 +137,10 @@ class ViewEditor @Inject() (
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
 
-  def getModifiedViews(): pview.View = {
+  def getModifiedViews(): View = {
     val name = nameField.value.trim
     val description = descriptionField.value.trim
-    new pview.View(view.id, name, description, availabilityField.value, mutable.LinkedHashSet(actualFields: _*),
+    new View(view.id, name, description, availabilityField.value, mutable.LinkedHashSet(actualFields: _*),
       mutable.LinkedHashSet(actualFilters: _*), mutable.LinkedHashSet(actualSortings: _*))
   }
 
@@ -150,7 +149,7 @@ class ViewEditor @Inject() (
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewerFields.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnN(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnN(), Default.columnPadding)
         getTableViewerFields.refresh()
       }
     }
@@ -183,7 +182,7 @@ class ViewEditor @Inject() (
     descriptionField.value = view.description
     // bind the view info: a name
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextName()), nameField)
-    val nameFieldValidator = Validator(getTextName(), true)((validator, event) ⇒
+    val nameFieldValidator = TextValidator(getTextName(), true)((validator, event) ⇒
       if (event.keyCode != 0) validateName(validator, event.getSource.asInstanceOf[Text].getText, event.doit))
     val nameFieldListener = nameField.addChangeListener { (name, _) ⇒
       validateName(nameFieldValidator, name.trim(), true)
@@ -271,9 +270,9 @@ class ViewEditor @Inject() (
           case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case filter: pview.Filter if tableItem.getChecked() ⇒
+              case filter: Filter if tableItem.getChecked() ⇒
                 actualFilters += filter.id
-              case filter: pview.Filter ⇒
+              case filter: Filter ⇒
                 actualFilters -= filter.id
               case item ⇒
                 log.fatal(s"unknown item $item")
@@ -349,9 +348,9 @@ class ViewEditor @Inject() (
           case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case sorting: pview.Sorting if tableItem.getChecked() ⇒
+              case sorting: Sorting if tableItem.getChecked() ⇒
                 actualSortings += sorting.id
-              case sorting: pview.Sorting ⇒
+              case sorting: Sorting ⇒
                 actualSortings -= sorting.id
               case item ⇒
                 log.fatal(s"unknown item $item")
@@ -380,7 +379,7 @@ class ViewEditor @Inject() (
   /** On dialog active */
   override protected def onActive = {
     updateOK()
-    future { autoresize() } onFailure {
+    Future { autoresize() } onFailure {
       case e: Exception ⇒ log.error(e.getMessage(), e)
       case e ⇒ log.error(e.toString())
     }
@@ -436,34 +435,34 @@ class ViewEditor @Inject() (
     None
   }
   /** Validates a text in the the name text field */
-  def validateName(validator: Validator, text: String, valid: Boolean): Unit = if (!valid)
+  def validateName(validator: Validator[VerifyEvent], text: String, valid: Boolean): Unit = if (!valid)
     validator.withDecoration(validator.showDecorationError(_))
   else if (text.isEmpty())
     validator.withDecoration(validator.showDecorationRequired(_))
   else
     validator.withDecoration(_.hide)
 
-  object ActionAdd extends Action(">") with Loggable {
+  object ActionAdd extends Action(">") with XLoggable {
     override def run = Option(selectedProperty.value) foreach { property ⇒
       actualFields += property
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
       getTableViewerProperties.refresh()
     }
   }
-  object ActionRemove extends Action("<") with Loggable {
+  object ActionRemove extends Action("<") with XLoggable {
     override def run = Option(selectedField.value) foreach { field ⇒
       actualFields -= field
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
       getTableViewerProperties.refresh()
     }
   }
-  object ActionUp extends Action(Messages.up_text) with Loggable {
+  object ActionUp extends Action(Messages.up_text) with XLoggable {
     override def run = Option(selectedField.value) foreach { field ⇒
       val index = actualFields.indexOf(field)
       if (index > -1 && 0 <= (index - 1)) {
@@ -474,7 +473,7 @@ class ViewEditor @Inject() (
       }
     }
   }
-  object ActionDown extends Action(Messages.down_text) with Loggable {
+  object ActionDown extends Action(Messages.down_text) with XLoggable {
     override def run = Option(selectedField.value) foreach { field ⇒
       val index = actualFields.indexOf(field)
       if (index > -1 && actualFields.size > (index + 1)) {
@@ -487,11 +486,11 @@ class ViewEditor @Inject() (
   }
 }
 
-object ViewEditor extends Loggable {
+object ViewEditor extends XLoggable {
   class FilterFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[pview.Filter]
+      val item = element.asInstanceOf[Filter]
       pattern.matcher(item.name.toLowerCase()).matches()
     }
   }
@@ -505,7 +504,7 @@ object ViewEditor extends Loggable {
   class SortingFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[pview.Sorting]
+      val item = element.asInstanceOf[Sorting]
       pattern.matcher(item.name.toLowerCase()).matches()
     }
   }
@@ -533,11 +532,11 @@ object ViewEditor extends Loggable {
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
       val rc = e1 match {
-        case entity1: pview.Filter ⇒
-          val entity2 = e2.asInstanceOf[pview.Filter]
+        case entity1: Filter ⇒
+          val entity2 = e2.asInstanceOf[Filter]
           entity1.name.compareTo(entity2.name)
-        case entity1: pview.Sorting ⇒
-          val entity2 = e2.asInstanceOf[pview.Sorting]
+        case entity1: Sorting ⇒
+          val entity2 = e2.asInstanceOf[Sorting]
           entity1.name.compareTo(entity2.name)
         case entity1: Symbol ⇒
           val entity2 = e2.asInstanceOf[Symbol]

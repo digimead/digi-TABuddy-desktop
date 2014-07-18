@@ -43,26 +43,26 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.sorted
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.WritableList
 import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
-import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XSorting
 import org.digimead.tabuddy.desktop.view.modification.Default
 import org.eclipse.jface.viewers.{ CellLabelProvider, ViewerCell }
 import org.eclipse.swt.graphics.Point
 
-object ColumnN extends Loggable {
-  class TLabelProvider(val actual: WritableList[view.api.Sorting.Definition]) extends CellLabelProvider {
+object ColumnN extends XLoggable {
+  class TLabelProvider(val actual: WritableList[XSorting.Definition]) extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: view.api.Sorting.Definition ⇒
+      case item: XSorting.Definition ⇒
         cell.setText(actual.indexOf(item).toString)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: view.api.Sorting.Definition ⇒
+      case item: XSorting.Definition ⇒
         AvailableComparators.map.get(item.comparator).map(c ⇒ "comparator: " + c.description).getOrElse(null)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())

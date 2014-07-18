@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,10 +44,7 @@
 package org.digimead.tabuddy.desktop.view.modification
 
 import java.util.UUID
-
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.payload
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.eclipse.swt.graphics.Point
 
 object Default {
@@ -59,6 +56,12 @@ object Default {
   def DESCENDING = DI.DESCENDING
   /** Auto resize column padding */
   def columnPadding = DI.columnPadding
+  /** Get default view definition id. */
+  def defaultViewId = DI.defaultViewId
+  /** Get default view sorting id. */
+  def defaultSortingId = DI.defaultSortingId
+  /** Get default view filter id. */
+  def defaultFilterID = DI.defaultFilterID
   /** Default sort direction */
   def sortingDirection = DI.sortingDirection
   /**
@@ -84,7 +87,7 @@ object Default {
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** Aggregation listener delay. msec. */
     lazy val aggregatorDelay = injectOptional[Int]("Default.aggregatorDelay") getOrElse 250
     /** Ascending sort constant */

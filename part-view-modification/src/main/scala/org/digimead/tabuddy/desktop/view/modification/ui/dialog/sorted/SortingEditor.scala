@@ -43,23 +43,21 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.sorted
 
-
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
-import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, api ⇒ papi, view }
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
-import org.digimead.tabuddy.desktop.core.ui.support.RegexFilterListener
-import org.digimead.tabuddy.desktop.core.ui.support.Validator
+import org.digimead.tabuddy.desktop.core.ui.support.{ RegexFilterListener, TextValidator, Validator }
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XSorting
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType }
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -71,16 +69,14 @@ import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, Vi
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator, ViewerFilter }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent, VerifyEvent }
 import org.eclipse.swt.widgets.Text
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
-import scala.collection.immutable
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.collection.{ immutable, mutable }
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
-class SortingEditor(
+class SortingEditor @Inject() (
   /** This dialog context. */
   val context: IEclipseContext,
   /** Parent shell. */
@@ -92,10 +88,12 @@ class SortingEditor(
   /** Graph payload. */
   val payload: Payload,
   /** Initial sorting definition. */
-  val sorting: view.api.Sorting,
+  val sorting: Sorting,
   /** Initial sorting list. */
-  val sortingList: List[view.api.Sorting])
-  extends SortingEditorSkel(parentShell) with Dialog with Loggable {
+  val sortingList: List[Sorting])
+  extends SortingEditorSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual content */
   protected[sorted] val actual = WritableList(sorting.definitions.toList)
   /** The auto resize lock */
@@ -118,7 +116,7 @@ class SortingEditor(
   /** The property representing a selected property */
   protected val selectedProperty = WritableValue[SortingEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]
   /** The property representing a selected sorting */
-  protected val selectedSorting = WritableValue[view.api.Sorting.Definition]
+  protected val selectedSorting = WritableValue[XSorting.Definition]
   /** Activate context on shell events. */
   protected val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
@@ -133,10 +131,10 @@ class SortingEditor(
       !actual.exists(definition ⇒ definition.property == property.id && definition.propertyType == property.ptype.id))).
     toList.distinct.sortBy(_.ptype.typeSymbol.name).sortBy(_.id.name))
 
-  def getModifiedSorting(): view.api.Sorting = {
+  def getModifiedSorting(): Sorting = {
     val name = nameField.value.trim
     val description = descriptionField.value.trim
-    new view.Sorting(sorting.id, name, description, availabilityField.value, mutable.LinkedHashSet(actual: _*))
+    new Sorting(sorting.id, name, description, availabilityField.value, mutable.LinkedHashSet(actual: _*))
   }
 
   /** Auto resize tableviewer columns */
@@ -144,12 +142,12 @@ class SortingEditor(
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewerSortings.getTable.isDisposed() && !getTableViewerProperties.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnPropertyFrom(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnN(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnProperty(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnDirection(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnSorting(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnPropertyFrom(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnN(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnProperty(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnDirection(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnSorting(), Default.columnPadding)
         getTableViewerProperties.refresh()
         getTableViewerSortings.refresh()
       }
@@ -181,7 +179,7 @@ class SortingEditor(
     descriptionField.value = sorting.description
     // bind the sorting info: a name
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextName()), nameField)
-    val nameFieldValidator = Validator(getTextName(), true)((validator, event) ⇒
+    val nameFieldValidator = TextValidator(getTextName(), true)((validator, event) ⇒
       if (event.keyCode != 0) validateName(validator, event.getSource.asInstanceOf[Text].getText, event.doit))
     val nameFieldListener = nameField.addChangeListener { (name, event) ⇒
       validateName(nameFieldValidator, name.trim(), true)
@@ -297,7 +295,7 @@ class SortingEditor(
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() ⇒
-          val definition = selection.getFirstElement().asInstanceOf[view.api.Sorting.Definition]
+          val definition = selection.getFirstElement().asInstanceOf[XSorting.Definition]
           ActionUp.setEnabled(actual.headOption != Some(definition))
           ActionDown.setEnabled(actual.lastOption != Some(definition))
           ActionRemove.setEnabled(true)
@@ -327,7 +325,7 @@ class SortingEditor(
   override protected def onActive = {
     updateOK()
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
@@ -336,14 +334,14 @@ class SortingEditor(
     getTextFilterSortings().setMessage(Messages.lookupFilter_text);
   }
   /** Updates an actual element template */
-  protected[sorted] def updateActualDefinition(before: view.api.Sorting.Definition, after: view.api.Sorting.Definition) {
+  protected[sorted] def updateActualDefinition(before: XSorting.Definition, after: XSorting.Definition) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
       getTableViewerSortings.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewerSortings.setSelection(new StructuredSelection(after), true)
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
@@ -384,7 +382,7 @@ class SortingEditor(
     None
   }
   /** Validates a text in the the name text field */
-  def validateName(validator: Validator, text: String, valid: Boolean): Unit =
+  def validateName(validator: Validator[VerifyEvent], text: String, valid: Boolean): Unit =
     if (!valid)
       validator.withDecoration(validator.showDecorationError(_))
     else if (text.isEmpty())
@@ -394,18 +392,18 @@ class SortingEditor(
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked()) {
-      future { autoresize } onFailure {
+      Future { autoresize } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
     }
   }
-  object ActionAdd extends Action(">") with Loggable {
+  object ActionAdd extends Action(">") with XLoggable {
     override def run = Option(selectedProperty.value) foreach { property ⇒
       property.visible = false
-      actual += new view.api.Sorting.Definition(property.id, property.ptype.id, Default.sortingDirection, AvailableComparators.default.id, "")
+      actual += new XSorting.Definition(property.id, property.ptype.id, Default.sortingDirection, AvailableComparators.default.id, "")
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -413,12 +411,12 @@ class SortingEditor(
         getTableViewerProperties.refresh()
     }
   }
-  object ActionRemove extends Action("<") with Loggable {
+  object ActionRemove extends Action("<") with XLoggable {
     override def run = Option(selectedSorting.value) foreach { definition ⇒
       actual -= definition
       total.find(property ⇒ definition.property == property.id && definition.propertyType == property.ptype.id).foreach(_.visible = true)
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -426,7 +424,7 @@ class SortingEditor(
         getTableViewerProperties.refresh()
     }
   }
-  object ActionUp extends Action(Messages.up_text) with Loggable {
+  object ActionUp extends Action(Messages.up_text) with XLoggable {
     override def run = Option(selectedSorting.value) foreach { definition ⇒
       val index = actual.indexOf(definition)
       if (index > -1 && 0 <= (index - 1)) {
@@ -437,7 +435,7 @@ class SortingEditor(
       }
     }
   }
-  object ActionDown extends Action(Messages.down_text) with Loggable {
+  object ActionDown extends Action(Messages.down_text) with XLoggable {
     override def run = Option(selectedSorting.value) foreach { definition ⇒
       val index = actual.indexOf(definition)
       if (index > -1 && actual.size > (index + 1)) {
@@ -450,7 +448,7 @@ class SortingEditor(
   }
 }
 
-object SortingEditor extends Loggable {
+object SortingEditor extends XLoggable {
   class PropertyFilter(graph: Graph[_ <: Model.Like], filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
@@ -458,7 +456,7 @@ object SortingEditor extends Loggable {
       pattern.matcher(item.id.name.toLowerCase()).matches() || pattern.matcher(item.ptype.name(graph).toLowerCase()).matches()
     }
   }
-  case class PropertyItem[T <: AnyRef with java.io.Serializable](val id: Symbol, ptype: papi.PropertyType[T], var visible: Boolean)
+  case class PropertyItem[T <: AnyRef with java.io.Serializable](val id: Symbol, ptype: PropertyType[T], var visible: Boolean)
   class PropertySelectionAdapter(dialog: WeakReference[SortingEditor], column: Int) extends SelectionAdapter {
     override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog ⇒
       val viewer = dialog.getTableViewerProperties()
@@ -496,8 +494,8 @@ object SortingEditor extends Loggable {
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
       e1 match {
-        case entity1: view.api.Sorting.Definition ⇒
-          val entity2 = e2.asInstanceOf[view.api.Sorting.Definition]
+        case entity1: XSorting.Definition ⇒
+          val entity2 = e2.asInstanceOf[XSorting.Definition]
           val rc = column match {
             case 0 ⇒
               val input = viewer.getInput().asInstanceOf[org.eclipse.core.databinding.observable.list.WritableList]
@@ -536,7 +534,7 @@ object SortingEditor extends Loggable {
   class SortingFilter(graph: Graph[_ <: Model.Like], filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[view.api.Sorting.Definition]
+      val item = element.asInstanceOf[XSorting.Definition]
       pattern.matcher(item.property.name.toLowerCase()).matches() ||
         pattern.matcher(PropertyType.get(item.propertyType).name(graph).toLowerCase()).matches() ||
         pattern.matcher(AvailableComparators.map(item.comparator).name.toLowerCase()).matches() ||

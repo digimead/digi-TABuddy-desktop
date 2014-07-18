@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.filtered
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.logic.payload.PropertyType
 import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
 import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
@@ -65,18 +65,18 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
 
-object ColumnSorting extends Loggable {
+object ColumnSorting extends XLoggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         cell.setText(AvailableFilters.map.get(item.filter).map(_.name).getOrElse(""))
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         AvailableFilters.map.get(item.filter).map(c ⇒ "filter: " + c.description).getOrElse(null)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
@@ -94,7 +94,7 @@ object ColumnSorting extends Loggable {
   }
   class TEditingSupport(viewer: TableViewer, container: FilterEditor) extends EditingSupport(viewer) {
     override protected def getCellEditor(element: AnyRef): CellEditor = element match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         val cellEditor = new ComboBoxViewerCellEditor(viewer.getControl().asInstanceOf[Composite], SWT.READ_ONLY)
         cellEditor.setLabelProvider(new ComparatorLabelProvider)
         cellEditor.setContentProvider(new ObservableListContentProvider())
@@ -107,14 +107,14 @@ object ColumnSorting extends Loggable {
     }
     override protected def canEdit(element: AnyRef): Boolean = true
     override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: api.Filter.Rule ⇒
+      case item: api.XFilter.Rule ⇒
         AvailableFilters.map.get(item.filter) getOrElse null
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null
     }
     override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: api.Filter.Rule ⇒
+      case before: api.XFilter.Rule ⇒
         val description = value.asInstanceOf[String].trim
 //        if (before.description != description)
   //        container.updateActualSorting(before, before.copy(description = description))
@@ -124,7 +124,7 @@ object ColumnSorting extends Loggable {
   }
   class ComparatorLabelProvider() extends LabelProvider {
     override def getText(element: AnyRef): String = element match {
-      case comparator: comparator.api.Comparator[_] ⇒
+      case comparator: comparator.api.XComparator[_] ⇒
         comparator.name
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())

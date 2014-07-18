@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.view.modification
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -57,7 +57,7 @@ import scala.language.implicitConversions
 /**
  * Root actor of the View modification component.
  */
-class ViewModification extends akka.actor.Actor with Loggable {
+class ViewModification extends akka.actor.Actor with XLoggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef](ViewModification)
   /** Current bundle */
@@ -175,7 +175,7 @@ object ViewModification {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** ViewModification actor reference configuration object. */
     lazy val props = injectOptional[Props]("ViewModification") getOrElse Props[ViewModification]
   }

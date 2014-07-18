@@ -44,13 +44,13 @@
 package org.digimead.tabuddy.desktop.view.modification.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.Sorting
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.digimead.tabuddy.desktop.view.modification.ui.dialog.sorted.SortingEditor
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -59,7 +59,7 @@ import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
 
 /** 'Modify sorting' operation. */
-class OperationModifySorting extends logic.operation.view.OperationModifySorting with Loggable {
+class OperationModifySorting extends logic.operation.view.OperationModifySorting with XLoggable {
   /**
    * Modify sorting.
    *
@@ -103,7 +103,7 @@ class OperationModifySorting extends logic.operation.view.OperationModifySorting
               dialogContext.set(classOf[GraphMarker], marker)
               dialogContext.set(classOf[Payload], state.payload)
               dialogContext.set(classOf[Sorting], sorting)
-              dialogContext.set(classOf[Set[Sorting]], sortingList)
+              dialogContext.set(classOf[List[Sorting]], sortingList.toList)
               val dialog = ContextInjectionFactory.make(classOf[SortingEditor], dialogContext)
               dialog.openOrFocus { result ⇒
                 context.removeChild(dialogContext)
@@ -123,7 +123,7 @@ class OperationModifySorting extends logic.operation.view.OperationModifySorting
   }
 
   class Implemetation(graph: Graph[_ <: Model.Like], sorting: Sorting, sortingList: Set[Sorting])
-    extends logic.operation.view.OperationModifySorting.Abstract(graph, sorting, sortingList) with Loggable {
+    extends logic.operation.view.OperationModifySorting.Abstract(graph, sorting, sortingList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute

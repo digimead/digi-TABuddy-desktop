@@ -43,24 +43,26 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.filterlist
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.RegexFilterListener
+import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilter
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Filter
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.databinding.observable.ChangeEvent
+import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.IEclipseContext
 import org.eclipse.jface.action.{ Action, ActionContributionItem, IAction, IMenuListener, IMenuManager, MenuManager }
 import org.eclipse.jface.databinding.swt.WidgetProperties
@@ -70,9 +72,8 @@ import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChanged
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
-import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.collection.{ immutable, mutable }
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class FilterList @Inject() (
@@ -87,8 +88,10 @@ class FilterList @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial filter list. */
-  val initial: Set[view.api.Filter])
-  extends FilterListSkel(parentShell) with Dialog with Loggable {
+  val initial: Set[Filter])
+  extends FilterListSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual content */
   protected[filterlist] val actual = WritableList(initial.toList)
   /** The auto resize lock */
@@ -101,7 +104,7 @@ class FilterList @Inject() (
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing a selected view */
-  protected val selected = WritableValue[view.api.Filter]
+  protected val selected = WritableValue[Filter]
   /** Activate context on shell events. */
   protected val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
@@ -111,14 +114,14 @@ class FilterList @Inject() (
   /** Actual sortBy column index */
   @volatile private var sortColumn = 0
 
-  def getModifiedFilters(): Set[view.api.Filter] = actual.sortBy(_.name).toSet
+  def getModifiedFilters(): Set[Filter] = actual.sortBy(_.name).toSet
 
   /** Auto resize table viewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnName(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnName(), Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -139,7 +142,7 @@ class FilterList @Inject() (
     initTableViews()
     val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -162,7 +165,7 @@ class FilterList @Inject() (
     result
   }
   /** Generate new name: old name + ' Copy' + N */
-  protected def getNewFilterCopyName(name: String, filterList: List[view.api.Filter]): String = {
+  protected def getNewFilterCopyName(name: String, filterList: List[Filter]): String = {
     val sameIds = immutable.HashSet(filterList.filter(_.name.startsWith(name)).map(_.name).toSeq: _*)
     var n = 0
     var newName = name + " " + Messages.copy_item_text
@@ -189,7 +192,7 @@ class FilterList @Inject() (
           case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: view.api.Filter ⇒
+              case before: Filter ⇒
                 if (before.availability != tableItem.getChecked()) {
                   val after = before.copy(availability = tableItem.getChecked())
                   updateActualFilter(before, after)
@@ -217,10 +220,10 @@ class FilterList @Inject() (
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() ⇒
-          val filter = selection.getFirstElement().asInstanceOf[view.api.Filter]
+          val filter = selection.getFirstElement().asInstanceOf[Filter]
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
-          ActionRemove.setEnabled(view.Filter.allowAllFilter != filter) // exclude predefined
+          ActionRemove.setEnabled(Filter.allowAllFilter != filter) // exclude predefined
         case selection ⇒
           ActionCreateFrom.setEnabled(false)
           ActionEdit.setEnabled(false)
@@ -247,7 +250,7 @@ class FilterList @Inject() (
   override protected def onActive = {
     updateOK()
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
@@ -255,96 +258,96 @@ class FilterList @Inject() (
     getTextFilter().setMessage(Messages.lookupFilter_text);
   }
   /** Updates an actual element template */
-  protected[filterlist] def updateActualFilter(before: view.api.Filter, after: view.api.Filter) {
+  protected[filterlist] def updateActualFilter(before: Filter, after: Filter) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
       getTableViewer.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewer.setSelection(new StructuredSelection(after), true)
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
   }
   /** Update OK button state */
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
-    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(view.Filter.compareDeep(_, _)) }))
+    foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(Filter.compareDeep(_, _)) }))
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked()) autoresize
   }
-  object ActionCreate extends Action(Messages.create_text) with Loggable {
+  object ActionCreate extends Action(Messages.create_text) with XLoggable {
     override def run = {
-      //      val newFilterName = Payload.generateNew(Messages.newFilterName_text, " ", newName => actual.exists(_.name == newName))
-      //      val newFilter = new view.Filter(UUID.randomUUID(), newFilterName, "", true, mutable.LinkedHashSet())
-      //      OperationModifyFilter(newFilter, actual.toSet).foreach { operation =>
-      //        operation.getExecuteJob() match {
-      //          case Some(job) =>
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) =>
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach { case (filter) => App.exec { actual += filter } }
-      //              case Operation.Result.Cancel(message) =>
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other =>
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None =>
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      val newFilterName = payload.generateNew(Messages.newFilterName_text, " ", newName ⇒ actual.exists(_.name == newName))
+      val newFilter = new Filter(UUID.randomUUID(), newFilterName, "", true, mutable.LinkedHashSet())
+      OperationModifyFilter(graph, newFilter, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (filter) ⇒ App.exec { actual += filter } }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
+  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
     override def run = Option(selected.value) foreach { selected ⇒
-      //      val name = getNewFilterCopyName(selected.name, actual.toList)
-      //      val newFilter = selected.copy(id = UUID.randomUUID(), name = name)
-      //      OperationModifyFilter(newFilter, actual.toSet).foreach { operation =>
-      //        operation.getExecuteJob() match {
-      //          case Some(job) =>
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) =>
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach {
-      //                  case (filter) => App.exec {
-      //                    assert(!actual.exists(_.id == filter.id), "Filter %s already exists".format(filter))
-      //                    actual += filter
-      //                  }
-      //                }
-      //              case Operation.Result.Cancel(message) =>
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other =>
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None =>
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      val name = getNewFilterCopyName(selected.name, actual.toList)
+      val newFilter = selected.copy(id = UUID.randomUUID(), name = name)
+      OperationModifyFilter(graph, newFilter, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach {
+                  case (filter) ⇒ App.exec {
+                    assert(!actual.exists(_.id == filter.id), "Filter %s already exists".format(filter))
+                    actual += filter
+                  }
+                }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
   object ActionEdit extends Action(Messages.edit_text) {
     override def run = Option(selected.value) foreach { before ⇒
-      //      OperationModifyFilter(before, actual.toSet).foreach { operation =>
-      //        operation.getExecuteJob() match {
-      //          case Some(job) =>
-      //            job.setPriority(Job.SHORT)
-      //            job.onComplete(_ match {
-      //              case Operation.Result.OK(result, message) =>
-      //                log.info(s"Operation completed successfully: ${result}")
-      //                result.foreach { case (after) => App.exec { updateActualFilter(before, after) } }
-      //              case Operation.Result.Cancel(message) =>
-      //                log.warn(s"Operation canceled, reason: ${message}.")
-      //              case other =>
-      //                log.error(s"Unable to complete operation: ${other}.")
-      //            }).schedule()
-      //          case None =>
-      //            log.fatal(s"Unable to create job for ${operation}.")
-      //        }
-      //      }
+      OperationModifyFilter(graph, before, actual.toSet).foreach { operation ⇒
+        operation.getExecuteJob() match {
+          case Some(job) ⇒
+            job.setPriority(Job.SHORT)
+            job.onComplete(_ match {
+              case Operation.Result.OK(result, message) ⇒
+                log.info(s"Operation completed successfully: ${result}")
+                result.foreach { case (after) ⇒ App.exec { updateActualFilter(before, after) } }
+              case Operation.Result.Cancel(message) ⇒
+                log.warn(s"Operation canceled, reason: ${message}.")
+              case other ⇒
+                log.error(s"Unable to complete operation: ${other}.")
+            }).schedule()
+          case None ⇒
+            log.fatal(s"Unable to create job for ${operation}.")
+        }
+      }
     }
   }
   object ActionRemove extends Action(Messages.remove_text) {
@@ -354,7 +357,7 @@ class FilterList @Inject() (
   }
 }
 
-object FilterList extends Loggable {
+object FilterList extends XLoggable {
   class FilterComparator(dialog: WeakReference[FilterList]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -378,8 +381,8 @@ object FilterList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val entity1 = e1.asInstanceOf[view.api.Filter]
-      val entity2 = e2.asInstanceOf[view.api.Filter]
+      val entity1 = e1.asInstanceOf[Filter]
+      val entity2 = e2.asInstanceOf[Filter]
       val rc = column match {
         case 0 ⇒ entity1.name.compareTo(entity2.name)
         case 1 ⇒ entity1.description.compareTo(entity2.description)
@@ -397,7 +400,7 @@ object FilterList extends Loggable {
   class TableFilter(filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[view.api.Filter]
+      val item = element.asInstanceOf[Filter]
       pattern.matcher(item.name.toLowerCase()).matches() ||
         pattern.matcher(item.description.toLowerCase()).matches()
     }

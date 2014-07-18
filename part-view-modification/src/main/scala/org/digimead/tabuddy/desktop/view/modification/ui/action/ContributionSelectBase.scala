@@ -44,42 +44,36 @@
 package org.digimead.tabuddy.desktop.view.modification.ui.action
 
 import java.util.UUID
-import scala.ref.WeakReference
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.Core
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.desktop.core.support.WritableValue.wrapper2underlying
+import java.util.concurrent.atomic.AtomicReference
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableValue }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View }
 import org.digimead.tabuddy.desktop.view.modification.Default
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
-import org.eclipse.core.databinding.observable.Observables
-import org.eclipse.core.databinding.observable.value.IObservableValue
-import org.eclipse.core.databinding.observable.value.IValueChangeListener
-import org.eclipse.core.databinding.observable.value.ValueChangeEvent
-import org.eclipse.e4.core.contexts.ContextInjectionFactory
-import org.eclipse.jface.action.ControlContribution
-import org.eclipse.jface.action.IContributionItem
-import org.eclipse.jface.action.ToolBarContributionItem
-import org.eclipse.jface.databinding.viewers.IViewerObservableValue
-import org.eclipse.jface.databinding.viewers.ViewersObservables
-import org.eclipse.jface.viewers.ArrayContentProvider
-import org.eclipse.jface.viewers.ComboViewer
-import org.eclipse.jface.viewers.IStructuredSelection
+import org.eclipse.core.databinding.observable.value.{ IObservableValue, IValueChangeListener, ValueChangeEvent }
+import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener, Observables }
+import org.eclipse.jface.action.{ ControlContribution, IContributionItem, ToolBarContributionItem }
+import org.eclipse.jface.databinding.viewers.{ IViewerObservableValue, ViewersObservables }
+import org.eclipse.jface.viewers.{ ArrayContentProvider, ComboViewer, IStructuredSelection }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import language.reflectiveCalls
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
+import org.eclipse.swt.widgets.{ Composite, Control }
+import scala.concurrent.Future
+import scala.language.reflectiveCalls
+import scala.ref.WeakReference
 
+/**
+ * ContributionSelectNN base trait.
+ */
 trait ContributionSelectBase[T <: { val id: UUID }] {
-  this: ControlContribution with Loggable ⇒
-  /** Window of the action item. */
-  val window: WeakReference[AppWindow]
+  this: ControlContribution with XLoggable ⇒
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Window context of the action item. */
+  val windowContext: Context
   /** The combo box with list of values. */
   @volatile protected var comboViewer = WeakReference[ComboViewer](null)
   /** Combo viewer observable. */
@@ -88,12 +82,14 @@ trait ContributionSelectBase[T <: { val id: UUID }] {
   val contextValueKey: String
   /** ToolBarContributionItem inside CoolBar. */
   @volatile protected var coolBarContributionItem = WeakReference[ToolBarContributionItem](null)
-  /** View entities changes aggregator. */
-  protected val eventsAggregator = WritableValue(Long.box(0L))
   /** IContributionItem inside ToolBar. */
   @volatile protected var toolBarContributionItem = WeakReference[IContributionItem](null)
+  /** Observable events aggregator. */
+  protected val eventsAggregator = WritableValue(Long.box(0L))
+  /** Last selection state if any. */
+  protected val selectionState = new AtomicReference(Option.empty[ContributionSelectBase.SelectionState])
 
-  initialize()
+  App.execNGet { initialize() }
 
   /** Create contribution control. */
   override protected def createControl(parent: Composite): Control = {
@@ -102,12 +98,16 @@ trait ContributionSelectBase[T <: { val id: UUID }] {
     val comboViewerObservable = ViewersObservables.observeDelayedValue(50, ViewersObservables.observeSingleSelection(comboViewer))
     comboViewerObservable.addChangeListener(new IChangeListener {
       override def handleChange(event: ChangeEvent) =
-        updateContextValue(Option(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[T]))
+        Option(windowContext.getActive(classOf[VComposite])).foreach { vComposite ⇒
+          if (vComposite.factory().features.contains(Logic.Feature.viewDefinition))
+            Option(event.getObservable.asInstanceOf[IObservableValue].getValue().asInstanceOf[T]).foreach(newValue ⇒
+              vComposite.getContentContext().foreach(context ⇒ context.set(contextValueKey, newValue.id)))
+        }
     })
-    comboViewer.getControl().addDisposeListener(DisposeListener)
+    comboViewer.getControl().addDisposeListener(ComboViewerDisposeListener)
     this.comboViewerObservable = Some(comboViewerObservable)
     this.comboViewer = WeakReference(comboViewer)
-    reloadItems()
+    selectionState.get().foreach(ss ⇒ Future { reloadItems(ss) } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) })
     comboViewer.getControl()
   }
   /** Get IContributionItem for this ControlContribution. */
@@ -119,7 +119,7 @@ trait ContributionSelectBase[T <: { val id: UUID }] {
     }
   /** Returns CoolBar contribution item. */
   protected def getCoolBarContribution(): Option[ToolBarContributionItem] = coolBarContributionItem.get orElse comboViewer.get.flatMap { combo ⇒
-    window.get.map(_.getCoolBarManager2()).flatMap { coolbarManager ⇒
+    Option(windowContext.getLocal(classOf[AppWindow])).map(_.getCoolBarManager2()).flatMap { coolbarManager ⇒
       coolbarManager.getItems().find {
         case item: ToolBarContributionItem ⇒
           item.getToolBarManager() == this.getParent()
@@ -132,43 +132,118 @@ trait ContributionSelectBase[T <: { val id: UUID }] {
     }
   }
   /** Get selection from combo box. */
-  def getSelection(): Option[T] = comboViewer.get.flatMap(_.getSelection() match {
+  def getSelection(): Option[T] = comboViewer.get.flatMap(viewer ⇒ if (viewer.getCombo().isDisposed()) null else viewer.getSelection() match {
     case selection: IStructuredSelection if !selection.isEmpty() ⇒ Option(selection.getFirstElement().asInstanceOf[T])
     case selection ⇒ None
   })
+
   /** Initialize this class */
   protected def initialize() {
     App.assertEventThread()
-    ContextInjectionFactory.inject(this, Core.context)
-    //    Data.viewDefinitions.addChangeListener { event => eventsAggregator.value = System.currentTimeMillis() }
-    //    Observables.observeDelayedValue(Default.aggregatorDelay, eventsAggregator).addValueChangeListener(new IValueChangeListener {
-    //      def handleValueChange(event: ValueChangeEvent) = reloadItems()
-    //    })
+    Observables.observeDelayedValue(Default.aggregatorDelay, eventsAggregator).addValueChangeListener(new IValueChangeListener {
+      def handleValueChange(event: ValueChangeEvent) = {
+        log.debug("Reload " + ContributionSelectBase.this)
+        Future { selectionState.get().foreach(reloadItems) } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+      }
+    })
+    windowContext.get(classOf[AppWindow]).getShell().addDisposeListener(ContributionDisposeListener())
   }
   /** Reload view definitions combo box */
-  protected def reloadItems()
-  /** Update combo box value by ID. */
-  protected def updateComboBoxValue(newValueId: UUID)
+  protected def reloadItems(ss: ContributionSelectBase.SelectionState)
   /** Update combo box value. */
-  protected def updateComboBoxValue(value: Option[T])
-  /** Update context 'contextValueKey' value. */
-  protected def updateContextValue(newValue: Option[T]) {}
-  //    App.findBranchContextByName(Core.context.getActiveLeaf, VComposite.contextName).foreach(context =>
-  //      // Update only contexts with key Data.Id.featureViewDefinition = TRUE
-  //      if (context.getLocal(Data.Id.featureViewDefinition) == java.lang.Boolean.TRUE) newValue match {
-  //        case Some(value) =>
-  //          log.debug(s"Set context value to ${value.id}.")
-  //          context.set(contextValueKey, value.id)
-  //        case None =>
-  //          log.debug("Remove context value.")
-  //          context.remove(contextValueKey)
-  //      })
+  protected def updateComboBoxValue(newValue: T, ss: ContributionSelectBase.SelectionState)
   /** Combo control dispose listener. */
-  object DisposeListener extends org.eclipse.swt.events.DisposeListener {
+  // Combo control maybe recreated if needed.
+  object ComboViewerDisposeListener extends DisposeListener {
     def widgetDisposed(e: DisposeEvent) {
       comboViewer = WeakReference(null)
       comboViewerObservable.foreach(_.dispose())
       comboViewerObservable = None
     }
+  }
+  /** Contribution dispose listener. */
+  case class ContributionDisposeListener(toDispose: { def dispose() }*) extends DisposeListener {
+    def widgetDisposed(e: DisposeEvent) {
+      selectionState.getAndSet(None).foreach(_.dispose())
+      eventsAggregator.dispose()
+      toDispose.foreach(_.dispose())
+    }
+  }
+}
+
+object ContributionSelectBase extends XLoggable {
+  /**
+   * Selection state.
+   */
+  class SelectionState(val marker: GraphMarker, val context: Context, val base: WeakReference[ContributionSelectBase[_]]) {
+    /** Observable dispose callbacks. */
+    protected val disposeCallbacks = marker.safeRead { state ⇒ Seq(state.payload.viewDefinitions, state.payload.viewSortings, state.payload.viewFilters) }.map { observable ⇒
+      App.execNGet {
+        val listener = observable.addChangeListener { _ ⇒ base.get.foreach { _.eventsAggregator.value = System.currentTimeMillis() } }
+        () ⇒ observable.removeChangeListener(listener)
+      }
+    }
+    /** Default values. */
+    val (defaultView, defaultSorting, defaultFilter) = marker.safeRead { state ⇒
+      /** Default view definition id. */
+      val defaultView = Default.defaultViewId.flatMap(state.payload.viewDefinitions.get) getOrElse View.displayName
+      /** Default view sorting id. */
+      val defaultSorting = Default.defaultViewId.flatMap(state.payload.viewSortings.get) getOrElse Sorting.simpleSorting
+      /** Default view filter id. */
+      val defaultFilter = Default.defaultViewId.flatMap(state.payload.viewFilters.get) getOrElse Filter.allowAllFilter
+      (defaultView, defaultSorting, defaultFilter)
+    }
+
+    /** Dispose state. */
+    def dispose(): Unit = App.exec {
+      disposeCallbacks.foreach(_())
+    }
+    /** Get a selected view from the state context. */
+    def getSelectedView(alreadySelectedView: Option[View]): View =
+      Option(context.getLocal(Logic.Id.selectedView)) match {
+        case id @ Some(_) if id == alreadySelectedView.map(_.id) ⇒
+          alreadySelectedView getOrElse defaultView
+        case Some(id) ⇒
+          marker.safeRead(_.payload.getAvailableViewDefinitions().find(_.id == id)) getOrElse defaultView
+        case None ⇒
+          defaultView
+      }
+    /** Get a selected sorting from the state context. */
+    def getSelectedSorting(alreadySelectedSorting: Option[Sorting]): Sorting =
+      Option(context.getLocal(Logic.Id.selectedSorting)) match {
+        case id @ Some(_) if id == alreadySelectedSorting.map(_.id) ⇒
+          alreadySelectedSorting getOrElse defaultSorting
+        case Some(id) ⇒
+          marker.safeRead(_.payload.getAvailableViewSortings().find(_.id == id)) getOrElse defaultSorting
+        case None ⇒
+          defaultSorting
+      }
+    /** Get a selected filter from the state context. */
+    def getSelectedFilter(alreadySelectedFilter: Option[Filter]): Filter =
+      Option(context.getLocal(Logic.Id.selectedFilter)) match {
+        case id @ Some(_) if id == alreadySelectedFilter.map(_.id) ⇒
+          alreadySelectedFilter getOrElse defaultFilter
+        case Some(id) ⇒
+          marker.safeRead(_.payload.getAvailableViewFilters().find(_.id == id)) getOrElse defaultFilter
+        case None ⇒
+          defaultFilter
+      }
+  }
+  object SelectionState {
+    /**
+     * Create new selection state or return exists.
+     */
+    def apply(stateContainer: AtomicReference[Option[SelectionState]], marker: GraphMarker, context: Context, base: ContributionSelectBase[_ <: { val id: UUID }]): SelectionState =
+      stateContainer.synchronized {
+        stateContainer.get() match {
+          case Some(state) if state.marker == marker && state.context == context ⇒
+            state
+          case state ⇒
+            state.foreach(_.dispose())
+            val newState = new SelectionState(marker, context, WeakReference(base))
+            stateContainer.set(Some(newState))
+            newState
+        }
+      }
   }
 }

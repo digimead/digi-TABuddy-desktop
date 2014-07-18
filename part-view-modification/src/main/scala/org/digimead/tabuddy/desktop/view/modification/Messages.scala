@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.view.modification
 
 import java.util.ResourceBundle
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
 
 /**
@@ -68,7 +68,7 @@ class Messages extends ResourceBundle {
   }
 }
 
-object Messages extends NLS with Loggable {
+object Messages extends NLS with XLoggable {
   val ascending_text = ""
   val autoresize_key = ""
   val copy_item_text = ""
@@ -106,6 +106,9 @@ object Messages extends NLS with Loggable {
   val viewSortingListTitle_text = ""
   val views_text = ""
   val yes_text = ""
+  val newViewName_text = ""
+  val newSortingName_text = ""
+  val newFilterName_text = ""
 
   T.ranslate("org.digimead.tabuddy.desktop.view.modification.messages")
 }

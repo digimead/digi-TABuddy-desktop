@@ -47,17 +47,16 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
-import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, api ⇒ papi, view }
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
-import org.digimead.tabuddy.desktop.core.ui.support.RegexFilterListener
-import org.digimead.tabuddy.desktop.core.ui.support.Validator
+import org.digimead.tabuddy.desktop.core.ui.support.{ RegexFilterListener, TextValidator, Validator }
+import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Filter
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XFilter
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, api ⇒ papi, view }
 import org.digimead.tabuddy.desktop.view.modification.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -69,13 +68,11 @@ import org.eclipse.jface.databinding.viewers.{ ObservableListContentProvider, Vi
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator, ViewerFilter }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
-import org.eclipse.swt.widgets.Text
-import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent, VerifyEvent }
+import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem, Text }
 import scala.collection.immutable
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class FilterEditor @Inject() (
@@ -90,10 +87,12 @@ class FilterEditor @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial filter definition. */
-  val filter: view.api.Filter,
+  val filter: Filter,
   /** Initial filter list. */
-  val filterList: List[view.api.Filter])
-  extends FilterEditorSkel(parentShell) with Dialog with Loggable {
+  val filterList: List[Filter])
+  extends FilterEditorSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual content */
   protected[filtered] val actual = WritableList(filter.rules.toList)
   /** The auto resize lock */
@@ -116,7 +115,7 @@ class FilterEditor @Inject() (
   /** The property representing a selected property */
   protected val selectedProperty = WritableValue[FilterEditor.PropertyItem[_ <: AnySRef]]
   /** The property representing a selected sorting */
-  protected val selectedRule = WritableValue[view.api.Filter.Rule]
+  protected val selectedRule = WritableValue[XFilter.Rule]
   /** Activate context on shell events. */
   protected val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
@@ -131,7 +130,7 @@ class FilterEditor @Inject() (
       !actual.exists(definition ⇒ definition.property == property.id && definition.propertyType == property.ptype.id))).
     toList.distinct.sortBy(_.ptype.typeSymbol.name).sortBy(_.id.name))
 
-  def getModifiedFilter(): view.api.Filter = {
+  def getModifiedFilter(): Filter = {
     val name = nameField.value.trim
     val description = descriptionField.value.trim
     new view.Filter(filter.id, name, description, availabilityField.value, mutable.LinkedHashSet(actual: _*))
@@ -142,11 +141,11 @@ class FilterEditor @Inject() (
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewerFilters.getTable.isDisposed() && !getTableViewerProperties.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnPropertyFrom(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnProperty(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnInversion(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnFilter(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnPropertyFrom(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnProperty(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnInversion(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnFilter(), Default.columnPadding)
         getTableViewerProperties.refresh()
         getTableViewerFilters.refresh()
       }
@@ -182,7 +181,7 @@ class FilterEditor @Inject() (
     descriptionField.value = filter.description
     // bind the sorting info: a name
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextName()), nameField)
-    val nameFieldValidator = Validator(getTextName(), true)((validator, event) ⇒
+    val nameFieldValidator = TextValidator(getTextName(), true)((validator, event) ⇒
       if (event.keyCode != 0) validateName(validator, event.getSource.asInstanceOf[Text].getText, event.doit))
     val nameFieldListener = nameField.addChangeListener { (name, event) ⇒
       validateName(nameFieldValidator, name.trim(), true)
@@ -321,7 +320,7 @@ class FilterEditor @Inject() (
   override protected def onActive = {
     updateOK()
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
@@ -330,14 +329,14 @@ class FilterEditor @Inject() (
     getTextFilterFilters().setMessage(Messages.lookupFilter_text);
   }
   /** Updates an actual element template */
-  protected[filtered] def updateActualRule(before: view.api.Filter.Rule, after: view.api.Filter.Rule) {
+  protected[filtered] def updateActualRule(before: XFilter.Rule, after: XFilter.Rule) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
       getTableViewerFilters.refresh() // Workaround for the JFace bug. Force the last element modification.
     getTableViewerFilters.setSelection(new StructuredSelection(after), true)
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
@@ -370,7 +369,7 @@ class FilterEditor @Inject() (
     None
   }
   /** Validates a text in the the name text field */
-  def validateName(validator: Validator, text: String, valid: Boolean): Unit =
+  def validateName(validator: Validator[VerifyEvent], text: String, valid: Boolean): Unit =
     if (!valid)
       validator.withDecoration(validator.showDecorationError(_))
     else if (text.isEmpty())
@@ -380,14 +379,14 @@ class FilterEditor @Inject() (
 
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) future { autoresize }
+    override def run = if (isChecked()) Future { autoresize }
   }
-  object ActionAdd extends Action(">") with Loggable {
+  object ActionAdd extends Action(">") with XLoggable {
     override def run = Option(selectedProperty.value) foreach { property ⇒
       property.visible = false
-      actual += view.api.Filter.Rule(property.id, property.ptype.id, false, view.Filter.allowAllFilter.id, "")
+      actual += XFilter.Rule(property.id, property.ptype.id, false, view.Filter.allowAllFilter.id, "")
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -395,12 +394,12 @@ class FilterEditor @Inject() (
         getTableViewerProperties.refresh()
     }
   }
-  object ActionRemove extends Action("<") with Loggable {
+  object ActionRemove extends Action("<") with XLoggable {
     override def run = Option(selectedRule.value) foreach { rule ⇒
       actual -= rule
       total.find(property ⇒ rule.property == property.id && rule.propertyType == property.ptype.id).foreach(_.visible = true)
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -410,7 +409,7 @@ class FilterEditor @Inject() (
   }
 }
 
-object FilterEditor extends Loggable {
+object FilterEditor extends XLoggable {
   class FilterComparator(graph: Graph[_ <: Model.Like], dialog: WeakReference[FilterEditor]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -435,8 +434,8 @@ object FilterEditor extends Loggable {
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
       e1 match {
-        case entity1: view.api.Filter.Rule ⇒
-          val entity2 = e2.asInstanceOf[view.api.Filter.Rule]
+        case entity1: XFilter.Rule ⇒
+          val entity2 = e2.asInstanceOf[XFilter.Rule]
           val rc = column match {
             case 0 ⇒ entity1.property.name.compareTo(entity2.property.name)
             case 1 ⇒ entity1.propertyType.name.compareTo(entity2.propertyType.name)
@@ -445,9 +444,9 @@ object FilterEditor extends Loggable {
               compareTo(AvailableFilters.map.get(entity2.filter).map(_.name).getOrElse(""))
             case 4 ⇒
               val argument1 = AvailableFilters.map.get(entity1.filter).flatMap(filter ⇒
-                filter.stringToArgument(entity1.argument).map(filter.generic.argumentToText)).getOrElse(entity1.argument)
+                filter.stringToArgument(entity1.argument).map(filter.**.argumentToText)).getOrElse(entity1.argument)
               val argument2 = AvailableFilters.map.get(entity2.filter).flatMap(filter ⇒
-                filter.stringToArgument(entity2.argument).map(filter.generic.argumentToText)).getOrElse(entity2.argument)
+                filter.stringToArgument(entity2.argument).map(filter.**.argumentToText)).getOrElse(entity2.argument)
               argument1.compareTo(argument2)
             case index ⇒
               log.fatal(s"unknown column with index $index"); 0
@@ -473,12 +472,12 @@ object FilterEditor extends Loggable {
   class Filter(graph: Graph[_ <: Model.Like], filter: AtomicReference[Pattern]) extends ViewerFilter {
     override def select(viewer: Viewer, parentElement: AnyRef, element: AnyRef): Boolean = {
       val pattern = filter.get
-      val item = element.asInstanceOf[view.api.Filter.Rule]
+      val item = element.asInstanceOf[XFilter.Rule]
       pattern.matcher(item.property.name.toLowerCase()).matches() ||
         pattern.matcher(PropertyType.get(item.propertyType).name(graph).toLowerCase()).matches() ||
         pattern.matcher(AvailableFilters.map(item.filter).name.toLowerCase()).matches() ||
         pattern.matcher(AvailableFilters.map.get(item.filter).flatMap(filter ⇒
-          filter.stringToArgument(item.argument).map(filter.generic.argumentToText)).getOrElse(item.argument).toLowerCase()).matches()
+          filter.stringToArgument(item.argument).map(filter.**.argumentToText)).getOrElse(item.argument).toLowerCase()).matches()
     }
   }
   class FilterSelectionAdapter(dialog: WeakReference[FilterEditor], column: Int) extends SelectionAdapter {
@@ -501,7 +500,7 @@ object FilterEditor extends Loggable {
       pattern.matcher(item.id.name.toLowerCase()).matches() || pattern.matcher(item.ptype.name(graph).toLowerCase()).matches()
     }
   }
-  case class PropertyItem[T <: AnySRef](val id: Symbol, ptype: papi.PropertyType[T], var visible: Boolean)
+  case class PropertyItem[T <: AnySRef](val id: Symbol, ptype: papi.XPropertyType[T], var visible: Boolean)
   class PropertySelectionAdapter(dialog: WeakReference[FilterEditor], column: Int) extends SelectionAdapter {
     override def widgetSelected(e: SelectionEvent) = dialog.get foreach { dialog ⇒
       val viewer = dialog.getTableViewerProperties()

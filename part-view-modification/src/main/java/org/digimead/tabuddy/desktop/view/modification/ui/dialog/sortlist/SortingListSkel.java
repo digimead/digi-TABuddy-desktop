@@ -99,7 +99,7 @@ public class SortingListSkel extends TitleAreaDialog {
 	 */
 	public SortingListSkel(Shell parentShell) {
 		super(parentShell);
-		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE);
+		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
 	}
 
 	/**

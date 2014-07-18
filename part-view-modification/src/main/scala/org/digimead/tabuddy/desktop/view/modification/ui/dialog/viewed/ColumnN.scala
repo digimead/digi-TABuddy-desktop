@@ -43,14 +43,14 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.viewed
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.logic.payload.view.api.XSorting
 import org.digimead.tabuddy.desktop.view.modification.Default
 import org.eclipse.jface.viewers.{ CellLabelProvider, ViewerCell }
 import org.eclipse.swt.graphics.Point
 
-object ColumnN extends Loggable {
+object ColumnN extends XLoggable {
   class TLabelProvider(val actual: WritableList[Symbol]) extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
@@ -61,7 +61,7 @@ object ColumnN extends Loggable {
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: view.api.Sorting.Definition ⇒
+      case item: XSorting.Definition ⇒
         null
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())

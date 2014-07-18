@@ -99,7 +99,7 @@ public class FilterListSkel extends TitleAreaDialog {
 	 */
 	public FilterListSkel(Shell parentShell) {
 		super(parentShell);
-		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE);
+		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
 	}
 
 	/**

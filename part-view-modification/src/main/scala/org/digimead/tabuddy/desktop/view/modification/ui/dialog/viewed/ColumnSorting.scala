@@ -44,19 +44,19 @@
 package org.digimead.tabuddy.desktop.view.modification.ui.dialog.viewed
 
 import java.util.UUID
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.logic.payload.view
+import org.digimead.tabuddy.desktop.logic.payload.view.Sorting
 import org.digimead.tabuddy.desktop.view.modification.Default
 import org.eclipse.jface.viewers.{ CellLabelProvider, ViewerCell }
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.TableItem
 
-object ColumnSorting extends Loggable {
+object ColumnSorting extends XLoggable {
   class TLabelProvider(val actualSortings: WritableList[UUID]) extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: view.Sorting ⇒
+      case item: Sorting ⇒
         cell.setText(item.name)
         // update checkbox
         cell.getItem() match {
@@ -69,7 +69,7 @@ object ColumnSorting extends Loggable {
     }
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
-      case item: view.Sorting ⇒
+      case item: Sorting ⇒
         if (item.description.nonEmpty)
           item.description
         else

@@ -113,6 +113,7 @@ public class SortingEditorSkel extends TitleAreaDialog {
 	 */
 	public SortingEditorSkel(Shell parentShell) {
 		super(parentShell);
+		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
 	}
 
 	/**

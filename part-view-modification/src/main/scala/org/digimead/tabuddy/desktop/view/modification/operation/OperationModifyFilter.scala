@@ -44,13 +44,13 @@
 package org.digimead.tabuddy.desktop.view.modification.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.Payload
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.view.api.Filter
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.Filter
 import org.digimead.tabuddy.desktop.view.modification.ui.dialog.filtered.FilterEditor
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -59,7 +59,7 @@ import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
 
 /** 'Modify filter' operation. */
-class OperationModifyFilter extends logic.operation.view.OperationModifyFilter with Loggable {
+class OperationModifyFilter extends logic.operation.view.OperationModifyFilter with XLoggable {
   /**
    * Modify filter.
    *
@@ -103,7 +103,7 @@ class OperationModifyFilter extends logic.operation.view.OperationModifyFilter w
               dialogContext.set(classOf[GraphMarker], marker)
               dialogContext.set(classOf[Payload], state.payload)
               dialogContext.set(classOf[Filter], filter)
-              dialogContext.set(classOf[Set[Filter]], filterList)
+              dialogContext.set(classOf[List[Filter]], filterList.toList)
               val dialog = ContextInjectionFactory.make(classOf[FilterEditor], dialogContext)
               dialog.openOrFocus { result ⇒
                 context.removeChild(dialogContext)
@@ -123,7 +123,7 @@ class OperationModifyFilter extends logic.operation.view.OperationModifyFilter w
   }
 
   class Implemetation(graph: Graph[_ <: Model.Like], filter: Filter, filterList: Set[Filter])
-    extends logic.operation.view.OperationModifyFilter.Abstract(graph, filter, filterList) with Loggable {
+    extends logic.operation.view.OperationModifyFilter.Abstract(graph, filter, filterList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
