@@ -64,6 +64,11 @@ class Context(parent: EclipseContext) extends EclipseContext(parent) {
     result.set(EclipseContext.DEBUG_STRING, name)
     result
   }
+  /** Dispose context. */
+  override def dispose() = {
+    Context.Event.publish(null.asInstanceOf[String], Context.this)
+    super.dispose()
+  }
   /** Get context parent. */
   override def getParent(): Context = super.getParent.asInstanceOf[Context]
   /** Get context parents. */

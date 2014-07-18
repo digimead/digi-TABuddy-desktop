@@ -198,7 +198,7 @@ object Sorting extends XLoggable {
   /** Update only modified view sortings */
   def save(marker: GraphMarker, sortings: Set[Sorting]) = marker.safeUpdate { state ⇒
     log.debug("Save view sorting list for graph " + state.graph)
-    val oldSortings = App.execNGet { state.payload.viewSortings.values }
+    val oldSortings = App.execNGet { state.payload.viewSortings.values.toSeq }
     val newSortings = sortings - simpleSorting
     val deleted = oldSortings.filterNot(oldSorting ⇒ newSortings.exists(compareDeep(_, oldSorting)))
     val added = newSortings.filterNot(newSorting ⇒ oldSortings.exists(compareDeep(_, newSorting)))

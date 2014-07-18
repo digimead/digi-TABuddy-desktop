@@ -149,14 +149,14 @@ package object payload {
     module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eViewSorting" toProvider { module ⇒
       graph: Graph[_ <: Model.Like] ⇒ {
         val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eView"))
-        eSettingsFn(graph) | RecordLocation('Definitions)
+        eSettingsFn(graph) | RecordLocation('Sortings)
       }
     }
     /** A graph view filters container. */
     module.bind[Graph[_ <: Model.Like] ⇒ Record.Like] identifiedBy "eViewFilter" toProvider { module ⇒
       graph: Graph[_ <: Model.Like] ⇒ {
         val eSettingsFn = module.inject[Graph[_ <: Model.Like] ⇒ Record.Like](Some("eView"))
-        eSettingsFn(graph) | RecordLocation('Definitions)
+        eSettingsFn(graph) | RecordLocation('Filters)
       }
     }
   })

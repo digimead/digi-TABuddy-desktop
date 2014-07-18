@@ -50,10 +50,14 @@ import scala.language.implicitConversions
 class WritableValue[A <: AnyRef](val underlying: OriginalWritableValue) extends Equals {
   def getValue(): A = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Getter called on disposed observable " + underlying)
     underlying.getValue().asInstanceOf[A]
   }
   def setValue(newValue: A) = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Setter called on disposed observable " + underlying)
     underlying.setValue(newValue)
   }
   def value: A = getValue()

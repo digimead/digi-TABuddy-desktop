@@ -398,6 +398,12 @@ object View extends XLoggable {
           onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       } finally factoryRWL.writeLock().unlock()
     }
+    /** Invoke Fn(contexts). */
+    def withContexts[T](f: mutable.Map[String, (Long, Context)] ⇒ T) = {
+      factoryRWL.readLock().lock()
+      try f(contentContexts)
+      finally factoryRWL.readLock().unlock()
+    }
 
     override lazy val toString = s"""View.Factory("${name.name}", "${shortDescription}")"""
 

@@ -201,26 +201,27 @@ class Content(val context: Context, parent: Composite, style: Int) extends Conte
   /** Update the content when a graph changed. */
   @Inject
   protected def graphChanged(@Optional marker: GraphMarker) = App.exec {
-    Option(marker) match {
-      case Some(marker) ⇒
-        log.debug(s"Set content marker to ${marker}.")
-        getForm().setText(Messages.graphContentTitle.format(marker.graphModelId.name, marker.uuid, marker.graphOrigin.name))
-        context.set(UI.Id.contentTitle, s"${marker.graphModelId.name} by ${marker.graphOrigin.name}")
-        if (getTableViewerActive().getContentProvider() != null && getTableViewerAvailable().getContentProvider() != null) {
-          val graphViews = Resources.factories.keys.filter(_.features.contains(Logic.Feature.graph)).toArray.sortBy(_.name.name)
-          getTableViewerActive().setInput(graphViews)
-          getTableViewerAvailable().setInput(graphViews)
-        }
-      case None ⇒
-        log.debug("Reset content marker.")
-        getForm().setText(Messages.graphContentTitleEmpty)
-        context.remove(UI.Id.contentTitle)
-        if (getTableViewerActive().getContentProvider() != null && getTableViewerAvailable().getContentProvider() != null) {
-          getTableViewerActive().setInput(null)
-          getTableViewerAvailable().setInput(null)
-        }
-    }
-    App.execAsync { getForm.getBody().layout(true, true) }
+    if (!getForm.isDisposed())
+      Option(marker) match {
+        case Some(marker) ⇒
+          log.debug(s"Set content marker to ${marker}.")
+          getForm().setText(Messages.graphContentTitle.format(marker.graphModelId.name, marker.uuid, marker.graphOrigin.name))
+          context.set(UI.Id.contentTitle, s"${marker.graphModelId.name} by ${marker.graphOrigin.name}")
+          if (getTableViewerActive().getContentProvider() != null && getTableViewerAvailable().getContentProvider() != null) {
+            val graphViews = Resources.factories.keys.filter(_.features.contains(Logic.Feature.graph)).toArray.sortBy(_.name.name)
+            getTableViewerActive().setInput(graphViews)
+            getTableViewerAvailable().setInput(graphViews)
+          }
+        case None ⇒
+          log.debug("Reset content marker.")
+          getForm().setText(Messages.graphContentTitleEmpty)
+          context.remove(UI.Id.contentTitle)
+          if (getTableViewerActive().getContentProvider() != null && getTableViewerAvailable().getContentProvider() != null) {
+            getTableViewerActive().setInput(null)
+            getTableViewerAvailable().setInput(null)
+          }
+      }
+    App.execAsync { if (!getForm.isDisposed()) getForm.getBody().layout(true, true) }
   }
 }
 

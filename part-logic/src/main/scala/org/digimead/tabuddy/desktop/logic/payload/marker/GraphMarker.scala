@@ -379,6 +379,15 @@ class GraphMarker(
 
 object GraphMarker extends XLoggable {
   type Generic = XGraphMarker[TypeSchema]
+  /** Application wide context listener that unbind disposed contexts. */
+  val contextsListener = Context.Event.subscribe(null.asInstanceOf[String], (key: String, context: Context) ⇒
+    Option(context.getLocal(classOf[GraphMarker])).foreach { marker ⇒
+      globalRWL.readLock().lock()
+      try {
+        if (marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.contains(context))
+          unbind(context, marker)
+      } finally globalRWL.readLock().unlock()
+    })
   /**
    * Field that contains map of graph additional storages except local one.
    * Value is indicating whether the location is available or not.
@@ -582,10 +591,10 @@ object GraphMarker extends XLoggable {
   /** Create temporary graph marker. */
   def temporary(graph: Graph[_ <: Model]): TemporaryGraphMarker = new TemporaryGraphMarker(graph)
   /** Unbind marker from context. */
-  def unbind(context: Context) = {
+  def unbind(context: Context, markerArg: GraphMarker = null) = {
     globalRWL.readLock().lock()
     try {
-      val marker = contextToMarker(context).get // throw if empty
+      val marker = if (markerArg != null) markerArg else contextToMarker(context).get // throw if empty
       log.debug(s"Unbind ${marker} from ${context}")
       context.remove(classOf[GraphMarker])
       marker.state.asInstanceOf[ThreadUnsafeState].contextRefs.remove(context)

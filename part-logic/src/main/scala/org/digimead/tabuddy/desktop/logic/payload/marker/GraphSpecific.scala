@@ -210,7 +210,7 @@ trait GraphSpecific {
     assertState()
     log.info(s"Close '${state.graph}' with '${this}'.")
     state.graph.removeSubscriptions()
-    state.contextRefs.keys.map(GraphMarker.unbind)
+    state.contextRefs.keys.map(GraphMarker.unbind(_, this))
     state.contextRefs.clear()
     try markerSave() finally {
       state.graphObject = None

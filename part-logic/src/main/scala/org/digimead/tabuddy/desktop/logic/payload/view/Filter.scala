@@ -192,7 +192,7 @@ object Filter extends XLoggable {
   /** Update only modified view filters. */
   def save(marker: GraphMarker, filters: Set[Filter]) = marker.safeUpdate { state ⇒
     log.debug("Save view filter list for graph " + state.graph)
-    val oldFilters = App.execNGet { state.payload.viewFilters.values }
+    val oldFilters = App.execNGet { state.payload.viewFilters.values.toSeq }
     val newFilters = filters - allowAllFilter
     val deleted = oldFilters.filterNot(oldFilter ⇒ newFilters.exists(compareDeep(_, oldFilter)))
     val added = newFilters.filterNot(newFilter ⇒ oldFilters.exists(compareDeep(_, newFilter)))

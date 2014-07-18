@@ -52,11 +52,15 @@ import scala.language.implicitConversions
 class WritableMap[A, B](val underlying: OriginalWritableMap) extends mutable.Map[A, B] with mutable.MapLike[A, B, WritableMap[A, B]] with Equals {
   override def size = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Size called on disposed observable " + underlying)
     underlying.size
   }
 
   def get(k: A) = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Get called on disposed observable " + underlying)
     val v = underlying get k
     if (v != null)
       Some(v.asInstanceOf[B])
@@ -68,27 +72,37 @@ class WritableMap[A, B](val underlying: OriginalWritableMap) extends mutable.Map
 
   def +=(kv: (A, B)): this.type = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Add called on disposed observable " + underlying)
     underlying.put(kv._1, kv._2); this
   }
   def -=(key: A): this.type = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Remove called on disposed observable " + underlying)
     underlying remove key; this
   }
 
   override def put(k: A, v: B): Option[B] = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Put called on disposed observable " + underlying)
     val r = underlying.put(k, v)
     if (r != null) Some(r.asInstanceOf[B]) else None
   }
 
   override def remove(k: A): Option[B] = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Remove called on disposed observable " + underlying)
     val r = underlying remove k
     if (r != null) Some(r.asInstanceOf[B]) else None
   }
 
   def iterator: Iterator[(A, B)] = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Iterator called on disposed observable " + underlying)
     new Iterator[(A, B)] {
       val ui = underlying.entrySet.iterator.asInstanceOf[java.util.Iterator[java.util.Map.Entry[A, B]]]
       def hasNext = ui.hasNext
@@ -98,14 +112,19 @@ class WritableMap[A, B](val underlying: OriginalWritableMap) extends mutable.Map
 
   override def clear() = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Clear called on disposed observable " + underlying)
     underlying.clear()
   }
 
   override def empty: WritableMap[A, B] = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Empty called on disposed observable " + underlying)
     new WritableMap(new OriginalWritableMap(underlying.getRealm(), underlying.getKeyType(), underlying.getValueType()))
   }
 
+  // thread safe
   def addChangeListener[T](listenerCallback: (ChangeEvent) ⇒ T): IChangeListener = {
     val listener = new IChangeListener() { override def handleChange(event: ChangeEvent) = listenerCallback(event) }
     underlying.addChangeListener(listener)

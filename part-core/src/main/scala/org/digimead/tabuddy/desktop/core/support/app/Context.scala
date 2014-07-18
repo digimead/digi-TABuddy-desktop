@@ -91,6 +91,10 @@ trait Context {
       (head +: children.map(c ⇒ process(c, prefix + "  "))).mkString("\n")
     }
     val summary = process(native)
+    if (ctx != root) {
+      sequence = Seq.empty
+      process(ctx.asInstanceOf[EclipseContext])
+    }
     val details = sequence.map { ctx ⇒
       val head = s"Context: $ctx [parrent '${ctx.getParent()}']"
       val staticKeys = ctx.localData().keys

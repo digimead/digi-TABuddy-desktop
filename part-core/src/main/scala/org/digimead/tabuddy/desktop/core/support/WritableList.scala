@@ -53,45 +53,65 @@ import scala.language.implicitConversions
 class WritableList[A](val underlying: OriginalWritableList) extends mutable.Buffer[A] with Equals {
   def length = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Length called on disposed observable " + underlying)
     underlying.size
   }
   override def isEmpty = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("IsEmpty called on disposed observable " + underlying)
     underlying.isEmpty
   }
   override def iterator: Iterator[A] = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Iterator called on disposed observable " + underlying)
     underlying.iterator.asInstanceOf[java.util.Iterator[A]]
   }
   def apply(i: Int) = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Get called on disposed observable " + underlying)
     underlying.get(i).asInstanceOf[A]
   }
   def update(i: Int, elem: A) = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Update called on disposed observable " + underlying)
     underlying.set(i, elem)
   }
   def +=:(elem: A) = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Add called on disposed observable " + underlying)
     underlying.subList(0, 0).asInstanceOf[java.util.List[A]] add elem
     this
   }
   def +=(elem: A): this.type = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Add called on disposed observable " + underlying)
     underlying add elem
     this
   }
   def insertAll(i: Int, elems: Traversable[A]) = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("InsertAll called on disposed observable " + underlying)
     val ins = underlying.subList(0, i).asInstanceOf[java.util.List[A]]
     elems.seq.foreach(ins.add(_))
   }
   def remove(i: Int) = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Remove called on disposed observable " + underlying)
     underlying.remove(i).asInstanceOf[A]
   }
   def clear() = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Clear called on disposed observable " + underlying)
     underlying.clear()
   }
   // Note: Clone cannot just call underlying.clone because in Java, only specific collections
@@ -100,6 +120,7 @@ class WritableList[A](val underlying: OriginalWritableList) extends mutable.Buff
     throw new UnsupportedOperationException
   //override def clone(): JListWrapper[A] = JListWrapper(new ju.ArrayList[A](underlying))
 
+  // thread safe
   def addChangeListener[A](listenerCallback: (ChangeEvent) ⇒ A): IChangeListener = {
     val listener = new IChangeListener() { override def handleChange(event: ChangeEvent) = listenerCallback(event) }
     underlying.addChangeListener(listener)

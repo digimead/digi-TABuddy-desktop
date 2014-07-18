@@ -53,43 +53,61 @@ import scala.language.implicitConversions
 class WritableSet[A](val underlying: OriginalWritableSet) extends mutable.Set[A] with mutable.SetLike[A, WritableSet[A]] with Equals {
   override def size = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Size called on disposed observable " + underlying)
     underlying.size
   }
 
   def iterator = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Iterator called on disposed observable " + underlying)
     underlying.iterator.asInstanceOf[java.util.Iterator[A]]
   }
 
   def contains(elem: A): Boolean = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Contains called on disposed observable " + underlying)
     underlying.contains(elem)
   }
 
   def +=(elem: A): this.type = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Add called on disposed observable " + underlying)
     underlying add elem; this
   }
   def -=(elem: A): this.type = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Remove called on disposed observable " + underlying)
     underlying remove elem; this
   }
 
   override def add(elem: A): Boolean = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Add called on disposed observable " + underlying)
     underlying add elem
   }
   override def remove(elem: A): Boolean = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Remove called on disposed observable " + underlying)
     underlying remove elem
   }
   override def clear() = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Clear called on disposed observable " + underlying)
     underlying.clear()
   }
 
   override def empty = {
     App.assertEventThread()
+    if (underlying.isDisposed())
+      throw new IllegalStateException("Empty called on disposed observable " + underlying)
     new WritableSet(new OriginalWritableSet(underlying.getRealm(), new HashSet[A](), underlying.getElementType()))
   }
   // Note: Clone cannot just call underlying.clone because in Java, only specific collections
@@ -98,6 +116,7 @@ class WritableSet[A](val underlying: OriginalWritableSet) extends mutable.Set[A]
     throw new UnsupportedOperationException
   //new WritableSet[A](new ju.LinkedHashSet[A](underlying))
 
+  // thread safe
   def addChangeListener[A](listenerCallback: (ChangeEvent) ⇒ A): IChangeListener = {
     val listener = new IChangeListener() { override def handleChange(event: ChangeEvent) = listenerCallback(event) }
     underlying.addChangeListener(listener)

@@ -232,7 +232,7 @@ object View extends XLoggable {
   /** Update only modified view definitions. */
   def save(marker: GraphMarker, views: Set[View]) = marker.safeUpdate { state ⇒
     log.debug("Save view definition list for graph " + state.graph)
-    val oldViews = App.execNGet { state.payload.viewDefinitions.values }
+    val oldViews = App.execNGet { state.payload.viewDefinitions.values.toSeq }
     val newViews = views - displayName
     val deleted = oldViews.filterNot(oldView ⇒ newViews.exists(compareDeep(_, oldView)))
     val added = newViews.filterNot(newView ⇒ oldViews.exists(compareDeep(_, newView)))

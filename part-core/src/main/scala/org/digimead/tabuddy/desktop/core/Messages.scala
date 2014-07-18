@@ -195,7 +195,6 @@ object Messages extends NLS with XLoggable {
   val newSortingName_text = ""
   val newTypeSchema_text = ""
   val newValue_text = ""
-  val newViewName_text = ""
   val new_text = ""
   val no_text = ""
   val nodata_text = ""
