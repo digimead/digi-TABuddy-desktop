@@ -140,7 +140,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with X
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStart(widget)
+        try onStart(widget) catch { case e: Throwable ⇒ log.error(e.getMessage, e) }
         App.Message.Start(widget, None)
       }
     } foreach { sender ! _ }
@@ -149,7 +149,7 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with X
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStop(widget)
+        try onStop(widget) catch { case e: Throwable ⇒ log.error(e.getMessage, e) }
         App.Message.Stop(widget, None)
       }
     } foreach { sender ! _ }

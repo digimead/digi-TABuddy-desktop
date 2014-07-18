@@ -161,7 +161,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStart(widget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]])
+        try onStart(widget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]]) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         App.Message.Start(widget, self)
       }
     } foreach { sender ! _ }
@@ -170,7 +170,7 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStop(widget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]])
+        try onStop(widget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]]) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         App.Message.Stop(widget, self)
       }
     } foreach { sender ! _ }

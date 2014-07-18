@@ -43,16 +43,54 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.definition.{ ToolBarContributionItem, ToolBarManager }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.core.ui.definition.{ ToolBarContributionItem, ToolBarManager }
+import org.eclipse.jface.action.ICoolBarManager
+import org.eclipse.jface.action.{ IAction, IContributionItem, IToolBarManager }
+import scala.language.implicitConversions
 
-object WindowToolbar extends XLoggable {
-  /** ToolBar descriptor. */
-  case class Descriptor(val id: String, val factory: () ⇒ ToolBarManager = () ⇒ new ToolBarManager())
-  /** Return toolbar with the specific id from the window CoolBarManager. */
-  def apply(window: AppWindow, toolBarDescriptor: Descriptor): ToolBarContributionItem = {
+/**
+ * Smart toolbar manager.
+ */
+class SmartToolbarManager {
+  /** Add toolbar to coolbar only if not exists. */
+  def add(coolbar: ICoolBarManager, toolbar: ToolBarContributionItem): Boolean =
+    Option(coolbar.find(toolbar.getId())) match {
+      case Some(action) ⇒
+        false
+      case None ⇒
+        coolbar.add(toolbar)
+        true
+    }
+  /** Add action to toolbar only if not exists. */
+  def add(toolbar: ToolBarContributionItem, action: IAction): Boolean =
+    add(toolbar.getToolBarManager(), action)
+  /** Add action to toolbar only if not exists. */
+  def add(toolbar: IToolBarManager, action: IAction): Boolean =
+    Option(toolbar.find(action.getId())) match {
+      case Some(action) ⇒
+        false
+      case None ⇒
+        toolbar.add(action)
+        true
+    }
+  /** Add contribution to toolbar only if not exists. */
+  def add(toolbar: ToolBarContributionItem, item: IContributionItem): Boolean =
+    add(toolbar.getToolBarManager(), item)
+  /** Add contribution to toolbar only if not exists. */
+  def add(toolbar: IToolBarManager, item: IContributionItem): Boolean =
+    Option(toolbar.find(item.getId())) match {
+      case Some(item) ⇒
+        false
+      case None ⇒
+        toolbar.add(item)
+        true
+    }
+  /** Returns toolbar with the specific id from the window CoolBarManager. */
+  def apply(window: AppWindow, toolBarDescriptor: SmartToolbarManager.Descriptor): ToolBarContributionItem = {
     App.assertEventThread()
     val cbm = window.getCoolBarManager()
     Option(cbm.find(toolBarDescriptor.id)) match {
@@ -72,5 +110,25 @@ object WindowToolbar extends XLoggable {
     }
   }
 
-  override def toString = "WindowToolbar[Singleton]"
+  override def toString = "core.ui.block.SmartToolbarManager"
+}
+
+object SmartToolbarManager extends XLoggable {
+  implicit def manager2implementation(m: SmartToolbarManager.type): SmartToolbarManager = m.inner
+
+  /** Get SmartToolbarManager implementation. */
+  def inner = DI.implementation
+
+  override def toString = "core.ui.block.SmartToolbarManager[Singleton]"
+
+  /** ToolBar descriptor. */
+  case class Descriptor(val id: String, val factory: () ⇒ ToolBarManager = () ⇒ new ToolBarManager())
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends XDependencyInjection.PersistentInjectable {
+    /** SmartToolbarManager implementation. */
+    lazy val implementation = injectOptional[SmartToolbarManager] getOrElse new SmartToolbarManager
+  }
 }

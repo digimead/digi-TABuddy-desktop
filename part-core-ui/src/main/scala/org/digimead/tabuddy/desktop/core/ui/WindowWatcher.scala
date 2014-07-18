@@ -49,7 +49,7 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, WindowMenu, WindowToolbar }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, SmartToolbarManager, WindowMenu }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.eclipse.core.runtime.jobs.Job
@@ -108,9 +108,9 @@ class WindowWatcher extends Actor with XLoggable {
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-    val commonToolBar = WindowToolbar(window, WindowWatcher.commonToolbar)
-    commonToolBar.getToolBarManager().add(action.ActionExit)
-    commonToolBar.getToolBarManager().add(action.ActionTest)
+    val commonToolBar = SmartToolbarManager(window, WindowWatcher.commonToolbar)
+    SmartToolbarManager.add(commonToolBar, action.ActionExit)
+    SmartToolbarManager.add(commonToolBar, action.ActionTest)
     window.getCoolBarManager2().update(true)
   }
 }
@@ -119,7 +119,7 @@ object WindowWatcher extends XLoggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Common toolbar descriptor. */
-  val commonToolbar = WindowToolbar.Descriptor(getClass.getName() + "#common")
+  val commonToolbar = SmartToolbarManager.Descriptor(getClass.getName() + "#common")
   /** File menu descriptor. */
   val fileMenu = WindowMenu.Descriptor("&File", None, getClass.getName() + "#file")
   /** Show View menu descriptor. */

@@ -132,13 +132,17 @@ class WindowSupervisor extends Actor with XLoggable {
         onDestroyed(window, origin)
     }
 
-    case message @ App.Message.Get(windowId: UUID) ⇒ getConfiguration(sender, Some(windowId))
+    case message @ App.Message.Get(windowId: UUID) ⇒
+      try getConfiguration(sender, Some(windowId)) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
-    case message @ App.Message.Get(None) ⇒ getConfiguration(sender, None)
+    case message @ App.Message.Get(None) ⇒
+      try getConfiguration(sender, None) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
-    case message @ App.Message.Get(WindowSupervisor.ConfigurationMap) ⇒ sender ! configurations.toMap
+    case message @ App.Message.Get(WindowSupervisor.ConfigurationMap) ⇒
+      try sender ! configurations.toMap catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
-    case message @ App.Message.Get(WindowSupervisor.PointerMap) ⇒ sender ! pointers.toMap
+    case message @ App.Message.Get(WindowSupervisor.PointerMap) ⇒
+      try sender ! pointers.toMap catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
     // open specific window
     case message @ App.Message.Open(id: UUID, _, None) ⇒ App.traceMessage(message) {
@@ -189,7 +193,7 @@ class WindowSupervisor extends Actor with XLoggable {
     }
 
     case message @ App.Message.Set(windowId: UUID, configuration: WindowConfiguration) ⇒
-      setConfiguration(sender, windowId, configuration)
+      try setConfiguration(sender, windowId, configuration) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
     case message @ App.Message.Start((id: UUID, widget: Widget), _, None) ⇒ App.traceMessage(message) {
       // Stop previous active widget if any

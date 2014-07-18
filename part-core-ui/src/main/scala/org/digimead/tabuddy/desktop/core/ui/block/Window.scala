@@ -184,16 +184,16 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStart(widget)
+        try onStart(widget) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         App.Message.Start(widget, self)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop(widget: Widget, _, None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Stop(widget: Widget, _, None) ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStop(widget)
+        try onStop(widget) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         App.Message.Stop(widget, self)
       }
     } foreach { sender ! _ }

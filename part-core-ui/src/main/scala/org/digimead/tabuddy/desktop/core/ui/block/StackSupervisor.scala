@@ -184,11 +184,14 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       Map(tree.map { case (child, map) ⇒ child -> Await.result(map, timeout.duration) }.toSeq: _*)
     } foreach { sender ! _ }
 
-    case message @ App.Message.Get(Configuration) ⇒ sender ! buildConfiguration()
+    case message @ App.Message.Get(Configuration) ⇒
+      try sender ! buildConfiguration() catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
-    case message @ App.Message.Get(Option) ⇒ sender ! lastActiveViewIdForCurrentWindow.get
+    case message @ App.Message.Get(Option) ⇒
+      try sender ! lastActiveViewIdForCurrentWindow.get catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
-    case message @ App.Message.Get(Seq) ⇒ sender ! pointers.toSeq
+    case message @ App.Message.Get(Seq) ⇒
+      try sender ! pointers.toSeq catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
     case message @ App.Message.Restore(content: WComposite, Some(this.window), None) ⇒ App.traceMessage(message) {
       if (terminated) {
@@ -203,7 +206,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStart(widget)
+        try onStart(widget) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         App.Message.Start(widget, self)
       }
     } foreach { sender ! _ }
@@ -212,7 +215,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        onStop(widget)
+        try onStop(widget) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         App.Message.Stop(widget, self)
       }
     } foreach { sender ! _ }
@@ -220,7 +223,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
     case App.Message.Error(Some(message), _) if message.endsWith("is terminated.") ⇒
       log.debug(message)
 
-    case Terminated(actor) ⇒
+    case Terminated(actor) ⇒ try {
       restoreCallback match {
         case Some(callback) ⇒
           if (context.children.isEmpty) {
@@ -239,6 +242,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
                 window ! App.Message.Destroy(self, self)
           }
       }
+    } catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
   }
 
   /** Build view configuration. */

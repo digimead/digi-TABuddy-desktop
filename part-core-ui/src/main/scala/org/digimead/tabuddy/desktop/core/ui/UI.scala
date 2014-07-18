@@ -289,7 +289,7 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
     /** Widget default(minimum) width. */
     lazy val defaultWidth = injectOptional[Int]("Core.UI.defaultWidth") getOrElse 64
     /** UI focus timeout for start/stop event. */
-    lazy val focusTimeout = injectOptional[FiniteDuration]("Core.UI.focusTimeout") getOrElse Duration(200, TimeUnit.MILLISECONDS)
+    lazy val focusTimeout = injectOptional[FiniteDuration]("Core.UI.focusTimeout") getOrElse Duration(1000, TimeUnit.MILLISECONDS)
     /** UI actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI") getOrElse Props[UI]
     /** Stop event loop when last window is closed. */
