@@ -50,9 +50,7 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
-import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowSupervisor }
-import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor.WindowPointer
-import org.digimead.tabuddy.desktop.core.ui.block.WindowToolbar
+import org.digimead.tabuddy.desktop.core.ui.block.{ SmartToolbarManager, WindowMenu, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 
 /**
@@ -87,7 +85,7 @@ class WindowWatcher extends Actor with XLoggable {
 
     case message: Map[_, _] ⇒ App.traceMessage(message) {
       // WindowSupervisor.PointerMap
-      message.asInstanceOf[Map[UUID, WindowPointer]].
+      message.asInstanceOf[Map[UUID, WindowSupervisor.WindowPointer]].
         foreach { case (uuid, pointer) ⇒ Option(pointer.appWindowRef.get).foreach(onCreated) }
     }
   }
@@ -124,7 +122,7 @@ object WindowWatcher {
   /** Model menu descriptor. */
   lazy val modelMenu = App.execNGet { WindowMenu.Descriptor("&Model", None, getClass.getName() + "#model") }
   /** Model toolbar descriptor. */
-  lazy val modelToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#model") }
+  lazy val modelToolbar = App.execNGet { SmartToolbarManager.Descriptor(getClass.getName() + "#model") }
   /** View menu descriptor. */
   lazy val viewMenu = App.execNGet { WindowMenu.Descriptor("&View", None, getClass.getName() + "#view") }
 

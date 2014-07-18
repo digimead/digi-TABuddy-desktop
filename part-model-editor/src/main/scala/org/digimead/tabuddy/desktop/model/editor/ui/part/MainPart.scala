@@ -47,7 +47,7 @@ package org.digimead.tabuddy.desktop.model.editor.part
 //import scala.collection.mutable
 //import scala.ref.WeakReference
 //import org.digimead.digi.lib.aop.log
-//import org.digimead.digi.lib.log.api.Loggable
+//import org.digimead.digi.lib.log.api.XLoggable
 //import org.digimead.tabuddy.desktop.ResourceManager
 //import org.digimead.tabuddy.desktop.Resources
 //import org.digimead.tabuddy.desktop.model.editor.MainPartActiveView
@@ -87,7 +87,7 @@ package org.digimead.tabuddy.desktop.model.editor.part
 //import org.eclipse.e4.ui.workbench.UIEvents
 //
 ///** Model editor. */
-//class MainPart extends Loggable {
+//class MainPart extends XLoggable {
 //  /** Parent view. */
 //  protected var parent: Option[Composite] = None
 //  /** Active view. */
@@ -130,11 +130,11 @@ package org.digimead.tabuddy.desktop.model.editor.part
 //    }
 //  }
 //  /** Active view class. */
-//  class ActiveView(parent: Composite, style: Int) extends main.TableView(parent, style) with Loggable {
+//  class ActiveView(parent: Composite, style: Int) extends main.TableView(parent, style) with XLoggable {
 //    log.debug("Create active view.")
 //  }
 //  /** Passive view class. */
-//  class PassiveView(parent: Composite, style: Int) extends MainPartPassiveView(parent, style) with Loggable {
+//  class PassiveView(parent: Composite, style: Int) extends MainPartPassiveView(parent, style) with XLoggable {
 //    log.debug("Create passive view.")
 //  }
 //}

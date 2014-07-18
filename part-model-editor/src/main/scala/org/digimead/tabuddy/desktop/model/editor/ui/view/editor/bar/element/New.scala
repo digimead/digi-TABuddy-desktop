@@ -62,8 +62,8 @@ class New @Inject() (context: Context) extends Action(CMessages.new_text) with X
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
 
-  if (context.get(classOf[VComposite]) == null)
-    throw new IllegalArgumentException(s"${context} does not contain VComposite.")
+  if (context.getParent().getLocal(classOf[VComposite]) == null)
+    throw new IllegalArgumentException(s"Parent of ${context} does not contain VComposite.")
 
   override def isEnabled(): Boolean = super.isEnabled &&
     context.get(classOf[GraphMarker]) != null

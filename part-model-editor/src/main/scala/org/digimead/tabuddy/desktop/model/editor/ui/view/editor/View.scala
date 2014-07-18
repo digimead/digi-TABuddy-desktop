@@ -244,7 +244,7 @@ object View extends XLoggable {
     /** View image. */
     lazy val image = DI.image
     /** Features. */
-    val features: Seq[String] = Seq(Logic.Feature.graph)
+    val features: Seq[String] = Seq(Logic.Feature.graph, Logic.Feature.viewDefinition)
 
     /** Editor view actor reference configuration object. */
     def props = DI.props

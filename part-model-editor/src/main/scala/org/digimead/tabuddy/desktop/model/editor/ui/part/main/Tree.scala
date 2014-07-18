@@ -88,14 +88,14 @@ package org.digimead.tabuddy.desktop.model.editor.part.main
 //import org.eclipse.swt.widgets.Sash
 //import org.eclipse.swt.widgets.Shell
 //import org.eclipse.swt.widgets.TreeItem
-//import org.digimead.digi.lib.log.api.Loggable
+//import org.digimead.digi.lib.log.api.XLoggable
 //import org.digimead.tabuddy.desktop.support.TreeProxy
 //import org.digimead.tabuddy.desktop.logic.Default
 //import org.digimead.tabuddy.desktop.Messages
 //import org.digimead.tabuddy.desktop.support.App
 //import org.digimead.tabuddy.desktop.logic.Data
 //
-//class Tree(view: TableView, style: Int) extends Loggable {
+//class Tree(view: TableView, style: Int) extends XLoggable {
 //  /** The auto resize lock */
 //  protected val autoResizeLock = new ReentrantLock()
 //  /** On active listener flag */
@@ -291,7 +291,7 @@ package org.digimead.tabuddy.desktop.model.editor.part.main
 //  }
 //}
 //
-//object Tree extends Loggable {
+//object Tree extends XLoggable {
 // /* /** Collapse the element. */
 //  def collapse(element: Element.Generic, recursively: Boolean, shell: Shell): Unit = withContext(shell) { (context, view) =>
 //    log.debug("collapse " + element)

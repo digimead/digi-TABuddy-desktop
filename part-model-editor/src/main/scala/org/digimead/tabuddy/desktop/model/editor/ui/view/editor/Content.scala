@@ -335,6 +335,7 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
     val coolBar = getCoolBarManager()
     bar.ElementBar.create(coolBar, context)
     bar.EditorBar.create(coolBar, context)
+    //bar.ViewBar.create(coolBar, context)
     coolBar.refresh()
     coolBar.update(true)
     // Initialize tree

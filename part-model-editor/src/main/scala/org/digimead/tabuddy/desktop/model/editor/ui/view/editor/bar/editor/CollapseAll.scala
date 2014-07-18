@@ -60,8 +60,8 @@ import scala.language.implicitConversions
  * 'CollapseAll' action for an editor bar.
  */
 class CollapseAll @Inject() (context: Context) extends Action(CMessages.collapseAll_text) with XLoggable {
-  if (context.get(classOf[VComposite]) == null)
-    throw new IllegalArgumentException(s"${context} does not contain VComposite.")
+  if (context.getParent().getLocal(classOf[VComposite]) == null)
+    throw new IllegalArgumentException(s"Parent of ${context} does not contain VComposite.")
 
   override def isEnabled(): Boolean = super.isEnabled &&
     context.get(classOf[GraphMarker]) != null

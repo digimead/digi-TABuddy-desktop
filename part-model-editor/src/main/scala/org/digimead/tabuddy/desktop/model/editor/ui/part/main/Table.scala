@@ -90,7 +90,7 @@ package org.digimead.tabuddy.desktop.model.editor.part.main
 //import com.ibm.icu.text.DateFormat
 //import org.eclipse.jface.util.ConfigureColumns
 //import org.eclipse.jface.window.SameShellProvider
-//import org.digimead.digi.lib.log.api.Loggable
+//import org.digimead.digi.lib.log.api.XLoggable
 //import org.digimead.tabuddy.desktop.logic.Default
 //import org.digimead.tabuddy.desktop.support.App
 //import org.digimead.tabuddy.desktop.support.TreeProxy
@@ -100,7 +100,7 @@ package org.digimead.tabuddy.desktop.model.editor.part.main
 //import org.digimead.tabuddy.desktop.support.WritableList
 //import org.digimead.tabuddy.desktop.logic.Data
 //
-//class Table(view: TableView, style: Int) extends Loggable {
+//class Table(view: TableView, style: Int) extends XLoggable {
 //  /** The auto resize lock */
 //  protected val autoResizeLock = new ReentrantLock()
 //  /** The actual table content. */
@@ -283,7 +283,7 @@ package org.digimead.tabuddy.desktop.model.editor.part.main
 //  }
 //}
 //
-//object Table extends Loggable {
+//object Table extends XLoggable {
 //  /** Current model complete column/template map (id -> [ElementTemplate.id -> TemplateProperty]) */
 //  protected[main] var columnTemplate = immutable.HashMap[String, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]]()
 //  /** Current model complete column/label provider map */

@@ -60,9 +60,9 @@ import org.eclipse.ui.IViewPart
 import org.eclipse.ui.part.ViewPart
 import org.eclipse.e4.ui.model.application.MApplication
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 
-class EditorPart1 extends ViewPart with Loggable {
+class EditorPart1 extends ViewPart with XLoggable {
   private var viewer: TableViewer = null
   @Inject val application: MApplication = null
 

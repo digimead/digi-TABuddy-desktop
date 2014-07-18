@@ -81,7 +81,7 @@ package org.digimead.tabuddy.desktop.model.editor.part.main
 //import org.eclipse.jface.util.ConfigureColumns
 //import org.eclipse.jface.window.SameShellProvider
 //import org.digimead.tabuddy.desktop.model.editor.MainPartActiveView
-//import org.digimead.digi.lib.log.api.Loggable
+//import org.digimead.digi.lib.log.api.XLoggable
 //import org.digimead.tabuddy.desktop.Messages
 //import org.digimead.tabuddy.desktop.support.WritableValue
 //import org.digimead.tabuddy.desktop.support.TreeProxy
@@ -90,7 +90,7 @@ package org.digimead.tabuddy.desktop.model.editor.part.main
 //import org.digimead.tabuddy.desktop.support.App
 //
 //class TableView (parent: Composite, style: Int)
-//  extends MainPartActiveView(parent, style) with Loggable {
+//  extends MainPartActiveView(parent, style) with XLoggable {
 //  TableView.viewMap(getShell) = this
 //  lazy val title = Messages.tableView_text
 //  lazy val description = "Tree View"
@@ -460,7 +460,7 @@ package org.digimead.tabuddy.desktop.model.editor.part.main
 //  }
 //}
 //
-//object TableView extends Loggable {
+//object TableView extends XLoggable {
 //  /** The column special identifier */
 //  protected[main] val COLUMN_ID = "id"
 //  /** The column special identifier */

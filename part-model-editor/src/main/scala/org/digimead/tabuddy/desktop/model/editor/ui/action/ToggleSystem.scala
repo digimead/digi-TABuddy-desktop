@@ -44,8 +44,8 @@
 package org.digimead.tabuddy.desktop.model.editor.ui.action
 //
 //import org.digimead.digi.lib.aop.log
-//import org.digimead.digi.lib.api.DependencyInjection
-//import org.digimead.digi.lib.log.api.Loggable
+//import org.digimead.digi.lib.api.XDependencyInjection
+//import org.digimead.digi.lib.log.api.XLoggable
 //import org.digimead.tabuddy.desktop.Core
 //import org.digimead.tabuddy.desktop.Messages
 //import org.digimead.tabuddy.desktop.definition.Context.rich2appContext
@@ -63,7 +63,7 @@ package org.digimead.tabuddy.desktop.model.editor.ui.action
 //import javax.inject.Named
 //
 ///** Toggle visibility of system elements in the active view. */
-//class ToggleSystem extends JFaceAction(Messages.systemElements_text, IAction.AS_CHECK_BOX) with Loggable {
+//class ToggleSystem extends JFaceAction(Messages.systemElements_text, IAction.AS_CHECK_BOX) with XLoggable {
 //  @volatile protected var enabled = true
 //
 //  ContextInjectionFactory.inject(this, Core.context)
@@ -86,7 +86,7 @@ package org.digimead.tabuddy.desktop.model.editor.ui.action
 //    firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
 //}
 //
-//object ToggleSystem extends Loggable {
+//object ToggleSystem extends XLoggable {
 //  /** Singleton identificator. */
 //  val id = getClass.getSimpleName().dropRight(1)
 //  /** ToggleSystem action. */

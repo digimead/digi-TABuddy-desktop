@@ -61,8 +61,8 @@ import scala.language.implicitConversions
  * 'ToggleIdentificators' action for an editor bar.
  */
 class ToggleIdentificators @Inject() (context: Context) extends Action(CMessages.identificators_text, IAction.AS_CHECK_BOX) with XLoggable {
-  if (context.get(classOf[VComposite]) == null)
-    throw new IllegalArgumentException(s"${context} does not contain VComposite.")
+  if (context.getParent().getLocal(classOf[VComposite]) == null)
+    throw new IllegalArgumentException(s"Parent of ${context} does not contain VComposite.")
 
   override def isEnabled(): Boolean = super.isEnabled &&
     context.get(classOf[GraphMarker]) != null
