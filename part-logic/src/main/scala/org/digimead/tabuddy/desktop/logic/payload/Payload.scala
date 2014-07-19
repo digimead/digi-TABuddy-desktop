@@ -82,24 +82,24 @@ class Payload(val marker: GraphMarker) extends XLoggable {
   lazy val enumerations = WritableMap[Symbol, Enumeration[_ <: AnyRef with java.io.Serializable]]
   /** Predefined type schemas that are available for this application. */
   lazy val predefinedTypeSchemas: Seq[TypeSchema] = TypeSchema.predefined
-  /** The property representing all available type schemas */
+  /** The property representing all available type schemas. */
   lazy val typeSchemas = WritableMap[UUID, TypeSchema]
-  /** The property representing the active type schema */
+  /** The property representing the active type schema. */
   lazy val typeSchema = WritableValue[TypeSchema]
-  /** The property representing all available view definitions */
+  /** The property representing all available view definitions. */
   lazy val viewDefinitions = WritableMap[UUID, View]
-  /** The property representing all available view filters */
+  /** The property representing all available view filters. */
   lazy val viewFilters = WritableMap[UUID, Filter]
-  /** The property representing all available view sortings */
+  /** The property representing all available view sortings. */
   lazy val viewSortings = WritableMap[UUID, Sorting]
 
-  /** Get user enumerations */
+  /** Get user enumerations. */
   def getAvailableElementTemplates(): List[ElementTemplate] =
     App.execNGet { elementTemplates.values.filter(_.availability).toList }
-  /** Get user enumerations */
+  /** Get user enumerations. */
   def getAvailableEnumerations(): List[Enumeration[_ <: AnyRef with java.io.Serializable]] =
     App.execNGet { enumerations.values.filter(_.availability).toList }
-  /** Get user types */
+  /** Get user types. */
   def getAvailableTypes(defaultValue: Boolean = true): List[PropertyType[_ <: AnyRef with java.io.Serializable]] = App.execNGet {
     val currentTypeSchema = typeSchema.value
     PropertyType.container.values.toList.filter(ptype ⇒

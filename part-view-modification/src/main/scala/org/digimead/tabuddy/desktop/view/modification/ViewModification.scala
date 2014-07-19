@@ -69,7 +69,7 @@ class ViewModification extends akka.actor.Actor with XLoggable {
   /*
    * ViewModification component actors.
    */
-  val windowWatcherRef = context.actorOf(ui.WindowWatcher.props, ui.WindowWatcher.id)
+  lazy val windowWatcherRef = context.actorOf(ui.WindowWatcher.props, ui.WindowWatcher.id)
 
   if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
     App.watch(Activator, Logic, UI, this).always().
@@ -125,6 +125,10 @@ class ViewModification extends akka.actor.Actor with XLoggable {
   protected def onGUIStarted() = initializationLock.synchronized {
     App.watch(ViewModification) on {
       self ! App.Message.Inconsistent(ViewModification, None)
+      // Initialize lazy actors
+      ViewModification.actor
+      if (App.isUIAvailable)
+        windowWatcherRef
       Console ! Console.Message.Notice("ViewModification component is started.")
       self ! App.Message.Consistent(ViewModification, None)
     }
@@ -140,6 +144,8 @@ class ViewModification extends akka.actor.Actor with XLoggable {
       Console ! Console.Message.Notice("ViewModification component is stopped.")
     }
   }
+
+  override def toString = "view.modification.ViewModification"
 }
 
 object ViewModification {
@@ -163,9 +169,10 @@ object ViewModification {
   /** ViewModification actor reference configuration object. */
   lazy val props = DI.props
   // Initialize descendant actor singletons
-  ui.WindowWatcher
+  if (App.isUIAvailable)
+    ui.WindowWatcher
 
-  override def toString = "ViewModification[Singleton]"
+  override def toString = "view.modification.ViewModification[Singleton]"
 
   /*
    * Explicit import for runtime components/bundle manifest generation.

@@ -44,11 +44,12 @@
 package org.digimead.tabuddy.desktop.view.modification.ui
 
 import akka.actor.{ Actor, ActorRef, Props }
+import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, SmartToolbarManager }
+import org.digimead.tabuddy.desktop.core.ui.block.{ SmartToolbarManager, WindowMenu, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.view.modification.ui.action.ViewToolBarManager
@@ -69,20 +70,32 @@ class WindowWatcher extends Actor with XLoggable {
   }
   /** Is called when an Actor is started. */
   override def preStart() {
+    self ! Initialize
     App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
     // Adjust menu and toolbar after Core component.
     case message @ App.Message.Create((logic.ui.WindowWatcher, window: AppWindow), Some(publisher), _) ⇒ App.traceMessage(message) {
-      onCreated(window, publisher)
+      onCreated(window)
     }
 
     case message @ App.Message.Create(_, _, _) ⇒
+
+    case Initialize ⇒
+      // Process windows that are already created
+      WindowSupervisor.actor ! App.Message.Get(WindowSupervisor.PointerMap)
+
+    case message: Map[_, _] ⇒
+      App.traceMessage(message) {
+        // WindowSupervisor.PointerMap
+        message.asInstanceOf[Map[UUID, WindowSupervisor.WindowPointer]].
+          foreach { case (uuid, pointer) ⇒ Option(pointer.appWindowRef.get).foreach(onCreated) }
+      }
   }
 
   /** Register actions in new window. */
-  protected def onCreated(window: AppWindow, sender: ActorRef) = {
+  protected def onCreated(window: AppWindow) = {
     // block actor
     App.execNGet {
       log.debug(s"Update window ${window} composite.")
@@ -110,6 +123,13 @@ class WindowWatcher extends Actor with XLoggable {
     SmartToolbarManager.add(viewToolBar, ContextInjectionFactory.make(classOf[action.ContributionSelectSorting], window.windowContext))
     window.getCoolBarManager().update(true)
   }
+
+  override def toString = "view.modification.ui.WindowWatcher"
+
+  /**
+   * Initialization message
+   */
+  object Initialize
 }
 
 object WindowWatcher extends XLoggable {
@@ -124,7 +144,7 @@ object WindowWatcher extends XLoggable {
       ContextInjectionFactory.make(classOf[ViewToolBarManager], window.windowContext))
   }
 
-  override def toString = "WindowWatcher[Singleton]"
+  override def toString = "view.modification.ui.WindowWatcher[Singleton]"
 
   /**
    * Dependency injection routines.

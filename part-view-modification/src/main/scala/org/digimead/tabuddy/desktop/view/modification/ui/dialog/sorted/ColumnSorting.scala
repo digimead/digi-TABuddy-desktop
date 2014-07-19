@@ -124,8 +124,8 @@ object ColumnSorting extends XLoggable {
   }
   class ComparatorLabelProvider() extends LabelProvider {
     override def getText(element: AnyRef): String = element match {
-//      case comparator: comparator.api.XComparator[_] ⇒
-//        comparator.name
+      case comparator: comparator.api.XComparator[_] ⇒
+        comparator.name
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         unknown.toString()
