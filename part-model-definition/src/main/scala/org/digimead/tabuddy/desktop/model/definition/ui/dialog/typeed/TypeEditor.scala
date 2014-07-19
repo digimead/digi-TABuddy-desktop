@@ -45,17 +45,17 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.typeed
 
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.operation.OperationCustomTranslations
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, TypeSchema, api ⇒ papi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, TypeSchema }
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
-import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
+import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, TextValidator }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
@@ -72,8 +72,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem, Text }
 import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class TypeEditor @Inject() (
@@ -88,12 +87,14 @@ class TypeEditor @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** The initial type schema. */
-  val initial: papi.TypeSchema,
+  val initial: TypeSchema,
   /** The list of type schemas. */
-  val typeSchemas: Set[papi.TypeSchema],
+  val typeSchemas: Set[TypeSchema],
   /** Flag indicating whether the initial schema is active. */
   isSchemaActive: Boolean)
-  extends TypeEditorSkel(parentShell) with Dialog with Loggable {
+  extends TypeEditorSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** Actual schema entities */
   protected[typeed] lazy val actualEntities = WritableList(initialEntities)
   /** The property representing the current schema 'active' flag state */
@@ -125,7 +126,7 @@ class TypeEditor @Inject() (
   @volatile private var sortDirection = Default.sortingDirection
 
   /** Get the modified type schema */
-  def getModifiedSchema(): papi.TypeSchema = initial.copy(
+  def getModifiedSchema(): TypeSchema = initial.copy(
     name = nameField.value.trim,
     description = descriptionField.value.trim,
     entity = immutable.HashMap(actualEntities.map(entity ⇒ (entity.ptypeId,
@@ -139,11 +140,11 @@ class TypeEditor @Inject() (
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnAvailability(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnView(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnLabel(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnAvailability(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnType(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnView(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnLabel(), Default.columnPadding)
         getTableViewer().refresh()
       }
     }
@@ -159,7 +160,7 @@ class TypeEditor @Inject() (
     // Bind the schema info: a name
     nameField.value = initial.name
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTextSchemaName()), nameField)
-    val validator = Validator(getTextSchemaName, true) { (validator, event) ⇒ }
+    val validator = TextValidator(getTextSchemaName, true) { (validator, event) ⇒ }
     WidgetProperties.text(SWT.Modify).observe(getTextSchemaName).addChangeListener(new IChangeListener() {
       override def handleChange(event: ChangeEvent) = {
         val newName = getTextSchemaName.getText().trim
@@ -185,7 +186,7 @@ class TypeEditor @Inject() (
     // Handle modifications
     val actualEntitiesListener = actualEntities.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -273,7 +274,7 @@ class TypeEditor @Inject() (
   /** On dialog active */
   override protected def onActive() = {
     updateOK()
-    future { autoresize() } onFailure {
+    Future { autoresize() } onFailure {
       case e: Exception ⇒ log.error(e.getMessage(), e)
       case e ⇒ log.error(e.toString())
     }
@@ -299,7 +300,7 @@ class TypeEditor @Inject() (
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked())
-      future { autoresize } onFailure {
+      Future { autoresize } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
@@ -343,7 +344,7 @@ class TypeEditor @Inject() (
   }
 }
 
-object TypeEditor extends Loggable {
+object TypeEditor extends XLoggable {
   class SchemaComparator(dialog: WeakReference[TypeEditor]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }

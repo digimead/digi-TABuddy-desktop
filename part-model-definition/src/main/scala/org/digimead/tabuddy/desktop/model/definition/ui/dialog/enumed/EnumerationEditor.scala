@@ -45,15 +45,16 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumed
 
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, api ⇒ papi }
-import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
+import org.digimead.tabuddy.desktop.logic.payload.Enumeration
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType }
+import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
@@ -64,10 +65,9 @@ import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.{ ArrayContentProvider, ColumnViewerToolTipSupport, ISelectionChangedListener, IStructuredSelection, LabelProvider, SelectionChangedEvent, StructuredSelection, TableViewer, Viewer, ViewerComparator }
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent, VerifyEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Shell, Text }
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class EnumerationEditor @Inject() (
@@ -82,10 +82,12 @@ class EnumerationEditor @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** The initial enumeration. */
-  val initial: papi.Enumeration[_ <: AnySRef],
+  val initial: Enumeration[_ <: AnySRef],
   /** Exists enumerations. */
-  val enumerations: Set[papi.Enumeration[_ <: AnySRef]])
-  extends EnumerationEditorSkel(parentShell) with Dialog with Loggable {
+  val enumerations: Set[Enumeration[_ <: AnySRef]])
+  extends EnumerationEditorSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** Actual enumeration constants */
   protected[enumed] lazy val actualConstants = WritableList(initialConstants)
   /** The auto resize lock */
@@ -114,14 +116,14 @@ class EnumerationEditor @Inject() (
   /** The property representing current enumeration type */
   protected val typeField = WritableValue[java.lang.Integer]
   /** List of available types */
-  protected val types: Array[papi.PropertyType[_ <: AnySRef]] = {
+  protected val types: Array[PropertyType[_ <: AnySRef]] = {
     val userTypes = payload.getAvailableTypes().filter(_.enumerationSupported)
     // add an initial enumeration if absent
     (if (userTypes.contains(initial.ptype)) userTypes else (userTypes :+ initial.ptype)).sortBy(_.id.name).toArray
   }
 
   /** Get an actual enumeration */
-  def getModifiedEnumeration(): papi.Enumeration[_ <: AnySRef] = {
+  def getModifiedEnumeration(): Enumeration[_ <: AnySRef] = {
     val newId = Symbol(idField.value.trim)
     val newElement = if (initial.id == newId)
       initial.element
@@ -131,7 +133,7 @@ class EnumerationEditor @Inject() (
     val newConstants = actualConstants.map {
       case EnumerationEditor.Item(value, alias, description) ⇒
         Enumeration.Constant(newType.valueFromString(value), alias, description)(newType, Manifest.classType(newType.typeClass))
-    }.toSet: Set[papi.Enumeration.Constant[AnySRef]]
+    }.toSet: Set[Enumeration.Constant[AnySRef]]
     val name = nameField.value.trim
     new Enumeration(newElement, newType, availabilityField.value, if (name.isEmpty()) newId.name else name, newConstants)(Manifest.classType(newType.typeClass))
   }
@@ -141,8 +143,8 @@ class EnumerationEditor @Inject() (
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnValue(), Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnValue(), Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnAlias(), Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -196,7 +198,7 @@ class EnumerationEditor @Inject() (
     // complex content listener
     val actualConstantsListener = actualConstants.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -222,7 +224,7 @@ class EnumerationEditor @Inject() (
     result
   }
   /** Get table content */
-  protected def getInitialContent(enumeration: papi.Enumeration[_ <: AnySRef]): List[EnumerationEditor.Item] =
+  protected def getInitialContent(enumeration: Enumeration[_ <: AnySRef]): List[EnumerationEditor.Item] =
     enumeration.constants.map(constant ⇒ EnumerationEditor.Item(constant.ptype.valueToString(constant.value), constant.alias, constant.description)).toList
   /** Allow external access for scala classes */
   override protected def getTableViewer() = super.getTableViewer
@@ -283,7 +285,7 @@ class EnumerationEditor @Inject() (
   /** On dialog active */
   override protected def onActive = {
     updateOK()
-    future { autoresize() } onFailure {
+    Future { autoresize() } onFailure {
       case e: Exception ⇒ log.error(e.getMessage(), e)
       case e ⇒ log.error(e.toString())
     }
@@ -333,7 +335,7 @@ class EnumerationEditor @Inject() (
     None
   }
   /** Validates a text in the the ID text field */
-  def validateID(validator: Validator, text: String, valid: Boolean): Unit = if (!valid)
+  def validateID(validator: Validator[VerifyEvent], text: String, valid: Boolean): Unit = if (!valid)
     validator.withDecoration(validator.showDecorationError(_))
   else if (text.isEmpty())
     validator.withDecoration(validator.showDecorationRequired(_))
@@ -345,7 +347,7 @@ class EnumerationEditor @Inject() (
   }
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
-    override def run = if (isChecked()) future { autoresize } onFailure {
+    override def run = if (isChecked()) Future { autoresize } onFailure {
       case e: Exception ⇒ log.error(e.getMessage(), e)
       case e ⇒ log.error(e.toString())
     }
@@ -359,7 +361,7 @@ class EnumerationEditor @Inject() (
   }
 }
 
-object EnumerationEditor extends Loggable {
+object EnumerationEditor extends XLoggable {
   class EnumerationComparator(dialog: WeakReference[EnumerationEditor]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -417,7 +419,7 @@ object EnumerationEditor extends Loggable {
   class TypeLabelProvider(graph: Graph[_ <: Model.Like]) extends LabelProvider {
     /** Returns the type name */
     override def getText(element: AnyRef): String = element match {
-      case item: papi.PropertyType[_] ⇒
+      case item: PropertyType[_] ⇒
         item.name(graph)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())

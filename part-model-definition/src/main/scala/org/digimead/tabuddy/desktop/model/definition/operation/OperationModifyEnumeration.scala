@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,14 +44,13 @@
 package org.digimead.tabuddy.desktop.model.definition.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.payload.Enumeration
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload }
 import org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumed.EnumerationEditor
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -63,7 +62,7 @@ import org.eclipse.swt.widgets.Shell
 /**
  * Modify an enumeration.
  */
-class OperationModifyEnumeration extends logic.operation.OperationModifyEnumeration with Loggable {
+class OperationModifyEnumeration extends logic.operation.OperationModifyEnumeration with XLoggable {
 
   /**
    * Modify an enumeration.
@@ -73,8 +72,8 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
    * @param enumerationList exists enumerations
    * @return the modified enumeration
    */
-  def apply(graph: Graph[_ <: Model.Like], enumeration: papi.Enumeration[_ <: AnySRef],
-    enumerationList: Set[papi.Enumeration[_ <: AnySRef]]): papi.Enumeration[_ <: AnySRef] = {
+  def apply(graph: Graph[_ <: Model.Like], enumeration: Enumeration[_ <: AnySRef],
+    enumerationList: Set[Enumeration[_ <: AnySRef]]): Enumeration[_ <: AnySRef] = {
     log.info(s"Modify ${enumeration} for ${graph}.")
     dialog(graph, enumeration, enumerationList) match {
       case Operation.Result.OK(Some(enumeration), _) ⇒ enumeration
@@ -89,14 +88,14 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
    * @param enumerationList exists enumerations
    * @return 'Modify an enumeration' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], enumeration: papi.Enumeration[_ <: AnySRef],
-    enumerationList: Set[papi.Enumeration[_ <: AnySRef]]) =
+  def operation(graph: Graph[_ <: Model.Like], enumeration: Enumeration[_ <: AnySRef],
+    enumerationList: Set[Enumeration[_ <: AnySRef]]) =
     new Implemetation(graph, enumeration, enumerationList)
 
-  protected def dialog(graph: Graph[_ <: Model.Like], enumeration: papi.Enumeration[_ <: AnySRef],
-    enumerationList: Set[papi.Enumeration[_ <: AnySRef]]): Operation.Result[papi.Enumeration[_ <: AnySRef]] = {
+  protected def dialog(graph: Graph[_ <: Model.Like], enumeration: Enumeration[_ <: AnySRef],
+    enumerationList: Set[Enumeration[_ <: AnySRef]]): Operation.Result[Enumeration[_ <: AnySRef]] = {
     val marker = GraphMarker(graph)
-    val exchanger = new Exchanger[Operation.Result[papi.Enumeration[_ <: AnySRef]]]()
+    val exchanger = new Exchanger[Operation.Result[Enumeration[_ <: AnySRef]]]()
     App.assertEventThread(false)
     // this lock is preparation that prevents freeze of the event loop thread
     marker.safeRead { _ ⇒
@@ -115,8 +114,8 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
                 dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
                 dialogContext.set(classOf[GraphMarker], marker)
                 dialogContext.set(classOf[Payload], state.payload)
-                dialogContext.set(classOf[papi.Enumeration[_ <: AnySRef]], enumeration)
-                dialogContext.set(classOf[Set[papi.Enumeration[_ <: AnySRef]]], enumerationList)
+                dialogContext.set(classOf[Enumeration[_ <: AnySRef]], enumeration)
+                dialogContext.set(classOf[Set[Enumeration[_ <: AnySRef]]], enumerationList)
                 val dialog = ContextInjectionFactory.make(classOf[EnumerationEditor], dialogContext)
                 dialog.openOrFocus { result ⇒
                   context.removeChild(dialogContext)
@@ -146,17 +145,17 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
     /** Graph container. */
     graph: Graph[_ <: Model.Like],
     /** The initial enumeration. */
-    enumeration: papi.Enumeration[_ <: AnySRef],
+    enumeration: Enumeration[_ <: AnySRef],
     /** The list of enumerations. */
-    enumerationList: Set[papi.Enumeration[_ <: AnySRef]])
-    extends logic.operation.OperationModifyEnumeration.Abstract(graph, enumeration, enumerationList) with Loggable {
+    enumerationList: Set[Enumeration[_ <: AnySRef]])
+    extends logic.operation.OperationModifyEnumeration.Abstract(graph, enumeration, enumerationList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.Enumeration[_ <: AnySRef]] =
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Enumeration[_ <: AnySRef]] =
       try dialog(graph, enumeration, enumerationList)
       catch {
         case e: IllegalArgumentException ⇒
@@ -166,9 +165,9 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.Enumeration[_ <: AnySRef]] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Enumeration[_ <: AnySRef]] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.Enumeration[_ <: AnySRef]] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Enumeration[_ <: AnySRef]] =
       throw new UnsupportedOperationException
   }
 }

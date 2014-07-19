@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,12 +44,12 @@
 package org.digimead.tabuddy.desktop.model.definition.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemed.ElementTemplateEditor
 import org.digimead.tabuddy.model.Model
@@ -61,7 +61,7 @@ import org.eclipse.swt.widgets.Shell
 /**
  * Modify an element template.
  */
-class OperationModifyElementTemplate extends logic.operation.OperationModifyElementTemplate with Loggable {
+class OperationModifyElementTemplate extends logic.operation.OperationModifyElementTemplate with XLoggable {
   /**
    * Modify an element template.
    *
@@ -70,7 +70,7 @@ class OperationModifyElementTemplate extends logic.operation.OperationModifyElem
    * @param templateList exists element templates
    * @return the modified element template
    */
-  def apply(graph: Graph[_ <: Model.Like], template: papi.ElementTemplate, templateList: Set[papi.ElementTemplate]): papi.ElementTemplate = {
+  def apply(graph: Graph[_ <: Model.Like], template: ElementTemplate, templateList: Set[ElementTemplate]): ElementTemplate = {
     log.info(s"Modify ${template} for ${graph}.")
     dialog(graph, template, templateList) match {
       case Operation.Result.OK(Some(template), _) ⇒ template
@@ -85,12 +85,12 @@ class OperationModifyElementTemplate extends logic.operation.OperationModifyElem
    * @param filterList the list of exists filters
    * @return 'Modify filter' operation
    */
-  override def operation(graph: Graph[_ <: Model.Like], template: papi.ElementTemplate, templateList: Set[papi.ElementTemplate]) =
+  override def operation(graph: Graph[_ <: Model.Like], template: ElementTemplate, templateList: Set[ElementTemplate]) =
     new Implemetation(graph, template, templateList)
 
-  protected def dialog(graph: Graph[_ <: Model.Like], template: papi.ElementTemplate, templateList: Set[papi.ElementTemplate]): Operation.Result[papi.ElementTemplate] = {
+  protected def dialog(graph: Graph[_ <: Model.Like], template: ElementTemplate, templateList: Set[ElementTemplate]): Operation.Result[ElementTemplate] = {
     val marker = GraphMarker(graph)
-    val exchanger = new Exchanger[Operation.Result[papi.ElementTemplate]]()
+    val exchanger = new Exchanger[Operation.Result[ElementTemplate]]()
     App.assertEventThread(false)
     // this lock is preparation that prevents freeze of the event loop thread
     marker.safeRead { _ ⇒
@@ -104,8 +104,8 @@ class OperationModifyElementTemplate extends logic.operation.OperationModifyElem
               dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
               dialogContext.set(classOf[GraphMarker], marker)
               dialogContext.set(classOf[Payload], state.payload)
-              dialogContext.set(classOf[papi.ElementTemplate], template)
-              dialogContext.set(classOf[Set[papi.ElementTemplate]], templateList)
+              dialogContext.set(classOf[ElementTemplate], template)
+              dialogContext.set(classOf[Set[ElementTemplate]], templateList)
               val dialog = ContextInjectionFactory.make(classOf[ElementTemplateEditor], dialogContext)
               dialog.openOrFocus { result ⇒
                 context.removeChild(dialogContext)
@@ -135,17 +135,17 @@ class OperationModifyElementTemplate extends logic.operation.OperationModifyElem
     /** Graph container. */
     graph: Graph[_ <: Model.Like],
     /** The initial element template. */
-    template: papi.ElementTemplate,
+    template: ElementTemplate,
     /** The list of element template. */
-    templateList: Set[papi.ElementTemplate])
-    extends logic.operation.OperationModifyElementTemplate.Abstract(graph, template, templateList) with Loggable {
+    templateList: Set[ElementTemplate])
+    extends logic.operation.OperationModifyElementTemplate.Abstract(graph, template, templateList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.ElementTemplate] =
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[ElementTemplate] =
       try dialog(graph, template, templateList)
       catch {
         case e: IllegalArgumentException ⇒
@@ -155,9 +155,9 @@ class OperationModifyElementTemplate extends logic.operation.OperationModifyElem
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.ElementTemplate] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[ElementTemplate] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[papi.ElementTemplate] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[ElementTemplate] =
       throw new UnsupportedOperationException
   }
 }

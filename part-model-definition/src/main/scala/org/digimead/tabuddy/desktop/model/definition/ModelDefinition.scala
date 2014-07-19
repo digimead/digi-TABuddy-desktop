@@ -45,8 +45,8 @@ package org.digimead.tabuddy.desktop.model.definition
 
 import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.console.Console
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
@@ -55,9 +55,9 @@ import org.digimead.tabuddy.desktop.logic.Logic
 import scala.language.implicitConversions
 
 /**
- * Root actor of the Model Definition component.
+ * Root actor of the Model definition component.
  */
-class ModelDefinition extends akka.actor.Actor with Loggable {
+class ModelDefinition extends akka.actor.Actor with XLoggable {
   /** Inconsistent elements. */
   @volatile protected var inconsistentSet = Set[AnyRef](ModelDefinition)
   /** Current bundle */
@@ -67,9 +67,9 @@ class ModelDefinition extends akka.actor.Actor with Loggable {
   log.debug("Start actor " + self.path)
 
   /*
-   * Logic component actors.
+   * ModelDefinition component actors.
    */
-  lazy val actionRef = context.actorOf(ui.action.Action.props, ui.action.Action.id)
+  lazy val windowWatcherRef = context.actorOf(ui.WindowWatcher.props, ui.WindowWatcher.id)
 
   if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
     App.watch(Activator, Logic, UI, this).always().
@@ -127,8 +127,8 @@ class ModelDefinition extends akka.actor.Actor with Loggable {
       self ! App.Message.Inconsistent(ModelDefinition, None)
       // Initialize lazy actors
       ModelDefinition.actor
-      actionRef
-      //Actions.configure
+      if (App.isUIAvailable)
+        windowWatcherRef
       Console ! Console.Message.Notice("ModelDefinition component is started.")
       self ! App.Message.Consistent(ModelDefinition, None)
     }
@@ -145,6 +145,8 @@ class ModelDefinition extends akka.actor.Actor with Loggable {
       Console ! Console.Message.Notice("ModelDefinition component is stopped.")
     }
   }
+
+  override def toString = "model.definition.ModelDefinition"
 }
 
 object ModelDefinition {
@@ -170,9 +172,9 @@ object ModelDefinition {
 
   // Initialize descendant actor singletons
   if (App.isUIAvailable)
-    ui.action.Action
+    ui.WindowWatcher
 
-  override def toString = "ModelDefinition[Singleton]"
+  override def toString = "model.definition.ModelDefinition[Singleton]"
 
   /*
    * Explicit import for runtime components/bundle manifest generation.
@@ -182,7 +184,7 @@ object ModelDefinition {
   /**
    * Dependency injection routines
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
+  private object DI extends XDependencyInjection.PersistentInjectable {
     /** ModelDefinition actor reference configuration object. */
     lazy val props = injectOptional[Props]("ModelDefinition") getOrElse Props[ModelDefinition]
   }

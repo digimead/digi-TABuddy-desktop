@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemed
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.WritableList
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, PropertyType }
 import org.digimead.tabuddy.desktop.model.definition.Default
@@ -55,7 +55,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.Composite
 
-object ColumnType extends Loggable {
+object ColumnType extends XLoggable {
   class TLabelProvider(graph: Graph[_ <: Model.Like]) extends CellLabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item ⇒

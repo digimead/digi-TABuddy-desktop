@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.model
 
 import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
-import org.digimead.tabuddy.desktop.logic.operation.{ api ⇒ oapi }
+import org.digimead.tabuddy.desktop.logic.operation.api.{ XOperationModifyElementTemplate, XOperationModifyElementTemplateList, XOperationModifyEnumeration, XOperationModifyEnumerationList, XOperationModifyTypeSchema, XOperationModifyTypeSchemaList }
 
 /**
  * Model definition component contains:
@@ -59,27 +59,27 @@ import org.digimead.tabuddy.desktop.logic.operation.{ api ⇒ oapi }
 package object definition {
   lazy val default = new NewBindingModule(module ⇒ {
     // implementation of logic.operation.OperationModifyElementTemplate
-    module.bind[oapi.OperationModifyElementTemplate] toSingle {
+    module.bind[XOperationModifyElementTemplate[_]] toSingle {
       new operation.OperationModifyElementTemplate
     }
     // implementation of logic.operation.OperationModifyElementTemplateList
-    module.bind[oapi.OperationModifyElementTemplateList] toSingle {
+    module.bind[XOperationModifyElementTemplateList[_]] toSingle {
       new operation.OperationModifyElementTemplateList
     }
     // implementation of logic.operation.OperationModifyEnumeration
-    module.bind[oapi.OperationModifyEnumeration] toSingle {
+    module.bind[XOperationModifyEnumeration[_]] toSingle {
       new operation.OperationModifyEnumeration
     }
     // implementation of logic.operation.OperationModifyEnumerationList
-    module.bind[oapi.OperationModifyEnumerationList] toSingle {
+    module.bind[XOperationModifyEnumerationList[_]] toSingle {
       new operation.OperationModifyEnumerationList
     }
     // implementation of logic.operation.OperationModifyTypeSchema
-    module.bind[oapi.OperationModifyTypeSchema] toSingle {
+    module.bind[XOperationModifyTypeSchema[_]] toSingle {
       new operation.OperationModifyTypeSchema
     }
     // implementation of logic.operation.OperationModifyTypeSchemaList
-    module.bind[oapi.OperationModifyTypeSchemaList] toSingle {
+    module.bind[XOperationModifyTypeSchemaList[_]] toSingle {
       new operation.OperationModifyTypeSchemaList
     }
   })

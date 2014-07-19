@@ -44,23 +44,23 @@
 package org.digimead.tabuddy.desktop.model.definition.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.payload.{ Payload, TypeSchema, api ⇒ papi }
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, TypeSchema }
 import org.digimead.tabuddy.desktop.model.definition.ui.dialog.typeed.TypeEditor
+import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
-import org.digimead.tabuddy.model.Model
 
 /**
  * Modify a type schema.
  */
-class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchema with Loggable {
+class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchema with XLoggable {
   /**
    * Modify a type schema.
    *
@@ -70,7 +70,7 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
    * @param isSchemaActive the flag indicating whether the type schema is active
    * @return the modified type schema, the flag whether the type schema is active
    */
-  def apply(graph: Graph[_ <: Model.Like], schema: papi.TypeSchema, schemaList: Set[papi.TypeSchema], isSchemaActive: Boolean): (papi.TypeSchema, Boolean) = {
+  def apply(graph: Graph[_ <: Model.Like], schema: TypeSchema, schemaList: Set[TypeSchema], isSchemaActive: Boolean): (TypeSchema, Boolean) = {
     log.info(s"Modify ${schema} for ${graph}.")
     dialog(graph, schema, schemaList, isSchemaActive) match {
       case Operation.Result.OK(Some((schema, isSchemaActive)), _) ⇒ (schema, isSchemaActive)
@@ -86,13 +86,13 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
    * @param isSchemaActive the flag indicating whether the type schema is active
    * @return 'Modify a type schema' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], schema: papi.TypeSchema, schemaList: Set[papi.TypeSchema], isSchemaActive: Boolean) =
+  def operation(graph: Graph[_ <: Model.Like], schema: TypeSchema, schemaList: Set[TypeSchema], isSchemaActive: Boolean) =
     new Implemetation(graph, schema, schemaList, isSchemaActive)
 
-  protected def dialog(graph: Graph[_ <: Model.Like], schema: papi.TypeSchema, schemaList: Set[papi.TypeSchema],
-    isSchemaActive: Boolean): Operation.Result[(papi.TypeSchema, Boolean)] = {
+  protected def dialog(graph: Graph[_ <: Model.Like], schema: TypeSchema, schemaList: Set[TypeSchema],
+    isSchemaActive: Boolean): Operation.Result[(TypeSchema, Boolean)] = {
     val marker = GraphMarker(graph)
-    val exchanger = new Exchanger[Operation.Result[(papi.TypeSchema, Boolean)]]()
+    val exchanger = new Exchanger[Operation.Result[(TypeSchema, Boolean)]]()
     App.assertEventThread(false)
     // this lock is preparation that prevents freeze of the event loop thread
     marker.safeRead { _ ⇒
@@ -106,8 +106,8 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
               dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
               dialogContext.set(classOf[GraphMarker], marker)
               dialogContext.set(classOf[Payload], state.payload)
-              dialogContext.set(classOf[papi.TypeSchema], schema)
-              dialogContext.set(classOf[Set[papi.TypeSchema]], schemaList)
+              dialogContext.set(classOf[TypeSchema], schema)
+              dialogContext.set(classOf[Set[TypeSchema]], schemaList)
               dialogContext.set[java.lang.Boolean](java.lang.Boolean.TYPE, isSchemaActive)
               val dialog = ContextInjectionFactory.make(classOf[TypeEditor], dialogContext)
               dialog.openOrFocus { result ⇒
@@ -138,19 +138,19 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
     /** Graph container. */
     graph: Graph[_ <: Model.Like],
     /** The initial type schema. */
-    schema: papi.TypeSchema,
+    schema: TypeSchema,
     /** The list of type schemas. */
-    schemaList: Set[papi.TypeSchema],
+    schemaList: Set[TypeSchema],
     /** Flag indicating whether the initial schema is active. */
     isSchemaActive: Boolean)
-    extends logic.operation.OperationModifyTypeSchema.Abstract(graph, schema, schemaList, isSchemaActive) with Loggable {
+    extends logic.operation.OperationModifyTypeSchema.Abstract(graph, schema, schemaList, isSchemaActive) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(papi.TypeSchema, Boolean)] =
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(TypeSchema, Boolean)] =
       try dialog(graph, schema, schemaList, isSchemaActive)
       catch {
         case e: IllegalArgumentException ⇒
@@ -160,9 +160,9 @@ class OperationModifyTypeSchema extends logic.operation.OperationModifyTypeSchem
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(papi.TypeSchema, Boolean)] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(TypeSchema, Boolean)] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(papi.TypeSchema, Boolean)] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(TypeSchema, Boolean)] =
       throw new UnsupportedOperationException
   }
 }

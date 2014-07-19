@@ -46,15 +46,13 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemlist
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Payload, api ⇒ papi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Payload }
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
@@ -70,8 +68,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
 import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class ElementTemplateList @Inject() (
@@ -86,10 +83,12 @@ class ElementTemplateList @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial element template list. */
-  val initial: Set[papi.ElementTemplate])
-  extends ElementTemplateListSkel(parentShell) with Dialog with Loggable {
+  val initial: Set[ElementTemplate])
+  extends ElementTemplateListSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual content */
-  protected[eltemlist] val actual = WritableList[papi.ElementTemplate](
+  protected[eltemlist] val actual = WritableList[ElementTemplate](
     // replace initial elements with copies that will be modified in the progress
     initial.toList.map { initialTemplate ⇒
       initialTemplate.element.eNode.parent.get.freezeWrite { target ⇒
@@ -105,7 +104,7 @@ class ElementTemplateList @Inject() (
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing a selected element template */
-  protected[eltemlist] val selected = WritableValue[papi.ElementTemplate]
+  protected[eltemlist] val selected = WritableValue[ElementTemplate]
   /** Activate context on shell events. */
   protected val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
@@ -116,15 +115,15 @@ class ElementTemplateList @Inject() (
   @volatile protected var sortDirection = Default.sortingDirection
 
   /** Get modified type templates */
-  def getModifiedTemplates(): Set[papi.ElementTemplate] = actual.toSet
+  def getModifiedTemplates(): Set[ElementTemplate] = actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -144,7 +143,7 @@ class ElementTemplateList @Inject() (
     initTableElementTemplates()
     val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() }
+        Future { autoresize() }
       updateOK()
     }
     getShell().addShellListener(shellListener)
@@ -240,13 +239,13 @@ class ElementTemplateList @Inject() (
   override protected def onActive() = {
     updateOK()
     if (ActionAutoResize.isChecked())
-      future { autoresize() } onFailure {
+      Future { autoresize() } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
   }
   /** Updates an actual element template */
-  protected[eltemlist] def updateActualTemplate(before: papi.ElementTemplate, after: papi.ElementTemplate) {
+  protected[eltemlist] def updateActualTemplate(before: ElementTemplate, after: ElementTemplate) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -261,7 +260,7 @@ class ElementTemplateList @Inject() (
     setChecked(true)
     override def run = if (isChecked()) autoresize
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
+  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
     override def run = Option(selected.value) foreach { (before) ⇒
       val from = before.element
       // create new ID
@@ -327,7 +326,7 @@ class ElementTemplateList @Inject() (
   }
 }
 
-object ElementTemplateList extends Loggable {
+object ElementTemplateList extends XLoggable {
   class TemplateComparator(dialog: WeakReference[ElementTemplateList]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }

@@ -45,15 +45,14 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemed
 
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Payload, PropertyType, TemplateProperty, TemplatePropertyGroup, api ⇒ papi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PropertyType, TemplateProperty, TemplatePropertyGroup, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.core.ui.Resources
-import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.{ Resources, UI }
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -68,8 +67,7 @@ import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, Focus
 import org.eclipse.swt.graphics.{ Image, Point }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem }
 import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class ElementTemplateEditor @Inject() (
@@ -84,10 +82,12 @@ class ElementTemplateEditor @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** The initial element template */
-  val initial: papi.ElementTemplate,
+  val initial: ElementTemplate,
   /** The list of element template identifier */
-  val templateList: Set[papi.ElementTemplate])
-  extends ElementTemplateEditorSkel(parentShell) with Dialog with Loggable {
+  val templateList: Set[ElementTemplate])
+  extends ElementTemplateEditorSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual template properties */
   protected[eltemed] val actualProperties = WritableList(initialProperties)
   /** The auto resize lock */
@@ -95,7 +95,7 @@ class ElementTemplateEditor @Inject() (
   /** The property representing current template availability */
   protected val availabilityField = WritableValue[java.lang.Boolean]
   /** List of available enumerations */
-  protected[eltemed] val enumerations: Array[papi.Enumeration[_ <: AnyRef with java.io.Serializable]] =
+  protected[eltemed] val enumerations: Array[Enumeration[_ <: AnyRef with java.io.Serializable]] =
     payload.getAvailableEnumerations.sortBy(_.id.name).toArray
   /** Activate context on focus. */
   protected val focusListener = new FocusListener() {
@@ -121,7 +121,7 @@ class ElementTemplateEditor @Inject() (
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
   /** List of available types */
-  protected[eltemed] val types: Array[papi.PropertyType[_ <: AnyRef with java.io.Serializable]] =
+  protected[eltemed] val types: Array[PropertyType[_ <: AnyRef with java.io.Serializable]] =
     payload.getAvailableTypes().sortBy(_.id.name).toArray
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0 // by an id
@@ -129,7 +129,7 @@ class ElementTemplateEditor @Inject() (
   @volatile protected var sortDirection = Default.sortingDirection
 
   /** Get the modified type schema */
-  def getModifiedTemplate(): papi.ElementTemplate = {
+  def getModifiedTemplate(): ElementTemplate = {
     val id = idField.value.trim
     val name = nameField.value.trim
     initial.copy(
@@ -144,10 +144,10 @@ class ElementTemplateEditor @Inject() (
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnRequired, Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnType, Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnDefault, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnRequired, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnType, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnDefault, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -194,7 +194,7 @@ class ElementTemplateEditor @Inject() (
     // The complex content listener
     val actualPropertiesListener = actualProperties.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -220,22 +220,22 @@ class ElementTemplateEditor @Inject() (
     result
   }
   /** Convert ElementTemplate.Interface.property map to ElementTemplateEditor.Item list */
-  protected def getTemplateProperties(template: papi.ElementTemplate): List[ElementTemplateEditor.Item] = {
+  protected def getTemplateProperties(template: ElementTemplate): List[ElementTemplateEditor.Item] = {
     val nested = template.properties.map {
       case (group, properties) ⇒
         properties.map(property ⇒
           ElementTemplateEditor.Item(property.id.name, None, // id column
             property.required, None, // required column
-            property.enumeration.flatMap(payload.enumerations.get).asInstanceOf[Option[papi.Enumeration[AnyRef with java.io.Serializable]]],
-            property.ptype.asInstanceOf[papi.PropertyType[AnyRef with java.io.Serializable]], None, // type column
+            property.enumeration.flatMap(payload.enumerations.get).asInstanceOf[Option[Enumeration[AnyRef with java.io.Serializable]]],
+            property.ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]], None, // type column
             property.defaultValue, None, // default column
             group.id.name, None)) // group column
     }
     nested.flatten.toList
   }
   /** Convert ElementTemplate.Interface.property map to ElementTemplateEditor.Item list */
-  protected def getTemplateProperties(items: List[ElementTemplateEditor.Item]): papi.ElementTemplate.propertyMap = {
-    var properties = immutable.HashMap[papi.TemplatePropertyGroup, Seq[papi.TemplateProperty[_ <: AnyRef with java.io.Serializable]]]()
+  protected def getTemplateProperties(items: List[ElementTemplateEditor.Item]): ElementTemplate.PropertyMap = {
+    var properties = immutable.HashMap[TemplatePropertyGroup, Seq[TemplateProperty[_ <: AnyRef with java.io.Serializable]]]()
     actualProperties.foreach { item ⇒
       val group = TemplatePropertyGroup.default // TODO
       if (!properties.isDefinedAt(group))
@@ -298,7 +298,7 @@ class ElementTemplateEditor @Inject() (
     val newPropertyID = payload.generateNew("property", "", newId ⇒ actualProperties.exists(_.id == newId))
     ElementTemplateEditor.Item(newPropertyID, None, // id column
       false, None, // required column
-      None, PropertyType.defaultType.asInstanceOf[papi.PropertyType[AnyRef with java.io.Serializable]], None, // type column
+      None, PropertyType.defaultType.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]], None, // type column
       None, None, // default column
       TemplatePropertyGroup.default.id.name, None) // group column
   }
@@ -398,13 +398,13 @@ class ElementTemplateEditor @Inject() (
   }
 }
 
-object ElementTemplateEditor extends Loggable {
+object ElementTemplateEditor extends XLoggable {
   case class Item(val id: String,
     val idError: Option[(String, Image)],
     val required: Boolean,
     val requiredError: Option[(String, Image)],
-    val enumeration: Option[papi.Enumeration[AnyRef with java.io.Serializable]],
-    val ptype: papi.PropertyType[AnyRef with java.io.Serializable],
+    val enumeration: Option[Enumeration[AnyRef with java.io.Serializable]],
+    val ptype: PropertyType[AnyRef with java.io.Serializable],
     val typeError: Option[(String, Image)],
     val default: Option[AnyRef with java.io.Serializable],
     val defaultError: Option[(String, Image)],

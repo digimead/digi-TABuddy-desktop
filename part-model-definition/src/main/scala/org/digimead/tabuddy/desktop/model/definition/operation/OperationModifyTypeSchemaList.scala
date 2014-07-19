@@ -44,12 +44,12 @@
 package org.digimead.tabuddy.desktop.model.definition.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ Payload, api ⇒ papi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, TypeSchema }
 import org.digimead.tabuddy.desktop.model.definition.ui.dialog.typelist.TypeList
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
@@ -60,7 +60,7 @@ import org.eclipse.swt.widgets.Shell
 /**
  * Modify a type schema list.
  */
-class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeSchemaList with Loggable {
+class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeSchemaList with XLoggable {
   /**
    * Modify a type schema list.
    *
@@ -69,7 +69,7 @@ class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeS
    * @param activeSchema the active type schema
    * @return the modified type schema list, the active type schema
    */
-  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[papi.TypeSchema], activeSchema: papi.TypeSchema): (Set[papi.TypeSchema], papi.TypeSchema) = {
+  def apply(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema], activeSchema: TypeSchema): (Set[TypeSchema], TypeSchema) = {
     log.info(s"Modify the type schema list of ${graph}.")
     dialog(graph, schemaList, activeSchema) match {
       case Operation.Result.OK(Some((schemaList, activeSchema)), _) ⇒ (schemaList, activeSchema)
@@ -84,13 +84,13 @@ class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeS
    * @param activeSchema the active type schema
    * @return 'Modify a type schema list' operation
    */
-  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[papi.TypeSchema], activeSchema: papi.TypeSchema) =
+  def operation(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema], activeSchema: TypeSchema) =
     new Implemetation(graph, schemaList, activeSchema)
 
-  protected def dialog(graph: Graph[_ <: Model.Like], schemaList: Set[papi.TypeSchema],
-    activeSchema: papi.TypeSchema): Operation.Result[(Set[papi.TypeSchema], papi.TypeSchema)] = {
+  protected def dialog(graph: Graph[_ <: Model.Like], schemaList: Set[TypeSchema],
+    activeSchema: TypeSchema): Operation.Result[(Set[TypeSchema], TypeSchema)] = {
     val marker = GraphMarker(graph)
-    val exchanger = new Exchanger[Operation.Result[(Set[papi.TypeSchema], papi.TypeSchema)]]()
+    val exchanger = new Exchanger[Operation.Result[(Set[TypeSchema], TypeSchema)]]()
     App.assertEventThread(false)
     // this lock is preparation that prevents freeze of the event loop thread
     marker.safeRead { _ ⇒
@@ -104,8 +104,8 @@ class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeS
               dialogContext.set(classOf[Graph[_ <: Model.Like]], graph)
               dialogContext.set(classOf[GraphMarker], marker)
               dialogContext.set(classOf[Payload], state.payload)
-              dialogContext.set(classOf[Set[papi.TypeSchema]], schemaList)
-              dialogContext.set(classOf[papi.TypeSchema], activeSchema)
+              dialogContext.set(classOf[Set[TypeSchema]], schemaList)
+              dialogContext.set(classOf[TypeSchema], activeSchema)
               val dialog = ContextInjectionFactory.make(classOf[TypeList], dialogContext)
               dialog.openOrFocus { result ⇒
                 context.removeChild(dialogContext)
@@ -128,17 +128,17 @@ class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeS
     /** Graph container. */
     graph: Graph[_ <: Model.Like],
     /** The list of type schemas. */
-    schemaList: Set[papi.TypeSchema],
+    schemaList: Set[TypeSchema],
     /** The active type schema. */
-    activeSchema: papi.TypeSchema)
-    extends logic.operation.OperationModifyTypeSchemaList.Abstract(graph, schemaList, activeSchema) with Loggable {
+    activeSchema: TypeSchema)
+    extends logic.operation.OperationModifyTypeSchemaList.Abstract(graph, schemaList, activeSchema) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[papi.TypeSchema], papi.TypeSchema)] =
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[TypeSchema], TypeSchema)] =
       try dialog(graph, schemaList, activeSchema)
       catch {
         case e: IllegalArgumentException ⇒
@@ -148,9 +148,9 @@ class OperationModifyTypeSchemaList extends logic.operation.OperationModifyTypeS
         case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[papi.TypeSchema], papi.TypeSchema)] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[TypeSchema], TypeSchema)] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[papi.TypeSchema], papi.TypeSchema)] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[(Set[TypeSchema], TypeSchema)] =
       throw new UnsupportedOperationException
   }
 }

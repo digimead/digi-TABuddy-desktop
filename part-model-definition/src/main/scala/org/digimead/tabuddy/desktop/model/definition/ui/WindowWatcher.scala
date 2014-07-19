@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,36 +41,26 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.definition.ui.action
+package org.digimead.tabuddy.desktop.model.definition.ui
 
+import akka.actor.{ Actor, Props }
+import java.util.UUID
 import org.digimead.digi.lib.aop.log
-import org.digimead.digi.lib.api.DependencyInjection
-import org.digimead.digi.lib.log.api.Loggable
-//import org.digimead.tabuddy.desktop.gui.WindowMenu
-//import org.digimead.tabuddy.desktop.gui.WindowToolbar
-//import org.digimead.tabuddy.desktop.gui.widget.AppWindow
-import org.digimead.tabuddy.desktop.logic
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.Props
+import org.digimead.tabuddy.desktop.core.ui.block.{ WindowMenu, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.model.definition.ui.action.{ ActionModifyElementTemplateList, ActionModifyEnumerationList, ActionModifyTypeSchemaList }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
 
 /**
  * Register action in new windows.
  * There is no need subscribe to App.Message.Destroyed because SWT dispose will do all job.
  */
-class Action extends Actor with Loggable {
+class WindowWatcher extends Actor with XLoggable {
   log.debug("Start actor " + self.path)
-
-  /*
-   * Model definition component action's actors.
-   */
-  val modifyElementTemplateListActionRef = context.actorOf(ActionModifyElementTemplateList.props, ActionModifyElementTemplateList.id)
-  val modifyEnumerationListActionRef = context.actorOf(ActionModifyEnumerationList.props, ActionModifyEnumerationList.id)
-  val modifyTypeSchemaListActionRef = context.actorOf(ActionModifyTypeSchemaList.props, ActionModifyTypeSchemaList.id)
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -79,20 +69,32 @@ class Action extends Actor with Loggable {
   }
   /** Is called when an Actor is started. */
   override def preStart() {
+    self ! Initialize
     App.system.eventStream.subscribe(self, classOf[App.Message.Create[_]])
     log.debug(self.path.name + " actor is started.")
   }
   def receive = {
     // Adjust menu and toolbar after Core component.
-//    case message @ App.Message.Create(Right((action: logic.action.Action.type, window: AppWindow)), Some(publisher)) => App.traceMessage(message) {
-//      onCreated(window, publisher)
-//    }
+    case message @ App.Message.Create((logic.ui.WindowWatcher, window: AppWindow), Some(publisher), _) ⇒ App.traceMessage(message) {
+      onCreated(window)
+    }
 
-    case message @ App.Message.Create(_, _, _) =>
+    case message @ App.Message.Create(_, _, _) ⇒
+
+    case Initialize ⇒
+      // Process windows that are already created
+      WindowSupervisor.actor ! App.Message.Get(WindowSupervisor.PointerMap)
+
+    case message: Map[_, _] ⇒
+      App.traceMessage(message) {
+        // WindowSupervisor.PointerMap
+        message.asInstanceOf[Map[UUID, WindowSupervisor.WindowPointer]].
+          foreach { case (uuid, pointer) ⇒ Option(pointer.appWindowRef.get).foreach(onCreated) }
+      }
   }
 
-/*  /** Register actions in new window. */
-  protected def onCreated(window: AppWindow, sender: ActorRef) = {
+  /** Register actions in new window. */
+  protected def onCreated(window: AppWindow) = {
     // block actor
     App.execNGet {
       log.debug(s"Update window ${window} composite.")
@@ -100,41 +102,44 @@ class Action extends Actor with Loggable {
       adjustToolbar(window)
     }
     // publish that window menu and toolbar are ready
-    App.publish(App.Message.Create(Right(Action, window), self))
+    App.publish(App.Message.Create((WindowWatcher, window), self))
   }
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val model = WindowMenu(window, logic.action.Action.modelMenu)
-    model.add(ActionModifyElementTemplateList())
-    model.add(ActionModifyEnumerationList())
-    model.add(ActionModifyTypeSchemaList())
+    val model = WindowMenu(Left(window), logic.ui.WindowWatcher.modelMenu)
+    model.add(ContextInjectionFactory.make(classOf[action.ActionModifyElementTemplateList], window.windowContext))
+    model.add(ContextInjectionFactory.make(classOf[action.ActionModifyEnumerationList], window.windowContext))
+    model.add(ContextInjectionFactory.make(classOf[action.ActionModifyTypeSchemaList], window.windowContext))
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
   @log
   protected def adjustToolbar(window: AppWindow) {
-  }*/
+  }
+
+  override def toString = "model.definition.ui.WindowWatcher"
+
+  /**
+   * Initialization message
+   */
+  object Initialize
 }
 
-object Action {
+object WindowWatcher extends XLoggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
-  /** Model toolbar descriptor. */
-  //lazy val modelToolbar = App.execNGet { WindowToolbar.Descriptor(getClass.getName() + "#model") }
-  // Initialize descendant actor singletons
-  ActionModifyElementTemplateList
-  ActionModifyEnumerationList
-  ActionModifyTypeSchemaList
 
-  /** Action actor reference configuration object. */
+  /** WindowWatcher actor reference configuration object. */
   def props = DI.props
+
+  override def toString = "model.definition.ui.WindowWatcher[Singleton]"
 
   /**
    * Dependency injection routines.
    */
-  private object DI extends DependencyInjection.PersistentInjectable {
-    /** Action actor reference configuration object. */
-    lazy val props = injectOptional[Props]("Logic.Action") getOrElse Props[Action]
+  private object DI extends XDependencyInjection.PersistentInjectable {
+    /** WindowWatcher actor reference configuration object. */
+    lazy val props = injectOptional[Props]("ModelDefinition.WindowWatcher") getOrElse Props[WindowWatcher]
   }
 }

@@ -46,18 +46,19 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumlist
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
-import org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumeration
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, api ⇒ papi }
-import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumeration
+import org.digimead.tabuddy.desktop.logic.payload.api.XEnumeration
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType }
+import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
@@ -72,8 +73,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell, TableItem, Text }
 import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class EnumerationList @Inject() (
@@ -88,10 +88,12 @@ class EnumerationList @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial enumeration list. */
-  val initial: Set[papi.Enumeration[_ <: AnySRef]])
-  extends EnumerationListSkel(parentShell) with Dialog with Loggable {
+  val initial: Set[Enumeration[_ <: AnySRef]])
+  extends EnumerationListSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual enumeration list */
-  protected[enumlist] val actual = WritableList[papi.Enumeration[_ <: AnySRef]](
+  protected[enumlist] val actual = WritableList[Enumeration[_ <: AnySRef]](
     // replace initial elements with copies that will be modified in the progress
     initial.toList.map { initialEnumeration ⇒
       initialEnumeration.element.eNode.parent.get.freezeWrite { target ⇒
@@ -102,7 +104,7 @@ class EnumerationList @Inject() (
   /** The auto resize lock */
   protected lazy val autoResizeLock = new ReentrantLock()
   /** The property representing enumeration in current UI field(s) that available for user */
-  protected lazy val enumerationField = WritableValue[papi.Enumeration[_ <: AnySRef]]
+  protected lazy val enumerationField = WritableValue[Enumeration[_ <: AnySRef]]
   /** Activate context on focus. */
   protected val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
@@ -118,15 +120,15 @@ class EnumerationList @Inject() (
   @volatile private var sortDirection = Default.sortingDirection
 
   /** Get actual enumerations */
-  def getModifiedEnumerations(): Set[papi.Enumeration[_ <: AnySRef]] = actual.toSet
+  def getModifiedEnumerations(): Set[Enumeration[_ <: AnySRef]] = actual.toSet
 
   /** Auto resize tableviewer columns */
   protected def autoresize() = if (autoResizeLock.tryLock()) try {
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnAvailability, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnId, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -148,7 +150,7 @@ class EnumerationList @Inject() (
     initTableEnumerations()
     val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -171,7 +173,7 @@ class EnumerationList @Inject() (
     result
   }
   /** Generate new ID: old ID + 'Copy' + N */
-  protected def getNewEnumerationCopyID(id: Symbol, enumerations: List[papi.Enumeration[_ <: AnySRef]]): Symbol = {
+  protected def getNewEnumerationCopyID(id: Symbol, enumerations: List[Enumeration[_ <: AnySRef]]): Symbol = {
     val sameIds = immutable.HashSet(enumerations.filter(_.id.name.startsWith(id.name)).map(_.id.name).toSeq: _*)
     var n = 0
     var newId = id.name + Messages.copy_item_text
@@ -201,7 +203,7 @@ class EnumerationList @Inject() (
           case tableItem: TableItem ⇒
             val index = tableItem.getParent().indexOf(tableItem)
             viewer.getElementAt(index) match {
-              case before: papi.Enumeration[_] ⇒
+              case before: Enumeration[_] ⇒
                 updateActualEnumeration(before, before.copy(availability = tableItem.getChecked()))
               case element ⇒
                 log.fatal(s"unknown element $element")
@@ -235,7 +237,7 @@ class EnumerationList @Inject() (
           ActionRemove.setEnabled(false)
       }
     })
-    actual.addChangeListener(event ⇒ future {
+    actual.addChangeListener(event ⇒ Future {
       if (ActionAutoResize.isChecked())
         App.exec { if (!viewer.getTable.isDisposed()) autoresize() }
     } onFailure {
@@ -253,8 +255,8 @@ class EnumerationList @Inject() (
     autoresize()
   }
   /** Updates an actual enumeration */
-  protected[enumlist] def updateActualEnumeration(before: papi.Enumeration[_ <: AnySRef],
-    after: papi.Enumeration[_ <: AnySRef]) {
+  protected[enumlist] def updateActualEnumeration(before: Enumeration[_ <: AnySRef],
+    after: Enumeration[_ <: AnySRef]) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -279,7 +281,7 @@ class EnumerationList @Inject() (
     setChecked(true)
     override def run = autoresize
   }
-  object ActionCreate extends Action(Messages.create_text) with Loggable {
+  object ActionCreate extends Action(Messages.create_text) with XLoggable {
     override def run = {
       val newEnumerationID = payload.generateNew("NewEnumeration", "", newId ⇒ actual.exists(_.id.name == newId))
       val newEnumerationElement = Enumeration.factory(graph, Symbol(newEnumerationID), false)
@@ -306,7 +308,7 @@ class EnumerationList @Inject() (
       }
     }
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
+  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
     override def run = Option(enumerationField.value) foreach { (selected) ⇒
       val from = selected.element
       // create new ID
@@ -317,7 +319,7 @@ class EnumerationList @Inject() (
       val to = from.eNode.copy(id = toId, unique = UUID.randomUUID).**
       // create an enumeration for the 'to' element
       val newEnumeration = new Enumeration(to.rootBox.e.eRelative, selected.ptype)(Manifest.classType(selected.ptype.typeClass)).
-        asInstanceOf[papi.Enumeration[_ <: AnySRef]]
+        asInstanceOf[Enumeration[_ <: AnySRef]]
       // start job
       OperationModifyEnumeration(graph, newEnumeration, actual.toSet).foreach { operation ⇒
         val job = if (operation.canRedo())
@@ -372,7 +374,7 @@ class EnumerationList @Inject() (
   }
 }
 
-object EnumerationList extends Loggable {
+object EnumerationList extends XLoggable {
   class EnumerationComparator(dialog: WeakReference[EnumerationList]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -396,8 +398,8 @@ object EnumerationList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val enum1 = e1.asInstanceOf[papi.Enumeration[_]]
-      val enum2 = e2.asInstanceOf[papi.Enumeration[_]]
+      val enum1 = e1.asInstanceOf[Enumeration[_]]
+      val enum2 = e2.asInstanceOf[Enumeration[_]]
       val rc = column match {
         case 0 ⇒ enum1.availability.compareTo(enum2.availability)
         case 1 ⇒ enum1.id.name.compareTo(enum2.id.name)

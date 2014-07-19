@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,51 +41,34 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumed
+package org.digimead.tabuddy.desktop.model.definition
 
+import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.model.definition.Default
-import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, EditingSupport, TableViewer, TextCellEditor, ViewerCell }
-import org.eclipse.swt.graphics.Point
+import org.digimead.tabuddy.desktop.core.definition.NLS
 
-object ColumnDescription extends XLoggable {
-  class TLabelProvider extends CellLabelProvider {
-    /** Update the label for cell. */
-    override def update(cell: ViewerCell) = cell.getElement() match {
-      case item: EnumerationEditor.Item ⇒
-        cell.setText(item.description)
-      case unknown ⇒
-        log.fatal("Unknown item " + unknown.getClass())
-    }
-    /** Get the text displayed in the tool tip for object. */
-    override def getToolTipText(element: Object): String = element match {
-      case item: EnumerationEditor.Item ⇒
-        "o!"
-      case unknown ⇒
-        log.fatal("Unknown item " + unknown.getClass())
-        null
-    }
-    override def getToolTipShift(obj: Object): Point = Default.toolTipShift
-    override def getToolTipDisplayDelayTime(obj: Object): Int = Default.toolTipDisplayDelayTime
-    override def getToolTipTimeDisplayed(obj: Object): Int = Default.toolTipTimeDisplayed
+/**
+ * Resource bundle implementation.
+ *
+ * This code is directly evaluated in IDE (WindowBuilderPro).
+ * Any runtime references that may prevent creation are prohibited.
+ */
+class Messages extends ResourceBundle {
+  def getKeys() = new java.util.Enumeration[String] {
+    private val iterator = Messages.T.messages.keys.iterator
+    def hasMoreElements(): Boolean = iterator.hasNext
+    def nextElement(): String = iterator.next()
   }
-  class TEditingSupport(viewer: TableViewer, container: EnumerationEditor) extends EditingSupport(viewer) {
-    override protected def getCellEditor(element: AnyRef): CellEditor = new TextCellEditor(viewer.getTable())
-    override protected def canEdit(element: AnyRef): Boolean = true
-    override protected def getValue(element: AnyRef): AnyRef = element match {
-      case item: EnumerationEditor.Item ⇒
-        item.description
-      case unknown ⇒
-        log.fatal("Unknown item " + unknown.getClass())
-        ""
-    }
-    override protected def setValue(element: AnyRef, value: AnyRef): Unit = element match {
-      case before: EnumerationEditor.Item ⇒
-        val description = value.asInstanceOf[String].trim
-        if (before.description != description)
-          container.updateActualConstant(before, before.copy(description = description))
-      case unknown ⇒
-        log.fatal("Unknown item " + unknown.getClass())
-    }
+  protected def handleGetObject(key: String): Object = try {
+    Messages.T.messages.get(key).
+      getOrElse { Messages.log.error(s"'${key}' not found in ${this.getClass()}"); key }
+  } catch {
+    case e: Throwable ⇒
+      key
   }
+}
+
+object Messages extends NLS with XLoggable {
+
+  T.ranslate("org.digimead.tabuddy.desktop.model.definition.messages")
 }

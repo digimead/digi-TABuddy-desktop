@@ -43,12 +43,12 @@
 
 package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemed
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, EditingSupport, TableViewer, TextCellEditor, ViewerCell }
 import org.eclipse.swt.graphics.Point
 
-object ColumnGroup extends Loggable {
+object ColumnGroup extends XLoggable {
   class TLabelProvider extends CellLabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item ⇒

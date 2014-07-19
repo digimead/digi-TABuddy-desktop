@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.model.definition.ui.dialog.typeed
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.logic.payload.{ PropertyType, TypeSchema }
 import org.digimead.tabuddy.desktop.model.definition.Default
@@ -53,7 +53,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.TableItem
 
-object ColumnAvailability extends Loggable {
+object ColumnAvailability extends XLoggable {
   class TLabelProvider extends CellLabelProvider {
     /** Update the label for cell. */
     override def update(cell: ViewerCell) = cell.getElement() match {

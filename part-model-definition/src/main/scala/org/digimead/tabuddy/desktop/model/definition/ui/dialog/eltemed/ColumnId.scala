@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemed
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
@@ -55,7 +55,7 @@ import org.eclipse.swt.events.VerifyEvent
 import org.eclipse.swt.graphics.Point
 import org.eclipse.swt.widgets.{ Composite, Control, Text }
 
-object ColumnId extends Loggable {
+object ColumnId extends XLoggable {
   class TLabelProvider extends CellLabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item ⇒
@@ -119,7 +119,7 @@ object ColumnId extends Loggable {
       text
     }
     /** Validates an input */
-    def validate(validator: Validator, event: VerifyEvent) = if (!event.doit)
+    def validate(validator: Validator[VerifyEvent], event: VerifyEvent) = if (!event.doit)
       validator.withDecoration(validator.showDecorationError(_))
     else
       validator.withDecoration(_.hide)

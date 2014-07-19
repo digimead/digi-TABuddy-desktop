@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemed
 
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.WritableList
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, PropertyType }
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
@@ -52,7 +52,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.graphics.{ Color, Font, Image, Point }
 import org.eclipse.swt.widgets.Composite
 
-object ColumnDefault extends Loggable {
+object ColumnDefault extends XLoggable {
   class TLabelProvider extends CellLabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: ElementTemplateEditor.Item ⇒

@@ -46,15 +46,13 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.typelist
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
-import org.digimead.digi.lib.log.api.Loggable
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.WritableList
-import org.digimead.tabuddy.desktop.core.support.WritableValue
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchema
-import org.digimead.tabuddy.desktop.logic.payload.maker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, TypeSchema, api ⇒ papi }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, TypeSchema }
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
@@ -70,8 +68,7 @@ import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, SelectionAdapter, SelectionEvent, ShellAdapter, ShellEvent }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell }
 import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.future
+import scala.concurrent.Future
 import scala.ref.WeakReference
 
 class TypeList @Inject() (
@@ -86,10 +83,12 @@ class TypeList @Inject() (
   /** Graph payload. */
   val payload: Payload,
   /** Initial type schema list. */
-  val initial: Set[papi.TypeSchema],
+  val initial: Set[TypeSchema],
   /** Initial active type schema. */
-  val initialActiveSchema: papi.TypeSchema)
-  extends TypeListSkel(parentShell) with Dialog with Loggable {
+  val initialActiveSchema: TypeSchema)
+  extends TypeListSkel(parentShell) with Dialog with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
   /** The actual schemas value */
   protected[typelist] val actual = WritableList(initial.toList)
   /** The property representing active schema */
@@ -102,7 +101,7 @@ class TypeList @Inject() (
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing selected schema */
-  protected val schemaField = WritableValue[papi.TypeSchema]
+  protected val schemaField = WritableValue[TypeSchema]
   /** Activate context on shell events. */
   protected val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
@@ -117,7 +116,7 @@ class TypeList @Inject() (
     Thread.sleep(50)
     App.execNGet {
       if (!getTableViewer.getTable.isDisposed()) {
-        UI.adjustTableViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
+        UI.adjustViewerColumnWidth(getTableViewerColumnName, Default.columnPadding)
         getTableViewer.refresh()
       }
     }
@@ -125,9 +124,9 @@ class TypeList @Inject() (
     autoResizeLock.unlock()
   }
   /** Get active type schema */
-  def getActiveSchema(): papi.TypeSchema = actual.find(_.id == actualActiveSchema.value).getOrElse(initialActiveSchema)
+  def getActiveSchema(): TypeSchema = actual.find(_.id == actualActiveSchema.value).getOrElse(initialActiveSchema)
   /** Get modified type schemas */
-  def getSchemaSet(): Set[papi.TypeSchema] = actual.toSet
+  def getSchemaSet(): Set[TypeSchema] = actual.toSet
   /** Create contents of the dialog. */
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
@@ -147,7 +146,7 @@ class TypeList @Inject() (
     initTableTypeSchemas()
     val actualListener = actual.addChangeListener { event ⇒
       if (ActionAutoResize.isChecked())
-        future { autoresize() } onFailure {
+        Future { autoresize() } onFailure {
           case e: Exception ⇒ log.error(e.getMessage(), e)
           case e ⇒ log.error(e.toString())
         }
@@ -219,7 +218,7 @@ class TypeList @Inject() (
     viewer.addSelectionChangedListener(new ISelectionChangedListener() {
       override def selectionChanged(event: SelectionChangedEvent) = event.getSelection() match {
         case selection: IStructuredSelection if !selection.isEmpty() ⇒
-          val selected = selection.getFirstElement().asInstanceOf[papi.TypeSchema]
+          val selected = selection.getFirstElement().asInstanceOf[TypeSchema]
           ActionActivate.setEnabled(selected.id ne actualActiveSchema.value)
           ActionCreateFrom.setEnabled(true)
           ActionEdit.setEnabled(true)
@@ -248,13 +247,13 @@ class TypeList @Inject() (
   /** On dialog active */
   override protected def onActive = {
     updateOK()
-    future { autoresize() } onFailure {
+    Future { autoresize() } onFailure {
       case e: Exception ⇒ log.error(e.getMessage(), e)
       case e ⇒ log.error(e.toString())
     }
   }
   /** Updates an actual schema */
-  protected[typelist] def updateActualSchema(before: papi.TypeSchema, after: papi.TypeSchema) {
+  protected[typelist] def updateActualSchema(before: TypeSchema, after: TypeSchema) {
     val index = actual.indexOf(before)
     actual.update(index, after)
     if (index == actual.size - 1)
@@ -276,18 +275,18 @@ class TypeList @Inject() (
   object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked())
-      future { autoresize } onFailure {
+      Future { autoresize } onFailure {
         case e: Exception ⇒ log.error(e.getMessage(), e)
         case e ⇒ log.error(e.toString())
       }
   }
-  object ActionActivate extends Action(Messages.activate_text) with Loggable {
+  object ActionActivate extends Action(Messages.activate_text) with XLoggable {
     override def run = Option(schemaField.value) foreach { (selected) ⇒
       if (actualActiveSchema.value != selected.id)
         actualActiveSchema.value = selected.id
     }
   }
-  object ActionCreate extends Action(Messages.create_text) with Loggable {
+  object ActionCreate extends Action(Messages.create_text) with XLoggable {
     override def run = {
       val newSchemaName = payload.generateNew(Messages.newTypeSchema_text, " ", newName ⇒ actual.exists(_.name == newName))
       val newSchema = TypeSchema(UUID.randomUUID(), newSchemaName, "", immutable.HashMap(TypeSchema.entities.map(e ⇒ (e.ptypeId, e)).toSeq: _*))
@@ -319,7 +318,7 @@ class TypeList @Inject() (
       }
     }
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with Loggable {
+  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
     override def run = Option(schemaField.value) foreach { (selected) ⇒
       val from = selected
       // create a new ID
@@ -408,7 +407,7 @@ class TypeList @Inject() (
   }
 }
 
-object TypeList extends Loggable {
+object TypeList extends XLoggable {
   class SchemaComparator(dialog: WeakReference[TypeList]) extends ViewerComparator {
     private var _column = dialog.get.map(_.sortColumn) getOrElse
       { throw new IllegalStateException("Dialog not found.") }
@@ -432,8 +431,8 @@ object TypeList extends Loggable {
      * the second element.
      */
     override def compare(viewer: Viewer, e1: Object, e2: Object): Int = {
-      val schema1 = e1.asInstanceOf[papi.TypeSchema]
-      val schema2 = e2.asInstanceOf[papi.TypeSchema]
+      val schema1 = e1.asInstanceOf[TypeSchema]
+      val schema2 = e2.asInstanceOf[TypeSchema]
       val rc = column match {
         case 0 ⇒ schema1.name.compareTo(schema2.name)
         case 1 ⇒ schema1.description.compareTo(schema2.description)
