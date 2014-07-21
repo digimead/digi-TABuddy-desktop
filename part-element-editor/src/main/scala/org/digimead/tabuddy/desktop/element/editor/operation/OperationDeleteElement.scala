@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,97 +43,78 @@
 
 package org.digimead.tabuddy.desktop.element.editor.operation
 
-import java.util.concurrent.CancellationException
-import java.util.concurrent.Exchanger
-
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.desktop.element.editor.dialog.ElementEditor
+import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.Data
-import org.digimead.tabuddy.desktop.logic.operation.api
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.IAdaptable
-import org.eclipse.core.runtime.IProgressMonitor
+import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
 
-/** 'Delete the element' operation. */
-class OperationDeleteElement extends logic.operation.OperationDeleteElement with Loggable {
+/**
+ * 'Delete the element' operation.
+ */
+class OperationDeleteElement extends logic.operation.OperationDeleteElement with XLoggable {
   /**
    * Delete the element.
    *
    * @param element element for delete
-   * @param modelId current model Id
    * @return true on success
    */
-  def apply(element: Element.Generic, interactive: Boolean, modelId: Symbol): Boolean = {
-    log.info(s"Delete element ${element} for model ${modelId}.")
-    App.assertUIThread(false)
-    if (Model.eId != modelId)
-      throw new IllegalStateException(s"Unable to modify element ${element}. Unexpected model ${Model.eId} is loaded.")
-    val exchanger = new Exchanger[Either[Throwable, Boolean]]()
-    App.exec {
-      App.getActiveShell() match {
-        case Some(shell) =>
-          Data.elementTemplates.get(element.eScope.modificator) match {
-            case Some(template) =>
-              if (!template.element.canEqual(element.getClass(), element.eStash.getClass())) {
-                log.warn(s"Unable to edit ${element}: incompatible template ${template} vs ${element.getClass()} ${element.eStash.getClass()}")
-                exchanger.exchange(null)
-              } else {
-                val dialog = new ElementEditor(shell, element, template, false)
-                dialog.openOrFocus {
-                  case result if result == org.eclipse.jface.window.Window.OK =>
-                    exchanger.exchange(Right(true))
-                  case result =>
-                    exchanger.exchange(Right(false))
-                }
-              }
-            case _ =>
-              log.warn(s"Element template for ${element} not found.")
-              exchanger.exchange(null)
-          }
-        case None =>
-          exchanger.exchange(Left(new IllegalStateException("Unable to create 'modify filter' dialog without parent shell.")))
-      }
-    }
-    Option(exchanger.exchange(null)) getOrElse { throw new CancellationException } match {
-      case Left(throwable) => throw throwable
-      case Right(element) => element
-    }
+  def apply(element: Element, interactive: Boolean): Unit = {
+    log.info(s"Delete element ${element}.")
+    dialog(element)
   }
   /**
    * Create 'Delete the element' operation.
    *
    * @param element element for delete
-   * @param modelId current model Id
    * @return 'Delete the element' operation
    */
-  def operation(element: Element.Generic, interactive: Boolean, modelId: Symbol) =
-    new Implemetation(element, interactive, modelId)
+  def operation(element: Element, interactive: Boolean) =
+    new Implemetation(element, interactive)
 
-  class Implemetation(element: Element.Generic, interactive: Boolean, modelId: Symbol)
-    extends logic.operation.OperationDeleteElement.Abstract(element, interactive, modelId) with Loggable {
+  protected def dialog(container: Element): Operation.Result[Unit] = {
+    val marker = GraphMarker(container.eGraph)
+    val exchanger = new Exchanger[Operation.Result[Unit]]()
+    App.assertEventThread(false)
+    // this lock is preparation that prevents freeze of the event loop thread
+    marker.safeRead { _ ⇒
+      App.exec {
+        GraphMarker.shell(marker) match {
+          case Some((context, shell)) ⇒
+            // actual lock inside event loop thread
+            marker.safeRead { state ⇒
+              null
+            }
+          case None ⇒
+            exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+        }
+      }(App.LongRunnable)
+    }
+    exchanger.exchange(null)
+  }
+
+  class Implemetation(element: Element, interactive: Boolean)
+    extends logic.operation.OperationDeleteElement.Abstract(element, interactive) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Boolean] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] = {
       try {
-        Operation.Result.OK(Option(OperationDeleteElement.this(element, interactive, modelId)))
+        Operation.Result.OK(Option(OperationDeleteElement.this(element, interactive)))
       } catch {
-        case e: CancellationException =>
+        case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Boolean] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Boolean] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
       throw new UnsupportedOperationException
   }
 }

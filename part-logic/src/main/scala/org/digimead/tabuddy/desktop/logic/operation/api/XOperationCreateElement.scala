@@ -56,7 +56,7 @@ trait XOperationCreateElement {
    * Create a new element.
    *
    * @param container container for the new element
-   * @return the modified element
+   * @return a new element
    */
   def apply(container: Element): Element
   /**

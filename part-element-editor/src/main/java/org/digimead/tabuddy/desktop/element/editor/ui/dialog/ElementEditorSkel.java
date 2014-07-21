@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,21 +27,21 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.element.editor.dialog;
+package org.digimead.tabuddy.desktop.element.editor.ui.dialog;
 
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
@@ -88,16 +88,16 @@ public class ElementEditorSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setMessage(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorDescription_text()); // $hide$
-		setTitle(org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorTitle_text()); // $hide$
+		setMessage("a"); //org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorDescription_text()); // $hide$
+		setTitle("b"); //org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorTitle_text()); // $hide$
 		Composite area = (Composite) super.createDialogArea(parent);
 
 		form = toolkit.createScrolledForm(area);
 		form.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
 		form.getBody().setLayout(new GridLayout(3, false));
 
-		lblElementIdentificator = toolkit.createLabel(form.getBody(),
-				org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text(), SWT.NONE); // $hide$
+		lblElementIdentificator = toolkit.createLabel(form.getBody(), "c", SWT.NONE);
+				//org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text(), SWT.NONE); // $hide$
 		lblElementIdentificator.setAlignment(SWT.RIGHT);
 		lblElementIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false,
 				false, 2, 1));

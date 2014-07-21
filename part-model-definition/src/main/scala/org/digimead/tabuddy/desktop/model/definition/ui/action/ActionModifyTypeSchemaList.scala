@@ -63,7 +63,6 @@ import org.eclipse.swt.widgets.Event
  * Modify type schema list.
  */
 class ActionModifyTypeSchemaList @Inject() (windowContext: Context) extends JFaceAction(Messages.types_text) with XLoggable {
-  /** Flag indicating whether the action is enabled. */
   @volatile protected var vContext = Option.empty[Context]
 
   if (windowContext.getLocal(classOf[AppWindow]) == null)

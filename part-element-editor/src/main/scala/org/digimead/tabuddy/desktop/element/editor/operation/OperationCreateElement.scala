@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,15 +27,15 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
@@ -43,83 +43,102 @@
 
 package org.digimead.tabuddy.desktop.element.editor.operation
 
-import java.util.concurrent.CancellationException
-import java.util.concurrent.Exchanger
-
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.definition.Operation
-import org.digimead.tabuddy.desktop.element.editor.dialog.ElementCreate
+import java.util.concurrent.{ CancellationException, Exchanger }
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.definition.Operation
+import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.element.editor.ui.dialog.ElementCreate
 import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.operation.api
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
+import org.digimead.tabuddy.desktop.logic.payload.Payload
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.IAdaptable
-import org.eclipse.core.runtime.IProgressMonitor
-import org.eclipse.swt.SWT
+import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
+import org.digimead.tabuddy.desktop.core.definition.Context
 
-/** 'Create a new element' operation. */
-class OperationCreateElement extends logic.operation.OperationCreateElement with Loggable {
+/**
+ * 'Create a new element' operation.
+ */
+class OperationCreateElement extends logic.operation.OperationCreateElement with XLoggable {
   /**
    * Create a new element.
    *
    * @param container container for the new element
-   * @param modelId current model Id
-   * @return the modified/the same filter
+   * @return a new element
    */
-  def apply(container: Element.Generic, modelId: Symbol): Element.Generic = {
-    log.info(s"Create new element inside ${container} for model ${modelId}.")
-    App.assertUIThread(false)
-    if (Model.eId != modelId)
-      throw new IllegalStateException(s"Unable to create new element inside ${container}. Unexpected model ${Model.eId} is loaded.")
-    val exchanger = new Exchanger[Element.Generic]()
-    App.exec {
-      val customShell = new Shell(App.display, SWT.NO_TRIM | SWT.ON_TOP)
-      val dialog = new ElementCreate(customShell, container)
-      dialog.openOrFocus {
-        case result if result == org.eclipse.jface.window.Window.OK =>
-          dialog.getCreatedElement match {
-            case Some(element) => exchanger.exchange(element)
-            case None => exchanger.exchange(null)
-          }
-        case result =>
-          exchanger.exchange(null)
-      }
+  def apply(container: Element): Element = {
+    log.info(s"Create new element inside ${container}.")
+    dialog(container) match {
+      case Operation.Result.OK(Some(element), _) ⇒ element
+      case _ ⇒ throw new CancellationException()
     }
-    Option(exchanger.exchange(null)) getOrElse { throw new CancellationException }
   }
   /**
    * Create 'Create a new element' operation.
    *
    * @param container container for the new element
-   * @param modelId current model Id
    * @return 'Create a new element' operation
    */
-  def operation(container: Element.Generic, modelId: Symbol) =
-    new Implemetation(container, modelId)
+  def operation(container: Element) =
+    new Implemetation(container)
 
-  class Implemetation(container: Element.Generic, modelId: Symbol)
-    extends logic.operation.OperationCreateElement.Abstract(container, modelId) with Loggable {
+  protected def dialog(container: Element): Operation.Result[Element] = {
+    val marker = GraphMarker(container.eGraph)
+    val exchanger = new Exchanger[Operation.Result[Element]]()
+    App.assertEventThread(false)
+    // this lock is preparation that prevents freeze of the event loop thread
+    marker.safeRead { _ ⇒
+      App.exec {
+        GraphMarker.shell(marker) match {
+          case Some((context, shell)) ⇒
+            // actual lock inside event loop thread
+            marker.safeRead { state ⇒
+              val dialogContext = context.createChild("ElementCreateDialog")
+              dialogContext.set(classOf[Shell], shell)
+              dialogContext.set(classOf[Graph[_ <: Model.Like]], container.eGraph)
+              dialogContext.set(classOf[GraphMarker], marker)
+              dialogContext.set(classOf[Payload], state.payload)
+              dialogContext.set(classOf[Element], container)
+              val dialog = ContextInjectionFactory.make(classOf[ElementCreate], dialogContext)
+              dialog.openOrFocus { result ⇒
+                context.removeChild(dialogContext)
+                dialogContext.dispose()
+                if (result == org.eclipse.jface.window.Window.OK)
+                  exchanger.exchange(Operation.Result.OK(dialog.getCreatedElement()))
+                else
+                  exchanger.exchange(Operation.Result.Cancel())
+              }
+            }
+          case None ⇒
+            exchanger.exchange(Operation.Result.Error("Unable to find active shell."))
+        }
+      }(App.LongRunnable)
+    }
+    exchanger.exchange(null)
+  }
+
+  class Implemetation(container: Element)
+    extends logic.operation.OperationCreateElement.Abstract(container) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute
     override def canRedo() = false
     override def canUndo() = false
 
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] = {
+    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element] = {
       try {
-        Operation.Result.OK(Option(OperationCreateElement.this(container, modelId)))
+        Operation.Result.OK(Option(OperationCreateElement.this(container)))
       } catch {
-        case e: CancellationException =>
+        case e: CancellationException ⇒
           Operation.Result.Cancel()
       }
     }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] =
+    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element] =
       throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element.Generic] =
+    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Element] =
       throw new UnsupportedOperationException
   }
 }

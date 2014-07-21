@@ -41,18 +41,19 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.model.definition.ui.action
+package org.digimead.tabuddy.desktop.element.editor.ui.action
 
-import javax.inject.Inject
+import javax.inject.{ Inject, Named }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
-import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplateList
-import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
+import org.digimead.tabuddy.desktop.logic.Logic
+import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElement
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.model.element.Element
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
@@ -60,41 +61,39 @@ import org.eclipse.jface.action.{ Action ⇒ JFaceAction, IAction }
 import org.eclipse.swt.widgets.Event
 
 /**
- * Modify element template list.
+ * Modify the element.
  */
-class ActionModifyElementTemplateList @Inject() (windowContext: Context) extends JFaceAction(Messages.elementTemplates_text) with XLoggable {
+class ActionModifyElement @Inject() (windowContext: Context) extends JFaceAction(Messages.edit_text) with XLoggable {
+  setId(ActionModifyElement.id)
   @volatile protected var vContext = Option.empty[Context]
 
   if (windowContext.getLocal(classOf[AppWindow]) == null)
     throw new IllegalArgumentException(s"${windowContext} does not contain AppWindow.")
 
   override def isEnabled(): Boolean = super.isEnabled &&
-    vContext.map { context ⇒ context.get(classOf[GraphMarker]) != null }.getOrElse(false)
+    vContext.map { context ⇒ context.getActive(Logic.Id.selectedElement) != null }.getOrElse(false)
 
   /** Runs this action, passing the triggering SWT event. */
   @log
   override def runWithEvent(event: Event) = for {
     context ← vContext
-    marker ← Option(context.get(classOf[GraphMarker]))
-  } marker.safeRead { state ⇒
-    OperationModifyElementTemplateList(state.graph, App.execNGet { state.payload.getAvailableElementTemplates().toSet }).foreach { operation ⇒
-      val job = if (operation.canRedo())
-        Some(operation.redoJob())
-      else if (operation.canExecute())
-        Some(operation.executeJob())
-      else
-        None
-      job foreach { job ⇒
-        job.setPriority(Job.SHORT)
-        job.onComplete(_ match {
-          case Operation.Result.OK(result, message) ⇒
-            log.info(s"Operation completed successfully: ${result}")
-            result.foreach { case (templates) ⇒ ElementTemplate.save(marker, templates) }
-          case Operation.Result.Cancel(message) ⇒
-            log.warn(s"Operation canceled, reason: ${message}.")
-          case other ⇒
-            log.error(s"Unable to complete operation: ${other}.")
-        }).schedule()
+    selected ← Option(context.getActive(Logic.Id.selectedElement).asInstanceOf[Element])
+  } GraphMarker(selected.eGraph).safeRead { state ⇒
+    OperationModifyElement(selected).foreach { operation ⇒
+      operation.getExecuteJob() match {
+        case Some(job) ⇒
+          job.setPriority(Job.SHORT)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) ⇒
+              log.info(s"Operation completed successfully: ${result}")
+            case Operation.Result.Cancel(message) ⇒
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other ⇒
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+          job.schedule()
+        case None ⇒
+          log.fatal(s"Unable to create job for ${operation}.")
       }
     }
   }
@@ -104,10 +103,15 @@ class ActionModifyElementTemplateList @Inject() (windowContext: Context) extends
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
   else
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
-  /** Invoked on view activation. */
+  /** Invoked on view activation or on modification of Logic.Id.selectedElement. */
   @Inject @Optional
-  protected def onViewChanged(@Active vComposite: VComposite, @Optional @Active marker: GraphMarker): Unit = {
+  protected def onViewChanged(@Active vComposite: VComposite, @Optional @Active @Named(Logic.Id.selectedElement) element: Element): Unit = {
     vContext = vComposite.getContext
     App.exec { updateEnabled() }
   }
+}
+
+object ActionModifyElement {
+  /** Singleton identificator. */
+  val id = getClass.getName().dropRight(1)
 }

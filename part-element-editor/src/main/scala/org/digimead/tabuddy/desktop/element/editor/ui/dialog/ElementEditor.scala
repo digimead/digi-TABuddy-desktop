@@ -1,6 +1,6 @@
 /**
- * This file is part of the TABuddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * This file is part of the TA Buddy project.
+ * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -27,70 +27,67 @@
  *
  * In accordance with Section 7(b) of the GNU Affero General Global License,
  * you must retain the producer line in every report, form or document
- * that is created or manipulated using TABuddy.
+ * that is created or manipulated using TA Buddy.
  *
  * You can be released from the requirements of the license by purchasing
  * a commercial license. Buying such a license is mandatory as soon as you
- * develop commercial activities involving the TABuddy software without
+ * develop commercial activities involving the TA Buddy software without
  * disclosing the source code of your own applications.
  * These activities include: offering paid services to customers,
  * serving files in a web or/and network application,
- * shipping TABuddy with a closed source product.
+ * shipping TA Buddy with a closed source product.
  *
  * For more information, please contact Digimead Team at this
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.element.editor.dialog
+package org.digimead.tabuddy.desktop.element.editor.ui.dialog
 
-import scala.Option.option2Iterable
-import org.digimead.digi.lib.log.api.Loggable
-import org.digimead.tabuddy.desktop.Messages
-import org.digimead.tabuddy.desktop.ResourceManager
-import org.digimead.tabuddy.desktop.definition.Dialog
-import org.digimead.tabuddy.desktop.logic.Data
+import javax.inject.{ Inject, Named }
+import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.definition.Context
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
+import org.digimead.tabuddy.desktop.core.ui.ResourceManager
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.ui.support.SymbolValidator
 import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.logic.payload.api.ElementTemplate
-import org.digimead.tabuddy.desktop.logic.payload.api.Enumeration
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplateProperty
-import org.digimead.tabuddy.desktop.logic.payload.api.TemplatePropertyGroup
-import org.digimead.tabuddy.desktop.support.App
-import org.digimead.tabuddy.desktop.support.App.app2implementation
-import org.digimead.tabuddy.desktop.support.SymbolValidator
-import org.digimead.tabuddy.desktop.support.WritableList
-import org.digimead.tabuddy.desktop.support.WritableValue
-import org.digimead.tabuddy.desktop.support.WritableValue.wrapper2underlying
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PropertyType, TemplateProperty, TemplatePropertyGroup }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.Model
-import org.digimead.tabuddy.model.Model.model2implementation
 import org.digimead.tabuddy.model.element.Element
-import org.digimead.tabuddy.model.element.Stash
-import org.digimead.tabuddy.model.element.Value
-import org.eclipse.core.databinding.observable.ChangeEvent
-import org.eclipse.core.databinding.observable.IChangeListener
+import org.digimead.tabuddy.model.graph.Graph
+import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.jface.databinding.swt.WidgetProperties
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.StructuredSelection
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
-import org.eclipse.swt.events.PaintEvent
-import org.eclipse.swt.events.PaintListener
-import org.eclipse.swt.graphics.GC
-import org.eclipse.swt.graphics.Point
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, PaintEvent, PaintListener }
+import org.eclipse.swt.graphics.{ GC, Point }
 import org.eclipse.swt.layout.GridData
-import org.eclipse.swt.widgets.Composite
-import org.eclipse.swt.widgets.Control
-import org.eclipse.swt.widgets.Label
-import org.eclipse.swt.widgets.Shell
-import org.eclipse.ui.forms.events.ExpansionAdapter
-import org.eclipse.ui.forms.events.ExpansionEvent
-import org.eclipse.ui.forms.widgets.ExpandableComposite
-import org.eclipse.ui.forms.widgets.Section
-import org.digimead.tabuddy.desktop.logic.Logic
+import org.eclipse.swt.widgets.{ Composite, Control, Label, Shell }
+import org.eclipse.ui.forms.events.{ ExpansionAdapter, ExpansionEvent }
+import org.eclipse.ui.forms.widgets.{ ExpandableComposite, Section }
 
-class ElementEditor(val parentShell: Shell, element: Element.Generic, template: ElementTemplate, newElement: Boolean)
-  extends ElementEditorSkel(parentShell) with Dialog with Loggable {
+class ElementEditor @Inject() (
+  /** This dialog context. */
+  val context: Context,
+  /** Parent shell. */
+  val parentShell: Shell,
+  /** Graph container. */
+  val graph: Graph[_ <: Model.Like],
+  /** Graph marker. */
+  val marker: GraphMarker,
+  /** Graph payload. */
+  val payload: Payload,
+  /** Exists element. */
+  val element: Element,
+  /** Element template. */
+  val template: ElementTemplate,
+  /** New element flag. */
+  @Named(ElementEditor.newElementFlagId) val newElement: Boolean)
+  extends ElementEditorSkel(parentShell) with Dialog with XLoggable {
   /** The property representing the current element id */
   protected lazy val idField = WritableValue[String]
   /** Element properties (property, control, editor). Available only from the UI thread */
@@ -146,23 +143,23 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     Model.assertNonGeneric[T]
     val initial = element.eGet[T](property.id).map(_.get) orElse property.defaultValue
     val editor = property.ptype.createEditor(initial, property.id, element)
-    val control = property.enumeration.flatMap(id => Data.enumerations.get(id).find(enum => (if (enum.ptype == property.ptype) true else {
+    val control = property.enumeration.flatMap(id ⇒ payload.enumerations.get(id).find(enum ⇒ (if (enum.ptype == property.ptype) true else {
       log.error(s"Enumeration ${id} has incompatible type ${enum.ptype} vs ${property.ptype}.")
       false
     })).asInstanceOf[Option[Enumeration[T]]]) match {
-      case Some(enumeration) =>
-        val comboViewer = editor.asEditor[payload.PropertyType.genericEditor].createCControl(getToolkit, getForm.getBody(), SWT.READ_ONLY)
+      case Some(enumeration) ⇒
+        val comboViewer = editor.asEditor[PropertyType.genericEditor].createCControl(getToolkit, getForm.getBody(), SWT.READ_ONLY)
         comboViewer.getCombo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
-        comboViewer.setLabelProvider(property.ptype.adapter.asAdapter[payload.PropertyType.genericAdapter].createEnumerationLabelProvider)
+        comboViewer.setLabelProvider(property.ptype.adapter.asAdapter[PropertyType.genericAdapter].createEnumerationLabelProvider)
         comboViewer.setContentProvider(new ObservableListContentProvider())
         comboViewer.setInput(WritableList(enumeration.constants.toList.sortBy(_.view)).underlying)
         comboViewer.setSelection(new StructuredSelection(enumeration.getConstantSafe(property)), true)
         comboViewer.getCombo()
-      case None =>
-        val control = editor.asEditor[payload.PropertyType.genericEditor].createControl(getToolkit, getForm.getBody(), SWT.BORDER)
+      case None ⇒
+        val control = editor.asEditor[PropertyType.genericEditor].createControl(getToolkit, getForm.getBody(), SWT.BORDER)
         control.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false))
         control.setBackground(getForm.getBackground())
-        editor.asEditor[payload.PropertyType.genericEditor].addValidator(control)
+        editor.asEditor[PropertyType.genericEditor].addValidator(control)
         control
     }
     // manually convert all fields to the common one
@@ -170,7 +167,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
       initial,
       property.asInstanceOf[TemplateProperty[AnyRef with java.io.Serializable]],
       control,
-      editor.asEditor[payload.PropertyType.genericEditor])
+      editor.asEditor[PropertyType.genericEditor])
   }
   /** Adjust the form height to content if possible */
   protected def adjustFormHeight() {
@@ -190,20 +187,20 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     val shell = getShell
     val form = getForm
     // Handle the element name
-    val ancestors = element.eAncestors.map(_.eId.name).reverse
+    val ancestors = element.eAncestors.map(_.id.name).reverse
     val formTitle = if (ancestors.size > 3) "%s .../" + ancestors.takeRight(3).mkString("/") + "/%s" else "%s /" + ancestors.mkString("/") + "/%s"
     App.bindingContext.bindValue(WidgetProperties.text(SWT.Modify).observeDelayed(50, getTxtElementId), idField)
-    val idFieldValidator = SymbolValidator(getTxtElementId, true) { (validator, event) =>
+    val idFieldValidator = SymbolValidator(getTxtElementId, true) { (validator, event) ⇒
       if (!event.doit)
         validator.withDecoration(validator.showDecorationError(_))
       else
         validator.withDecoration(_.hide)
     }
-    idField.addChangeListener { (id, event) =>
+    idField.addChangeListener { (id, event) ⇒
       val newId = id.trim
       if (newId.isEmpty())
         idFieldValidator.withDecoration(idFieldValidator.showDecorationRequired(_))
-      else if (element.eParent.map(_.eChildren.exists(_.eId.name == newId)).getOrElse(false) && newId != element.eId.name)
+      else if (element.eParent.map(_.safeRead(_.exists(_.id.name == newId))).getOrElse(false) && newId != element.eId.name)
         idFieldValidator.withDecoration(idFieldValidator.showDecorationError(_, Messages.identificatorIsAlreadyInUse_text.format(newId)))
       else
         idFieldValidator.withDecoration(_.hide)
@@ -213,13 +210,13 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     idField.value = element.eId.name
     // Sort by group priority
     properties = template.properties.toSeq.sortBy(_._1.priority).map {
-      case (group, properties) =>
+      case (group, properties) ⇒
         // Add group title to this form.
         val section = addGroupTitle(group)
         // Add group marker to this form.
         val marker = addGroupMarker(group, properties.size)
         // Transform api.TemplateProperty -> ElementEditor.PropertyItem.
-        val propertySeq = properties.map { property =>
+        val propertySeq = properties.map { property ⇒
           // Add label for property to this form.
           val label = addLabel(property)
           // Add editor for property to this form.
@@ -234,7 +231,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
               marker.setVisible(true)
               marker.getLayoutData().asInstanceOf[GridData].exclude = false
               propertySeq.foreach {
-                case (label, ElementEditor.PropertyItem(initial, property, control, editor)) =>
+                case (label, ElementEditor.PropertyItem(initial, property, control, editor)) ⇒
                   label.setVisible(true)
                   label.getLayoutData().asInstanceOf[GridData].exclude = false
                   control.setVisible(true)
@@ -244,7 +241,7 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
               marker.setVisible(false)
               marker.getLayoutData().asInstanceOf[GridData].exclude = true
               propertySeq.foreach {
-                case ((label, ElementEditor.PropertyItem(initial, property, control, editor))) =>
+                case ((label, ElementEditor.PropertyItem(initial, property, control, editor))) ⇒
                   label.setVisible(false)
                   label.getLayoutData().asInstanceOf[GridData].exclude = true
                   control.setVisible(false)
@@ -259,20 +256,20 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
     }.flatten
     // Invoke updateOk on every 'editor.data' modification of any property.
     properties.foreach {
-      case ElementEditor.PropertyItem(initial, property, control, editor) =>
+      case ElementEditor.PropertyItem(initial, property, control, editor) ⇒
         editor.data.underlying.addChangeListener(propertiesListener)
     }
     // Add the dispose listener
     getShell().addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
         properties.foreach {
-          case ElementEditor.PropertyItem(initial, property, control, editor) =>
+          case ElementEditor.PropertyItem(initial, property, control, editor) ⇒
             editor.data.underlying.removeChangeListener(propertiesListener)
         }
       }
     })
     // set dialog message
-    setMessage(Messages.elementEditorDescription_text.format(Model.eId.name))
+    setMessage(Messages.elementEditorDescription_text.format(element.eModel.eId.name))
     // set dialog window title
     getShell().setText(Messages.elementEditorDialog_text.format(element.eId.name))
     container
@@ -286,24 +283,24 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
   }
   /** Notifies that the OK button of this dialog has been pressed.	 */
   override protected def okPressed() {
-    val newId = idField.value.trim
-    if (newId != this.element.eId.name) {
-      val stash = this.element.eStash.copy(id = Symbol(newId))
-      this.element.asInstanceOf[Element[Stash]].eStash = stash
-    }
-    properties.foreach {
-      case ElementEditor.PropertyItem(initialValue, property, control, editor) =>
-        if (editor.isEmpty) {
-          if (element.eGet(property.id, property.ptype.typeSymbol).nonEmpty)
-            element.eRemove(property.id, property.ptype.typeSymbol)
-        } else {
-          val newValue = element.eGet(property.id, property.ptype.typeSymbol)
-          if (newValue.map(_.get) != Option(editor.data.value)) {
-            val value = Value.static(editor.data.value)(element, Manifest.classType(property.ptype.typeClass))
-            element.eSet(property.id, property.ptype.typeSymbol, Some(value))
-          }
+        val newId = idField.value.trim
+        if (newId != this.element.eId.name) {
+          //val stash = this.element.eStash.copy(id = Symbol(newId))
+          //this.element.asInstanceOf[Element[Stash]].eStash = stash
         }
-    }
+    //    properties.foreach {
+    //      case ElementEditor.PropertyItem(initialValue, property, control, editor) =>
+    //        if (editor.isEmpty) {
+    //          if (element.eGet(property.id, property.ptype.typeSymbol).nonEmpty)
+    //            element.eRemove(property.id, property.ptype.typeSymbol)
+    //        } else {
+    //          val newValue = element.eGet(property.id, property.ptype.typeSymbol)
+    //          if (newValue.map(_.get) != Option(editor.data.value)) {
+    //            val value = Value.static(editor.data.value)(element, Manifest.classType(property.ptype.typeClass))
+    //            element.eSet(property.id, property.ptype.typeSymbol, Some(value))
+    //          }
+    //        }
+    //    }
     super.okPressed()
   }
   /** On dialog active */
@@ -322,10 +319,10 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
       // Not exists and id is the same
       (newElement && newId == element.eId.name) ||
         // Id is modified
-        (!element.eParent.map(_.eChildren.exists(_.eId.name == newId)).getOrElse(false)) ||
+        (!element.eParent.map(_.safeRead(_.exists(_.id.name == newId))).getOrElse(false)) ||
         // The content is modified
         !properties.forall {
-          case ElementEditor.PropertyItem(initial, property, control, editor) =>
+          case ElementEditor.PropertyItem(initial, property, control, editor) ⇒
             initial == Option(editor.data.value) || (initial.isEmpty && editor.isEmpty)
         }
     }
@@ -333,6 +330,9 @@ class ElementEditor(val parentShell: Shell, element: Element.Generic, template: 
 }
 
 object ElementEditor {
+  /** Flag for dialog context . */
+  final val newElementFlagId = "ElementEditor.newElementFlag"
+
   case class PropertyItem[T <: AnyRef with java.io.Serializable](
     val initial: Option[T],
     val property: TemplateProperty[T],

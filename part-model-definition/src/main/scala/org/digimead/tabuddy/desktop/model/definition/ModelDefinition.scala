@@ -138,7 +138,6 @@ class ModelDefinition extends akka.actor.Actor with XLoggable {
   protected def onGUIStopped() = initializationLock.synchronized {
     App.watch(ModelDefinition) off {
       self ! App.Message.Inconsistent(ModelDefinition, None)
-      //Actions.unconfigure
       val lost = inconsistentSet - ModelDefinition
       if (lost.nonEmpty)
         log.fatal("Inconsistent elements detected: " + lost)
