@@ -1,4 +1,4 @@
-TA Buddy: Desktop [![Build Status](https://travis-ci.org/digimead/digi-TABuddy-desktop.png?branch=master)](https://travis-ci.org/digimead/digi-TABuddy-desktop)
+![TA Buddy: Desktop Logo](https://raw.githubusercontent.com/digimead/digi-TABuddy-desktop/master/doc/ta.png) TA Buddy: Desktop [![Build Status](https://travis-ci.org/digimead/digi-TABuddy-desktop.png?branch=master)](https://travis-ci.org/digimead/digi-TABuddy-desktop)
 ========
 
 TA Buddy: Desktop application - absolutely portable **SCRIPT** - download and run. The only requirement is Java 7 or later. The supported operating systems are: Linux, Windows, MacOS.
@@ -33,3 +33,5 @@ Copyright
 ---------
 
 Copyright © 2012-2014 Alexey B. Aksenov/Ezh. All rights reserved.
+
+[![GNU Affero General Public License](http://www.gnu.org/graphics/agplv3-155x51.png)](http://www.gnu.org/licenses/agpl-3.0.html)  [![Non-free software license](http://openclipart.org/image/60px/svg_to_png/26720/baroquon_Add_Money.png)](http://storage.googleapis.com/digimead/CommercialLicense.txt)
