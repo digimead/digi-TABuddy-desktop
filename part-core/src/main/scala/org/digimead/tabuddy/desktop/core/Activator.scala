@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.support.Timeout
 import org.osgi.framework.{ BundleActivator, BundleContext, BundleEvent, BundleListener }
 import org.osgi.util.tracker.ServiceTracker
 import scala.concurrent.Future
+import scala.language.reflectiveCalls
 import scala.ref.WeakReference
 
 /**
@@ -97,8 +98,14 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
         DependencyInjection.reset()
         DependencyInjection(di, false)
         // Start UI thread
-        EventLoop.thread.start()
-        eventLoopThreadSync()
+        Option(context.getServiceReference(Class.forName("org.digimead.digi.launcher.api.XLauncher"))).
+          map { currencyServiceRef ⇒ (currencyServiceRef, context.getService(currencyServiceRef)) } match {
+            case Some((reference, launcherService)) ⇒
+              launcherService.asInstanceOf[{ def offerToMainQueue(event: Runnable) }].offerToMainQueue(EventLoop.runnable)
+              eventLoopThreadSync()
+            case None ⇒
+              throw new IllegalStateException("Unable to find org.digimead.digi.launcher.api.XLauncher service.")
+          }
       case None ⇒
         log.warn("Skip DI initialization and event loop creation in test environment.")
     }
@@ -139,10 +146,10 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     Core ! App.Message.Inconsistent(Core, None)
     App.watch(Activator) off {
       // Shutdown event loop.
-      if (EventLoop.thread != null && EventLoop.thread.exitCode.isEmpty) {
+      if (EventLoop.runnable != null && EventLoop.runnable.exitCode.isEmpty) {
         log.debug("Initiate event loop shutdown. Bundle is stopping.")
         // Unexpected shutdown.
-        EventLoop.thread.stopEventLoop(EventLoop.Code.Error)
+        EventLoop.runnable.stopEventLoop(EventLoop.Code.Error)
       }
     }
     App.watch(Core).waitForStop(Timeout.long)
@@ -155,13 +162,13 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
       log.debug("Core actors hierarchy is terminated.")
     else
       log.fatal("Unable to shutdown Core actors hierarchy.")
-    if (EventLoop.thread != null && EventLoop.thread.isInitialized) {
+    if (EventLoop.runnable != null && EventLoop.runnable.isInitialized) {
       val display = App.display
       // There are no actors. So dispose it for sure.
       App.exec { display.dispose() }
       // Waiting for event loop termination.
       // 'code' should be null if main service isn't invoked
-      EventLoop.thread.waitWhile(code ⇒ (code != null && code.isEmpty))
+      EventLoop.runnable.waitWhile(code ⇒ (code != null && code.isEmpty))
       eventLoopThreadSync()
     }
     Core.context.cleanup()

@@ -166,8 +166,8 @@ class AppService extends XMain with Disposable.Default with XLoggable {
   /** Starts Digi application */
   protected def digiStart(): Int = {
     log.debug("Start application.")
-    EventLoop.thread.startEventLoop()
-    EventLoop.thread.waitWhile { _.isEmpty } match {
+    EventLoop.runnable.startEventLoop()
+    EventLoop.runnable.waitWhile { _.isEmpty } match {
       case Some(EventLoop.Code.Ok) ⇒ IApplication.EXIT_OK
       case Some(EventLoop.Code.Restart) ⇒ IApplication.EXIT_RESTART
       case Some(EventLoop.Code.Error) ⇒ -1
@@ -177,7 +177,7 @@ class AppService extends XMain with Disposable.Default with XLoggable {
     }
   }
   /** Stops Digi application */
-  protected def digiStop(code: EventLoop.Code = EventLoop.Code.Ok) = EventLoop.thread.stopEventLoop(code)
+  protected def digiStop(code: EventLoop.Code = EventLoop.Code.Ok) = EventLoop.runnable.stopEventLoop(code)
   /** Dispose instance. */
   override protected def dispose() = AppService.disposeableLock.synchronized {
     if (Option(disposeable).nonEmpty) {

@@ -62,7 +62,7 @@ import scala.concurrent.Future
  * Thread is required for data binding and UI operation.
  * It is suitable for headless mode.
  */
-class EventLoop extends Thread("Application event loop") with EventLoop.Initializer with XLoggable {
+class EventLoop extends Runnable with EventLoop.Initializer with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The global application data binding context. */
@@ -84,6 +84,11 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
     assert(initialized, "EventLoop is not initialized.")
     SWTObservables.getRealm(display)
   }
+  /** The event loop thread. */
+  protected lazy val thread = {
+    assert(initialized, "EventLoop is not initialized.")
+    Thread.currentThread()
+  }
 
   /** Current exit code. */
   def exitCode = exitCodeValue.synchronized { Option(exitCodeValue.get()) getOrElse None }
@@ -92,13 +97,15 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
   /** Wrapper for thread with event loop. */
   @log
   override def run {
+    assert(Thread.currentThread().getId() == 1)
+    log.debug(s"Mark thread with ID ${Thread.currentThread().getId()} as event loop.")
     Display.getDefault() // get or create
     if (Display.getCurrent() != null) {
       initialized = true
       assert(bindingContext != null)
       assert(display != null)
       assert(realm != null)
-      log.debug(s"Mark thread with ID ${getId()} as event loop.")
+      assert(thread != null)
       eventLoopThreadSync()
       waitWhile { _ == null } match {
         case None ⇒
@@ -205,7 +212,7 @@ class EventLoop extends Thread("Application event loop") with EventLoop.Initiali
 
 object EventLoop {
   /** The application event loop thread. */
-  lazy val thread = DI.implementation.newInstance()
+  lazy val runnable = DI.implementation.newInstance()
   /** Startup synchronization. */
   protected lazy val startSync = new Exchanger[Null]
 
@@ -216,15 +223,15 @@ object EventLoop {
    */
   trait Consumer {
     /** The global application data binding context. */
-    def bindingContext = EventLoop.thread.bindingContext
+    def bindingContext = EventLoop.runnable.bindingContext
     /** The default display. */
-    def display = EventLoop.thread.display
+    def display = EventLoop.runnable.display
     /** The realm representing the event thread for the given display. */
-    def realm = EventLoop.thread.realm
+    def realm = EventLoop.runnable.realm
     /** The application-wide actor system. */
     def system = AppService.system
     /** The event thread. */
-    def thread = EventLoop.thread
+    def thread = EventLoop.runnable.thread
   }
   /** Startup synchronization trait for bundle activator. */
   trait Initializer {

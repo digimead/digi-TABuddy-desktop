@@ -59,7 +59,7 @@ class OperationExit extends XOperationExit with XLoggable {
    */
   def apply() {
     log.info(s"Shutdown application.")
-    EventLoop.thread.stopEventLoop(EventLoop.Code.Ok)
+    EventLoop.runnable.stopEventLoop(EventLoop.Code.Ok)
   }
   /**
    * Create 'Shutdown application' operation.

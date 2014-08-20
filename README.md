@@ -11,6 +11,20 @@ Use [TA Buddy: Desktop Launcher](http://storage.googleapis.com/digimead/tabuddy-
 
 Note! Launcher is not required for application itself, so you may delete it after initial configuration will be prepared.
 
+
+INSTALLATION
+------------
+
+[![Java](https://digimead.github.io/digi-TABuddy-launcher/Java-logo.png)](http://storage.googleapis.com/ezh/launcher.jar)
+[![Windows 32 bit](https://digimead.github.io/digi-TABuddy-launcher/Win32-logo.png)](http://storage.googleapis.com/ezh/TABuddyDesktop.msi)
+[![Windows 64 bit](https://digimead.github.io/digi-TABuddy-launcher/Win64-logo.png)](http://storage.googleapis.com/ezh/TABuddyDesktop64.msi)
+[![Mac OS X](https://digimead.github.io/digi-TABuddy-launcher/Apple-logo.png)](http://storage.googleapis.com/ezh/TA%20Buddy%20(Desktop)%201.0.0.dmg)
+
+Please note that it is development progress demo:
+* Linux version run flawlessly (native development environment)
+* Windows port run :-)
+* Mac OS X port run only in console mode. TODO Interaction between JavaFX, SWT and Cocoa must be fixed.
+
 LICENSE
 -------
 

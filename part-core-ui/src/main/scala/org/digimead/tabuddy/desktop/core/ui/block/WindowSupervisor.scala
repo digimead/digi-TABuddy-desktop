@@ -512,7 +512,7 @@ object WindowSupervisor extends XLoggable {
           if (isEmpty && UI.stopEventLoopWithLastWindow) {
             log.info("There are no windows. Shutdown main loop.")
             WindowSupervisor ! App.Message.Save()
-            EventLoop.thread.stopEventLoop(EventLoop.Code.Ok)
+            EventLoop.runnable.stopEventLoop(EventLoop.Code.Ok)
           }
       }
       this
@@ -522,7 +522,7 @@ object WindowSupervisor extends XLoggable {
       if (UI.stopEventLoopWithLastWindow) {
         log.info("There are no windows. Shutdown main loop.")
         WindowSupervisor ! App.Message.Save()
-        EventLoop.thread.stopEventLoop(EventLoop.Code.Ok)
+        EventLoop.runnable.stopEventLoop(EventLoop.Code.Ok)
       }
     }
   }
