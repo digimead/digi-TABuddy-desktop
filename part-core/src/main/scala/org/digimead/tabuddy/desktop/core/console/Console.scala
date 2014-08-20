@@ -283,12 +283,12 @@ object Console extends XConsole with XLoggable {
     val coreVersion = core.map(_.version).getOrElse("0")
     val coreBuild = core.map(r ⇒ Report.dateString(r.build)).getOrElse("UNKNOWN")
     val coreRawBuild = core.map(_.rawBuild).getOrElse("0")
-    val platform = info.map(_.platform).getOrElse("UNKNOWN")
+    val version = info.map(_.version).getOrElse("UNKNOWN")
     val os = info.map(_.os).getOrElse("UNKNOWN")
     val welcomeMsg =
       s"""|${Console.BBLACK}Welcome to TA Buddy: Desktop v${Console.WHITE}${coreVersion}${Console.BBLACK} (build ${Console.WHITE}${coreBuild}${Console.BBLACK}; ${Console.WHITE}${coreRawBuild}${Console.BBLACK}).
         |Scala ${Console.WHITE}${versionString}${Console.BBLACK}, running on ${javaVmName}, Java ${javaVersion}.
-        |Platform ${Console.WHITE}${platform}${Console.BBLACK}, ${os} ${Console.WHITE}${arch}${Console.BBLACK}
+        |${os} ${Console.WHITE}${version}${Console.BBLACK}, ${Console.WHITE}${arch}${Console.BBLACK}
         |Type in commands to have them evaluated.
         |Type ${Console.WHITE}${Messages.help_text}${Console.BBLACK} for more information.
         |Use ${Console.WHITE}<TAB>${Console.BBLACK} key for automatic completion.

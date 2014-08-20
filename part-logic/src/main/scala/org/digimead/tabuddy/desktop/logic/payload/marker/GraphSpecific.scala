@@ -64,7 +64,7 @@ import org.digimead.tabuddy.model.serialization.transport.Transport
 trait GraphSpecific {
   this: GraphMarker ⇒
 
-  /** Load the specific graph from the predefined directory ${location}/id/ */
+  /** Load the specific graph from the predefined directory \${location}/id/ */
   def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false,
     takeItEasy: Boolean = false, sData: SData = new SData()): Unit = state.safeWrite { state ⇒
     assertState()
@@ -222,7 +222,7 @@ trait GraphSpecific {
   def graphCreated: Element.Timestamp = graphProperties { p ⇒
     Element.Timestamp(p.getProperty(GraphMarker.fieldCreatedMillis).toLong, p.getProperty(GraphMarker.fieldCreatedNanos).toLong)
   }
-  /** Store the graph to the predefined directory ${location}/id/ */
+  /** Store the graph to the predefined directory \${location}/id/ */
   def graphFreeze(storages: Option[Serialization.Storages] = None): Unit = state.safeWrite { state ⇒
     assertState()
     log.info(s"Freeze '${state.graph}'.")

@@ -107,8 +107,6 @@ object Dialog {
      * @return the value coverted to double, or throws
      *         <code>NumberFormatException</code> if none
      *
-     * @exception NumberFormatException
-     *                if the string value does not contain a parsable number.
      * @see java.lang.Double#valueOf(java.lang.String)
      */
     def getDouble(key: String): Double = Configgy.getDouble(this.key(key)).getOrElse(0.0)
@@ -121,8 +119,6 @@ object Dialog {
      * @return the value coverted to float, or throws
      *         <code>NumberFormatException</code> if none
      *
-     * @exception NumberFormatException
-     *                if the string value does not contain a parsable number.
      * @see java.lang.Float#valueOf(java.lang.String)
      */
     def getFloat(key: String): Float = Configgy.getDouble(this.key(key)).map(_.toFloat).getOrElse(0.toFloat)
@@ -135,8 +131,6 @@ object Dialog {
      * @return the value coverted to int, or throws
      *         <code>NumberFormatException</code> if none
      *
-     * @exception NumberFormatException
-     *                if the string value does not contain a parsable number.
      * @see java.lang.Integer#valueOf(java.lang.String)
      */
     def getInt(key: String): Int = Configgy.getInt(this.key(key)).getOrElse(0)
@@ -149,8 +143,6 @@ object Dialog {
      * @return the value coverted to long, or throws
      *         <code>NumberFormatException</code> if none
      *
-     * @exception NumberFormatException
-     *                if the string value does not contain a parsable number.
      * @see java.lang.Long#valueOf(java.lang.String)
      */
     def getLong(key: String): Long = Configgy.getLong(this.key(key)).getOrElse(0L)

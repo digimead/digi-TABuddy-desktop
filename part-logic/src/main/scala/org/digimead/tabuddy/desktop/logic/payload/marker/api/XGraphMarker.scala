@@ -72,7 +72,7 @@ trait XGraphMarker[A <: XTypeSchema[_ <: XTypeSchema.Entity[_ <: AnyRef with jav
   def containerEncryption: XGraphMarker.Encryption
   /** Get content encryption settings. */
   def contentEncryption: XGraphMarker.Encryption
-  /** Load the specific graph from the predefined directory ${location}/id/ */
+  /** Load the specific graph from the predefined directory \${location}/id/ */
   def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false, takeItEasy: Boolean = false, sData: SData = new SData())
   /** Acquire graph loader. */
   def graphAcquireLoader(modified: Option[Element.Timestamp] = None, sData: SData = new SData()): Serialization.Loader
@@ -82,7 +82,7 @@ trait XGraphMarker[A <: XTypeSchema[_ <: XTypeSchema.Entity[_ <: AnyRef with jav
   def graphClose()
   /** Graph creation timestamp. */
   def graphCreated: Element.Timestamp
-  /** Store the graph to the predefined directory ${location}/id/ */
+  /** Store the graph to the predefined directory \${location}/id/ */
   def graphFreeze(storages: Option[Serialization.Storages] = None)
   /** Check whether the graph is modified. */
   def graphIsDirty(): Boolean

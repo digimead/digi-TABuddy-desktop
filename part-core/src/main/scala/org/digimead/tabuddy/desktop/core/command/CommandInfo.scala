@@ -72,9 +72,8 @@ object CommandInfo extends XLoggable {
     case (this.descriptor, Some(report)) ⇒ report match {
       case info: Report.Info ⇒
         s"""report path: ${Report.service.map(_.asInstanceOf[{ val path: File }].path.toString()).getOrElse("UNKNOWN")}
-            |os: ${info.os}
+            |os: ${info.os} ${info.version}
             |arch: ${info.arch}
-            |platform: ${info.platform}
             |debug mode: ${if (App.debug) "enabled" else "disabled"}
             |${
           info.component.map { c ⇒

@@ -46,6 +46,11 @@ package org.digimead.tabuddy.desktop.core.ui
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.definition.Context
+import org.eclipse.e4.core.contexts.IEclipseContext
+import org.eclipse.e4.ui.model.application.MApplicationElement
+import org.eclipse.e4.ui.model.application.ui.{ MElementContainer, MUIElement }
+import org.eclipse.e4.ui.model.application.ui.advanced.{ MPerspective, MPlaceholder }
+import org.eclipse.e4.ui.model.application.ui.basic.{ MPartSashContainerElement, MWindow }
 import org.eclipse.e4.ui.workbench.modeling.EModelService
 import org.eclipse.jface.fieldassist.FieldDecorationRegistry
 import org.eclipse.ui.internal.forms.MessageManager
@@ -99,36 +104,36 @@ object InfrastructureFixes {
    * ModelService stub.
    */
   object ModelService extends EModelService {
-    def bringToTop(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): Unit = ???
-    def cloneElement(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: org.eclipse.e4.ui.model.application.ui.MSnippetContainer): org.eclipse.e4.ui.model.application.ui.MUIElement = ???
-    def cloneSnippet(x$1: org.eclipse.e4.ui.model.application.ui.MSnippetContainer, x$2: String, x$3: org.eclipse.e4.ui.model.application.ui.basic.MWindow): org.eclipse.e4.ui.model.application.ui.MUIElement = ???
-    def countRenderableChildren(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): Int = ???
-    def createModelElement[T <: org.eclipse.e4.ui.model.application.MApplicationElement](x$1: Class[T]): T = ???
-    def detach(x$1: org.eclipse.e4.ui.model.application.ui.basic.MPartSashContainerElement, x$2: Int, x$3: Int, x$4: Int, x$5: Int): Unit = ???
-    def find(x$1: String, x$2: org.eclipse.e4.ui.model.application.ui.MUIElement): org.eclipse.e4.ui.model.application.ui.MUIElement = ???
-    def findElements[T](x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: String, x$3: Class[T], x$4: java.util.List[String]): java.util.List[T] = ???
-    def findElements[T](x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: String, x$3: Class[T], x$4: java.util.List[String], x$5: Int): java.util.List[T] = ???
-    def findPlaceholderFor(x$1: org.eclipse.e4.ui.model.application.ui.basic.MWindow, x$2: org.eclipse.e4.ui.model.application.ui.MUIElement): org.eclipse.e4.ui.model.application.ui.advanced.MPlaceholder = ???
-    def findSnippet(x$1: org.eclipse.e4.ui.model.application.ui.MSnippetContainer, x$2: String): org.eclipse.e4.ui.model.application.ui.MUIElement = ???
+    def bringToTop(element: MUIElement) {}
+    def cloneElement(x$1: MUIElement, x$2: org.eclipse.e4.ui.model.application.ui.MSnippetContainer): MUIElement = ???
+    def cloneSnippet(x$1: org.eclipse.e4.ui.model.application.ui.MSnippetContainer, x$2: String, x$3: org.eclipse.e4.ui.model.application.ui.basic.MWindow): MUIElement = ???
+    def countRenderableChildren(element: MUIElement): Int = 0
+    def createModelElement[T <: MApplicationElement](elementType: Class[T]): T = null.asInstanceOf[T]
+    def detach(mPartSashContainerElement: MPartSashContainerElement, x: Int, y: Int, width: Int, height: Int) {}
+    def find(id: String, searchRoot: MUIElement): MUIElement = null
+    def findElements[T](searchRoot: MUIElement, id: String, clazz: Class[T], tagsToMatch: java.util.List[String]) = new java.util.ArrayList[T]()
+    def findElements[T](searchRoot: MUIElement, id: String, clazz: Class[T], tagsToMatch: java.util.List[String], searchFlags: Int) = new java.util.ArrayList[T]()
+    def findPlaceholderFor(window: MWindow, element: MUIElement): MPlaceholder = null
+    def findSnippet(x$1: org.eclipse.e4.ui.model.application.ui.MSnippetContainer, x$2: String): MUIElement = ???
     def getActivePerspective(x$1: org.eclipse.e4.ui.model.application.ui.basic.MWindow): org.eclipse.e4.ui.model.application.ui.advanced.MPerspective = ???
-    def getContainer(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): org.eclipse.e4.ui.model.application.ui.MUIElement = ???
-    def getContainingContext(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): org.eclipse.e4.core.contexts.IEclipseContext = ???
-    def getElementLocation(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): Int = ???
+    def getContainer(x$1: MUIElement): MUIElement = ???
+    def getContainingContext(x$1: MUIElement): org.eclipse.e4.core.contexts.IEclipseContext = ???
+    def getElementLocation(element: MUIElement): Int = EModelService.NOT_IN_UI
     def getPartDescriptor(x$1: String): org.eclipse.e4.ui.model.application.descriptor.basic.MPartDescriptor = ???
-    def getPerspectiveFor(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): org.eclipse.e4.ui.model.application.ui.advanced.MPerspective = ???
-    def getTopLevelWindowFor(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): org.eclipse.e4.ui.model.application.ui.basic.MWindow = ???
+    def getPerspectiveFor(x$1: MUIElement): org.eclipse.e4.ui.model.application.ui.advanced.MPerspective = ???
+    def getTopLevelWindowFor(x$1: MUIElement): org.eclipse.e4.ui.model.application.ui.basic.MWindow = ???
     def getTrim(x$1: org.eclipse.e4.ui.model.application.ui.basic.MTrimmedWindow, x$2: org.eclipse.e4.ui.model.application.ui.SideValue): org.eclipse.e4.ui.model.application.ui.basic.MTrimBar = ???
-    def hideLocalPlaceholders(x$1: org.eclipse.e4.ui.model.application.ui.basic.MWindow, x$2: org.eclipse.e4.ui.model.application.ui.advanced.MPerspective): Unit = ???
-    def hostElement(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: org.eclipse.e4.ui.model.application.ui.basic.MWindow, x$3: Any, x$4: org.eclipse.e4.core.contexts.IEclipseContext): Unit = ???
-    def insert(x$1: org.eclipse.e4.ui.model.application.ui.basic.MPartSashContainerElement, x$2: org.eclipse.e4.ui.model.application.ui.basic.MPartSashContainerElement, x$3: Int, x$4: Float): Unit = ???
-    def isHostedElement(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: org.eclipse.e4.ui.model.application.ui.basic.MWindow): Boolean = ???
-    def isLastEditorStack(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement): Boolean = ???
-    def move(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: org.eclipse.e4.ui.model.application.ui.MElementContainer[org.eclipse.e4.ui.model.application.ui.MUIElement], x$3: Int, x$4: Boolean): Unit = ???
-    def move(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: org.eclipse.e4.ui.model.application.ui.MElementContainer[org.eclipse.e4.ui.model.application.ui.MUIElement], x$3: Int): Unit = ???
-    def move(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: org.eclipse.e4.ui.model.application.ui.MElementContainer[org.eclipse.e4.ui.model.application.ui.MUIElement], x$3: Boolean): Unit = ???
-    def move(x$1: org.eclipse.e4.ui.model.application.ui.MUIElement, x$2: org.eclipse.e4.ui.model.application.ui.MElementContainer[org.eclipse.e4.ui.model.application.ui.MUIElement]): Unit = ???
-    def removePerspectiveModel(x$1: org.eclipse.e4.ui.model.application.ui.advanced.MPerspective, x$2: org.eclipse.e4.ui.model.application.ui.basic.MWindow): Unit = ???
-    def resetPerspectiveModel(x$1: org.eclipse.e4.ui.model.application.ui.advanced.MPerspective, x$2: org.eclipse.e4.ui.model.application.ui.basic.MWindow): Unit = ???
-    def toBeRenderedCount(x$1: org.eclipse.e4.ui.model.application.ui.MElementContainer[_]): Int = ???
+    def hideLocalPlaceholders(window: MWindow, perspective: MPerspective) {}
+    def hostElement(element: MUIElement, hostWindow: MWindow, uiContainer: Any, hostContext: IEclipseContext) {}
+    def insert(toInsert: MPartSashContainerElement, relTo: MPartSashContainerElement, where: Int, ratio: Float) {}
+    def isHostedElement(element: MUIElement, window: MWindow): Boolean = true
+    def isLastEditorStack(stack: MUIElement): Boolean = true
+    def move(element: MUIElement, newParent: MElementContainer[MUIElement], index: Int, leavePlaceholder: Boolean) {}
+    def move(element: MUIElement, newParent: MElementContainer[MUIElement], index: Int) {}
+    def move(element: MUIElement, newParent: MElementContainer[MUIElement], leavePlaceholder: Boolean) {}
+    def move(element: MUIElement, newParent: MElementContainer[MUIElement]) {}
+    def removePerspectiveModel(persp: MPerspective, window: MWindow) {}
+    def resetPerspectiveModel(persp: MPerspective, window: MWindow) {}
+    def toBeRenderedCount(container: MElementContainer[_]): Int = 0
   }
 }

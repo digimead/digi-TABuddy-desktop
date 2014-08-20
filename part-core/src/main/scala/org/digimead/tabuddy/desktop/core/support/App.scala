@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.core.support
 
 import akka.actor.{ Actor, ActorRef, Props }
 import java.io.File
-import java.net.URL
+import java.net.{ URISyntaxException, URL, URLDecoder }
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.eclipse.core.runtime.adaptor.LocationManager
@@ -86,8 +86,11 @@ class App extends XLoggable with app.Akka with app.Context with app.Thread with 
   /** UUID pattern. */
   val uuidPattern = """[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}""".r.pattern
   /** Application data. Launcher.Data DI value. */
-  val data = Option(FrameworkProperties.getProperty(LocationManager.PROP_INSTALL_AREA)).map(url ⇒ new File(new URL(url).toURI())).
-    getOrElse { throw new IllegalStateException(LocationManager.PROP_INSTALL_AREA + " not found") }
+  val data = Option(FrameworkProperties.getProperty(LocationManager.PROP_INSTALL_AREA)).map(url ⇒
+    try new File(new URL(url).toURI()) catch {
+      case e: URISyntaxException ⇒
+        new File(URLDecoder.decode((new URL(url)).getPath(), "UTF-8"))
+    }) getOrElse { throw new IllegalStateException(LocationManager.PROP_INSTALL_AREA + " not found") }
 }
 
 /** Application singleton. */

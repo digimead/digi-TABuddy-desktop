@@ -687,7 +687,7 @@ object GraphMarker extends XLoggable {
 
     /** Assert marker state. */
     def assertState() {}
-    /** Load the specific graph from the predefined directory ${location}/id/ */
+    /** Load the specific graph from the predefined directory \${location}/id/ */
     def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false,
       takeItEasy: Boolean = false, sData: SData = new SData()) =
       throw new UnsupportedOperationException()
@@ -696,7 +696,7 @@ object GraphMarker extends XLoggable {
       throw new UnsupportedOperationException()
     /** Close the loaded graph. */
     def graphClose() = throw new UnsupportedOperationException()
-    /** Store the graph to the predefined directory ${location}/id/ */
+    /** Store the graph to the predefined directory \${location}/id/ */
     def graphFreeze(storages: Option[Serialization.Storages] = None): Unit = throw new UnsupportedOperationException()
     /** Check whether the graph is modified. */
     def graphIsDirty(): Boolean = false
@@ -756,7 +756,7 @@ object GraphMarker extends XLoggable {
     override def contentEncryption: XGraphMarker.Encryption = XGraphMarker.Encryption(Map())
     /** Set content encryption settings. */
     override def contentEncryption_=(settings: XGraphMarker.Encryption) = throw new UnsupportedOperationException()
-    /** Load the specific graph from the predefined directory ${location}/id/ */
+    /** Load the specific graph from the predefined directory \${location}/id/ */
     override def graphAcquire(modified: Option[Element.Timestamp] = None, reload: Boolean = false,
       takeItEasy: Boolean = false, sData: SData = new SData()) =
       throw new UnsupportedOperationException()
@@ -767,7 +767,7 @@ object GraphMarker extends XLoggable {
     override def graphCreated: Element.Timestamp = graph.created
     /** Close the loaded graph. */
     override def graphClose() = throw new UnsupportedOperationException()
-    /** Store the graph to the predefined directory ${location}/id/ */
+    /** Store the graph to the predefined directory \${location}/id/ */
     override def graphFreeze(storages: Option[Serialization.Storages] = None): Unit = throw new UnsupportedOperationException()
     /** Check whether the graph is modified. */
     override def graphIsDirty(): Boolean = true

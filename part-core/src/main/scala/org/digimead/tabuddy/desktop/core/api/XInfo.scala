@@ -52,7 +52,7 @@ trait XInfo {
   val component: Seq[XInfo.Component]
   val os: String
   val arch: String
-  val platform: String
+  val version: String
 
   /** Get header for text representation*/
   def header()

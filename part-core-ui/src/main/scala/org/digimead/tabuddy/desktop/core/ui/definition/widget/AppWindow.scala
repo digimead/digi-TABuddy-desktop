@@ -53,15 +53,17 @@ import org.digimead.tabuddy.desktop.core.{ Core, Messages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.{ StackConfiguration, Window, WindowConfiguration, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Window, WindowConfiguration, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.StackConfiguration
 import org.digimead.tabuddy.desktop.core.ui.block.builder.WindowContentBuilder
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.dynamichelpers.IExtensionTracker
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
-import org.eclipse.e4.ui.model.application.ui.basic.MWindow
+import org.eclipse.e4.ui.model.application.ui.basic.{ MTrimBar, MWindow }
 import org.eclipse.jface.action.{ CoolBarManager, StatusLineManager }
+import org.eclipse.jface.util.IPropertyChangeListener
 import org.eclipse.jface.window.ApplicationWindow
 import org.eclipse.swt.{ SWT, SWTException }
 import org.eclipse.swt.custom.StackLayout
@@ -392,7 +394,7 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
     override def close(): Boolean = true
     override def getActivePage(): IWorkbenchPage = null
     override def getExtensionTracker(): IExtensionTracker = ???
-    override def getPages(): Array[IWorkbenchPage] = ???
+    override def getPages(): Array[IWorkbenchPage] = Array()
     override def getPartService(): IPartService = ???
     override def getSelectionService(): ISelectionService = ???
     override def getShell(): Shell = AppWindow.this.getShell()
@@ -402,6 +404,12 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
     override def openPage(perspectiveId: String, input: IAdaptable): IWorkbenchPage = null
     override def run(x$1: Boolean, x$2: Boolean, x$3: org.eclipse.jface.operation.IRunnableWithProgress): Unit = ???
     override def setActivePage(x$1: org.eclipse.ui.IWorkbenchPage): Unit = ???
+
+    // Members declared in org.eclipse.ui.WorkbenchWindow
+    override def close(remove: Boolean) = true
+    override def getTopTrim(): MTrimBar = null
+    override def addPropertyChangeListener(listener: IPropertyChangeListener) {}
+    override def removePropertyChangeListener(listener: IPropertyChangeListener) {}
   }
   override lazy val toString = "AppWindow[%08X]".format(id.hashCode())
 }

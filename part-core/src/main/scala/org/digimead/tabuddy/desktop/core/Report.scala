@@ -92,11 +92,11 @@ class Report(context: BundleContext) extends ServiceTrackerCustomizer[AnyRef, An
   def info(): Option[Report.Info] = serviceRef.flatMap { service ⇒
     try {
       val infoFromOutside = service.asInstanceOf[{ val info: AnyRef }].info.
-        asInstanceOf[{ val component: Seq[AnyRef]; val os: String; val arch: String; val platform: String }]
+        asInstanceOf[{ val component: Seq[AnyRef]; val os: String; val arch: String; val version: String }]
       Some(Report.Info(infoFromOutside.component.map { c ⇒
         val component = c.asInstanceOf[{ val name: String; val version: String; val build: Date; val rawBuild: String; val bundleSymbolicName: String }]
         XInfo.Component(component.name, component.version, component.build, component.rawBuild, component.bundleSymbolicName)
-      }, infoFromOutside.os, infoFromOutside.arch, infoFromOutside.platform))
+      }, infoFromOutside.os, infoFromOutside.arch, infoFromOutside.version))
     } catch {
       case e: Throwable ⇒
         log.error(s"Unable to get info: ${e.getMessage()}.", e)
@@ -127,13 +127,13 @@ object Report {
   /**
    * Application information acquired from launcher via OSGi service.
    */
-  case class Info(val component: Seq[XInfo.Component], os: String, arch: String, platform: String) extends XInfo {
+  case class Info(val component: Seq[XInfo.Component], os: String, arch: String, version: String) extends XInfo {
     def header() = """=== TA-Buddy desktop (if you have a question or suggestion, email ezh@ezh.msk.ru) ===""" +
       toString + """=====================================================================================\n\n"""
     override def toString() = s"""report path: ${inner.service.map(_.asInstanceOf[{ val path: File }].path.toString()).getOrElse("UNKNOWN")}
       |os: ${os}
       |arch: ${arch}
-      |platform: ${platform}
+      |version: ${version}
       |${component.map(c ⇒ s"${c.name}: version: ${c.version}, build: ${Report.dateString(c.build)} (${c.rawBuild})").sorted.mkString("\n")}""".stripMargin
   }
   /**
