@@ -97,7 +97,6 @@ class EventLoop extends Runnable with EventLoop.Initializer with XLoggable {
   /** Wrapper for thread with event loop. */
   @log
   override def run {
-    assert(Thread.currentThread().getId() == 1)
     log.debug(s"Mark thread with ID ${Thread.currentThread().getId()} as event loop.")
     Display.getDefault() // get or create
     if (Display.getCurrent() != null) {

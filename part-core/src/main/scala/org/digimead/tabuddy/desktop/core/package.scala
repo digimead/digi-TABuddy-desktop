@@ -53,13 +53,13 @@ import org.digimead.digi.lib.util.Util
  */
 package object core {
   lazy val default = new NewBindingModule(module ⇒ {
-    // Get 'data' path from System.getProperty("data") or
+    // Get 'tabuddy.rootURL' path from System.getProperty("tabuddy.rootURL") or
     // Try to get jar location or get current directory
-    module.bind[File] identifiedBy "Data" toSingle { Util.getPath("data", getClass) }
+    module.bind[File] identifiedBy "Root" toSingle { Util.getPath("tabuddy.rootURL", getClass, true) }
     // Configuration file located at {data}/configuration/tabuddy.conf by default
     module.bind[File] identifiedBy "Config" toModuleSingle { module ⇒
       val configName = "tabuddy.conf"
-      val dataPath = module.inject[File](Some("Data"))
+      val dataPath = module.inject[File](Some("Root"))
       val configurationPath = new File(dataPath, "configuration")
       new File(configurationPath, configName)
     }
