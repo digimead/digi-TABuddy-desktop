@@ -63,7 +63,7 @@ import language.implicitConversions
  *
  *  There are two abstract members that must be defined in order to
  *  produce parsers: the type `Elem` and
- *  [[scala.util.parsing.combinator.Parsers.Parser]]. There are helper
+ *  scala.util.parsing.combinator.Parsers.Parser. There are helper
  *  methods that produce concrete `Parser` implementations -- see ''primitive
  *  parser'' below.
  *
@@ -78,14 +78,14 @@ import language.implicitConversions
  *  1. success or failure
  *  1. the result.
  *
- *  A [[scala.util.parsing.combinator.Parsers.Parser]] produces both kinds of information,
- *  by returning a [[scala.util.parsing.combinator.Parsers.ParseResult]] when its `apply`
+ *  A scala.util.parsing.combinator.Parsers.Parser produces both kinds of information,
+ *  by returning a scala.util.parsing.combinator.Parsers.ParseResult when its `apply`
  *  method is called on an input.
  *
  *  The term ''parser combinator'' refers to the fact that these parsers
  *  are constructed from primitive parsers and composition operators, such
  *  as sequencing, alternation, optionality, repetition, lifting, and so on. For example,
- *  given `p1` and `p2` of type [[scala.util.parsing.combinator.Parsers.Parser]]:
+ *  given `p1` and `p2` of type scala.util.parsing.combinator.Parsers.Parser:
  *
  *  {{{
  *  p1 ~ p2 // sequencing: must match p1 followed by p2
@@ -94,7 +94,7 @@ import language.implicitConversions
  *  p1.*    // repetition: matches any number of repetitions of p1
  *  }}}
  *
- *  These combinators are provided as methods on [[scala.util.parsing.combinator.Parsers.Parser]],
+ *  These combinators are provided as methods on scala.util.parsing.combinator.Parsers.Parser,
  *  or as methods taking one or more `Parsers` and returning a `Parser` provided in
  *  this class.
  *
@@ -109,7 +109,7 @@ import language.implicitConversions
  *  Even more primitive parsers always produce the same result, irrespective of the input. See
  *  methods `success`, `err` and `failure` as examples.
  *
- *  @see [[scala.util.parsing.combinator.RegexParsers]] and other known subclasses for practical examples.
+ *  @see scala.util.parsing.combinator.RegexParsers and other known subclasses for practical examples.
  *
  *  @author Martin Odersky
  *  @author Iulian Dragos
@@ -701,7 +701,7 @@ trait Parsers {
   }
 
   /**
-   * A parser that matches only the given [[scala.collection.Iterable]] collection of elements `es`.
+   * A parser that matches only the given scala.collection.Iterable collection of elements `es`.
    *
    *  `acceptSeq(es)` succeeds if the input subsequently provides the elements in the iterable `es`.
    *

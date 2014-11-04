@@ -44,7 +44,7 @@
 
 package org.digimead.tabuddy.desktop.core.definition.command
 
-/** `JavaTokenParsers` differs from [[scala.util.parsing.combinator.RegexParsers]]
+/** `JavaTokenParsers` differs from scala.util.parsing.combinator.RegexParsers
  *  by adding the following definitions:
  *
  *  - `ident`

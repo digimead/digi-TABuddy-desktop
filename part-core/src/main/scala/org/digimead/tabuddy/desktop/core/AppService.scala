@@ -49,8 +49,7 @@ import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.api.XMain
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.support.{ App, Timeout }
 import org.eclipse.core.runtime.Platform
 import org.eclipse.e4.core.internal.contexts.EclipseContext
 import org.eclipse.e4.ui.internal.workbench.E4Workbench
@@ -145,7 +144,6 @@ class AppService extends XMain with Disposable.Default with XLoggable {
    * @see #EXIT_OK
    * @see #EXIT_RESTART
    * @param context the application context to pass to the application
-   * @exception Exception if there is a problem running this application.
    */
   def start(): AnyRef = digiStart(): java.lang.Integer
   /**

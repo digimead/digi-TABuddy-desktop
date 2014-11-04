@@ -55,12 +55,12 @@ import language.implicitConversions
 
 /**
  * The ''most important'' differences between `RegexParsers` and
- *  [[scala.util.parsing.combinator.Parsers]] are:
+ *  scala.util.parsing.combinator.Parsers are:
  *
- *  - `Elem` is defined to be [[scala.Char]]
- *  - There's an implicit conversion from [[java.lang.String]] to `Parser[String]`,
+ *  - `Elem` is defined to be scala.Char
+ *  - There's an implicit conversion from java.lang.String to `Parser[String]`,
  *    so that string literals can be used as parser combinators.
- *  - There's an implicit conversion from [[scala.util.matching.Regex]] to `Parser[String]`,
+ *  - There's an implicit conversion from scala.util.matching.Regex to `Parser[String]`,
  *    so that regex expressions can be used as parser combinators.
  *  - The parsing methods call the method `skipWhitespace` (defaults to `true`) and, if true,
  *    skip any whitespace before each parser is called.
