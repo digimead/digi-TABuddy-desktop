@@ -276,12 +276,20 @@ object Logic {
     ResourcesPlugin.getWorkspace().getRuleFactory()
     root.getProject(Logic.containerName)
   }
+  /** Location of user scripts. */
+  lazy val scriptContainer = {
+    val scripts = new File(Core.root, "script")
+    if (!scripts.exists())
+      scripts.mkdirs()
+    scripts
+  }
 
   // Initialize descendant actor singletons
   if (App.isUIAvailable)
     WindowWatcher
 
   def containerName = DI.infrastructureWideProjectName
+  /** Default location of user data. */
   def graphContainer = DI.graphContainer
 
   override def toString = "logic.Logic[Singleton]"

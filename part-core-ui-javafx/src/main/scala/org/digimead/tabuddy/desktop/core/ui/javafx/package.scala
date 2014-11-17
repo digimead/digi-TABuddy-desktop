@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,29 +41,6 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop
+package org.digimead.tabuddy.desktop.core.ui
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-import java.io.File
-import org.digimead.digi.lib.DependencyInjection
-import org.digimead.digi.lib.util.Util
-
-/**
- * This is the core bundle of the TA Buddy desktop application.
- */
-package object core {
-  lazy val default = new NewBindingModule(module ⇒ {
-    // Get 'tabuddy.rootURL' path from System.getProperty("tabuddy.rootURL") or
-    // Try to get jar location or get current directory
-    module.bind[File] identifiedBy "Root" toSingle { Util.getPath("tabuddy.rootURL", true) orElse Util.getPath(getClass, true) getOrElse new File(".") }
-    // Configuration file located at {data}/configuration/tabuddy.conf by default
-    module.bind[File] identifiedBy "Config" toModuleSingle { module ⇒
-      val configName = "tabuddy.conf"
-      val dataPath = module.inject[File](Some("Root"))
-      val configurationPath = new File(dataPath, "configuration")
-      new File(configurationPath, configName)
-    }
-  })
-  lazy val defaultBundle = default ~ command.default ~ operation.default
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.definition.NLS$DI$")
-}
+package object javafx {}

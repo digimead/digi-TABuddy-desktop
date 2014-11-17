@@ -40,14 +40,14 @@
 // For more information, please contact Digimead Team at this
 // address: ezh@ezh.msk.ru
 
-// DATE Tue, 04 Nov 2014 17:14:34 +0300
-// BASE PROJECT for componet of TA Buddy: Desktop v0.1.0.0
+// DATE Mon, 17 Nov 2014 16:39:54 +0300
+// BASE PROJECT for componet of TA Buddy: Desktop v0.1.0.2
 
 name := "digi-tabuddy-desktop-base"
 
 description := "TA Buddy: Desktop application base project."
 
-version := "0.1.0.0"
+version := "0.1.0.2"
 
 licenses := Seq("GNU Affero General Public License" -> url("http://www.gnu.org/licenses/agpl.html"))
 
@@ -101,9 +101,9 @@ libraryDependencies += "org.bouncycastle" % "bcprov-jdk15on" % "1.50"
 
 libraryDependencies += "org.digimead" %% "digi-configgy" % "2.2.2.1"
 
-libraryDependencies += "org.digimead" %% "digi-lib-jfx4swt" % "0.1.0.4"
+libraryDependencies += "org.digimead" %% "digi-lib-jfx4swt" % "0.1.0.5"
 
-libraryDependencies += "org.digimead" %% "digi-lib-util" % "0.3.1.1"
+libraryDependencies += "org.digimead" %% "digi-lib-util" % "0.3.2.0"
 
 libraryDependencies += "org.digimead" %% "digi-lib" % "0.3.0.1"
 
@@ -490,9 +490,9 @@ libraryDependencies += {
 }
 
 libraryDependencies += {
-  val moduleId = ("org.eclipse.nebula.widgets.gallery" % "org.eclipse.nebula.widgets.gallery" % "0.6.0.201411031952" % extConfiguration from
-    "http://download.eclipse.org/technology/nebula/snapshot/plugins/org.eclipse.nebula.widgets.gallery_0.6.0.201411031952.jar")
-  val source = _root_.sbt.Artifact.classified("org.eclipse.nebula.widgets.gallery", _root_.sbt.Artifact.SourceClassifier).copy(url = Some(new URL("http://download.eclipse.org/technology/nebula/snapshot/plugins/org.eclipse.nebula.widgets.gallery.source_0.6.0.201411031952.jar")))
+  val moduleId = ("org.eclipse.nebula.widgets.gallery" % "org.eclipse.nebula.widgets.gallery" % "0.6.0.201411131833" % extConfiguration from
+    "http://download.eclipse.org/technology/nebula/snapshot/plugins/org.eclipse.nebula.widgets.gallery_0.6.0.201411131833.jar")
+  val source = _root_.sbt.Artifact.classified("org.eclipse.nebula.widgets.gallery", _root_.sbt.Artifact.SourceClassifier).copy(url = Some(new URL("http://download.eclipse.org/technology/nebula/snapshot/plugins/org.eclipse.nebula.widgets.gallery.source_0.6.0.201411131833.jar")))
   moduleId.copy(explicitArtifacts = moduleId.explicitArtifacts :+ source)
 }
 

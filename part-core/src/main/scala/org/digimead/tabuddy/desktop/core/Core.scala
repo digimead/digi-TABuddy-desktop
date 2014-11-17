@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.core
 
 import akka.actor.{ ActorRef, Props, ScalaActorRef, UnhandledMessage, actorRef2Scala }
+import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import org.digimead.digi.lib.Disposable
 import org.digimead.digi.lib.aop.log
@@ -288,6 +289,9 @@ class Core extends akka.actor.Actor with XLoggable {
     if (!initMethod.isAccessible())
       initMethod.setAccessible(true)
     App.execNGet {
+      //
+      // This block may running more than 1 second
+      //
       Core.DI.beforeWorkbenchInit.foreach(_())
       initMethod.invoke(workbench)
       // adjust
@@ -301,7 +305,7 @@ class Core extends akka.actor.Actor with XLoggable {
         case _ ⇒
       }
       Core.DI.afterWorkbenchInit.foreach(_())
-    }
+    }(App.LongRunnable)
     assert(PlatformUI.isWorkbenchRunning())
   }
   /** Stop platform workbench. */
@@ -342,6 +346,8 @@ object Core extends XLoggable {
 
   /** Core actor reference configuration object. */
   def props = DI.props
+  /** Application root directory. */
+  def root = DI.root
 
   override def toString = "core.Core[Singleton]"
 
@@ -455,5 +461,7 @@ object Core extends XLoggable {
     lazy val beforeWorkbenchInit = injectOptional[Function0[Unit]]("BeforeWorkbenchInit")
     /** Core Akka factory. */
     lazy val props = injectOptional[Props]("Core") getOrElse Props[Core]
+    /** Application root directory. */
+    lazy val root = inject[File]("Root")
   }
 }

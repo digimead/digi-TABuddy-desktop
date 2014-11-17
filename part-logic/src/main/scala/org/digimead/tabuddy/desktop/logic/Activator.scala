@@ -44,11 +44,15 @@
 package org.digimead.tabuddy.desktop.logic
 
 import akka.actor.{ Inbox, PoisonPill, Terminated }
-import org.digimead.digi.lib.log.api.XLoggable
+import java.io.File
 import org.digimead.digi.lib.{ DependencyInjection, Disposable }
+import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.logic.script.{ Cache, Loader }
+import org.digimead.tabuddy.desktop.logic.script.Script
 import org.osgi.framework.{ BundleActivator, BundleContext }
 import scala.concurrent.Future
 import scala.ref.WeakReference
@@ -59,6 +63,8 @@ import scala.ref.WeakReference
 class Activator extends BundleActivator with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
+  /** Autoexec script. */
+  lazy val autoexec = new File(Logic.scriptContainer, "autoexec.scala")
 
   /** Start bundle. */
   def start(context: BundleContext) = Activator.startStopLock.synchronized {
@@ -87,6 +93,14 @@ class Activator extends BundleActivator with XLoggable {
       case None ⇒
         log.warn("Skip DI initialization in test environment.")
     }
+    // Execute autoexec
+    if (autoexec.exists())
+      Future {
+        val content = Loader(autoexec)
+        val unique = Script.unique(content)
+        log.info(s"Evaluate autoexec script with unique id ${unique}.")
+        Script[Unit](content, unique, false).run()
+      } onFailure { case e: Throwable ⇒ log.error("Error while executing autoexec.scala: " + e.getMessage(), e) }
     // Start component actors hierarchy
     val f = Future {
       Activator.startStopLock.synchronized {

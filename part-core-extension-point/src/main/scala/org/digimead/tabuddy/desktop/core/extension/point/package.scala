@@ -41,23 +41,6 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.extension.point
+package org.digimead.tabuddy.desktop.core.extension
 
-import org.digimead.digi.lib.log.api.XLoggable
-import org.osgi.framework.{ BundleActivator, BundleContext }
-
-/**
- * OSGi entry point.
- */
-class Activator extends BundleActivator with XLoggable {
-  /** Start bundle. */
-  def start(context: BundleContext) = {
-    log.debug("Start TA Buddy Desktop extension point.")
-  }
-  /** Stop bundle. */
-  def stop(context: BundleContext) = {
-    log.debug("Stop TA Buddy Desktop extension point.")
-  }
-
-  override def toString = "core.Activator"
-}
+package object point {}

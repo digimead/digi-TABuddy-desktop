@@ -75,7 +75,7 @@ import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener }
  */
 class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(parent, style) with XLoggable {
   /** About composite. */
-  val aboutComposite = new FXCanvas(getCompositeAbout(), SWT.NONE, false)
+  lazy val aboutComposite = new FXCanvas(getCompositeAbout(), SWT.NONE, false)
   /** About original size. */
   val aboutOriginalSize = new AtomicReference(default)
   /** Default element size. */
@@ -83,11 +83,11 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
   /** Element minimum size. */
   lazy val mininumSize = 16
   /** Quotation composite with FX canvas. */
-  val quotationComposite = new FXCanvas(getCompositeQuotation(), SWT.NONE, false)
+  lazy val quotationComposite = new FXCanvas(getCompositeQuotation(), SWT.NONE, false)
   /** Quotation original size. */
   val quotationOriginalSize = new AtomicReference(default)
   /** Title composite with FX canvas. */
-  val titleComposite = new FXCanvas(getCompositeTitle, SWT.NONE, false)
+  lazy val titleComposite = new FXCanvas(getCompositeTitle, SWT.NONE, false)
   /** Title maximum margin. */
   lazy val titleMaximumMargin = 300
   /** Title minimum margin. */
@@ -96,6 +96,7 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
   lazy val titleOriginalSize = new AtomicReference(default)
 
   def initializeJFX() {
+    titleComposite.initializeJFX()
     val (titleScene, titlePathTransition, titlePenTransition, titleSize) = createTitle(titleComposite)
     titleComposite.addDisposeListener { stage ⇒ titleScene.rootProperty().set(new Group) }
     titlePenTransition.setOnFinished(new EventHandler[ActionEvent]() {
@@ -104,6 +105,7 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
     titleComposite.setScene(titleScene, { _ ⇒ titlePathTransition.play() })
     titleOriginalSize.set(titleSize)
 
+    quotationComposite.initializeJFX()
     val (quotationScene, quotationTransition, quotationSize) = createQuotation(quotationComposite)
     quotationComposite.addDisposeListener { stage ⇒ quotationScene.rootProperty().set(new Group) }
     quotationTransition.setOnFinished(new EventHandler[ActionEvent]() {
@@ -112,6 +114,7 @@ class Content(parent: Composite, style: Int = SWT.NONE) extends ContentSkel(pare
     quotationComposite.setScene(quotationScene, _ ⇒ quotationTransition.play())
     quotationOriginalSize.set(quotationSize)
 
+    aboutComposite.initializeJFX()
     val aboutScene = createAbout(aboutComposite)
     aboutComposite.addDisposeListener { stage ⇒ aboutScene.rootProperty().set(new Group) }
     aboutComposite.setScene(aboutScene)
