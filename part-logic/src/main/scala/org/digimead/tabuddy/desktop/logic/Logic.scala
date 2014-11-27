@@ -56,6 +56,7 @@ import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.ui.WindowWatcher
+import org.eclipse.core.internal.resources.ResourceException
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
 import org.eclipse.jface.commands.ToggleState
@@ -199,7 +200,13 @@ class Logic extends akka.actor.Actor with XLoggable {
     val progressMonitor = new NullProgressMonitor()
     if (!Logic.container.exists())
       Logic.container.create(progressMonitor)
-    Logic.container.open(progressMonitor)
+    try Logic.container.open(progressMonitor)
+    catch {
+      case e: ResourceException if e.getMessage.startsWith("The project description file")
+        && e.getMessage.endsWith("The project will not function properly until this file is restored.") ⇒
+        Logic.container.delete(true, true, progressMonitor)
+        Logic.container.create(progressMonitor)
+    }
     App.publish(App.Message.Consistent(this, self))
   }
   /** Invoked on Core started. */

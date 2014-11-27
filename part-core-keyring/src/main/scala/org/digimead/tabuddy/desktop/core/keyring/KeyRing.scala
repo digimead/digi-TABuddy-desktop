@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.keyring.random.SimpleRandom
 import org.digimead.tabuddy.desktop.core.keyring.random.api.XSecureRandom
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.eclipse.core.internal.resources.ResourceException
 import org.eclipse.core.resources.ResourcesPlugin
 import org.eclipse.core.runtime.NullProgressMonitor
 import scala.language.implicitConversions
@@ -139,7 +140,13 @@ class KeyRing extends akka.actor.Actor with XLoggable {
     val progressMonitor = new NullProgressMonitor()
     if (!KeyRing.container.exists())
       KeyRing.container.create(progressMonitor)
-    KeyRing.container.open(progressMonitor)
+    try KeyRing.container.open(progressMonitor)
+    catch {
+      case e: ResourceException if e.getMessage.startsWith("The project description file")
+        && e.getMessage.endsWith("The project will not function properly until this file is restored.") ⇒
+        KeyRing.container.delete(true, true, progressMonitor)
+        KeyRing.container.create(progressMonitor)
+    }
     App.publish(App.Message.Consistent(this, self))
   }
   /** Invoked on Core started. */

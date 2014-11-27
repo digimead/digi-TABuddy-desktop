@@ -167,6 +167,8 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
     windowContext.set(classOf[WComposite], content)
     // Set the common top level widget
     windowContext.set(classOf[Composite], content)
+    // Notify that AppWindow is ready
+    App.publish(App.Message.Create(this, ref))
     showContent(content)
     container
   }

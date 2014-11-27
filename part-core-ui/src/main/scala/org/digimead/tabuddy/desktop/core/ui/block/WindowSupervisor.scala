@@ -232,7 +232,6 @@ class WindowSupervisor extends Actor with XLoggable {
             Core.context.set(UI.Id.shellList, Seq(window.getShell()))
           window.windowContext.activateBranch()
         }
-        App.publish(message)
         windowActor ! App.Message.Open(None, self)
       case App.Message.Error(message, _) ⇒
         log.error(s"Unable to create window ${windowId}: ${message}.")
