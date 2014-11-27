@@ -49,7 +49,7 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ SmartToolbarManager, WindowMenu, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
 import org.eclipse.e4.core.contexts.ContextInjectionFactory

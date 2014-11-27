@@ -50,7 +50,7 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
-import org.digimead.tabuddy.desktop.core.ui.block.{ SmartToolbarManager, WindowMenu, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 
 /**
@@ -120,11 +120,11 @@ object WindowWatcher {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model menu descriptor. */
-  lazy val modelMenu = App.execNGet { WindowMenu.Descriptor("&Model", None, getClass.getName() + "#model") }
+  lazy val modelMenu = App.execNGet { SmartMenuManager.Descriptor("&Model", None, getClass.getName() + "#model") }
   /** Model toolbar descriptor. */
   lazy val modelToolbar = App.execNGet { SmartToolbarManager.Descriptor(getClass.getName() + "#model") }
   /** View menu descriptor. */
-  lazy val viewMenu = App.execNGet { WindowMenu.Descriptor("&View", None, getClass.getName() + "#view") }
+  lazy val viewMenu = App.execNGet { SmartMenuManager.Descriptor("&View", None, getClass.getName() + "#view") }
 
   /** WindowWatcher actor reference configuration object. */
   def props = DI.props

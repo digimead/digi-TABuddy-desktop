@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,27 +43,73 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block
 
+import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
-import org.eclipse.jface.action.{ IMenuManager, MenuManager }
+import org.eclipse.jface.action.{ IAction, IContributionItem, IMenuManager, MenuManager }
 import org.eclipse.jface.resource.ImageDescriptor
+import scala.language.implicitConversions
+import org.digimead.digi.lib.log.api.XLoggable
 
-object WindowMenu {
-  /** Menu descriptor. */
-  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
-  /** Return the specific menu from the window CoolBarManager. */
-  def apply(parent: Either[AppWindow, IMenuManager], menuDescriptor: Descriptor): IMenuManager = {
-    val manager = parent match {
-      case Left(window) ⇒ window.getMenuBarManager()
-      case Right(manager) ⇒ manager
+/**
+ * Smart menu manager.
+ */
+class SmartMenuManager extends XLoggable {
+  /** Add action to toolbar only if not exists. */
+  def add(menu: IMenuManager, action: IAction): Boolean =
+    Option(menu.find(action.getId())) match {
+      case Some(action) ⇒
+        log.debug(s"""Action "${action.getId}" is already exists.""")
+        false
+      case None ⇒
+        log.debug(s"""Add action "${action.getId}" to menu "${menu.getId}".""")
+        menu.add(action)
+        true
     }
+  /** Add contribution to menu only if not exists. */
+  def add(menu: IMenuManager, item: IContributionItem): Boolean =
+    Option(menu.find(item.getId())) match {
+      case Some(item) ⇒
+        log.debug(s"""Contribution item "${item.getId}" is already exists.""")
+        false
+      case None ⇒
+        log.debug(s"""Add contribution item  "${item.getId}" to menu "${menu.getId}".""")
+        menu.add(item)
+        true
+    }
+  /** Get menu with the specific id from the window. */
+  def apply(parent: AppWindow, menuDescriptor: SmartMenuManager.Descriptor): IMenuManager =
+    apply(parent.getMenuBarManager(), menuDescriptor)
+  /** Get menu with the specific id from the window. */
+  def apply(manager: IMenuManager, menuDescriptor: SmartMenuManager.Descriptor): IMenuManager = {
     Option(manager.findMenuUsingPath(menuDescriptor.id)) match {
       case Some(menu) ⇒ menu
       case None ⇒
         val menu = new MenuManager(menuDescriptor.text, menuDescriptor.image.getOrElse(null), menuDescriptor.id)
+        log.debug(s"""Add menu "${menu.getId}" to menu "${manager.getId}".""")
         manager.add(menu)
         menu
     }
   }
 
-  override def toString = "WindowMenu[Singleton]"
+  override def toString = "core.ui.block.SmartMenuManager"
+}
+
+object SmartMenuManager {
+  implicit def manager2implementation(m: SmartMenuManager.type): SmartMenuManager = m.inner
+
+  /** Get SmartMenuManager implementation. */
+  def inner = DI.implementation
+
+  override def toString = "core.ui.block.SmartMenuManager[Singleton]"
+
+  /** Menu descriptor. */
+  case class Descriptor(text: String, image: Option[ImageDescriptor], id: String)
+
+  /**
+   * Dependency injection routines
+   */
+  private object DI extends XDependencyInjection.PersistentInjectable {
+    /** SmartMenuManager implementation. */
+    lazy val implementation = injectOptional[SmartMenuManager] getOrElse new SmartMenuManager
+  }
 }

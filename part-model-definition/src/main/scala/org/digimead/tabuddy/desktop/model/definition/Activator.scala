@@ -90,7 +90,7 @@ class Activator extends BundleActivator with XLoggable {
     // Start component actors hierarchy
     val f = Future {
       Activator.startStopLock.synchronized {
-        App.watch(Activator).once.makeBeforeStop {
+        App.watch(Activator).once.makeBeforeStop('model_definition_Activator__WaitingForContext) {
           // This hook is hold Activator.stop() while initialization is incomplete.
           App.watch(context).waitForStart(Timeout.normal)
           // Initialization complete.
@@ -101,7 +101,7 @@ class Activator extends BundleActivator with XLoggable {
     f onFailure { case e: Throwable ⇒ log.error("Error while starting ModelDefinition: " + e.getMessage(), e) }
     f onComplete { case _ ⇒ App.watch(context).on() }
     // Prevents stop Core bundle before this one.
-    App.watch(core.Activator).once.makeBeforeStop {
+    App.watch(core.Activator).once.makeBeforeStop('model_definition_Activator__LockCore) {
       if (!App.isDevelopmentMode)
         App.watch(Activator).waitForStop(Timeout.short)
     }

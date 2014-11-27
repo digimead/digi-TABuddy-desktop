@@ -146,7 +146,9 @@ trait ContributionSelectBase[T <: { val id: UUID }] {
         Future { selectionState.get().foreach(reloadItems) } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
       }
     })
-    windowContext.get(classOf[AppWindow]).getShell().addDisposeListener(ContributionDisposeListener())
+    val windowContent = windowContext.get(classOf[AppWindow]).getContent() getOrElse
+      { throw new IllegalStateException(s"Content of ${windowContext.get(classOf[AppWindow])} not found") }
+    windowContent.addDisposeListener(ContributionDisposeListener())
   }
   /** Reload view definitions combo box */
   protected def reloadItems(ss: ContributionSelectBase.SelectionState)

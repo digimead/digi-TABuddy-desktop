@@ -73,8 +73,8 @@ class ViewModification extends akka.actor.Actor with XLoggable {
 
   if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
     App.watch(Activator, Logic, UI, this).always().
-      makeAfterStart { onGUIStarted() }.
-      makeBeforeStop { onGUIStopped() }.sync()
+      makeAfterStart('view_modification_ViewModification__onGUIStarted) { onGUIStarted() }.
+      makeBeforeStop('view_modification_ViewModification__onGUIStopped) { onGUIStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {

@@ -46,15 +46,14 @@ package org.digimead.tabuddy.desktop.core.support.app
 import java.util.concurrent.{ Exchanger, ExecutionException, TimeUnit }
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.digi.lib.log.api.XRichLogger
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
 import scala.annotation.elidable
-import scala.annotation.elidable.FINE
 import scala.collection.mutable
-import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration.Duration
-import org.digimead.digi.lib.log.api.XLoggable
+import scala.concurrent.{ Await, Future }
 
 /**
  * Watch trait that adds ability to track references(objects) and call hooks on start/stop
@@ -87,10 +86,10 @@ object Watch {
     override implicit lazy val log: XRichLogger = containerLog
     @volatile protected var argActive = false
     protected var argTimes = 1
-    protected var hookAfterStart = Seq.empty[(Int, Function0[_])]
-    protected var hookAfterStop = Seq.empty[(Int, Function0[_])]
-    protected var hookBeforeStart = Seq.empty[(Int, Function0[_])]
-    protected var hookBeforeStop = Seq.empty[(Int, Function0[_])]
+    protected var hookAfterStart = Seq.empty[(Int, Hook)]
+    protected var hookAfterStop = Seq.empty[(Int, Hook)]
+    protected var hookBeforeStart = Seq.empty[(Int, Hook)]
+    protected var hookBeforeStop = Seq.empty[(Int, Hook)]
 
     /** Get active state. */
     def isActive = App.watchSet.synchronized { argActive }
@@ -102,12 +101,12 @@ object Watch {
       groups._1 ++ groups._2 ++ groups._3 ++ groups._4
     }
     /** Get all hooks per group for such type of watchers. */
-    def hookGroups: (Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])], Seq[(Int, Function0[_])]) = App.watchSet.synchronized {
+    def hookGroups: (Seq[(Int, Hook)], Seq[(Int, Hook)], Seq[(Int, Hook)], Seq[(Int, Hook)]) = App.watchSet.synchronized {
       val likeThisWatchers = App.watchSet.synchronized { ids.flatMap(w ⇒ App.watchRef.get(w).map(_.filter(_.ids == ids))).flatten } // get all watchers sequences for Id set
-      val seqAfterStart = hookAfterStart.genericBuilder[Seq[(Int, Function0[_])]]
-      val seqAfterStop = hookAfterStop.genericBuilder[Seq[(Int, Function0[_])]]
-      val seqBeforeStart = hookBeforeStart.genericBuilder[Seq[(Int, Function0[_])]]
-      val seqBeforeStop = hookBeforeStop.genericBuilder[Seq[(Int, Function0[_])]]
+      val seqAfterStart = hookAfterStart.genericBuilder[Seq[(Int, Hook)]]
+      val seqAfterStop = hookAfterStop.genericBuilder[Seq[(Int, Hook)]]
+      val seqBeforeStart = hookBeforeStart.genericBuilder[Seq[(Int, Hook)]]
+      val seqBeforeStop = hookBeforeStop.genericBuilder[Seq[(Int, Hook)]]
       likeThisWatchers.foreach { watcher ⇒
         seqAfterStart += watcher.hookAfterStart
         seqAfterStop += watcher.hookAfterStop
@@ -117,20 +116,20 @@ object Watch {
       (seqAfterStart.result().flatten, seqAfterStop.result().flatten, seqBeforeStart.result().flatten, seqBeforeStop.result().flatten)
     }
     /** Make AfterStart hook. */
-    def makeAfterStart[A](f: ⇒ A): Watcher =
-      App.watchSet.synchronized { hookAfterStart = addHook(() ⇒ f, hookAfterStart); this }
+    def makeAfterStart[A](hookId: Symbol)(f: ⇒ A): Watcher =
+      App.watchSet.synchronized { hookAfterStart = addHook(Hook(hookId)(() ⇒ f), hookAfterStart); this }
     /** Make AfterStop hook. */
-    def makeAfterStop[A](f: ⇒ A): Watcher =
-      App.watchSet.synchronized { hookAfterStop = addHook(() ⇒ f, hookAfterStop); this }
+    def makeAfterStop[A](hookId: Symbol)(f: ⇒ A): Watcher =
+      App.watchSet.synchronized { hookAfterStop = addHook(Hook(hookId)(() ⇒ f), hookAfterStop); this }
     /** Make BeforeStart hook. */
-    def makeBeforeStart[A](f: ⇒ A): Watcher =
-      App.watchSet.synchronized { hookBeforeStart = addHook(() ⇒ f, hookBeforeStart); this }
+    def makeBeforeStart[A](hookId: Symbol)(f: ⇒ A): Watcher =
+      App.watchSet.synchronized { hookBeforeStart = addHook(Hook(hookId)(() ⇒ f), hookBeforeStart); this }
     /** Make BeforeStop hook. */
-    def makeBeforeStop[A](f: ⇒ A): Watcher =
-      App.watchSet.synchronized { hookBeforeStop = addHook(() ⇒ f, hookBeforeStop); this }
+    def makeBeforeStop[A](hookId: Symbol)(f: ⇒ A): Watcher =
+      App.watchSet.synchronized { hookBeforeStop = addHook(Hook(hookId)(() ⇒ f), hookBeforeStop); this }
     /** Stop Id's. */
     @log
-    def off[A](f: ⇒ A = {}): A = {
+    def off[A](f: ⇒ A = {}): A = try {
       traceOff()
       val (before, after, watchers) = App.watchSet.synchronized {
         // Core bundle is reseted independently while development mode is enabled.
@@ -172,14 +171,17 @@ object Watch {
       // point B
       App.watchSet.synchronized { App.watchSet --= ids } // deactivate
       traceOffAfterStop()
-      process(after + (() ⇒ watchers.map(_.compress)))
+      process(after + Hook('core_support_app_Watch__Compress)(() ⇒ watchers.map(_.compress)))
       // Invoke lost watchers from A-B
       App.watchSet.synchronized { ids.flatMap(w ⇒ App.watchRef.get(w)) }.flatten.map(_.sync())
       result
+    } catch {
+      case e: Throwable ⇒
+        throw new Exception(s"Watcher ${System.identityHashCode(this)}: " + e.getMessage, e)
     }
     /** Start Id's. */
     @log
-    def on[A](f: ⇒ A = {}): A = {
+    def on[A](f: ⇒ A = {}): A = try {
       traceOn()
       val (before, after, watchers) = App.watchSet.synchronized {
         if (ids.forall(App.watchSet))
@@ -221,10 +223,13 @@ object Watch {
       // point B
       App.watchSet.synchronized { App.watchSet ++= ids } // activate
       traceOnAfterStart()
-      process(after + (() ⇒ watchers.map(_.compress)))
+      process(after + Hook('core_support_app_Watch__Compress)(() ⇒ watchers.map(_.compress)))
       // Invoke lost watchers from A-B
       App.watchSet.synchronized { ids.flatMap(w ⇒ App.watchRef.get(w)) }.flatten.map(_.sync())
       result
+    } catch {
+      case e: Throwable ⇒
+        throw new Exception(s"Watcher ${System.identityHashCode(this)}: " + e.getMessage, e)
     }
     /** Execute once. */
     def once(): Watcher = times(1)
@@ -261,6 +266,7 @@ object Watch {
     /** Wait for start. */
     def waitForStart(timeout: Duration = Duration.Inf): Watcher = {
       traceWaitingForStart()
+      val timeLimit = if (timeout.isFinite()) System.currentTimeMillis() + timeout.toMillis else 0
       val exchanger = App.watchSet.synchronized {
         if (ids.forall(App.watchSet)) {
           argActive = true
@@ -270,7 +276,14 @@ object Watch {
         val exchanger = new Exchanger[Null]
         val savedArgTimes = argTimes
         argTimes = 1
-        makeAfterStart { exchanger.exchange(null) }
+        makeAfterStart('core_support_app_Watch__WaitingForStart) {
+          if (timeLimit == 0)
+            // Waiting for forever
+            exchanger.exchange(null)
+          else
+            // Waiting for timeLimit + 10ms
+            exchanger.exchange(null, math.max(10 + timeLimit - System.currentTimeMillis(), 0), TimeUnit.MILLISECONDS)
+        }
         argTimes = savedArgTimes
         exchanger
       }
@@ -292,7 +305,7 @@ object Watch {
         val exchanger = new Exchanger[Null]
         val savedArgTimes = argTimes
         argTimes = 1
-        makeAfterStop { exchanger.exchange(null) }
+        makeAfterStop('core_support_app_Watch__WaitingForStop) { exchanger.exchange(null) }
         argTimes = savedArgTimes
         exchanger
       }
@@ -304,7 +317,7 @@ object Watch {
     }
 
     /** Add before/after hook. */
-    protected def addHook[A](f: () ⇒ A, container: Seq[(Int, Function0[_])]): Seq[(Int, Function0[_])] = {
+    protected def addHook[A](hook: Hook, container: Seq[(Int, Hook)]): Seq[(Int, Hook)] = {
       if (hookAfterStart.isEmpty && hookAfterStop.isEmpty && hookBeforeStart.isEmpty && hookBeforeStop.isEmpty)
         // register
         ids.foreach { refId ⇒
@@ -313,7 +326,7 @@ object Watch {
             case None ⇒ App.watchRef(refId) = Seq(this)
           }
         }
-      container :+ (argTimes, f)
+      container :+ (argTimes, hook)
     }
     /** Drop garbage. */
     protected def compress() = App.watchSet.synchronized {
@@ -331,39 +344,55 @@ object Watch {
     }
     /** Process hooks. */
     // callbacks.map(_()) - single threaded version
-    protected def process(callbacks: Iterable[Function0[_]]) =
+    protected def process(callbacks: Iterable[Hook]) =
       Await.ready(Future.sequence(callbacks.map { cb ⇒
-        val f = Future[Unit] { cb() }
+        val f = Future[Unit] {
+          traceHookCall(cb.id)
+          cb.f()
+        }
         f onFailure {
           case e ⇒
             val exception = new ExecutionException(e.getMessage(), e)
             exception.setStackTrace(t.getStackTrace())
             log.error(e.getMessage(), exception)
+            traceHookFinish(cb.id)
+        }
+        f onSuccess {
+          case r ⇒
+            traceHookFinish(cb.id)
         }
         f
       }), DI.maxProcessDuration)
-    @elidable(FINE) protected def traceWaitingForStart() =
-      log.trace(s"Watcher ${System.identityHashCode(this)} Waiting for ON (${t.getMessage()})")
-    @elidable(FINE) protected def traceWaitingForStop() =
-      log.trace(s"Watcher ${System.identityHashCode(this)} Waiting for OFF (${t.getMessage()})")
-    @elidable(FINE) protected def traceOff() =
+    @elidable(elidable.FINE) protected def traceHookCall(id: Symbol) =
+      log.trace(s"Watcher ${System.identityHashCode(this)} call hook ${id}")
+    @elidable(elidable.FINE) protected def traceHookFinish(id: Symbol) =
+      log.trace(s"Watcher ${System.identityHashCode(this)} finish hook ${id}")
+    @elidable(elidable.FINE) protected def traceOff() =
       log.trace(s"Watcher ${System.identityHashCode(this)} OFF (${t.getMessage()})")
-    @elidable(FINE) protected def traceOffAfterStop() =
+    @elidable(elidable.FINE) protected def traceOffAfterStop() =
       log.trace(s"Watcher ${System.identityHashCode(this)} launch hooks after (${t.getMessage()}) was OFF")
-    @elidable(FINE) protected def traceOffBeforeStop() =
+    @elidable(elidable.FINE) protected def traceOffBeforeStop() =
       log.trace(s"Watcher ${System.identityHashCode(this)} launch hooks before (${t.getMessage()}) will be OFF")
-    @elidable(FINE) protected def traceOffStop() =
+    @elidable(elidable.FINE) protected def traceOffStop() =
       log.trace(s"Watcher ${System.identityHashCode(this)} launch OFF routine (${t.getMessage()})")
-    @elidable(FINE) protected def traceOn() =
+    @elidable(elidable.FINE) protected def traceOn() =
       log.trace(s"Watcher ${System.identityHashCode(this)} ON (${t.getMessage()})")
-    @elidable(FINE) protected def traceOnAfterStart() =
+    @elidable(elidable.FINE) protected def traceOnAfterStart() =
       log.trace(s"Watcher ${System.identityHashCode(this)} launch hooks after (${t.getMessage()}) was ON")
-    @elidable(FINE) protected def traceOnBeforeStart() =
+    @elidable(elidable.FINE) protected def traceOnBeforeStart() =
       log.trace(s"Watcher ${System.identityHashCode(this)} launch hooks before (${t.getMessage()}) will be ON")
-    @elidable(FINE) protected def traceOnStart() =
+    @elidable(elidable.FINE) protected def traceOnStart() =
       log.trace(s"Watcher ${System.identityHashCode(this)} launch ON routine (${t.getMessage()})")
-    override lazy val toString = s"Watcher(${t.getMessage()})"
+    @elidable(elidable.FINE) protected def traceWaitingForStart() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} waiting for START (${t.getMessage()})")
+    @elidable(elidable.FINE) protected def traceWaitingForStop() =
+      log.trace(s"Watcher ${System.identityHashCode(this)} waiting for STOP (${t.getMessage()})")
+
+    override lazy val toString = s"Watcher ${System.identityHashCode(this)} ${t.getMessage()}"
   }
+
+  /** Watcher hook. */
+  case class Hook(val id: Symbol)(val f: Function0[_])
 
   /**
    * Dependency injection routines

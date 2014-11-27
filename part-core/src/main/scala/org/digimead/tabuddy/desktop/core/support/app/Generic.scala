@@ -69,6 +69,7 @@ trait Generic extends EventLoop.Consumer {
   protected lazy val preferenceStore = new ScopedPreferenceStore(InstanceScope.INSTANCE, bundle(getClass).getSymbolicName())
   /** Flag indicating whether UI available. */
   lazy val isUIAvailable = try {
+    log.debug(s"Waiting for UIFlag ${App.UIDetectionTimeout}")
     watch(UIFlag).waitForStart(App.UIDetectionTimeout)
     isActive(UIFlag)
   } catch {

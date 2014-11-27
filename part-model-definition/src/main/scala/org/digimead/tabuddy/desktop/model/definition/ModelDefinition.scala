@@ -73,8 +73,8 @@ class ModelDefinition extends akka.actor.Actor with XLoggable {
 
   if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
     App.watch(Activator, Logic, UI, this).always().
-      makeAfterStart { onGUIStarted() }.
-      makeBeforeStop { onGUIStopped() }.sync()
+      makeAfterStart('model_definition_ModelDefinition__onGUIStarted) { onGUIStarted() }.
+      makeBeforeStop('model_definition_ModelDefinition__onGUIStopped) { onGUIStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {

@@ -50,7 +50,8 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
-import org.digimead.tabuddy.desktop.core.ui.block.{ SmartToolbarManager, WindowMenu, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.SmartMenuManager
+import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic.ui.action.{ ActionGraphClose, ActionGraphCloseAll, ActionGraphExport, ActionGraphImport, ActionGraphOpen, ActionGraphProperties, ActionGraphSave, ActionGraphSaveAll }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
@@ -107,21 +108,16 @@ class WindowWatcher extends Actor with XLoggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(Left(window), ui.WindowWatcher.fileMenu)
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphNew], window.windowContext))
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphOpen], window.windowContext))
-    file.add(new Separator())
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphClose], window.windowContext))
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphCloseAll], window.windowContext))
-    file.add(new Separator())
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphSave], window.windowContext))
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphSaveAll], window.windowContext))
-    file.add(new Separator())
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphImport], window.windowContext))
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphExport], window.windowContext))
-    file.add(new Separator())
-    file.add(ContextInjectionFactory.make(classOf[action.ActionGraphProperties], window.windowContext))
-    file.add(new Separator())
+    val file = SmartMenuManager(window, ui.WindowWatcher.fileMenu)
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphNew], window.windowContext))
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphOpen], window.windowContext))
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphClose], window.windowContext))
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphCloseAll], window.windowContext))
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphSave], window.windowContext))
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphSaveAll], window.windowContext))
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphImport], window.windowContext))
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphExport], window.windowContext))
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionGraphProperties], window.windowContext))
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
@@ -145,11 +141,11 @@ object WindowWatcher {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model menu descriptor. */
-  lazy val modelMenu = App.execNGet { WindowMenu.Descriptor("&Model", None, getClass.getName() + "#model") }
+  lazy val modelMenu = App.execNGet { SmartMenuManager.Descriptor("&Model", None, getClass.getName() + "#model") }
   /** Model toolbar descriptor. */
   lazy val modelToolbar = App.execNGet { SmartToolbarManager.Descriptor(getClass.getName() + "#model") }
   /** View menu descriptor. */
-  lazy val viewMenu = App.execNGet { WindowMenu.Descriptor("&View", None, getClass.getName() + "#view") }
+  lazy val viewMenu = App.execNGet { SmartMenuManager.Descriptor("&View", None, getClass.getName() + "#view") }
 
   /** WindowWatcher actor reference configuration object. */
   def props = DI.props

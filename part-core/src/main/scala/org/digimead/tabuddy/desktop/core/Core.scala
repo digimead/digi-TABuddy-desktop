@@ -106,8 +106,8 @@ class Core extends akka.actor.Actor with XLoggable {
    */
   if (App.watch(Activator, EventLoop, this).hooks.isEmpty)
     App.watch(Activator, EventLoop, this).always().
-      makeAfterStart { onAppStarted() }.
-      makeBeforeStop { onAppStopped() }.sync()
+      makeAfterStart('core_Core__onAppStarted) { onAppStarted() }.
+      makeBeforeStop('core_Core__onAppStopped) { onAppStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {

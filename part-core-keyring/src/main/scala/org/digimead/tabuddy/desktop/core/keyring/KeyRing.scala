@@ -71,8 +71,8 @@ class KeyRing extends akka.actor.Actor with XLoggable {
 
   if (App.watch(Activator, Core, this).hooks.isEmpty)
     App.watch(Activator, Core, this).always().
-      makeAfterStart { onCoreStarted() }.
-      makeBeforeStop { onCoreStopped() }.sync()
+      makeAfterStart('core_keyring_KeyRing__onCoreStarted) { onCoreStarted() }.
+      makeBeforeStop('core_keyring_KeyRing__onCoreStopped) { onCoreStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {

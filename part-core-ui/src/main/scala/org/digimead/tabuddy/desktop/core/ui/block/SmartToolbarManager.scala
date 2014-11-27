@@ -89,7 +89,7 @@ class SmartToolbarManager {
         toolbar.add(item)
         true
     }
-  /** Returns toolbar with the specific id from the window CoolBarManager. */
+  /** Get toolbar with the specific id from the window CoolBarManager. */
   def apply(window: AppWindow, toolBarDescriptor: SmartToolbarManager.Descriptor): ToolBarContributionItem = {
     App.assertEventThread()
     val cbm = window.getCoolBarManager()

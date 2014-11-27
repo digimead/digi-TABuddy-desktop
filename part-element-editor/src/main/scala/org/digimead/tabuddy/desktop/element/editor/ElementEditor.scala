@@ -74,8 +74,8 @@ class ElementEditor extends akka.actor.Actor with XLoggable {
 
   if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
     App.watch(Activator, Logic, UI, this).always().
-      makeAfterStart { onGUIStarted() }.
-      makeBeforeStop { onGUIStopped() }.sync()
+      makeAfterStart('element_editor_ElementEditor__onGUIStarted) { onGUIStarted() }.
+      makeBeforeStop('element_editor_ElementEditor__onGUIStopped) { onGUIStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {

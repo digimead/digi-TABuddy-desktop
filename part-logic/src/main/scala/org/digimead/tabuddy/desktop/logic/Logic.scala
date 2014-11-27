@@ -80,12 +80,12 @@ class Logic extends akka.actor.Actor with XLoggable {
 
   if (App.watch(Activator, Core, this).hooks.isEmpty)
     App.watch(Activator, Core, this).always().
-      makeAfterStart { onCoreStarted() }.
-      makeBeforeStop { onCoreStopped() }.sync()
+      makeAfterStart('logic_Logic__onCoreStarted) { onCoreStarted() }.
+      makeBeforeStop('logic_Logic__onCoreStopped) { onCoreStopped() }.sync()
   if (App.watch(Activator, UI, this).hooks.isEmpty)
     App.watch(Activator, UI, this).always().
-      makeAfterStart { onGUIStarted() }.
-      makeBeforeStop { onGUIStopped() }.sync()
+      makeAfterStart('logic_Logic__onGUIStarted) { onGUIStarted() }.
+      makeBeforeStop('logic_Logic__onGUIStopped) { onGUIStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {
@@ -249,7 +249,7 @@ class Logic extends akka.actor.Actor with XLoggable {
   override def toString = "logic.Logic"
 }
 
-object Logic {
+object Logic extends XLoggable {
   implicit def logic2actorRef(c: Logic.type): ActorRef = c.actor
   implicit def logic2actorSRef(c: Logic.type): ScalaActorRef = c.actor
   /** Logic actor reference. */
@@ -270,11 +270,15 @@ object Logic {
   /** Logic actor reference configuration object. */
   lazy val props = DI.props
   /** Infrastructure wide container. */
-  lazy val container = {
+  lazy val container = try {
     val root = ResourcesPlugin.getWorkspace().getRoot()
     // Prevents NPE at org.eclipse.core.resources bundle stop() method
     ResourcesPlugin.getWorkspace().getRuleFactory()
     root.getProject(Logic.containerName)
+  } catch {
+    case e: Throwable ⇒
+      log.error(s"Unable to get project '${Logic.containerName}'", e)
+      throw e
   }
   /** Location of user scripts. */
   lazy val scriptContainer = {

@@ -63,8 +63,6 @@ import scala.ref.WeakReference
 class Activator extends BundleActivator with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
-  /** Autoexec script. */
-  lazy val autoexec = new File(Logic.scriptContainer, "autoexec.scala")
 
   /** Start bundle. */
   def start(context: BundleContext) = Activator.startStopLock.synchronized {
@@ -93,29 +91,35 @@ class Activator extends BundleActivator with XLoggable {
       case None ⇒
         log.warn("Skip DI initialization in test environment.")
     }
-    // Execute autoexec
-    if (autoexec.exists())
-      Future {
-        val content = Loader(autoexec)
-        val unique = Script.unique(content)
-        log.info(s"Evaluate autoexec script with unique id ${unique}.")
-        Script[Unit](content, unique, false).run()
-      } onFailure { case e: Throwable ⇒ log.error("Error while executing autoexec.scala: " + e.getMessage(), e) }
     // Start component actors hierarchy
     val f = Future {
       Activator.startStopLock.synchronized {
-        App.watch(Activator).once.makeBeforeStop {
+        App.watch(Activator).once.makeBeforeStop('logic_Activator__WaitingForContext) {
           // This hook is hold Activator.stop() while initialization is incomplete.
           App.watch(context).waitForStart(Timeout.normal)
           // Initialization complete.
           App.watch(context).off()
-        } on { Logic.actor }
+        } on {
+          // Execute autoexec
+          val autoexec = new File(Logic.scriptContainer, "autoexec.scala")
+          if (autoexec.exists()) try {
+            val content = Loader(autoexec)
+            val unique = Script.unique(content)
+            log.info(s"Evaluate autoexec script with unique id ${unique}.")
+            Script[Unit](content, unique, false).run()
+          } catch {
+            case e: Throwable ⇒
+              log.error("Error while executing autoexec.scala: " + e.getMessage(), e)
+          }
+          // Start logic
+          Logic.actor
+        }
       }
     }
     f onFailure { case e: Throwable ⇒ log.error("Error while starting Logic: " + e.getMessage(), e) }
     f onComplete { case _ ⇒ App.watch(context).on() }
     // Prevents stop Core bundle before this one.
-    App.watch(core.Activator).once.makeBeforeStop {
+    App.watch(core.Activator).once.makeBeforeStop('logic_Activator__LockCore) {
       if (!App.isDevelopmentMode)
         App.watch(Activator).waitForStop(Timeout.short)
     }

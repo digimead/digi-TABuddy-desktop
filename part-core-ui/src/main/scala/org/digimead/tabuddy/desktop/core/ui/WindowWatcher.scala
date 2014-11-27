@@ -49,7 +49,7 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.Timeout
-import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, SmartToolbarManager, WindowMenu }
+import org.digimead.tabuddy.desktop.core.ui.block.{ Configuration, SmartMenuManager, SmartToolbarManager }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
 import org.eclipse.core.runtime.jobs.Job
@@ -96,13 +96,12 @@ class WindowWatcher extends Actor with XLoggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val file = WindowMenu(Left(window), WindowWatcher.fileMenu)
-    file.add(action.ActionNewWindow)
-    val showView = WindowMenu(Right(file), WindowWatcher.showViewMenu)
-    showView.add(new WindowWatcher.ListView)
-    file.add(new Separator())
-    file.add(action.ActionExit)
-    file.add(ContextInjectionFactory.make(classOf[action.ActionPreferences], window.windowContext))
+    val file = SmartMenuManager(window, WindowWatcher.fileMenu)
+    SmartMenuManager.add(file, action.ActionNewWindow)
+    SmartMenuManager.add(file, action.ActionExit)
+    SmartMenuManager.add(file, ContextInjectionFactory.make(classOf[action.ActionPreferences], window.windowContext))
+    val showView = SmartMenuManager(file, WindowWatcher.showViewMenu)
+    SmartMenuManager.add(showView, new WindowWatcher.ListView)
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */
@@ -121,9 +120,9 @@ object WindowWatcher extends XLoggable {
   /** Common toolbar descriptor. */
   val commonToolbar = SmartToolbarManager.Descriptor(getClass.getName() + "#common")
   /** File menu descriptor. */
-  val fileMenu = WindowMenu.Descriptor("&File", None, getClass.getName() + "#file")
+  val fileMenu = SmartMenuManager.Descriptor("&File", None, getClass.getName() + "#file")
   /** Show View menu descriptor. */
-  val showViewMenu = WindowMenu.Descriptor("Show &View", None, getClass.getName() + "#showView")
+  val showViewMenu = SmartMenuManager.Descriptor("Show &View", None, getClass.getName() + "#showView")
 
   /** Core actor reference configuration object. */
   def props = DI.props

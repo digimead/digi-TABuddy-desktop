@@ -74,8 +74,8 @@ class ModelEditor extends akka.actor.Actor with XLoggable {
 
   if (App.watch(Activator, Logic, UI, this).hooks.isEmpty)
     App.watch(Activator, Logic, UI, this).always().
-      makeAfterStart { onGUIStarted() }.
-      makeBeforeStop { onGUIStopped() }.sync()
+      makeAfterStart('model_editor_ModelEditor__onGUIStarted) { onGUIStarted() }.
+      makeBeforeStop('model_editor_ModelEditor__onGUIStopped) { onGUIStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = {

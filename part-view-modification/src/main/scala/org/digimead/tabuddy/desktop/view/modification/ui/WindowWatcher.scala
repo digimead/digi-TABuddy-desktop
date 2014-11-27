@@ -49,7 +49,7 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ SmartToolbarManager, WindowMenu, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.view.modification.ui.action.ViewToolBarManager
@@ -108,10 +108,10 @@ class WindowWatcher extends Actor with XLoggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val model = WindowMenu(Left(window), logic.ui.WindowWatcher.viewMenu)
-    model.add(ContextInjectionFactory.make(classOf[action.ActionModifyFilterList], window.windowContext))
-    model.add(ContextInjectionFactory.make(classOf[action.ActionModifySortingList], window.windowContext))
-    model.add(ContextInjectionFactory.make(classOf[action.ActionModifyViewList], window.windowContext))
+    val model = SmartMenuManager(window, logic.ui.WindowWatcher.viewMenu)
+    SmartMenuManager.add(model, ContextInjectionFactory.make(classOf[action.ActionModifyFilterList], window.windowContext))
+    SmartMenuManager.add(model, ContextInjectionFactory.make(classOf[action.ActionModifySortingList], window.windowContext))
+    SmartMenuManager.add(model, ContextInjectionFactory.make(classOf[action.ActionModifyViewList], window.windowContext))
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */

@@ -111,7 +111,7 @@ class Activator extends BundleActivator with definition.NLS.Initializer with Eve
     }
     Future {
       Activator.startStopLock.synchronized {
-        App.watch(Activator).once.makeBeforeStop {
+        App.watch(Activator).once.makeBeforeStop('core_Activator__WaitingForContext) {
           // This hook is hold Activator.stop() while initialization is incomplete.
           App.watch(context).waitForStart(Timeout.normal) // at Core.main()
           // Initialization complete.

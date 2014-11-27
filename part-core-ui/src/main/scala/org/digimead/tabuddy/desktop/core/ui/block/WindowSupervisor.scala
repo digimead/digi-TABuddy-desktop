@@ -100,8 +100,8 @@ class WindowSupervisor extends Actor with XLoggable {
 
   if (App.watch(UI, this).hooks.isEmpty)
     App.watch(UI, this).always().
-      makeAfterStart { onUIStarted() }.
-      makeBeforeStop { onUIStopped() }.sync()
+      makeAfterStart('core_ui_WindowSupervisor__onUIStarted) { onUIStarted() }.
+      makeBeforeStop('core_ui_WindowSupervisor__onUIStopped) { onUIStopped() }.sync()
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() {
