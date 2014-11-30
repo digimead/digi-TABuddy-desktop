@@ -57,8 +57,8 @@ class PathParser {
 
   /** Create parser for the graph location. */
   def apply(defaultFn: () ⇒ File, hintLabelFn: () ⇒ String,
-    hintDescriptionFn: () ⇒ Option[String] = () ⇒ None)(filterFn: File ⇒ Boolean): Command.parser.Parser[Any] =
-    sqB("the local path") ~ (commandRegex("""[^<>:"'|?*]+""".r, new HintContainer(defaultFn, hintLabelFn, hintDescriptionFn, filterFn)) ^? {
+    hintDescriptionFn: () ⇒ Option[String] = () ⇒ None, hintSingleQuote: String = "the local path")(filterFn: File ⇒ Boolean): Command.parser.Parser[Any] =
+    sqB(hintSingleQuote) ~ (commandRegex("""[^<>:"'|?*]+""".r, new HintContainer(defaultFn, hintLabelFn, hintDescriptionFn, filterFn)) ^? {
       case CompletionRequest(file) ⇒
         new File(file)
       case file ⇒

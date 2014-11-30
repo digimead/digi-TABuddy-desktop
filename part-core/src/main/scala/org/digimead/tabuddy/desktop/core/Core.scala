@@ -43,7 +43,8 @@
 
 package org.digimead.tabuddy.desktop.core
 
-import akka.actor.{ ActorRef, Props, ScalaActorRef, UnhandledMessage, actorRef2Scala }
+import akka.actor.{ ActorRef, OneForOneStrategy, Props, ScalaActorRef, UnhandledMessage }
+import akka.actor.SupervisorStrategy.Resume
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import org.digimead.digi.lib.Disposable
@@ -52,21 +53,22 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.api.XMain
 import org.digimead.tabuddy.desktop.core.console.Console
+import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.api.XOperationApprover
-import org.digimead.tabuddy.desktop.core.definition.{ NLS, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.core.commands.CommandManager
 import org.eclipse.core.commands.contexts.ContextManager
 import org.eclipse.core.runtime.{ IExtensionRegistry, RegistryFactory }
-import org.eclipse.e4.core.commands.internal.{ CommandServiceImpl, HandlerServiceCreationFunction }
 import org.eclipse.e4.core.commands.{ ECommandService, EHandlerService }
+import org.eclipse.e4.core.commands.internal.{ CommandServiceImpl, HandlerServiceCreationFunction }
 import org.eclipse.e4.core.contexts.{ ContextInjectionFactory, IEclipseContext }
 import org.eclipse.e4.core.services.events.IEventBroker
 import org.eclipse.e4.ui.bindings.EBindingService
 import org.eclipse.e4.ui.bindings.internal.{ BindingServiceCreationFunction, BindingTableManager }
 import org.eclipse.e4.ui.internal.services.ContextContextFunction
 import org.eclipse.e4.ui.model.application.MApplication
+import org.eclipse.e4.ui.model.application.ui.basic.MWindow
 import org.eclipse.e4.ui.services.EContextService
 import org.eclipse.e4.ui.workbench.IPresentationEngine
 import org.eclipse.jface.bindings.BindingManager
@@ -82,7 +84,7 @@ import scala.language.implicitConversions
 /**
  * Root actor of the Core component.
  */
-class Core extends akka.actor.Actor with XLoggable {
+class Core extends RootActor with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Inconsistent elements. */
@@ -168,6 +170,11 @@ class Core extends akka.actor.Actor with XLoggable {
       log.error(s"Received unexpected message '${sender}' -> '${self}': '${message}'", message.source)
     case UnhandledMessage(message, sender, self) ⇒
       log.fatal(s"Received unexpected message '${sender}' -> '${self}': '${message}'")
+  }
+  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 2) {
+    case e: Exception ⇒
+      log.error(Option(e.getMessage).getOrElse("- No message -"), e)
+      Resume
   }
 
   /** Starts main service when OSGi environment will be stable. */
