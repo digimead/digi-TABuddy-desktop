@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComp
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplateList
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.model.definition.bundleId
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
@@ -63,6 +64,7 @@ import org.eclipse.swt.widgets.Event
  * Modify element template list.
  */
 class ActionModifyElementTemplateList @Inject() (windowContext: Context) extends JFaceAction(Messages.elementTemplates_text) with XLoggable {
+  setId(bundleId + "#ModifyElementTemplateList")
   @volatile protected var vContext = Option.empty[Context]
 
   if (windowContext.getLocal(classOf[AppWindow]) == null)

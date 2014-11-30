@@ -57,6 +57,9 @@ import org.digimead.tabuddy.desktop.logic.operation.api.{ XOperationModifyElemen
  *   modify type schema list dialog
  */
 package object definition {
+  /** Bundle id. */
+  lazy val bundleId = getClass.getPackage.getName
+  /** Default model definition DI. */
   lazy val default = new NewBindingModule(module ⇒ {
     // implementation of logic.operation.OperationModifyElementTemplate
     module.bind[XOperationModifyElementTemplate[_]] toSingle {
@@ -83,5 +86,8 @@ package object definition {
       new operation.OperationModifyTypeSchemaList
     }
   })
+  /** Default bundle DI. */
+  lazy val defaultBundle = default
+
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.model.definition.Default$DI$")
 }

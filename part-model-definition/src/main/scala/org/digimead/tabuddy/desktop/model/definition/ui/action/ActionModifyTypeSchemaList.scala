@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComp
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchemaList
 import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.model.definition.bundleId
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
@@ -63,6 +64,7 @@ import org.eclipse.swt.widgets.Event
  * Modify type schema list.
  */
 class ActionModifyTypeSchemaList @Inject() (windowContext: Context) extends JFaceAction(Messages.types_text) with XLoggable {
+  setId(bundleId + "#ModifyTypeSchemaList")
   @volatile protected var vContext = Option.empty[Context]
 
   if (windowContext.getLocal(classOf[AppWindow]) == null)
