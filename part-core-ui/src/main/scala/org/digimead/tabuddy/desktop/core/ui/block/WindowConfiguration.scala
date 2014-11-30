@@ -50,6 +50,7 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.eclipse.swt.graphics.Rectangle
 import org.osgi.framework.wiring.BundleWiring
 import scala.collection.immutable
@@ -74,6 +75,16 @@ case class WindowConfiguration(
 object WindowConfiguration extends XLoggable {
   implicit def windowConfiguration2implementation(c: WindowConfiguration.type): Implementation = c.inner
 
+  /** Persistent storage. */
+  def configurationContainer = {
+    val container = new File(UI.container, DI.configurationName)
+    if (!container.exists)
+      if (!container.mkdirs())
+        throw new IOException("Unable to create " + container)
+    if (!container.canWrite())
+      throw new IOException(s"Configuration container ${container} is read only.")
+    container
+  }
   /** Window configuration file extension. */
   def configurationExtenstion = DI.configurationExtenstion
   /** Default window configuration. */
@@ -84,16 +95,6 @@ object WindowConfiguration extends XLoggable {
   override def toString = "WindowConfiguration[Singleton]"
 
   class Implementation extends XLoggable {
-    /** Persistent storage. */
-    lazy val configurationContainer = {
-      val container = new File(DI.location.getParentFile(), DI.configurationName)
-      if (!container.exists)
-        if (!container.mkdirs())
-          throw new IOException("Unable to create " + container)
-      if (!container.canWrite())
-        throw new IOException(s"Configuration container ${container} is read only.")
-      container
-    }
     /** Regular expression for saved configuration file. */
     lazy val configurationFileNameRegexp = ("""([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\.""" +
       WindowConfiguration.configurationExtenstion + ")").r
@@ -177,7 +178,5 @@ object WindowConfiguration extends XLoggable {
       WindowConfiguration(false, new Rectangle(-1, -1, 400, 300), Seq())
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[Implementation] getOrElse new Implementation()
-    /** Application's configuration file. */
-    val location = inject[File]("Config")
   }
 }

@@ -47,5 +47,8 @@ package org.digimead.tabuddy.desktop.core
  * This is the core UI bundle of the TA Buddy desktop application.
  */
 package object ui {
+  /** Bundle id. */
+  lazy val bundleId = getClass.getPackage.getName
+  /** Default bundle DI. */
   lazy val defaultBundle = operation.default ~ view.default
 }

@@ -55,7 +55,9 @@ import org.digimead.digi.lib.log.api.XLoggable
  */
 class SmartMenuManager extends XLoggable {
   /** Add action to toolbar only if not exists. */
-  def add(menu: IMenuManager, action: IAction): Boolean =
+  def add(menu: IMenuManager, action: IAction): Boolean = {
+    if (action.getId == null)
+      throw new IllegalArgumentException(s"Unable to add action ${action.getText} without id.")
     Option(menu.find(action.getId())) match {
       case Some(action) ⇒
         log.debug(s"""Action "${action.getId}" is already exists.""")
@@ -65,8 +67,11 @@ class SmartMenuManager extends XLoggable {
         menu.add(action)
         true
     }
+  }
   /** Add contribution to menu only if not exists. */
-  def add(menu: IMenuManager, item: IContributionItem): Boolean =
+  def add(menu: IMenuManager, item: IContributionItem): Boolean = {
+    if (item.getId == null)
+      throw new IllegalArgumentException(s"Unable to add item ${item.getClass} without id.")
     Option(menu.find(item.getId())) match {
       case Some(item) ⇒
         log.debug(s"""Contribution item "${item.getId}" is already exists.""")
@@ -76,6 +81,7 @@ class SmartMenuManager extends XLoggable {
         menu.add(item)
         true
     }
+  }
   /** Get menu with the specific id from the window. */
   def apply(parent: AppWindow, menuDescriptor: SmartMenuManager.Descriptor): IMenuManager =
     apply(parent.getMenuBarManager(), menuDescriptor)

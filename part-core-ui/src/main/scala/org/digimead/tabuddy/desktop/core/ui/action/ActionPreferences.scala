@@ -47,7 +47,7 @@ import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
-import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.{ UI, bundleId }
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.eclipse.ui.dialogs.PreferencesUtil
 
@@ -55,6 +55,8 @@ import org.eclipse.ui.dialogs.PreferencesUtil
  * Open preferences.
  */
 class ActionPreferences @Inject() (windowContext: Context) extends Action("Preferences") with XLoggable {
+  setId(bundleId + "#Preferences")
+
   @log
   override def run = {
     UI.getActiveShell match {

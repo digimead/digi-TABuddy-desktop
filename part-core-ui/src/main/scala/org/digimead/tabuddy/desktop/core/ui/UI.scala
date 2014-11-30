@@ -43,7 +43,8 @@
 
 package org.digimead.tabuddy.desktop.core.ui
 
-import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef, actorRef2Scala }
+import akka.actor.{ ActorRef, Inbox, Props, ScalaActorRef }
+import java.io.File
 import java.util.concurrent.{ CountDownLatch, TimeUnit }
 import javax.swing.UIManager
 import org.digimead.digi.lib.api.XDependencyInjection
@@ -52,8 +53,7 @@ import org.digimead.digi.lib.jfx4swt.JFXApplication
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Core
 import org.digimead.tabuddy.desktop.core.console.Console
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.support.{ App, Timeout }
 import org.digimead.tabuddy.desktop.core.ui.block.{ View, Window, WindowSupervisor }
 import org.eclipse.core.runtime.Platform
 import org.eclipse.jface.commands.ToggleState
@@ -229,6 +229,13 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
   }
   /** UI actor path. */
   lazy val actorPath = Core.path / id
+  /** UI container. */
+  lazy val container = {
+    val container = new File(DI.location.getParentFile(), "org.digimead.tabuddy.desktop.core.ui")
+    if (!container.exists())
+      container.mkdirs()
+    container
+  }
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** UI actor reference configuration object. */
@@ -290,6 +297,8 @@ object UI extends support.Generic with Window.WindowMapConsumer with View.ViewMa
     lazy val defaultWidth = injectOptional[Int]("Core.UI.defaultWidth") getOrElse 64
     /** UI focus timeout for start/stop event. */
     lazy val focusTimeout = injectOptional[FiniteDuration]("Core.UI.focusTimeout") getOrElse Duration(1000, TimeUnit.MILLISECONDS)
+    /** Application's configuration file. */
+    val location = inject[File]("Config")
     /** UI actor reference configuration object. */
     lazy val props = injectOptional[Props]("Core.UI") getOrElse Props[UI]
     /** Stop event loop when last window is closed. */

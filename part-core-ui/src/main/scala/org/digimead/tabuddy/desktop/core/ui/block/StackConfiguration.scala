@@ -50,6 +50,7 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.CustomObjectInputStream
+import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.block.api.XConfiguration.CPlaceHolder
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SCompositeHSash, SCompositeTab, SCompositeVSash, VComposite, VEmpty }
 import org.digimead.tabuddy.desktop.core.ui.view.defaultv
@@ -181,10 +182,18 @@ class StackConfiguration extends XLoggable {
 object StackConfiguration {
   implicit def configuration2implementation(c: StackConfiguration.type): StackConfiguration = c.inner
 
+  /** Persistent storage. */
+  def configurationContainer = {
+    val container = new File(UI.container, DI.configurationName)
+    if (!container.exists)
+      if (!container.mkdirs())
+        throw new IOException("Unable to create " + container)
+    if (!container.canWrite())
+      throw new IOException(s"Configuration container ${container} is read only.")
+    container
+  }
   /** Stack configuration file extension. */
   def configurationExtenstion = DI.configurationExtenstion
-  /** Stack configuration directory name. */
-  def configurationContainer = new File(DI.location.getParentFile(), DI.configurationName)
   /** StackConfiguration implementation. */
   def inner = DI.implementation
 
@@ -205,7 +214,5 @@ object StackConfiguration {
     }
     /** WindowConfiguration implementation. */
     lazy val implementation = injectOptional[StackConfiguration] getOrElse new StackConfiguration()
-    /** Application's configuration file. */
-    val location = inject[File]("Config")
   }
 }

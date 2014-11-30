@@ -48,6 +48,7 @@ import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.operation.OperationExit
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.bundleId
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 
@@ -55,6 +56,8 @@ import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
  * Exit action that starts Exit operation.
  */
 object ActionExit extends JFaceAction(Messages.exit_text) with XLoggable {
+  setId(bundleId + "#Exit")
+
   @log
   override def run = OperationExit().foreach { operation ⇒
     operation.getExecuteJob() match {

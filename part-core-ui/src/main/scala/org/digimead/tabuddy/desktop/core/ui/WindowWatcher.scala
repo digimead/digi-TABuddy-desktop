@@ -118,18 +118,18 @@ object WindowWatcher extends XLoggable {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Common toolbar descriptor. */
-  val commonToolbar = SmartToolbarManager.Descriptor(getClass.getName() + "#common")
+  val commonToolbar = SmartToolbarManager.Descriptor(bundleId + "#Common")
   /** File menu descriptor. */
-  val fileMenu = SmartMenuManager.Descriptor("&File", None, getClass.getName() + "#file")
+  val fileMenu = SmartMenuManager.Descriptor("&File", None, bundleId + "#File")
   /** Show View menu descriptor. */
-  val showViewMenu = SmartMenuManager.Descriptor("Show &View", None, getClass.getName() + "#showView")
+  val showViewMenu = SmartMenuManager.Descriptor("Show &View", None, bundleId + "#ShowView")
 
   /** Core actor reference configuration object. */
   def props = DI.props
 
   override def toString = "WindowWatcher[Singleton]"
 
-  class ListView extends CompoundContributionItem {
+  class ListView extends CompoundContributionItem(bundleId + "#ListView") {
     override protected def getContributionItems(): Array[IContributionItem] = {
       Resources.factories.toSeq.sortBy(_._1.name.name).flatMap {
         case (factory, true) ⇒

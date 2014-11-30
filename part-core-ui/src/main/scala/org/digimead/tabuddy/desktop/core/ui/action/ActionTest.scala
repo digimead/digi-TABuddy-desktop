@@ -47,10 +47,13 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.operation.OperationTest
 import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.ui.bundleId
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.action.{ Action ⇒ JFaceAction }
 
 object ActionTest extends JFaceAction("test") with XLoggable {
+  setId(bundleId + "#Test")
+
   @log
   override def run = OperationTest().foreach { operation ⇒
     operation.getExecuteJob() match {
