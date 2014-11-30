@@ -47,9 +47,10 @@ import javax.inject.Inject
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
-import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.{ Messages, bundleId }
 import org.eclipse.ui.internal.{ IWorkbenchGraphicConstants, WorkbenchImages }
 
 class ActionGraphExport @Inject() (windowContext: Context) extends Action(Messages.exportFile_text) with XLoggable {
+  setId(bundleId + "#GraphExport")
   this.setImageDescriptor(WorkbenchImages.getImageDescriptor(IWorkbenchGraphicConstants.IMG_ETOOL_EXPORT_WIZ))
 }

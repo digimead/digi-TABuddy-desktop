@@ -53,6 +53,7 @@ import org.digimead.tabuddy.desktop.core.ui
 import org.digimead.tabuddy.desktop.core.ui.block.SmartMenuManager
 import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.digimead.tabuddy.desktop.logic.bundleId
 import org.digimead.tabuddy.desktop.logic.ui.action.{ ActionGraphClose, ActionGraphCloseAll, ActionGraphExport, ActionGraphImport, ActionGraphOpen, ActionGraphProperties, ActionGraphSave, ActionGraphSaveAll }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.jface.action.Separator
@@ -141,11 +142,11 @@ object WindowWatcher {
   /** Singleton identificator. */
   val id = getClass.getSimpleName().dropRight(1)
   /** Model menu descriptor. */
-  lazy val modelMenu = App.execNGet { SmartMenuManager.Descriptor("&Model", None, getClass.getName() + "#model") }
+  lazy val modelMenu = App.execNGet { SmartMenuManager.Descriptor("&Model", None, bundleId + "#Model") }
   /** Model toolbar descriptor. */
-  lazy val modelToolbar = App.execNGet { SmartToolbarManager.Descriptor(getClass.getName() + "#model") }
+  lazy val modelToolbar = App.execNGet { SmartToolbarManager.Descriptor(bundleId + "#Model") }
   /** View menu descriptor. */
-  lazy val viewMenu = App.execNGet { SmartMenuManager.Descriptor("&View", None, getClass.getName() + "#view") }
+  lazy val viewMenu = App.execNGet { SmartMenuManager.Descriptor("&View", None, bundleId + "#View") }
 
   /** WindowWatcher actor reference configuration object. */
   def props = DI.props

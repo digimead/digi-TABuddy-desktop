@@ -52,7 +52,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
-import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.{ Messages, bundleId }
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphSave
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.model.graph.{ Event ⇒ GraphEvent }
@@ -66,6 +66,8 @@ import scala.concurrent.Future
 
 /** Save the opened model. */
 class ActionGraphSave @Inject() (windowContext: Context) extends Action(Messages.saveFile_text) with XLoggable {
+  setId(bundleId + "#GraphSave")
+
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   @volatile protected var marker = Option.empty[GraphMarker]

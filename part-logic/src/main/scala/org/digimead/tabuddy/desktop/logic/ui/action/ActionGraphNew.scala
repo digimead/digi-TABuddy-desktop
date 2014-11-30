@@ -54,7 +54,7 @@ import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
-import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.{ Messages, bundleId }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.ui.view
 import org.eclipse.core.runtime.jobs.Job
@@ -64,6 +64,7 @@ import scala.concurrent.Future
  * Create new graph.
  */
 class ActionGraphNew @Inject() (windowContext: Context) extends Action(Messages.newFile_text) with XLoggable {
+  setId(bundleId + "#GraphNew")
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
 

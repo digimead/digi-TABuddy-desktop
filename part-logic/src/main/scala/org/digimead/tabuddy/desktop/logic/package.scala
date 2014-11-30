@@ -49,9 +49,13 @@ import org.digimead.tabuddy.desktop.logic.Config
 import org.digimead.tabuddy.desktop.logic.api.XConfig
 
 package object logic {
+  /** Bundle id. */
+  lazy val bundleId = getClass.getPackage.getName
+  /** Default logic DI. */
   lazy val default = new NewBindingModule(module ⇒ {
     module.bind[XConfig] toModuleSingle { implicit module ⇒ new Config }
   })
+  /** Default bundle DI. */
   lazy val defaultBundle = default ~
     command.default ~ command.digest.default ~ command.encryption.default ~ command.signature.default ~
     comparator.default ~ filter.default ~ operation.default ~

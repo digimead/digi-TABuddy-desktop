@@ -47,7 +47,8 @@ import javax.inject.Inject
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
-import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.{ Messages, bundleId }
 
 class ActionGraphProperties @Inject() (windowContext: Context) extends Action(Messages.properties_text) with XLoggable {
+  setId(bundleId + "#GraphProperties")
 }

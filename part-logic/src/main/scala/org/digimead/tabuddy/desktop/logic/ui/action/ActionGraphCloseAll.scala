@@ -50,7 +50,7 @@ import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
-import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages, bundleId }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
@@ -60,6 +60,8 @@ import org.eclipse.swt.widgets.Event
  * Close all opened graphs.
  */
 class ActionGraphCloseAll @Inject() (windowContext: Context) extends Action(Messages.closeAllFiles_text) with XLoggable {
+  setId(bundleId + "#GraphCloseAll")
+
   /** Runs this action, passing the triggering SWT event. */
   @log
   override def runWithEvent(event: Event) {

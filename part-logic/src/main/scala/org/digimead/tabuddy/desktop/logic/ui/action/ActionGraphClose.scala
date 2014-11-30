@@ -51,7 +51,7 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
-import org.digimead.tabuddy.desktop.logic.{ Logic, Messages }
+import org.digimead.tabuddy.desktop.logic.{ Logic, Messages, bundleId }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
@@ -61,6 +61,7 @@ import org.eclipse.swt.widgets.Event
  * Close the opened graph.
  */
 class ActionGraphClose @Inject() (windowContext: Context) extends Action(Messages.closeFile_text) with XLoggable {
+  setId(bundleId + "#GraphClose")
   @volatile protected var marker = Option.empty[GraphMarker]
 
   /** Runs this action, passing the triggering SWT event. */

@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.ui.block.Configuration
 import org.digimead.tabuddy.desktop.core.ui.definition.Action
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate
-import org.digimead.tabuddy.desktop.logic.Messages
+import org.digimead.tabuddy.desktop.logic.{ Messages, bundleId }
 import org.digimead.tabuddy.desktop.logic.operation.graph.OperationGraphOpen
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.ui.dialog.GraphSelectionDialog
@@ -65,6 +65,8 @@ import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.swt.widgets.Shell
 
 class ActionGraphOpen @Inject() (windowContext: Context) extends Action(Messages.openFile_text) with XLoggable {
+  setId(bundleId + "#GraphOpen")
+
   @log
   override def run = App.execAsync {
     UI.getActiveShell match {
