@@ -49,11 +49,13 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.SmartMenuManager
+import org.digimead.tabuddy.desktop.core.ui.SmartToolbarManager
+import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.view.modification.bundleId
-import org.digimead.tabuddy.desktop.view.modification.ui.action.ViewToolBarManager
+import org.digimead.tabuddy.desktop.view.modification.ui.action.{ ActionModifyFilterList, ActionModifySortingList, ActionModifyViewList, ContributionSelectFilter, ContributionSelectSorting, ContributionSelectView, ViewToolBarManager }
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 
 /**

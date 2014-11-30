@@ -50,8 +50,8 @@ import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
-import org.digimead.tabuddy.desktop.core.ui.block.SmartMenuManager
-import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.{ SmartMenuManager, SmartToolbarManager }
+import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic.bundleId
 import org.digimead.tabuddy.desktop.logic.ui.action.{ ActionGraphClose, ActionGraphCloseAll, ActionGraphExport, ActionGraphImport, ActionGraphOpen, ActionGraphProperties, ActionGraphSave, ActionGraphSaveAll }

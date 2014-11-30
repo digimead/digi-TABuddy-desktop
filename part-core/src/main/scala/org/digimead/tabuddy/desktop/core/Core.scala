@@ -84,7 +84,7 @@ import scala.language.implicitConversions
 /**
  * Root actor of the Core component.
  */
-class Core extends RootActor with XLoggable {
+class Core extends akka.actor.Actor with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Inconsistent elements. */
@@ -172,7 +172,7 @@ class Core extends RootActor with XLoggable {
       log.fatal(s"Received unexpected message '${sender}' -> '${self}': '${message}'")
   }
   override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 2) {
-    case e: Exception ⇒
+    case e: Throwable ⇒
       log.error(Option(e.getMessage).getOrElse("- No message -"), e)
       Resume
   }

@@ -43,14 +43,15 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui
 
-import akka.actor.{ Actor, Props, actorRef2Scala }
+import akka.actor.{ Actor, Props }
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui
-import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.{ SmartMenuManager, SmartToolbarManager }
+import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 
 /**

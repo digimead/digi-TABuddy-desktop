@@ -41,14 +41,15 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui
 
 import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.eclipse.jface.action.{ IAction, IContributionItem, IMenuManager, MenuManager }
 import org.eclipse.jface.resource.ImageDescriptor
+import scala.collection.immutable.ListMap
 import scala.language.implicitConversions
-import org.digimead.digi.lib.log.api.XLoggable
 
 /**
  * Smart menu manager.
@@ -95,6 +96,16 @@ class SmartMenuManager extends XLoggable {
         manager.add(menu)
         menu
     }
+  }
+  /** Collect content of MenuManager. */
+  def collectForMenuManager(mm: MenuManager): ListMap[IContributionItem, Option[_]] = {
+    val items = mm.getItems.map {
+      case mm: MenuManager ⇒
+        mm -> Some(collectForMenuManager(mm))
+      case item ⇒
+        item -> None
+    }
+    ListMap(items: _*)
   }
 
   override def toString = "core.ui.block.SmartMenuManager"

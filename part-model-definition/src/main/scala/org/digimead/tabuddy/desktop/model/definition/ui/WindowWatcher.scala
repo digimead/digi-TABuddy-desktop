@@ -49,7 +49,8 @@ import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, WindowSupervisor }
+import org.digimead.tabuddy.desktop.core.ui.SmartMenuManager
+import org.digimead.tabuddy.desktop.core.ui.block.WindowSupervisor
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
 import org.digimead.tabuddy.desktop.model.definition.ui.action.{ ActionModifyElementTemplateList, ActionModifyEnumerationList, ActionModifyTypeSchemaList }

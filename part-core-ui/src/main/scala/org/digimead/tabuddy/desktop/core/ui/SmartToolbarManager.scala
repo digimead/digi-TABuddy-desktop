@@ -41,15 +41,14 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui.block
+package org.digimead.tabuddy.desktop.core.ui
 
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.core.ui.definition.{ ToolBarContributionItem, ToolBarManager }
-import org.eclipse.jface.action.ICoolBarManager
-import org.eclipse.jface.action.{ IAction, IContributionItem, IToolBarManager }
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
+import org.eclipse.jface.action.{ IAction, IContributionItem, ICoolBarManager, IToolBarManager }
 import scala.language.implicitConversions
 
 /**
