@@ -57,6 +57,9 @@ import org.digimead.tabuddy.desktop.logic.operation.view.api.{ XOperationModifyF
  *   modify view list dialog
  */
 package object modification {
+  /** Bundle id. */
+  lazy val bundleId = getClass.getPackage.getName
+  /** Default view modification DI. */
   lazy val default = new NewBindingModule(module ⇒ {
     // implementation of logic.operation.view.OperationModifyFilter
     module.bind[XOperationModifyFilter[_]] toSingle {
@@ -83,5 +86,8 @@ package object modification {
       new operation.OperationModifyViewList()
     }
   })
+  /** Default bundle DI. */
+  lazy val defaultBundle = default
+
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.view.modification.Default$DI$")
 }

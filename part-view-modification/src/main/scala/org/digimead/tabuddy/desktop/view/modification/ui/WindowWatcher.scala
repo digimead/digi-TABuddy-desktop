@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.view.modification.ui
 
-import akka.actor.{ Actor, ActorRef, Props }
+import akka.actor.{ Actor, Props }
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
@@ -52,9 +52,9 @@ import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.block.{ SmartMenuManager, SmartToolbarManager, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.AppWindow
 import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.view.modification.bundleId
 import org.digimead.tabuddy.desktop.view.modification.ui.action.ViewToolBarManager
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
-import scala.ref.WeakReference
 
 /**
  * Register action in new windows.
@@ -140,7 +140,7 @@ object WindowWatcher extends XLoggable {
   def props = DI.props
   /** Get view toolbar descriptor. */
   def viewToolbar(window: AppWindow) = App.execNGet {
-    SmartToolbarManager.Descriptor(getClass.getName() + "#view", () ⇒
+    SmartToolbarManager.Descriptor(bundleId + "#View", () ⇒
       ContextInjectionFactory.make(classOf[ViewToolBarManager], window.windowContext))
   }
 

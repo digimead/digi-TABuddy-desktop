@@ -52,7 +52,7 @@ import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComp
 import org.digimead.tabuddy.desktop.logic.operation.view.OperationModifyFilterList
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.view.Filter
-import org.digimead.tabuddy.desktop.view.modification.Messages
+import org.digimead.tabuddy.desktop.view.modification.{ Messages, bundleId }
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
@@ -63,6 +63,7 @@ import org.eclipse.swt.widgets.Event
  * Modify filter list.
  */
 class ActionModifyFilterList @Inject() (windowContext: Context) extends JFaceAction(Messages.filters_text) with XLoggable {
+  setId(bundleId + "#ModifyFilterList")
   /** Flag indicating whether the action is enabled. */
   @volatile protected var vContext = Option.empty[Context]
 
