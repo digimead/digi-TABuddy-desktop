@@ -63,6 +63,18 @@ class Commands extends XLoggable {
   @log
   def configure() = lock.synchronized {
     /*
+     * menu
+     */
+    Command.register(menu.CommandMenuDump.descriptor)
+    Command.addToContext(Core.context, menu.CommandMenuDump.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(menu.CommandMenuShow.descriptor)
+    Command.addToContext(Core.context, menu.CommandMenuShow.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    Command.register(menu.CommandMenuHide.descriptor)
+    Command.addToContext(Core.context, menu.CommandMenuHide.parser).
+      foreach(uuid ⇒ contextParsers = contextParsers :+ uuid)
+    /*
      * view
      */
     Command.register(view.CommandView.descriptor)
@@ -97,6 +109,12 @@ class Commands extends XLoggable {
     Command.unregister(view.CommandViewClose.descriptor)
     Command.unregister(view.CommandViewInfo.descriptor)
     Command.unregister(view.CommandView.descriptor)
+    /*
+     * menu
+     */
+    Command.unregister(menu.CommandMenuHide.descriptor)
+    Command.unregister(menu.CommandMenuShow.descriptor)
+    Command.unregister(menu.CommandMenuDump.descriptor)
   }
 }
 

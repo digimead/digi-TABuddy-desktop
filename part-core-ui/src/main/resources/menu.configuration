@@ -1,0 +1,29 @@
+- - org.digimead.tabuddy.desktop.core.ui#File
+  - true
+  - - [org.digimead.tabuddy.desktop.core.ui#NewWindow, true]
+    - - org.digimead.tabuddy.desktop.core.ui#ShowView
+      - true
+      - - [org.digimead.tabuddy.desktop.core.ui#ListView, true]
+    - []
+    - [org.digimead.tabuddy.desktop.logic#GraphNew, true]
+    - [org.digimead.tabuddy.desktop.logic#GraphOpen, true]
+    - [org.digimead.tabuddy.desktop.logic#GraphImport, true]
+    - [org.digimead.tabuddy.desktop.logic#GraphExport, true]
+    - [org.digimead.tabuddy.desktop.logic#GraphProperties, true]
+    - [org.digimead.tabuddy.desktop.logic#GraphSave, true]
+    - [org.digimead.tabuddy.desktop.logic#GraphSaveAll, true]
+    - [org.digimead.tabuddy.desktop.logic#GraphClose, true]
+    - [org.digimead.tabuddy.desktop.logic#GraphCloseAll, true]
+    - []
+    - [org.digimead.tabuddy.desktop.core.ui#Preferences, true]
+    - []
+    - [org.digimead.tabuddy.desktop.core.ui#Exit, true]
+- - org.digimead.tabuddy.desktop.logic#View
+  - true
+  - - [org.digimead.tabuddy.desktop.view.modification#ModifyFilterList, true]
+    - [org.digimead.tabuddy.desktop.view.modification#ModifySortingList, true]
+- - org.digimead.tabuddy.desktop.logic#Model
+  - true
+  - - [org.digimead.tabuddy.desktop.model.definition#ModifyElementTemplateList, true]
+    - [org.digimead.tabuddy.desktop.model.definition#ModifyEnumerationList, true]
+    - [org.digimead.tabuddy.desktop.model.definition#ModifyTypeSchemaList, true]
