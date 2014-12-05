@@ -61,7 +61,7 @@ import org.eclipse.core.internal.databinding.observable.DelayedObservableValue
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
 import org.eclipse.e4.core.di.annotations.Optional
-import org.eclipse.jface.viewers.{ ColumnLabelProvider, ISelectionChangedListener, IStructuredContentProvider, IStructuredSelection, SelectionChangedEvent, Viewer, ViewerFilter }
+import org.eclipse.jface.viewers.{ ColumnLabelProvider, DoubleClickEvent, IDoubleClickListener, ISelectionChangedListener, IStructuredContentProvider, IStructuredSelection, SelectionChangedEvent, Viewer, ViewerFilter }
 import org.eclipse.swt.events.{ SelectionAdapter, SelectionEvent }
 import org.eclipse.swt.widgets.Composite
 
@@ -119,6 +119,17 @@ class Content(val context: Context, parent: Composite, style: Int) extends Conte
           }
         case _ ⇒ getBtnOpenNew().setEnabled(false)
       }
+    })
+    tableViewerAvailable.addDoubleClickListener(new IDoubleClickListener() {
+      override def doubleClick(event: DoubleClickEvent) =
+        event.getSelection match {
+          case selection: IStructuredSelection if !selection.isEmpty() ⇒
+            selection.getFirstElement() match {
+              case factory: Factory ⇒ doCreateView(factory)
+              case unknown ⇒ log.fatal(s"Unknown selection ${unknown}.")
+            }
+          case selection ⇒
+        }
     })
     /*
      * Configure buttons

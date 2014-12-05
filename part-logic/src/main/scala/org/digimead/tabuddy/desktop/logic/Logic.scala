@@ -301,7 +301,12 @@ object Logic extends XLoggable {
 
   def containerName = DI.infrastructureWideProjectName
   /** Default location of user data. */
-  def graphContainer = DI.graphContainer
+  def graphContainer = {
+    val container = DI.graphContainer
+    if (!container.exists)
+      container.mkdirs()
+    container
+  }
 
   override def toString = "logic.Logic[Singleton]"
 
