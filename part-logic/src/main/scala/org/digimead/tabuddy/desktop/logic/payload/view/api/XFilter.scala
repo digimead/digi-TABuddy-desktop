@@ -82,14 +82,14 @@ object XFilter {
    * The rule of an element property filter.
    */
   case class Rule(
-    /** Property id */
+    /** Property id. */
     val property: Symbol,
-    /** Property type */
+    /** Property type. */
     val propertyType: Symbol,
-    /** Filter inverter flag */
+    /** Filter inverter flag. */
     val not: Boolean,
-    /** Filter id */
+    /** org.digimead.tabuddy.desktop.logic.filter.api.XFilter id. */
     val filter: UUID,
-    /** Filter options */
+    /** Filter options. */
     val argument: String)
 }
