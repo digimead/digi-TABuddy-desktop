@@ -18,7 +18,7 @@ INSTALLATION
 [![Java](https://digimead.github.io/digi-TABuddy-launcher/Java-logo.png)](http://storage.googleapis.com/ezh/launcher.jar)
 [![Windows 32 bit](https://digimead.github.io/digi-TABuddy-launcher/Win32-logo.png)](http://storage.googleapis.com/ezh/TABuddyDesktop.msi)
 [![Windows 64 bit](https://digimead.github.io/digi-TABuddy-launcher/Win64-logo.png)](http://storage.googleapis.com/ezh/TABuddyDesktop64.msi)
-[![Mac OS X](https://digimead.github.io/digi-TABuddy-launcher/Apple-logo.png)](http://storage.googleapis.com/ezh/TA%20Buddy%20(Desktop)%201.0.0.dmg)
+[![Mac OS X](https://digimead.github.io/digi-TABuddy-launcher/Apple-logo-dev.png)](http://storage.googleapis.com/ezh/TA%20Buddy%20(Desktop)%201.0.0.dmg)
 
 Please note that it is development progress demo:
 * Linux version run flawlessly (native development environment)
@@ -46,6 +46,6 @@ If you want to keep your source closed, you'll need a commercial license.
 Copyright
 ---------
 
-Copyright © 2012-2014 Alexey B. Aksenov/Ezh. All rights reserved.
+Copyright © 2012-2015 Alexey B. Aksenov/Ezh. All rights reserved.
 
 [![GNU Affero General Public License](http://www.gnu.org/graphics/agplv3-155x51.png)](http://www.gnu.org/licenses/agpl-3.0.html)  [![Non-free software license](http://openclipart.org/image/60px/svg_to_png/26720/baroquon_Add_Money.png)](http://storage.googleapis.com/digimead/CommercialLicense.txt)

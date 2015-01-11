@@ -40,7 +40,7 @@
 // For more information, please contact Digimead Team at this
 // address: ezh@ezh.msk.ru
 
-// DATE Wed, 03 Dec 2014 06:06:51 +0300
+// DATE Thu, 01 Jan 2015 22:23:14 +0300
 // BASE PROJECT for componet of TA Buddy: Desktop v0.1.0.2
 
 name := "digi-tabuddy-desktop-base"
@@ -117,7 +117,7 @@ libraryDependencies += "org.digimead" %% "digi-tabuddy-desktop-id" % "0.1.0.1-SN
 
 libraryDependencies += "org.digimead" %% "digi-tabuddy-desktop-logic" % "0.1.0.1-SNAPSHOT" % extConfiguration
 
-libraryDependencies += "org.digimead" %% "digi-tabuddy-model" % "0.3.0.4"
+libraryDependencies += "org.digimead" %% "digi-tabuddy-model" % "0.3.0.6"
 
 
 // OSGi libraries
