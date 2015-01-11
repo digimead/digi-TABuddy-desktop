@@ -43,14 +43,18 @@
 
 package org.digimead.tabuddy.desktop.core.support.app
 
-import akka.actor.{ ActorIdentity, ActorPath, ActorRef, ActorSelection, Identify, Props, actorRef2Scala }
+import akka.actor.ActorDSL.{ Act, actor }
+import akka.actor.{ ActorIdentity, ActorPath, ActorRef, ActorSelection, Identify, Props }
 import akka.pattern.ask
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.{ Exchanger, TimeUnit }
 import org.digimead.digi.lib.log.api.{ XLoggable, XRichLogger }
 import org.digimead.tabuddy.desktop.core.EventLoop
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.Timeout
+import org.digimead.tabuddy.desktop.core.support.{ App, Timeout }
 import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import scala.reflect.ClassTag
+import scala.reflect.runtime.universe.runtimeMirror
 
 /**
  * Akka support trait
@@ -62,12 +66,30 @@ trait Akka {
   protected lazy val supportActor = system.actorOf(Props(classOf[Akka.Actor]), "TABuddyAppSupport." + System.currentTimeMillis() + System.nanoTime())
 
   /** Send argument to the actor and waiting for answer. */
-  def askActor[A, B](path: Seq[String], argument: A): Option[B] = {
+  def askActor[A, B](path: Seq[String], argument: A, timeout: Duration = Timeout.short): Option[B] = {
     getActorRef(path: _*).map { ref ⇒
       implicit val ec = App.system.dispatcher
-      implicit val timeout = akka.util.Timeout(Timeout.shortest)
-      Await.result(ref ? argument, Timeout.short).asInstanceOf[B]
+      implicit val t = akka.util.Timeout(timeout.toMillis, TimeUnit.MILLISECONDS)
+      Await.result(ref ? argument, timeout).asInstanceOf[B]
     }
+  }
+  /** Bind to the system event bus and waiting for message. */
+  def askSystem[A, B](f: A ⇒ Option[B], timeout: Duration = Timeout.short)(implicit ev: ClassTag[A]): Option[B] = {
+    implicit val system = App.system
+    val mirror = runtimeMirror(getClass.getClassLoader)
+    val exchanger = new Exchanger[B]()
+    val limit = System.currentTimeMillis() + timeout.toMillis
+
+    val listener = actor(new Act {
+      become {
+        case message ⇒ f(message.asInstanceOf[A]).foreach(result ⇒
+          exchanger.exchange(result, math.min(limit - System.currentTimeMillis(), 0), TimeUnit.MILLISECONDS))
+      }
+      override def preStart() = App.system.eventStream.subscribe(self, ev.runtimeClass)
+      override def postStop() = App.system.eventStream.unsubscribe(self, ev.runtimeClass)
+    })
+    try Option(exchanger.exchange(null.asInstanceOf[B], timeout.toMillis, TimeUnit.MILLISECONDS))
+    finally App.system.stop(listener)
   }
   /** Get actor context via ActorSelection. */
   def getActorContext[T](selection: ActorSelection, timeout: Long = Timeout.longer.toMillis, period: Long = Timeout.shortest.toMillis): Option[ActorRef] = {

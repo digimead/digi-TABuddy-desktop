@@ -49,6 +49,7 @@ import org.digimead.tabuddy.desktop.logic.Config
 import org.digimead.tabuddy.desktop.logic.api.XConfig
 
 package object logic {
+  type AnySRef = AnyRef with java.io.Serializable
   /** Bundle id. */
   lazy val bundleId = getClass.getPackage.getName
   /** Default logic DI. */

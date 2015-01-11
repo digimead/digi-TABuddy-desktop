@@ -278,6 +278,8 @@ object Logic extends XLoggable {
   lazy val props = DI.props
   /** Infrastructure wide container. */
   lazy val container = try {
+    // Workspace location was defined via instanceArea/locationConfigurationArea/LocationManager.PROP_INSTANCE_AREA in digi-launcher
+    // URL must not be encoded. Remember that we use ugly Eclipse with lack of QA.
     val root = ResourcesPlugin.getWorkspace().getRoot()
     // Prevents NPE at org.eclipse.core.resources bundle stop() method
     ResourcesPlugin.getWorkspace().getRuleFactory()
@@ -299,6 +301,7 @@ object Logic extends XLoggable {
   if (App.isUIAvailable)
     WindowWatcher
 
+  /** Project container name. */
   def containerName = DI.infrastructureWideProjectName
   /** Default location of user data. */
   def graphContainer = {
@@ -347,7 +350,7 @@ object Logic extends XLoggable {
      * Infrastructure wide container name that required for minimization of resources complexity.
      * It is IProject singleton label.
      */
-    lazy val infrastructureWideProjectName = injectOptional[String]("Logic.Container") getOrElse "TABuddyLogic"
+    lazy val infrastructureWideProjectName = injectOptional[String]("Logic.Container") getOrElse "org.digimead.tabuddy.desktop.logic"
     /** Default location of user data. */
     lazy val graphContainer = injectOptional[File]("Graph.Location") getOrElse new File(App.data, "graph")
   }

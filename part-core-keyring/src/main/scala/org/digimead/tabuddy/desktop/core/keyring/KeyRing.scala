@@ -261,7 +261,7 @@ object KeyRing {
      * Infrastructure wide container name that required for minimization of resources complexity.
      * It is IProject singleton label.
      */
-    lazy val infrastructureWideProjectName = injectOptional[String]("KeyRing.Container") getOrElse "TABuddyKeyRing"
+    lazy val infrastructureWideProjectName = injectOptional[String]("KeyRing.Container") getOrElse "org.digimead.tabuddy.desktop.core.keyring"
     /** KeyRing implementation. */
     lazy val implementation = injectOptional[Implementation] getOrElse new Implementation
     /** KeyRing actor reference configuration object. */
