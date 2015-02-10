@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -53,7 +53,8 @@ package object comparator {
   lazy val default = new NewBindingModule(module ⇒ {
     module.bind[UUID] identifiedBy "Logic.Comparator.Default" toSingle { ByPropertyText.id }
     module.bind[immutable.HashMap[UUID, _ <: XComparator[_ <: XComparator.Argument]]] toSingle {
-      immutable.HashMap(ByPropertyText.id -> ByPropertyText)
+      immutable.HashMap(ByPropertyText.id -> ByPropertyText,
+        ByPropertyNumeric.id -> ByPropertyNumeric)
     }
   })
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators$DI$")
