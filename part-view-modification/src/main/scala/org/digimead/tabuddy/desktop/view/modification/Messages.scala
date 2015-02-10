@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -77,6 +77,7 @@ object Messages extends NLS with XLoggable {
   val descending_text = ""
   val down_text = ""
   val edit_text = ""
+  val expandNew_text = ""
   val filters_text = ""
   val lookupFilter_text = ""
   val nameIsAlreadyInUse_text = ""
@@ -109,6 +110,7 @@ object Messages extends NLS with XLoggable {
   val newViewName_text = ""
   val newSortingName_text = ""
   val newFilterName_text = ""
+  val systemElements_text = ""
 
   T.ranslate("org.digimead.tabuddy.desktop.view.modification.messages")
 }

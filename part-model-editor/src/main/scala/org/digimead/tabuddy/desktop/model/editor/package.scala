@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,7 +47,13 @@ import com.escalatesoft.subcut.inject.NewBindingModule
 import org.digimead.digi.lib.DependencyInjection
 
 package object editor {
+  type AnySRef = AnyRef with java.io.Serializable
+  /** Bundle id. */
+  lazy val bundleId = getClass.getPackage.getName
+  /** Default model editor DI. */
   lazy val default = new NewBindingModule(module ⇒ {})
+  /** Default bundle DI. */
+  lazy val defaultBundle = default
 
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.model.editor.Default$DI$")
 }

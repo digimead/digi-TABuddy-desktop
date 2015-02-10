@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -110,10 +110,13 @@ class WindowWatcher extends Actor with XLoggable {
   /** Adjust window menu. */
   @log
   protected def adjustMenu(window: AppWindow) {
-    val model = SmartMenuManager(window, logic.ui.WindowWatcher.viewMenu)
-    SmartMenuManager.add(model, ContextInjectionFactory.make(classOf[action.ActionModifyFilterList], window.windowContext))
-    SmartMenuManager.add(model, ContextInjectionFactory.make(classOf[action.ActionModifySortingList], window.windowContext))
-    SmartMenuManager.add(model, ContextInjectionFactory.make(classOf[action.ActionModifyViewList], window.windowContext))
+    val viewMenu = SmartMenuManager(window, logic.ui.WindowWatcher.viewMenu)
+    SmartMenuManager.add(viewMenu, ContextInjectionFactory.make(classOf[action.ActionModifyFilterList], window.windowContext))
+    SmartMenuManager.add(viewMenu, ContextInjectionFactory.make(classOf[action.ActionModifySortingList], window.windowContext))
+    SmartMenuManager.add(viewMenu, ContextInjectionFactory.make(classOf[action.ActionModifyViewList], window.windowContext))
+    // Splitter
+    SmartMenuManager.add(viewMenu, action.ActionToggleSystem)
+    SmartMenuManager.add(viewMenu, action.ActionToggleExpand)
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */

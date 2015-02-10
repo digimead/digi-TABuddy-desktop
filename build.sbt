@@ -1,6 +1,6 @@
 //
 // This file is part of the TA Buddy project.
-// Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+// Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Global License version 3
@@ -40,7 +40,7 @@
 // For more information, please contact Digimead Team at this
 // address: ezh@ezh.msk.ru
 
-// DATE Thu, 01 Jan 2015 22:23:14 +0300
+// DATE Sat, 24 Jan 2015 16:36:55 +0300
 // BASE PROJECT for componet of TA Buddy: Desktop v0.1.0.2
 
 name := "digi-tabuddy-desktop-base"
@@ -99,13 +99,13 @@ libraryDependencies += "org.bouncycastle" % "bcpkix-jdk15on" % "1.50"
 
 libraryDependencies += "org.bouncycastle" % "bcprov-jdk15on" % "1.50"
 
-libraryDependencies += "org.digimead" %% "digi-configgy" % "2.2.2.1"
+libraryDependencies += "org.digimead" %% "digi-configgy" % "2.2.2.2"
 
-libraryDependencies += "org.digimead" %% "digi-lib-jfx4swt" % "0.1.0.6"
+libraryDependencies += "org.digimead" %% "digi-lib-jfx4swt" % "0.1.0.7"
 
-libraryDependencies += "org.digimead" %% "digi-lib-util" % "0.3.2.0"
+libraryDependencies += "org.digimead" %% "digi-lib-util" % "0.3.2.1"
 
-libraryDependencies += "org.digimead" %% "digi-lib" % "0.3.0.1"
+libraryDependencies += "org.digimead" %% "digi-lib" % "0.3.0.2"
 
 libraryDependencies += "org.digimead" %% "digi-tabuddy-desktop-core-keyring" % "0.1.0.1-SNAPSHOT" % extConfiguration
 
@@ -117,7 +117,7 @@ libraryDependencies += "org.digimead" %% "digi-tabuddy-desktop-id" % "0.1.0.1-SN
 
 libraryDependencies += "org.digimead" %% "digi-tabuddy-desktop-logic" % "0.1.0.1-SNAPSHOT" % extConfiguration
 
-libraryDependencies += "org.digimead" %% "digi-tabuddy-model" % "0.3.0.6"
+libraryDependencies += "org.digimead" %% "digi-tabuddy-model" % "0.3.0.7"
 
 
 // OSGi libraries

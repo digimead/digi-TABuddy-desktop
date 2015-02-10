@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,7 +44,11 @@
 package org.digimead.tabuddy.desktop.model.editor
 
 import org.digimead.digi.lib.api.XDependencyInjection
-import org.eclipse.swt.graphics.Point
+import org.digimead.tabuddy.desktop.core.support.App
+import org.eclipse.swt.SWT
+import org.eclipse.swt.graphics.{ GC, Point }
+import org.eclipse.swt.layout.RowLayout
+import org.eclipse.swt.widgets.{ Label, Shell }
 
 object Default {
   /** Aggregation listener delay. msec. */
@@ -55,6 +59,8 @@ object Default {
   def DESCENDING = DI.DESCENDING
   /** Auto resize column padding */
   def columnPadding = DI.columnPadding
+  /** Default minimum width of the column. */
+  def columnMinimumWidth = DI.columnMinimumWidth
   /** Default sort direction */
   def sortingDirection = DI.sortingDirection
   /**
@@ -81,6 +87,19 @@ object Default {
     lazy val DESCENDING = injectOptional[Boolean]("Default.Sorting.DESCENDING") getOrElse true
     /** Auto resize column padding */
     lazy val columnPadding = injectOptional[Int]("Default.columnPadding") getOrElse 10
+    /** Default minimum width of the column. */
+    lazy val columnMinimumWidth = injectOptional[Int]("Default.columnMinimumWidth") getOrElse {
+      App.execNGet {
+        val shell = new Shell(App.display)
+        shell.setLayout(new RowLayout())
+        val label = new Label(shell, SWT.NONE)
+        val gc = new GC(label)
+        val size = gc.textExtent("******")
+        gc.dispose()
+        shell.dispose()
+        size.x
+      }
+    }
     /** Default sort direction */
     lazy val sortingDirection = injectOptional[Boolean]("Default.Sorting.Direction") getOrElse Default.ASCENDING
     /**
