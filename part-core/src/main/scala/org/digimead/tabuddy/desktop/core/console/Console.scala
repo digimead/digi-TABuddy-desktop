@@ -257,7 +257,7 @@ object Console extends XConsole with XLoggable {
   /** Console actor reference configuration object. */
   def props = DI.props
   /**
-   * Returns a root that matches all the {@link String} elements of the specified {@link List},
+   * Returns a root that matches all the String elements of the specified List,
    * or empty string if there are no commonalities. For example, if the list contains
    * <i>foobar</i>, <i>foobaz</i>, <i>foobuz</i>, the method will return <i>foob</i>.
    */

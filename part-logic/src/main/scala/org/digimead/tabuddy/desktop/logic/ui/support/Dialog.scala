@@ -188,7 +188,6 @@ object Dialog {
      * @param reader
      *            a Reader specifying the stream where the settings are read
      *            from.
-     * @throws IOException
      */
     def load(reader: Reader) = throw new UnsupportedOperationException
     /**
@@ -197,7 +196,6 @@ object Dialog {
      *
      * @param fileName
      *            the name of the file the settings are read from.
-     * @throws IOException
      */
     def load(fileName: String) = throw new UnsupportedOperationException
     /**
@@ -273,7 +271,6 @@ object Dialog {
      *
      * @param writer
      *            a Writer specifying the stream the settings are written in.
-     * @throws IOException
      */
     def save(writer: Writer) = throw new UnsupportedOperationException
     /**
@@ -281,7 +278,6 @@ object Dialog {
      *
      * @param fileName
      *            the name of the file the settings are written in.
-     * @throws IOException
      */
     def save(fileName: String) = throw new UnsupportedOperationException
 

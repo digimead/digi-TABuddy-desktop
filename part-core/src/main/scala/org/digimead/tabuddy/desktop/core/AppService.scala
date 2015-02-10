@@ -135,9 +135,9 @@ class AppService extends XMain with Disposable.Default with XLoggable {
   /**
    * Starts this application with the given context and returns a result.  The content of
    * the context is unchecked and should conform to the expectations of the application being
-   * invoked.  This method can return the value {@link IApplicationContext#EXIT_ASYNC_RESULT} if
+   * invoked.  This method can return the value IApplicationContext#EXIT_ASYNC_RESULT if
    * the application will deliver its results asynchronously with the
-   * {@link IApplicationContext#setResult(Object, IApplication)} method; otherwise this method must not exit
+   * IApplicationContext#setResult(Object, IApplication) method; otherwise this method must not exit
    * until the application is finished and is ready to exit.
    *
    * @return IApplication.EXIT_OK, IApplication.EXIT_RESTART or -1
@@ -148,12 +148,12 @@ class AppService extends XMain with Disposable.Default with XLoggable {
   def start(): AnyRef = digiStart(): java.lang.Integer
   /**
    * Forces this running application to exit.  This method should wait until the
-   * running application is ready to exit.  The {@link #start(IApplicationContext)}
+   * running application is ready to exit.  The #start(IApplicationContext)
    * should already have exited or should exit very soon after this method exits<p>
    *
    * This method is only called to force an application to exit.
    * This method will not be called if an application exits normally from
-   * the {@link #start(IApplicationContext)} method.
+   * the #start(IApplicationContext) method.
    * <p>
    * Note: This method is called by the platform; it is not intended
    * to be called directly by clients.

@@ -206,7 +206,7 @@ object PropertyType extends XLoggable {
     def getToolTipBackgroundColor(element: AnyRef): Color = null
     /** The time in milliseconds until the tool tip is displayed. */
     def getToolTipDisplayDelayTime(element: AnyRef): Int = Default.toolTipDisplayDelayTime
-    /** Get the {@link Font} used to display the tool tip */
+    /** Get the Font used to display the tool tip */
     def getToolTipFont(element: AnyRef): Font = null
     /** The foreground color used to display the the text in the tool tip */
     def getToolTipForegroundColor(element: AnyRef): Color = null
@@ -225,15 +225,15 @@ object PropertyType extends XLoggable {
     /** The time in milliseconds the tool tip is shown for. */
     def getToolTipTimeDisplayed(element: AnyRef): Int = Default.toolTipTimeDisplayed
     /**
-     * The {@link SWT} style used to create the {@link CLabel} (see there for
-     * supported styles). By default {@link SWT#SHADOW_NONE} is used.
+     * The SWT style used to create the CLabel (see there for
+     * supported styles). By default SWT#SHADOW_NONE is used.
      */
     def getToolTipStyle(element: AnyRef): Int = SWT.SHADOW_NONE
     /** Update the label for cell. */
     def update(cell: ViewerCell, value: Option[T]): Unit
     /**
      * Return whether or not to use the native tool tip. If you switch to native
-     * tool tips only the value from {@link #getToolTipText(Object)} is used all
+     * tool tips only the value from #getToolTipText(Object) is used all
      * other features from custom tool tips are not supported.
      */
     def useNativeToolTip(element: AnyRef): Boolean = false
