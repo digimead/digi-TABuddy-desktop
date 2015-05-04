@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -50,7 +50,7 @@ import org.digimead.digi.lib.DependencyInjection
 import org.digimead.tabuddy.desktop.logic.payload.DSL._
 import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.api.{ XElementTemplate, XPropertyType, XTypeSchema }
-import org.digimead.tabuddy.desktop.logic.payload.template.{ Predefined, StringType, TextType }
+import org.digimead.tabuddy.desktop.logic.payload.template.{ IntegerType, Predefined, StringType, TextType }
 import org.digimead.tabuddy.model.graph.Graph
 import org.digimead.tabuddy.model.serialization.{ BuiltinSerialization, Serialization, YAMLSerialization }
 import org.digimead.tabuddy.model.{ Model, Record }
@@ -67,16 +67,17 @@ package object payload {
     /** The map of the application property types (UI factories). */
     module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.String" toSingle { StringType }
     module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Text" toSingle { TextType }
+    module.bind[XPropertyType[_ <: AnyRef with java.io.Serializable]] identifiedBy "PropertyType.Integer" toSingle { IntegerType }
     /** The predefined template for Record element. */
-    module.bind[XElementTemplate.Builder[_,_]] identifiedBy "Template.Record" toSingle {
+    module.bind[XElementTemplate.Builder[_, _]] identifiedBy "Template.Record" toSingle {
       new ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.record(container) }
     }
     /** The predefined template for Note element. */
-    module.bind[XElementTemplate.Builder[_,_]] identifiedBy "Template.Note" toSingle {
+    module.bind[XElementTemplate.Builder[_, _]] identifiedBy "Template.Note" toSingle {
       new ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.note(container) }
     }
     /** The predefined template for Task element. */
-    module.bind[XElementTemplate.Builder[_,_]] identifiedBy "Template.Task" toSingle {
+    module.bind[XElementTemplate.Builder[_, _]] identifiedBy "Template.Task" toSingle {
       new ElementTemplate.Builder { def apply(container: Record.Like) = Predefined.task(container) }
     }
     /** The default predefined type schema. */

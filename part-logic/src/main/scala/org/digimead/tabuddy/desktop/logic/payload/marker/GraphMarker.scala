@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -333,10 +333,10 @@ class GraphMarker(
     if (eTABuddy.name.trim.isEmpty())
       eTABuddy.name = "TABuddy Desktop internal treespace"
     eTABuddy.eParent.map(_.rootBox.e) match {
-      case Some(eTABaddyContainerAbs: Record.Like) ⇒
-        val eTABaddyContainer = eTABaddyContainerAbs.eRelative
-        if (eTABaddyContainer.name.trim.isEmpty())
-          eTABaddyContainer.name = "TABuddy internal treespace"
+      case Some(eTABuddyContainerAbs: Record.Like) ⇒
+        val eTABuddyContainer = eTABuddyContainerAbs.eRelative
+        if (eTABuddyContainer.name.trim.isEmpty())
+          eTABuddyContainer.name = "TABuddy internal treespace"
       case _ ⇒
     }
     // settings
