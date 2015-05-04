@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -101,7 +101,11 @@ class TransformTabToView extends XLoggable {
               // Resize VComposite.
               // VComposite -> WComposite . layout()
               App.execWithTimer(100) {
-                if (!result.isDisposed()) result.getParent().layout(true, true)
+                if (!result.isDisposed()) {
+                  val parent = result.getParent()
+                  if (!parent.isDisposed() && parent.isVisible())
+                    parent.layout(true, true)
+                }
               }
             }
             result.toRight(Some(view))

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -376,7 +376,13 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
         if (UI.closeWindowWithLastView &&
           !pointers.exists { case (uuid, pointer) ⇒ pointer.block.get().isInstanceOf[VComposite] }) {
           log.info("There are no views. Close window.")
-          Await.result(window ? App.Message.Close(), timeout.duration)
+          //
+          // window ? App.Message.Close() block StackSupervisor
+          // and waits for useless message
+          //
+          // send message to window from Actor.noSender
+          //
+          window.!(App.Message.Close())(Actor.noSender)
         }
     }
   }

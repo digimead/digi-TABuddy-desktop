@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,50 +43,67 @@
 
 package org.digimead.tabuddy.desktop.core.ui.support
 
+import java.util.ArrayList
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.graph.Node
 import org.eclipse.core.databinding.observable.list.{ WritableList ⇒ OriginalWritableList }
 import org.eclipse.jface.viewers.TreeViewer
 import scala.collection.{ mutable, parallel }
-import scala.collection.JavaConversions.seqAsJavaList
+import scala.collection.JavaConverters.{ asJavaCollectionConverter, asScalaBufferConverter }
+import scala.util.DynamicVariable
 
 /**
  * Tree proxy object that updates observables
  * Observables is updated only after TreeProxy.content
  */
-class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], expandedItems: mutable.HashSet[TreeProxy.Item]) extends XLoggable {
-  /** Internal content that represents the actual flat projection of hierarchical structure */
+class TreeProxy(protected val treeViewer: TreeViewer, protected val observables: Seq[OriginalWritableList],
+  protected val expandedItems: mutable.HashSet[TreeProxy.Item], protected val sortFn: Seq[Node[_ <: Element]] ⇒ Seq[Node[_ <: Element]]) extends XLoggable {
+  /** Internal content that represents the actual flat projection of hierarchical structure. */
   protected var content = parallel.immutable.ParVector[TreeProxy.Item]()
-  /** Set of filtered items in hierarchical structure */
-  protected var filtered = mutable.HashSet[TreeProxy.Item]()
-  /** The last known root element */
+  /** Set of hidden items in hierarchical structure. */
+  protected var hidden = mutable.HashSet[TreeProxy.Item]()
+  /** The last known root element. */
   protected var root: Option[TreeProxy.Item] = None
+  /** Update flag for local thread. */
+  protected val updateFlag = new DynamicVariable[Boolean](true)
   assert(observables.forall(_.getElementType() == classOf[TreeProxy.Item]), "Incorrect observable type")
 
+  /** Clear proxy content. */
   def clearContent() {
     log.debug("clear content")
     App.assertEventThread()
     content = parallel.immutable.ParVector[TreeProxy.Item]()
     observables.foreach(_.clear())
   }
-  def clearFilter() {
-    log.debug("clear filter")
+  /** Clear hidden items set. */
+  def clearHiddenItems() {
+    log.debug("clear hidden set")
     App.assertEventThread()
-    filtered.clear
+    hidden.clear
   }
+  /** Get proxy content. */
   def getContent() = {
     App.assertEventThread()
     content
   }
-  def getFilters() = {
+  /** Get expanded state of item. */
+  def getExpandedState(item: TreeProxy.Item) = {
     App.assertEventThread()
-    filtered
+    expandedItems(item)
   }
-  def onCollapse(item: TreeProxy.Item) {
+  /** Get set of hidden items. */
+  def getHiddenItems() = {
+    App.assertEventThread()
+    hidden
+  }
+  /** Collapse item. */
+  def onCollapse(item: TreeProxy.Item): Unit = if (updateFlag.value) {
     log.debug(s"collapse $item")
-    if (filtered(item)) {
-      log.debug("skip filtered item")
+    App.assertEventThread()
+    if (hidden(item)) {
+      log.debug("skip hidden item")
       return
     }
     expandedItems -= item
@@ -95,36 +112,25 @@ class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], 
       log.debug(s"skip invisible item $item")
       return
     }
-    patchContent(from + 1, Seq(), to - from)
+    patchContent(from + 1, Seq(), to - from).foreach { expandedItems -= _ }
   }
-  def onCollapseAll() {
+  /** Collapse all items. */
+  def onCollapseAll(): Unit = if (updateFlag.value) {
     log.debug("collapse all")
+    App.assertEventThread()
     content = parallel.immutable.ParVector[TreeProxy.Item]()
     observables.foreach(_.clear())
-    // root.foreach { root =>
-    //   patchContent(0, root.element.eChildren.toSeq.sortBy(_.eId.name).map(TreeProxy.Item(_)).filterNot(filtered).toSeq, 0)
-    //  }
+    root.foreach { root ⇒
+      patchContent(0, sortFn(root.element.eNode.safeRead(_.children)).map(node ⇒ TreeProxy.Item(node.rootBox.e)).filterNot(hidden).toSeq, 0)
+    }
     expandedItems.clear
   }
-  def onCollapseRecursively(item: TreeProxy.Item) {
-    log.debug(s"collapse recursively $item")
-    if (filtered(item)) {
-      log.debug("skip filtered item")
-      return
-    }
-    expandedItems -= item
-    // item.element.eChildren.iteratorRecursive().foreach(expandedItems -= TreeProxy.Item(_))
-    val (from, to) = getItemRange(item)
-    if (from == -1) {
-      log.debug(s"skip invisible item $item")
-      return
-    }
-    patchContent(from + 1, Seq(), to - from)
-  }
-  def onExpand(item: TreeProxy.Item) {
+  /** Expand item. */
+  def onExpand(item: TreeProxy.Item): Unit = if (updateFlag.value && !getExpandedState(item)) {
     log.debug(s"expand $item")
-    if (filtered(item)) {
-      log.debug("skip filtered item")
+    App.assertEventThread()
+    if (hidden(item)) {
+      log.debug("skip hidden item")
       return
     }
     expandedItems += item
@@ -133,189 +139,201 @@ class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], 
       log.debug(s"skip invisible item $item")
       return
     }
-    val newItems = collectAppend(item)
+    val newItems = sortFn(item.element.eNode.safeRead(_.children)).map(node ⇒ TreeProxy.Item(node.rootBox.e))
     patchContent(index + 1, newItems, 0)
   }
-  def onExpandAll() {
+  /** Expand all items. */
+  def onExpandAll(): Unit = if (updateFlag.value) {
     log.debug("expand all")
+    App.assertEventThread()
+    expandedItems.clear()
     content = parallel.immutable.ParVector[TreeProxy.Item]()
     observables.foreach(_.clear())
-    //    root.foreach(root =>
-    //   patchContent(0, root.element.eChildren.iteratorRecursive((parent, children) =>
-    //   if (filtered(TreeProxy.Item(parent)))
-    //   Seq()
-    // else
-    // children.toSeq.sortBy(_.eId.name)).map(TreeProxy.Item(_)).filterNot(filtered).toSeq, 0))
-    expandedItems.clear
-    expandedItems ++= treeViewer.getExpandedElements.map(_.asInstanceOf[TreeProxy.Item])
+    root.foreach { root ⇒
+      val expandedItems = root.element.eNode.safeRead(_.flatten(sortFn, (node, f) ⇒ node.safeRead(f))).map(node ⇒ TreeProxy.Item(node.rootBox.e)).filterNot(hidden).toSeq
+      patchContent(0, expandedItems, 0)
+      this.expandedItems ++= expandedItems
+    }
   }
-  def onExpandRecursively(item: TreeProxy.Item) {
+  /** Expand item recursively. */
+  def onExpandRecursively(item: TreeProxy.Item): Unit = if (updateFlag.value) {
     log.debug(s"expand recursively $item")
-    if (filtered(item)) {
-      log.debug("skip filtered item")
+    App.assertEventThread()
+    if (hidden(item)) {
+      log.debug("skip hidden item")
       return
     }
     val index = content.indexOf(item)
     def expandItem(item: TreeProxy.Item, index: Int): Int = 1
-    /*   if (item.element.eChildren.nonEmpty) {
-        var shift = 1 // right after the element
-        if (expandedItems(item)) {
-          for (child <- item.element.eChildren.toSeq.sortBy(_.eId.name))
-            shift += expandItem(TreeProxy.Item(child), index + shift)
-          shift
-        } else {
-          expandedItems += item
-          val newItems = item.element.eChildren.iteratorRecursive((parent, children) => children.toSeq.sortBy(_.eId.name)).map(TreeProxy.Item(_)).toVector
-          // mark all children as expanded
-          expandedItems ++= newItems.filter(_.element.eChildren.nonEmpty)
-          // add children to content
-          patchContent(index + shift, newItems, 0)
-          1 + newItems.size // the element is expanded + children is expanded
-        }
-      } else
-        1 // the element is expanded*/
+    if (item.element.eNode.safeRead(_.nonEmpty)) {
+      var shift = 1 // right after the element
+      if (expandedItems(item)) {
+        for (childNode ← sortFn(item.element.eNode.safeRead(_.children)))
+          shift += expandItem(TreeProxy.Item(childNode.rootBox.e), index + shift)
+        shift
+      } else {
+        expandedItems += item
+        val newItems = item.element.eNode.safeRead(_.flatten(sortFn, (node, f) ⇒ node.safeRead(f))).map(node ⇒ TreeProxy.Item(node.rootBox.e)).toVector
+        // mark all children as expanded
+        expandedItems ++= newItems.filter(_.element.eNode.safeRead(_.nonEmpty))
+        // add children to content
+        patchContent(index + shift, newItems, 0)
+        1 + newItems.size // the element is expanded + children is expanded
+      }
+    } else
+      1 // the element is expanded
     expandItem(item, index)
   }
-  def onFilter(item: TreeProxy.Item) {
-    log.debug(s"hide $item")
-    filtered += item
-    //item.element.eParent.foreach(parent => onRefresh(TreeProxy.Item(parent), Seq(), Seq(), false))
+  /** Hide item. */
+  def onHide(item: TreeProxy.Item) {
+    log.debug(s"Hide $item.")
+    App.assertEventThread()
+    hidden += item
+    item.element.eParent.foreach(parentNode ⇒ onRefresh(TreeProxy.Item(parentNode.rootBox.e), Seq(), Seq(), false))
   }
+  /** Change proxy input. */
   def onInputChanged(item: TreeProxy.Item) {
-    log.debug(s"input changed to $item")
+    log.debug(s"Input changed to $item.")
+    App.assertEventThread()
     content = parallel.immutable.ParVector[TreeProxy.Item]()
-    filtered.clear
+    hidden.clear
     observables.foreach(_.clear())
     if (item != null) {
       root = Some(item)
-      onRefresh(item, Seq(), Seq(), false)
+      onRefresh(item, Seq(), Seq(), false, item)
     } else
       root = None
   }
-  def onRefresh(toRefresh: TreeProxy.Item, traversal: Seq[TreeProxy.Item], toRefreshSubItems: Seq[TreeProxy.Item], refreshTree: Boolean = true) {
-    log.debug(s"refresh $toRefresh")
-    log.debug(s"traversal: $traversal") // all possible ancestors for toRefreshSubItems
-    log.debug(s"subrefresh: $toRefreshSubItems")
-    if (refreshTree) {
-      val expanded = treeViewer.getExpandedElements()
-      treeViewer.refresh(toRefresh, true)
-      // another bug in JFace
-      // at this point treeViewer.getExpandedElements() will return the same array as 'expanded',
-      // but actually there are unexpectedly collapsed elements
-      // not always
-      // so force to expand
-      treeViewer.setExpandedElements(expanded)
-    }
-    if (filtered(toRefresh)) {
-      log.debug("skip filtered item")
-      return
-    }
-    val root = treeViewer.getInput.asInstanceOf[TreeProxy.Item]
-    val idxContentItem = if (toRefresh == root) -1 else content.indexOf(toRefresh)
-    // we may refresh only the visible/exists item
-    if (toRefresh != root) {
-      if (idxContentItem == -1) {
-        log.debug(s"skip invisible item $toRefresh")
+  /** Refresh proxy content. */
+  def onRefresh(toRefresh: TreeProxy.Item, traversal: Seq[TreeProxy.Item], toRefreshSubItems: Seq[TreeProxy.Item], refreshTree: Boolean, root: TreeProxy.Item = treeViewer.getInput.asInstanceOf[TreeProxy.Item]) {
+    App.assertEventThread()
+    updateFlag.withValue(false) {
+      log.debug(s"Refresh $toRefresh.")
+      log.debug(s"traversal: $traversal") // all possible ancestors for toRefreshSubItems
+      log.debug(s"subrefresh: $toRefreshSubItems")
+      if (refreshTree) {
+        val expanded = treeViewer.getExpandedElements()
+        treeViewer.refresh(toRefresh, true)
+        // another bug in JFace
+        // at this point treeViewer.getExpandedElements() will return the same array as 'expanded',
+        // but actually there are unexpectedly collapsed elements
+        // not always
+        // so force to expand
+        treeViewer.setExpandedElements(expanded)
+      }
+      if (hidden(toRefresh)) {
+        log.debug("skip hidden item")
         return
       }
-      if (!expandedItems(toRefresh)) {
-        log.debug(s"skip collapsed item $toRefresh")
+      val idxContentItem = if (toRefresh == root) -1 else content.indexOf(toRefresh)
+      // we may refresh only the visible/exists item
+      if (toRefresh != root) {
+        if (idxContentItem == -1) {
+          log.debug(s"skip invisible item $toRefresh")
+          return
+        }
+        if (!expandedItems(toRefresh)) {
+          log.debug(s"skip collapsed item $toRefresh")
+          return
+        }
+      }
+      val idxContentNextItem = if (toRefresh == root) {
+        content.size
+      } else {
+        val (from, to) = getItemRange(toRefresh, Some(idxContentItem))
+        to + 1
+      }
+      assert(idxContentNextItem >= 0)
+      val slice = content.slice(idxContentItem + 1, idxContentNextItem)
+      val after = sortFn(toRefresh.element.eNode.safeRead(_.children)).map(node ⇒ TreeProxy.Item(node.rootBox.e)).filterNot(hidden)
+      val beforeIndex = Map[TreeProxy.Item, Int](after.par.map(item ⇒ (item, {
+        val index = slice.indexOf(item)
+        if (index < 0) index else index + idxContentItem + 1 // save -1 value
+      })).seq: _*)
+      val before = after.map(item ⇒ (item, beforeIndex(item))).toSeq.filterNot(_._2 < 0).sortBy(_._2).map(_._1)
+      val common = LCS(before, after)
+      var delete = before.diff(common)
+      var append = after.diff(common)
+      log.debug("before: " + before.mkString(","))
+      log.debug("after: " + after.mkString(","))
+      log.debug("common: " + common.mkString(","))
+      log.debug("delete: " + delete.mkString(","))
+      log.debug("append: " + append.mkString(","))
+      if (delete.isEmpty && append.isEmpty && idxContentNextItem - idxContentItem == 1)
         return
+      // delete
+      // sequence description: element, index, size
+      var toDelete = Seq[TreeProxy.Delete]()
+      // delete ghosts
+      var idxDelete = idxContentItem + 1
+      for (i ← 0 until before.size) {
+        val index = beforeIndex(before(i))
+        if (index != idxDelete)
+          toDelete = toDelete :+ TreeProxy.Delete(TreeProxy.UnknownItem, idxDelete, index - idxDelete)
+        val (from, to) = getItemRange(before(i), Some(index))
+        idxDelete = to + 1
       }
+      if (idxDelete != idxContentNextItem)
+        toDelete = toDelete :+ TreeProxy.Delete(TreeProxy.UnknownItem, idxDelete, idxContentNextItem - idxDelete)
+      // delete before items
+      idxDelete = slice.size // point by initial to next element, to the void
+      for (i ← before.size - 1 to 0 by -1)
+        if (delete.contains(before(i))) {
+          toDelete = toDelete :+ TreeProxy.Delete(before(i), beforeIndex(before(i)), idxDelete - beforeIndex(before(i)))
+        } else {
+          // skip, already exists
+          idxDelete = beforeIndex(before(i))
+        }
+      // append
+      // sequence description: element, index, subelements
+      var toAppend = Seq[TreeProxy.Append]()
+      var idxAppend = idxContentNextItem
+      for (i ← after.size - 1 to 0 by -1)
+        if (append.contains(after(i))) {
+          toAppend = toAppend :+ TreeProxy.Append(after(i), idxAppend, collectAppend(after(i)))
+        } else {
+          // skip, already exists
+          idxAppend = beforeIndex(after(i))
+        }
+      // TODO ranges: merge(merge(toDelete) + merge(toAppend))
+      log.debug("toDelete: " + toDelete)
+      log.debug("toAppend: " + toAppend)
+      // patch content
+      (toDelete ++ toAppend).sortBy(_.index * -1).foreach(_ match {
+        case TreeProxy.Append(item, index, sub) ⇒
+          patchContent(index, item +: sub, 0)
+        case TreeProxy.Delete(item, index, size) ⇒
+          patchContent(index, Seq(), size)
+      })
+      if (before.isEmpty)
+        App.exec { treeViewer.setExpandedState(toRefresh, true) }
+      if (toRefresh == root)
+        this.root = Option(root)
+      // refresh sub elements
+      if (common.nonEmpty)
+        refreshSubItems(common, traversal, toRefreshSubItems, refreshTree)
     }
-    val idxContentNextItem = if (toRefresh == root) {
-      content.size
-    } else {
-      val (from, to) = getItemRange(toRefresh, Some(idxContentItem))
-      to + 1
-    }
-    assert(idxContentNextItem >= 0)
-    val slice = content.slice(idxContentItem + 1, idxContentNextItem)
-    /*val after = toRefresh.element.eChildren.toSeq.sortBy(_.eId.name).map(TreeProxy.Item(_)).filterNot(filtered)
-    val beforeIndex = immutable.HashMap[TreeProxy.Item, Int](after.par.map(item => (item, {
-      val index = slice.indexOf(item)
-      if (index < 0) index else index + idxContentItem + 1 // save -1 value
-    })).seq: _*)
-    val before = after.map(item => (item, beforeIndex(item))).toSeq.filterNot(_._2 < 0).sortBy(_._2).map(_._1)
-    val common = LCS(before, after)
-    var delete = before.diff(common)
-    var append = after.diff(common)
-    log.debug("before: " + before.mkString(","))
-    log.debug("after: " + after.mkString(","))
-    log.debug("common: " + common.mkString(","))
-    log.debug("delete: " + delete.mkString(","))
-    log.debug("append: " + append.mkString(","))
-    if (delete.isEmpty && append.isEmpty && idxContentNextItem - idxContentItem == 1)
-      return
-    // delete
-    // sequence description: element, index, size
-    var toDelete = Seq[TreeProxy.Delete]()
-    // delete ghosts
-    var idxDelete = idxContentItem + 1
-    for (i <- 0 until before.size) {
-      val index = beforeIndex(before(i))
-      if (index != idxDelete)
-        toDelete = toDelete :+ TreeProxy.Delete(TreeProxy.UnknownItem, idxDelete, index - idxDelete)
-      val (from, to) = getItemRange(before(i), Some(index))
-      idxDelete = to + 1
-    }
-    if (idxDelete != idxContentNextItem)
-      toDelete = toDelete :+ TreeProxy.Delete(TreeProxy.UnknownItem, idxDelete, idxContentNextItem - idxDelete)
-    // delete before items
-    idxDelete = slice.size // point by initial to next element, to the void
-    for (i <- before.size - 1 to 0 by -1)
-      if (delete.contains(before(i))) {
-        toDelete = toDelete :+ TreeProxy.Delete(before(i), beforeIndex(before(i)), idxDelete - beforeIndex(before(i)))
-      } else {
-        // skip, already exists
-        idxDelete = beforeIndex(before(i))
-      }
-    // append
-    // sequence description: element, index, subelements
-    var toAppend = Seq[TreeProxy.Append]()
-    var idxAppend = idxContentNextItem
-    for (i <- after.size - 1 to 0 by -1)
-      if (append.contains(after(i))) {
-        toAppend = toAppend :+ TreeProxy.Append(after(i), idxAppend, collectAppend(after(i)))
-      } else {
-        // skip, already exists
-        idxAppend = beforeIndex(after(i))
-      }
-    // TODO ranges: merge(merge(toDelete) + merge(toAppend))
-    log.debug("toDelete: " + toDelete)
-    log.debug("toAppend: " + toAppend)
-    // patch content
-    (toDelete ++ toAppend).sortBy(_.index * -1).foreach(_ match {
-      case TreeProxy.Append(item, index, sub) =>
-        patchContent(index, item +: sub, 0)
-      case TreeProxy.Delete(item, index, size) =>
-        patchContent(index, Seq(), size)
-    })
-    if (before.isEmpty)
-      App.exec { treeViewer.setExpandedState(toRefresh, true) }
-    if (toRefresh == root)
-      this.root = Option(root)
-    // refresh sub elements
-    if (common.nonEmpty)
-      refreshSubItems(common, traversal, toRefreshSubItems, refreshTree)*/
   }
-  def onUnfilter(item: TreeProxy.Item) {
+  /** Unhide item. */
+  def onUnhide(item: TreeProxy.Item) {
     log.debug(s"show $item")
-    filtered -= item
+    App.assertEventThread()
+    hidden -= item
     if (expandedItems(item))
       treeViewer.setExpandedElements(expandedItems.toArray)
-    //    item.element.eParent.foreach(parent => onRefresh(TreeProxy.Item(parent), Seq(), Seq(), false))
+    item.element.eParent.foreach(parentNode ⇒ onRefresh(TreeProxy.Item(parentNode.rootBox.e), Seq(), Seq(), false))
   }
+
   protected def collectAppend(item: TreeProxy.Item): Seq[TreeProxy.Item] = {
-    /*    if (filtered(item))
+    if (hidden(item))
       Seq()
     else if (expandedItems(item))
-      item.element.eChildren.toSeq.sortBy(_.eId.name).par.map(element =>
-        TreeProxy.Item(element) +: collectAppend(TreeProxy.Item(element))).flatten.seq
-    else*/
-    Seq()
+      sortFn(item.element.eNode.safeRead(_.children)).par.map(node ⇒
+        TreeProxy.Item(node.rootBox.e) +: collectAppend(TreeProxy.Item(node.rootBox.e))).flatten.seq
+    else
+      Seq()
   }
-  /** Get the item range in the content */
+  /** Get the item range in the content. */
   protected def getItemRange(item: TreeProxy.Item, precalculatedIndex: Option[Int] = None): (Int, Int) = {
     val index = precalculatedIndex getOrElse content.indexOf(item)
     if (index == -1)
@@ -327,18 +345,24 @@ class TreeProxy(treeViewer: TreeViewer, observables: Seq[OriginalWritableList], 
       lastSubElementIndex = content.size - 1
     (index, lastSubElementIndex)
   }
-  /** Patch parallel array 'content' and update table */
-  protected def patchContent(from: Int, that: Seq[TreeProxy.Item], replaced: Int) = {
+  /** Patch parallel array 'content' and update table. */
+  protected def patchContent(from: Int, that: Seq[TreeProxy.Item], replaced: Int): Iterable[TreeProxy.Item] = {
     assert(replaced >= 0)
-    this.content = this.content.patch(from, that, replaced)
+    val itemsToRemove = new ArrayList[TreeProxy.Item](replaced)
+    if (replaced > 0)
+      // .iterator suffix is important.
+      // content is ParVector!
+      content.slice(from, from + replaced).iterator.foreach(itemsToRemove.add)
+    content = content.patch(from, that, replaced)
     observables.foreach { observable ⇒
-      for (index ← from + replaced - 1 to from by -1)
-        observable.remove(index)
-      observable.addAll(from, that)
+      if (!itemsToRemove.isEmpty())
+        observable.removeAll(itemsToRemove)
+      if (!that.isEmpty)
+        observable.addAll(from, that.asJavaCollection)
     }
-    this.content
+    itemsToRemove.asScala
   }
-  /** Refresh sub items if needed */
+  /** Refresh sub items if needed. */
   protected def refreshSubItems(toRefreshItems: Seq[TreeProxy.Item], traversal: Seq[TreeProxy.Item], toRefreshSubItems: Seq[TreeProxy.Item], refreshTree: Boolean) {
     var traversalBucket = traversal
     var toRefreshSubItemsBucket = toRefreshSubItems

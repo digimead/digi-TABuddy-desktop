@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -375,11 +375,12 @@ class SmartMenuManager extends XLoggable {
     else
       None
     // Or load default menu from resource.
-    customMenu getOrElse {
-      val url = App.bundle(getClass).getEntry("/menu.configuration")
-      val content = com.google.common.io.Resources.asCharSource(url, Charsets.UTF_8).read()
-      (new Yaml).load(content).asInstanceOf[ArrayList[_]]
-    }
+    customMenu orElse {
+      Option(App.bundle(getClass).getEntry("/menu.configuration")).map { url ⇒
+        val content = com.google.common.io.Resources.asCharSource(url, Charsets.UTF_8).read()
+        (new Yaml).load(content).asInstanceOf[ArrayList[_]]
+      }
+    } getOrElse new ArrayList()
   }
   /** Parse nested array with menu entries. */
   protected def parseGenericMenu(menu: Array[_], containers: Map[String, Array[_]], parents: Map[String, Option[String]],

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -76,7 +76,7 @@ class OperationViewCreate extends XOperationViewCreate with XLoggable {
   def apply(windowId: UUID, viewConfiguration: CPlaceHolder): Option[UUID] = {
     log.info(s"Create new ${viewConfiguration} in AppWindow[%08X].".format(windowId.hashCode()))
     val (_, window) = UI.windowMapExt(windowId)
-    try Await.result(window.asInstanceOf[AppWindow].supervisorRef ? App.Message.Create(viewConfiguration, None), timeout.duration) match {
+    try Await.result(window.supervisorRef ? App.Message.Create(viewConfiguration, None), timeout.duration) match {
       case App.Message.Create(view: VComposite, _, _) ⇒
         Some(view.id)
       case App.Message.Error(message, _) ⇒
