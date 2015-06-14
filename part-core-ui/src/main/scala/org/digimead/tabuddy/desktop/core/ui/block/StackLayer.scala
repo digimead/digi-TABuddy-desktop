@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -157,20 +157,20 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
 
     case message @ App.Message.Get(Set) ⇒ sender ! children.toSet
 
-    case message @ App.Message.Start((widget: Widget, Seq(stack: SComposite, hierarchyFromWindowToWidget @ _*)), _, None) if Some(stack) == this.stack ⇒ Option {
+    case message @ App.Message.Start((widget: Widget, Seq(stackLayerWidget: SComposite, hierarchyFromWindowToWidget @ _*)), _, None) if Some(stackLayerWidget) == this.stack ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        try onStart(widget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]]) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+        try onStart(widget, stackLayerWidget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]]) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         App.Message.Start(widget, self)
       }
     } foreach { sender ! _ }
 
-    case message @ App.Message.Stop((widget: Widget, Seq(stack: SComposite, hierarchyFromWindowToWidget @ _*)), _, None) if Some(stack) == this.stack ⇒ Option {
+    case message @ App.Message.Stop((widget: Widget, Seq(stackLayerWidget: SComposite, hierarchyFromWindowToWidget @ _*)), _, None) if Some(stackLayerWidget) == this.stack ⇒ Option {
       if (terminated) {
         App.Message.Error(s"${this} is terminated.", self)
       } else {
-        try onStop(widget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]]) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+        try onStop(widget, stackLayerWidget, hierarchyFromWindowToWidget.asInstanceOf[Seq[SComposite]]) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
         App.Message.Stop(widget, self)
       }
     } foreach { sender ! _ }
@@ -272,11 +272,13 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
   }
   /** User start interaction with stack layer. Focus is gained. */
   //@log
-  protected def onStart(widget: Widget, hierarchyFromWindowToWidget: Seq[SComposite]): Unit = {
+  protected def onStart(widget: Widget, stackLayerWidget: SComposite, hierarchyFromWindowToWidget: Seq[SComposite]) {
     val nextActor = hierarchyFromWindowToWidget.headOption match {
       case Some(nextView: VComposite) ⇒
+        App.execNGet { onStart(stackLayerWidget, nextView.id) }
         context.children.find(_.path.name == View.name(nextView.id))
       case Some(nextStack) ⇒
+        App.execNGet { onStart(stackLayerWidget, nextStack.id) }
         context.children.find(_.path.name == StackLayer.name(nextStack.id))
       case None ⇒
         log.fatal(s"Start ${this} but unable to find next level for ${widget}.")
@@ -285,9 +287,26 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
     nextActor.foreach(actor ⇒
       Await.ready(actor ? App.Message.Start((widget, hierarchyFromWindowToWidget), self), timeout.duration))
   }
+  /** Switch to the active element within stackLayerWidget if needed. */
+  protected def onStart(stackLayerWidget: SComposite, nextWidgetId: UUID) {
+    App.assertEventThread()
+    stackLayerWidget match {
+      case tabFolder: SCompositeTab ⇒
+        tabFolder.getItems.find(item ⇒ item.getData(UI.swtId) == nextWidgetId) match {
+          case Some(item) ⇒
+            val selection = tabFolder.getSelection()
+            if (selection != item)
+              tabFolder.setSelection(item)
+          case None ⇒
+            log.fatal("Unable to start tab with unexists content with id " + nextWidgetId)
+        }
+      case unknown ⇒
+        log.fatal("Unable to start unknown stack layer widget: " + stackLayerWidget)
+    }
+  }
   /** Focus is lost. */
   //@log
-  protected def onStop(widget: Widget, hierarchyFromWindowToWidget: Seq[SComposite]) {
+  protected def onStop(widget: Widget, stackLayerWidget: SComposite, hierarchyFromWindowToWidget: Seq[SComposite]) {
     val nextActor = hierarchyFromWindowToWidget.headOption match {
       case Some(nextView: VComposite) ⇒
         context.children.find(_.path.name == View.name(nextView.id))

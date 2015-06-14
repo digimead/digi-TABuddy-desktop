@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -63,9 +63,9 @@ import org.eclipse.jface.databinding.swt.SWTObservables
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.graphics.Image
-import org.eclipse.swt.widgets.{ Composite, Widget }
+import org.eclipse.swt.widgets.{ Composite, Control, Widget }
 import scala.collection.{ immutable, mutable }
-import scala.concurrent.{ Await, Future }
+import scala.concurrent.{ Await, Future, TimeoutException }
 import scala.ref.WeakReference
 
 /** View actor binded to SComposite that contains an actual view from a view factory. */
@@ -240,6 +240,26 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with X
   protected def onStart(widget: Widget) = view match {
     case Some(view) ⇒
       log.debug("View layer started by focus event on " + widget)
+      App.execNGet {
+        if (!view.isDisposed())
+          Option(view.getDisplay.getFocusControl) match {
+            case Some(control) ⇒
+              def hasFocus(active: Control, current: Control): Boolean =
+                if (active == current)
+                  true
+                else if (view == current)
+                  false
+                else
+                  Option(current.getParent).map(hasFocus(active, _)).getOrElse(false)
+              if (!hasFocus(view, control))
+                widget match {
+                  case control: Control ⇒ control.setFocus()
+                  case other ⇒ view.setFocus()
+                }
+            case None ⇒
+              view.setFocus()
+          }
+      }
       viewContext.getChildren().find(ctx ⇒ Context.getName(ctx).map(_.endsWith(self.path.name)) getOrElse false) match {
         case Some(contentContext) ⇒
           contentContext.activateBranch()
@@ -303,7 +323,7 @@ object View extends XLoggable {
     val features: Seq[String]
     /** Factory view title synchronizer. */
     val titleSynchronizer = new TitleSynchronizer
-    /** All available content contexts for this factory Actor name -> (counter, content context). */
+    /** All available content contexts for this factory Actor name -> (view instance counter, content context). */
     protected val contentContexts = mutable.HashMap[String, (Long, Context)]()
     /** Factory lock. */
     protected val factoryRWL = new ReentrantReadWriteLock()
@@ -324,7 +344,7 @@ object View extends XLoggable {
       factoryRWL.readLock().lock()
       try {
         contentContexts.get(actorName).flatMap {
-          case (_, viewContext) ⇒ Option(viewContext.get(UI.Id.viewTitle).asInstanceOf[String])
+          case (_, viewContentContext) ⇒ Option(viewContentContext.get(UI.Id.viewTitle).asInstanceOf[String])
         }
       } finally factoryRWL.readLock().unlock()
     }
@@ -336,13 +356,13 @@ object View extends XLoggable {
       factoryRWL.readLock().lock()
       try {
         contentContexts.get(actorName) match {
-          case Some((instanceNumber, contentContext)) ⇒
-            val initialValue = Option(contentContext.get(UI.Id.viewTitle)) getOrElse {
-              contentContext.set(UI.Id.viewTitle, name.name)
+          case Some((instanceNumber, viewContentContext)) ⇒
+            val initialValue = Option(viewContentContext.get(UI.Id.viewTitle)) getOrElse {
+              viewContentContext.set(UI.Id.viewTitle, name.name)
               name.name
             }
             val observable = new WritableValue(App.realm, initialValue)
-            contentContext.runAndTrack(new ViewTitleRunAndTrack(WeakReference(observable)))
+            viewContentContext.runAndTrack(new ViewTitleRunAndTrack(WeakReference(observable)))
             observable
           case None ⇒
             throw new IllegalStateException(s"Actor with name ${actorName} is unknown at factory ${this}. Is it registered with `def IView.preStart()`?")
@@ -369,17 +389,17 @@ object View extends XLoggable {
       }
     }
     /** Register view as active in activeActorRefs. */
-    def register(actorName: String, context: Context) {
-      if (Context.getName(context) != Some(actorName))
-        throw new IllegalArgumentException(s"Content actor name ${actorName} is different than ${context} name.")
+    def register(actorName: String, contentContext: Context) {
+      if (Context.getName(contentContext) != Some(actorName))
+        throw new IllegalArgumentException(s"Content actor name ${actorName} is different than ${contentContext} name.")
       factoryRWL.writeLock().lock()
       try {
         log.debug(s"Register ${actorName} in ${this}.")
         if (contentContexts.isDefinedAt(actorName))
           throw new IllegalArgumentException(s"Content actor name ${actorName} is already registered.")
         instanceCounter += 1
-        contentContexts(actorName) = (instanceCounter, context)
-        context.set(UI.Id.viewTitle, name.name)
+        contentContexts(actorName) = (instanceCounter, contentContext)
+        contentContext.set(UI.Id.viewTitle, name.name)
         val views = contentContexts.values.toSeq
         Future { titleSynchronizer.notify(views.sortBy(_._1).map(_._2)) }.
           onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
@@ -412,14 +432,14 @@ object View extends XLoggable {
      */
     class TitleSynchronizer extends Generic.TitleSynchronizer[Context] {
       /** Update view's contexts. */
-      protected def synchronize(viewContexts: Seq[Context]) {
+      protected def synchronize(contexts: Seq[Context]) {
         var n = 0
-        viewContexts.foreach { viewContext ⇒
+        contexts.foreach { contentContext ⇒
           n += 1
           if (n > 1)
-            viewContext.set(UI.Id.viewTitle, s"${Factory.this.name.name}(${n})")
+            contentContext.set(UI.Id.viewTitle, s"${Factory.this.name.name}(${n})")
           else
-            viewContext.set(UI.Id.viewTitle, Factory.this.name.name)
+            contentContext.set(UI.Id.viewTitle, Factory.this.name.name)
         }
       }
     }

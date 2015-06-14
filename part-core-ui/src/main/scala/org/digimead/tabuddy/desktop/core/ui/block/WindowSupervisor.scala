@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -195,15 +195,15 @@ class WindowSupervisor extends Actor with XLoggable {
     case message @ App.Message.Set(windowId: UUID, configuration: WindowConfiguration) ⇒
       try setConfiguration(sender, windowId, configuration) catch { case e: Throwable ⇒ log.error(e.getMessage(), e) }
 
-    case message @ App.Message.Start((id: UUID, widget: Widget), _, None) ⇒ App.traceMessage(message) {
+    case message @ App.Message.Start((windowId: UUID, windowWidget: Widget), _, None) ⇒ App.traceMessage(message) {
       // Stop previous active widget if any
       activeFocusEvent match {
-        case Some((activeId, activeWidget)) if activeId != id || activeWidget != widget ⇒
+        case Some((activeId, activeWidget)) if activeId != windowId || activeWidget != windowWidget ⇒
           stop(activeId, activeWidget)
         case _ ⇒
       }
       // Start new
-      start(id, widget)
+      start(windowId, windowWidget)
     }
 
     case message @ App.Message.Stop((id: UUID, widget: Widget), _, None) ⇒ App.traceMessage(message) {
@@ -352,15 +352,15 @@ class WindowSupervisor extends Actor with XLoggable {
   }
   /** Start window. */
   @log
-  def start(id: UUID, widget: Widget) {
-    if (Left(id, widget) != lastFocusEvent)
-      pointers.get(id).foreach { pointer ⇒
-        try Await.ready(pointer.windowActor ? App.Message.Start(widget, None), UI.focusTimeout)
+  def start(windowId: UUID, windowWidget: Widget) {
+    if (Left(windowId, windowWidget) != lastFocusEvent)
+      pointers.get(windowId).foreach { pointer ⇒
+        try Await.ready(pointer.windowActor ? App.Message.Start(windowWidget, None), UI.focusTimeout)
         catch {
           case e: TimeoutException ⇒ log.debug(s"${pointer.windowActor} is unreachable for App.Message.Start.")
         }
-        lastFocusEvent = Left(id, widget)
-        activeFocusEvent = Some((id, widget))
+        lastFocusEvent = Left(windowId, windowWidget)
+        activeFocusEvent = Some((windowId, windowWidget))
       }
   }
   /** Stop window. */
@@ -437,31 +437,31 @@ class WindowSupervisor extends Actor with XLoggable {
       def fire()
     }
     /** Start event by SWT.FocusIn. */
-    case class StrictStartFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
+    case class StrictStartFocusEvent(val windowId: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
-        log.debug("Focus gained by window %08X for widget %s.".format(id.hashCode(), widget))
-        self ! App.Message.Start((id, widget), None)
+        log.debug("Focus gained by window %08X for widget %s.".format(windowId.hashCode(), widget))
+        self ! App.Message.Start((windowId, widget), None)
       }
     }
     /** Start event without explicit focus widget. */
-    case class FuzzyStartFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
+    case class FuzzyStartFocusEvent(val windowId: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
-        log.debug("Window %08X activated.".format(id.hashCode()))
-        self ! App.Message.Start((id, widget), None)
+        log.debug("Window %08X activated.".format(windowId.hashCode()))
+        self ! App.Message.Start((windowId, widget), None)
       }
     }
     /** Stop event by SWT.FocusOut. */
-    case class StrictStopFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
+    case class StrictStopFocusEvent(val windowId: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
-        log.debug("Focus lost by window %08X.".format(id.hashCode()))
-        self ! App.Message.Stop((id, widget), None)
+        log.debug("Focus lost by window %08X.".format(windowId.hashCode()))
+        self ! App.Message.Stop((windowId, widget), None)
       }
     }
     /** Stop event without explicit focus widget. */
-    case class FuzzyStopFocusEvent(val id: UUID, val widget: Widget) extends FocusEvent {
+    case class FuzzyStopFocusEvent(val windowId: UUID, val widget: Widget) extends FocusEvent {
       def fire() {
-        log.debug("Window %08X deactivated.".format(id.hashCode()))
-        self ! App.Message.Stop((id, widget), None)
+        log.debug("Window %08X deactivated.".format(windowId.hashCode()))
+        self ! App.Message.Stop((windowId, widget), None)
       }
     }
   }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,14 +41,45 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.core.ui
+package org.digimead.tabuddy.desktop.core.ui.operation.api
 
-import com.escalatesoft.subcut.inject.NewBindingModule
-import org.digimead.digi.lib.DependencyInjection
+import java.util.UUID
+import org.digimead.tabuddy.desktop.core.definition.api.XOperation
 
-package object operation {
-  lazy val default = new NewBindingModule(module ⇒ {})
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.operation.OperationViewClose$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.operation.OperationViewCreate$DI$")
-  DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.core.ui.operation.OperationViewSelect$DI$")
+/**
+ * OperationViewSelect base trait.
+ */
+trait XOperationViewSelect {
+  checkSubclass()
+
+  /**
+   * Select view.
+   *
+   * @param viewId Specific view Id that will be selected
+   */
+  def apply(viewId: UUID): Option[UUID]
+  /**
+   * Create 'Select view' operation.
+   *
+   * @param viewId Specific view Id that will be selected
+   * @return 'Select view' operation
+   */
+  def operation(viewId: UUID): XOperation[UUID]
+
+  /**
+   * Checks that this class can be subclassed.
+   * <p>
+   * The API class is intended to be subclassed only at specific,
+   * controlled point. This method enforces this rule
+   * unless it is overridden.
+   * </p><p>
+   * <em>IMPORTANT:</em> By providing an implementation of this
+   * method that allows a subclass of a class which does not
+   * normally allow subclassing to be created, the implementer
+   * agrees to be fully responsible for the fact that any such
+   * subclass will likely fail.
+   * </p>
+   */
+  protected def checkSubclass(): Unit =
+    throw new IllegalAccessException("Please, use org.digimead.tabuddy.desktop.core.ui.operation.OperationViewSelect instead.")
 }

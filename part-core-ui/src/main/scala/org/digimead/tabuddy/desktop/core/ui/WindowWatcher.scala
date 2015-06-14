@@ -83,6 +83,7 @@ class WindowWatcher extends Actor with XLoggable {
   }
 
   /** Register actions in new window. */
+  @log
   protected def onCreated(window: AppWindow, sender: ActorRef) = {
     // block actor
     App.execNGet {

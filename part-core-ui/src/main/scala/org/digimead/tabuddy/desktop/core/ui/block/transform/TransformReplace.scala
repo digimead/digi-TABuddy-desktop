@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block.transform
 
-import akka.pattern.ask
+import akka.pattern.{ ask, AskTimeoutException }
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.App
@@ -60,15 +60,53 @@ class TransformReplace extends XLoggable {
   /** Akka communication timeout. */
   implicit val timeout = akka.util.Timeout(Timeout.short)
 
-  def apply(ss: StackSupervisor, window: AppWindow, viewConfiguration: Configuration.CView): Option[VComposite] =
+  def apply(ss: StackSupervisor, window: AppWindow, viewConfiguration: Configuration.CView): Option[VComposite] = {
     ss.wComposite.flatMap { wComposite ⇒
       log.debug(s"Replace window ${window} content with ${viewConfiguration}.")
-      val futures = ss.context.children.map(_ ? App.Message.Destroy())
-      val result = Await.result(Future.sequence(futures), Timeout.short)
-      val errors = result.filter(_ match {
-        case App.Message.Error(message, _) ⇒ true
-        case _ ⇒ false
-      })
+      val errors = try {
+        val futures = ss.context.children.map {
+          child ⇒
+            log.debug("Destroy " + child)
+            try {
+              implicit val timeout = akka.util.Timeout(Timeout.shortest / 2)
+              child ? App.Message.Destroy()
+            } catch {
+              case e: AskTimeoutException ⇒
+                log.warn("Unable to destroy view: " + e.getMessage, e)
+                // Ignore timeout exception
+                // This situation usually occurs when actor was stopped within ask pattern
+                Future { App.Message.Destroy(e.getMessage, None) }
+            }
+        }
+        val futureSeq =
+          try Future.sequence(futures)
+          catch {
+            case e: AskTimeoutException ⇒
+              log.warn("Unable to built future sequence for views destruction: " + e.getMessage, e)
+              // Ignore timeout exception
+              // This situation usually occurs when actor was stopped within ask pattern
+              Future { Seq.empty }
+          }
+        val result =
+          try Await.result(futureSeq, Timeout.short)
+          catch {
+            case e: AskTimeoutException ⇒
+              log.warn("Unable to await results: " + e.getMessage, e)
+              // Ignore timeout exception
+              // This situation usually occurs when actor was stopped within ask pattern
+              Seq.empty
+          }
+        result.filter(_ match {
+          case App.Message.Error(message, _) ⇒ true
+          case _ ⇒ false
+        })
+      } catch {
+        case e: AskTimeoutException ⇒
+          log.warn("Skip views destruction: " + e.getMessage, e)
+          // Ignore timeout exception
+          // This situation usually occurs when actor was stopped within ask pattern
+          Seq.empty
+      }
       if (errors.isEmpty) {
         ss.lastActiveViewIdForCurrentWindow.set(None)
         val exists = App.execNGet {
@@ -89,6 +127,7 @@ class TransformReplace extends XLoggable {
         None
       }
     }
+  }
 }
 
 object TransformReplace {

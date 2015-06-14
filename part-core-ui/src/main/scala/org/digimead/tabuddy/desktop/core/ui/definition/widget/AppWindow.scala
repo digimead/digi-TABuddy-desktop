@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,15 +48,16 @@ import akka.pattern.ask
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.{ Inject, Named }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.{ Core, Messages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.block.{ Window, WindowConfiguration, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.block.StackConfiguration
 import org.digimead.tabuddy.desktop.core.ui.block.builder.WindowContentBuilder
+import org.digimead.tabuddy.desktop.core.ui.block.{ Window, WindowConfiguration, WindowSupervisor }
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
+import org.digimead.tabuddy.desktop.core.{ Core, Messages }
 import org.eclipse.core.runtime.IAdaptable
 import org.eclipse.core.runtime.dynamichelpers.IExtensionTracker
 import org.eclipse.e4.core.contexts.Active
@@ -65,13 +66,13 @@ import org.eclipse.e4.ui.model.application.ui.basic.{ MTrimBar, MWindow }
 import org.eclipse.jface.action.{ CoolBarManager, StatusLineManager }
 import org.eclipse.jface.util.IPropertyChangeListener
 import org.eclipse.jface.window.ApplicationWindow
-import org.eclipse.swt.{ SWT, SWTException }
 import org.eclipse.swt.custom.StackLayout
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.widgets.{ Composite, Control, Event, Listener, Shell }
-import org.eclipse.ui.{ IPageListener, IPartService, IPerspectiveListener, ISelectionService, IWorkbench, IWorkbenchPage, IWorkbenchWindow, PlatformUI }
-import org.eclipse.ui.internal.{ WorkbenchWindow ⇒ EWorkbenchWindow }
+import org.eclipse.swt.{ SWT, SWTException }
 import org.eclipse.ui.internal.services.IServiceLocatorCreator
+import org.eclipse.ui.internal.{ WorkbenchWindow ⇒ EWorkbenchWindow }
+import org.eclipse.ui.{ IPageListener, IPartService, IPerspectiveListener, ISelectionService, IWorkbench, IWorkbenchPage, IWorkbenchWindow, PlatformUI }
 import scala.language.implicitConversions
 
 /**
@@ -159,6 +160,7 @@ class AppWindow @Inject() (val id: UUID, @Optional argInitialConfiguration: Wind
     }
   }
   /** Creates and returns this window's contents. */
+  @log
   override protected def createContents(parent: Composite): Control = {
     val (container, filler, content) = WindowContentBuilder(this, parent)
     this.filler = Option(filler)
