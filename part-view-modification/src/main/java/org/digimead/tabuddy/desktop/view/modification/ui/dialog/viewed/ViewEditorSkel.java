@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -117,6 +117,78 @@ public class ViewEditorSkel extends TitleAreaDialog {
 	public ViewEditorSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
+	}
+
+	public Text getTextPropertyFilter() {
+		return textPropertyFilter;
+	}
+
+	public Text getTextSortingFilter() {
+		return textSortingFilter;
+	}
+
+	public Text getTextFilterFilter() {
+		return textFilterFilter;
+	}
+
+	public TableViewer getTableViewerProperties() {
+		return tableViewerProperties;
+	}
+
+	public TableViewer getTableViewerSortings() {
+		return tableViewerSortings;
+	}
+
+	public TableViewer getTableViewerFilters() {
+		return tableViewerFilters;
+	}
+
+	public TableViewerColumn getTableViewerColumnSorting() {
+		return tableViewerColumnSorting;
+	}
+
+	public TableViewerColumn getTableViewerColumnFilter() {
+		return tableViewerColumnFilter;
+	}
+
+	public Text getTextName() {
+		return textName;
+	}
+
+	public Text getTextDescription() {
+		return textDescription;
+	}
+
+	public Button getBtnCheckAvailability() {
+		return btnCheckAvailability;
+	}
+
+	public TableViewerColumn getTableViewerColumnPropertyFrom() {
+		return tableViewerColumnPropertyFrom;
+	}
+
+	public Text getTextFieldFilter() {
+		return textFieldFilter;
+	}
+
+	public Composite getCompositeBody1() {
+		return compositeBody1;
+	}
+
+	public Composite getCompositeBody2() {
+		return compositeBody2;
+	}
+
+	public TableViewer getTableViewerFields() {
+		return tableViewerFields;
+	}
+
+	public TableViewerColumn getTableViewerColumnField() {
+		return tableViewerColumnField;
+	}
+
+	public TableViewerColumn getTableViewerColumnN() {
+		return tableViewerColumnN;
 	}
 
 	/**
@@ -272,75 +344,4 @@ public class ViewEditorSkel extends TitleAreaDialog {
 		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
-	protected Text getTextPropertyFilter() {
-		return textPropertyFilter;
-	}
-
-	protected Text getTextSortingFilter() {
-		return textSortingFilter;
-	}
-
-	protected Text getTextFilterFilter() {
-		return textFilterFilter;
-	}
-
-	protected TableViewer getTableViewerProperties() {
-		return tableViewerProperties;
-	}
-
-	protected TableViewer getTableViewerSortings() {
-		return tableViewerSortings;
-	}
-
-	protected TableViewer getTableViewerFilters() {
-		return tableViewerFilters;
-	}
-
-	protected TableViewerColumn getTableViewerColumnSorting() {
-		return tableViewerColumnSorting;
-	}
-
-	protected TableViewerColumn getTableViewerColumnFilter() {
-		return tableViewerColumnFilter;
-	}
-
-	protected Text getTextName() {
-		return textName;
-	}
-
-	public Text getTextDescription() {
-		return textDescription;
-	}
-
-	protected Button getBtnCheckAvailability() {
-		return btnCheckAvailability;
-	}
-
-	protected TableViewerColumn getTableViewerColumnPropertyFrom() {
-		return tableViewerColumnPropertyFrom;
-	}
-
-	protected Text getTextFieldFilter() {
-		return textFieldFilter;
-	}
-
-	protected Composite getCompositeBody1() {
-		return compositeBody1;
-	}
-
-	protected Composite getCompositeBody2() {
-		return compositeBody2;
-	}
-
-	protected TableViewer getTableViewerFields() {
-		return tableViewerFields;
-	}
-
-	protected TableViewerColumn getTableViewerColumnField() {
-		return tableViewerColumnField;
-	}
-
-	protected TableViewerColumn getTableViewerColumnN() {
-		return tableViewerColumnN;
-	}
 }

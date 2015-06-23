@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -102,6 +102,26 @@ public class FilterListSkel extends TitleAreaDialog {
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
 	}
 
+	public TableViewerColumn getTableViewerColumnName() {
+		return tableViewerColumnName;
+	}
+
+	public TableViewerColumn getTableViewerColumnDescription() {
+		return tableViewerColumnDescription;
+	}
+
+	public TableViewer getTableViewer() {
+		return tableViewer;
+	}
+
+	public Composite getCompositeFooter() {
+		return compositeFooter;
+	}
+
+	public Text getTextFilter() {
+		return textFilter;
+	}
+
 	/**
 	 * Create contents of the dialog.
 	 *
@@ -152,25 +172,5 @@ public class FilterListSkel extends TitleAreaDialog {
 	protected void createButtonsForButtonBar(Composite parent) {
 		createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL, true);
 		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
-	}
-
-	protected TableViewerColumn getTableViewerColumnName() {
-		return tableViewerColumnName;
-	}
-
-	protected TableViewerColumn getTableViewerColumnDescription() {
-		return tableViewerColumnDescription;
-	}
-
-	protected TableViewer getTableViewer() {
-		return tableViewer;
-	}
-
-	protected Composite getCompositeFooter() {
-		return compositeFooter;
-	}
-
-	protected Text getTextFilter() {
-		return textFilter;
 	}
 }

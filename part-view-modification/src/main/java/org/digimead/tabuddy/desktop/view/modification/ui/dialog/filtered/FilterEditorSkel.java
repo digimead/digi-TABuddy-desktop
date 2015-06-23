@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -112,6 +112,66 @@ public class FilterEditorSkel extends TitleAreaDialog {
 	public FilterEditorSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
+	}
+
+	public TableViewer getTableViewerFilters() {
+		return tableViewerFilters;
+	}
+
+	public TableViewer getTableViewerProperties() {
+		return tableViewerProperties;
+	}
+
+	public TableViewerColumn getTableViewerColumnProperty() {
+		return tableViewerColumnProperty;
+	}
+
+	public TableViewerColumn getTableViewerColumnType() {
+		return tableViewerColumnType;
+	}
+
+	public TableViewerColumn getTableViewerColumnInversion() {
+		return tableViewerColumnInversion;
+	}
+
+	public TableViewerColumn getTableViewerColumnArgument() {
+		return tableViewerColumnArgument;
+	}
+
+	public TableViewerColumn getTableViewerColumnFilter() {
+		return tableViewerColumnFilter;
+	}
+
+	public Text getTextDescription() {
+		return textDescription;
+	}
+
+	public Text getTextName() {
+		return textName;
+	}
+
+	public Button getBtnCheckAvailability() {
+		return btnCheckAvailability;
+	}
+
+	public Composite getCompositeBody() {
+		return compositeBody;
+	}
+
+	public TableViewerColumn getTableViewerColumnPropertyFrom() {
+		return tableViewerColumnPropertyFrom;
+	}
+
+	public TableViewerColumn getTableViewerColumnTypeFrom() {
+		return tableViewerColumnTypeFrom;
+	}
+
+	public Text getTextFilterProperties() {
+		return textFilterProperties;
+	}
+
+	public Text getTextFilterFilters() {
+		return textFilterFilters;
 	}
 
 	/**
@@ -238,66 +298,6 @@ public class FilterEditorSkel extends TitleAreaDialog {
 		Button button = createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL, true);
 		button.setEnabled(false);
 		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
-	}
-
-	protected TableViewer getTableViewerFilters() {
-		return tableViewerFilters;
-	}
-
-	protected TableViewer getTableViewerProperties() {
-		return tableViewerProperties;
-	}
-
-	protected TableViewerColumn getTableViewerColumnProperty() {
-		return tableViewerColumnProperty;
-	}
-
-	protected TableViewerColumn getTableViewerColumnType() {
-		return tableViewerColumnType;
-	}
-
-	protected TableViewerColumn getTableViewerColumnInversion() {
-		return tableViewerColumnInversion;
-	}
-
-	protected TableViewerColumn getTableViewerColumnArgument() {
-		return tableViewerColumnArgument;
-	}
-
-	protected TableViewerColumn getTableViewerColumnFilter() {
-		return tableViewerColumnFilter;
-	}
-
-	protected Text getTextDescription() {
-		return textDescription;
-	}
-
-	protected Text getTextName() {
-		return textName;
-	}
-
-	protected Button getBtnCheckAvailability() {
-		return btnCheckAvailability;
-	}
-
-	protected Composite getCompositeBody() {
-		return compositeBody;
-	}
-
-	protected TableViewerColumn getTableViewerColumnPropertyFrom() {
-		return tableViewerColumnPropertyFrom;
-	}
-
-	protected TableViewerColumn getTableViewerColumnTypeFrom() {
-		return tableViewerColumnTypeFrom;
-	}
-
-	protected Text getTextFilterProperties() {
-		return textFilterProperties;
-	}
-
-	protected Text getTextFilterFilters() {
-		return textFilterFilters;
 	}
 
 }

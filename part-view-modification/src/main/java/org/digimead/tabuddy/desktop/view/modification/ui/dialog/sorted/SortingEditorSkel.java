@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -114,6 +114,74 @@ public class SortingEditorSkel extends TitleAreaDialog {
 	public SortingEditorSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
+	}
+
+	public TableViewer getTableViewerSortings() {
+		return tableViewerSortings;
+	}
+
+	public TableViewer getTableViewerProperties() {
+		return tableViewerProperties;
+	}
+
+	public TableViewerColumn getTableViewerColumnProperty() {
+		return tableViewerColumnProperty;
+	}
+
+	public TableViewerColumn getTableViewerColumnType() {
+		return tableViewerColumnType;
+	}
+
+	public TableViewerColumn getTableViewerColumnDirection() {
+		return tableViewerColumnDirection;
+	}
+
+	public TableViewerColumn getTableViewerColumnArgument() {
+		return tableViewerColumnArgument;
+	}
+
+	public TableViewerColumn getTableViewerColumnSorting() {
+		return tableViewerColumnSorting;
+	}
+
+	public Text getTextDescription() {
+		return textDescription;
+	}
+
+	public Text getTextName() {
+		return textName;
+	}
+
+	public Button getBtnCheckAvailability() {
+		return btnCheckAvailability;
+	}
+
+	public Composite getCompositeBody2() {
+		return compositeBody2;
+	}
+
+	public Composite getCompositeBody1() {
+		return compositeBody1;
+	}
+
+	public TableViewerColumn getTableViewerColumnPropertyFrom() {
+		return tableViewerColumnPropertyFrom;
+	}
+
+	public TableViewerColumn getTableViewerColumnTypeFrom() {
+		return tableViewerColumnTypeFrom;
+	}
+
+	public Text getTextFilterProperties() {
+		return textFilterProperties;
+	}
+
+	public Text getTextFilterSortings() {
+		return textFilterSortings;
+	}
+
+	public TableViewerColumn getTableViewerColumnN() {
+		return tableViewerColumnN;
 	}
 
 	/**
@@ -251,71 +319,4 @@ public class SortingEditorSkel extends TitleAreaDialog {
 		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
-	protected TableViewer getTableViewerSortings() {
-		return tableViewerSortings;
-	}
-
-	protected TableViewer getTableViewerProperties() {
-		return tableViewerProperties;
-	}
-
-	protected TableViewerColumn getTableViewerColumnProperty() {
-		return tableViewerColumnProperty;
-	}
-
-	protected TableViewerColumn getTableViewerColumnType() {
-		return tableViewerColumnType;
-	}
-
-	protected TableViewerColumn getTableViewerColumnDirection() {
-		return tableViewerColumnDirection;
-	}
-
-	protected TableViewerColumn getTableViewerColumnArgument() {
-		return tableViewerColumnArgument;
-	}
-
-	protected TableViewerColumn getTableViewerColumnSorting() {
-		return tableViewerColumnSorting;
-	}
-
-	protected Text getTextDescription() {
-		return textDescription;
-	}
-
-	protected Text getTextName() {
-		return textName;
-	}
-
-	protected Button getBtnCheckAvailability() {
-		return btnCheckAvailability;
-	}
-
-	protected Composite getCompositeBody2() {
-		return compositeBody2;
-	}
-
-	protected Composite getCompositeBody1() {
-		return compositeBody1;
-	}
-
-	protected TableViewerColumn getTableViewerColumnPropertyFrom() {
-		return tableViewerColumnPropertyFrom;
-	}
-
-	protected TableViewerColumn getTableViewerColumnTypeFrom() {
-		return tableViewerColumnTypeFrom;
-	}
-
-	protected Text getTextFilterProperties() {
-		return textFilterProperties;
-	}
-
-	protected Text getTextFilterSortings() {
-		return textFilterSortings;
-	}
-
-	protected TableViewerColumn getTableViewerColumnN() {
-		return tableViewerColumnN;
-	}
 }

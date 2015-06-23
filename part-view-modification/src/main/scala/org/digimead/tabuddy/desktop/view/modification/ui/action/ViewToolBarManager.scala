@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,16 +44,16 @@
 package org.digimead.tabuddy.desktop.view.modification.ui.action
 
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.ToolBarManager
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.eclipse.e4.core.contexts.{ Active, ContextInjectionFactory }
+import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.CoolBarManager
-import org.eclipse.swt.widgets.{ Composite, ToolBar }
 import scala.ref.WeakReference
 
 /**
@@ -68,6 +68,16 @@ class ViewToolBarManager @Inject() (windowContext: Context) extends ToolBarManag
   if (windowContext.getLocal(classOf[AppWindow]) == null)
     throw new IllegalArgumentException(s"${windowContext} does not contain AppWindow.")
 
+  /** Get coolbar manager for this toolbar manager. */
+  def getCoolBarManager(): Option[CoolBarManager] = coolBarManager.get orElse {
+    Option(windowContext.get(classOf[AppWindow])).map { window ⇒
+      val coolbar = window.getCoolBarManager()
+      coolBarManager = WeakReference(coolbar)
+      coolbar
+    }
+  }
+  /** Get toolbar visible state. */
+  def isVisible() = visible
   /** Set ToolBarManager contribution after toolbar is created and hide it if needed. */
   override def setToolBarManagerContribution(arg: org.eclipse.jface.action.ToolBarContributionItem) {
     super.setToolBarManagerContribution(arg)
@@ -76,19 +86,18 @@ class ViewToolBarManager @Inject() (windowContext: Context) extends ToolBarManag
     getCoolBarManager.foreach(_.update(true))
   }
 
-  /** Get coolbar manager for this toolbar manager. */
-  protected def getCoolBarManager(): Option[CoolBarManager] = coolBarManager.get orElse {
-    Option(windowContext.get(classOf[AppWindow])).map { window ⇒
-      val coolbar = window.getCoolBarManager()
-      coolBarManager = WeakReference(coolbar)
-      coolbar
-    }
-  }
   /** Invoked on view activation. */
-  @Inject @Optional
+  @Inject @Optional @log
   protected def onViewChanged(@Active vComposite: VComposite): Unit = App.exec {
-    visible = vComposite.factory().features.contains(Logic.Feature.viewDefinition)
-    contribution.get.foreach(_.setVisible(visible))
-    getCoolBarManager.foreach(_.update(true))
+    val visible = vComposite.factory().features.contains(Logic.Feature.viewDefinition)
+    if (visible != this.visible) {
+      this.visible = visible
+      contribution.get.foreach(_.setVisible(visible))
+      getCoolBarManager.foreach(_.update(true))
+      if (visible)
+        log.debug("Show " + this)
+      else
+        log.debug("Hide " + this)
+    }
   }
 }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -91,45 +92,45 @@ class SortingEditor @Inject() (
   val sorting: Sorting,
   /** Initial sorting list. */
   val sortingList: List[Sorting])
-  extends SortingEditorSkel(parentShell) with Dialog with XLoggable {
+    extends SortingEditorSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The actual content */
-  protected[sorted] val actual = WritableList(sorting.definitions.toList)
+  val actual = WritableList(sorting.definitions.toList)
   /** The auto resize lock */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** The property representing current sorting availability */
-  protected val availabilityField = WritableValue[java.lang.Boolean]
+  val availabilityField = WritableValue[java.lang.Boolean]
   /** The property representing current view description */
-  protected val descriptionField = WritableValue[String]
+  val descriptionField = WritableValue[String]
   /** The property representing properties filter content */
-  protected val filterProperties = WritableValue("")
+  val filterProperties = WritableValue("")
   /** The property representing sorting filter content */
-  protected val filterSortings = WritableValue("")
+  val filterSortings = WritableValue("")
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing current view name */
-  protected val nameField = WritableValue[String]("")
+  val nameField = WritableValue[String]("")
   /** The property representing a selected property */
-  protected val selectedProperty = WritableValue[SortingEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]
+  val selectedProperty = WritableValue[SortingEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]
   /** The property representing a selected sorting */
-  protected val selectedSorting = WritableValue[XSorting.Definition]
+  val selectedSorting = WritableValue[XSorting.Definition]
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
+  /** All defined properties of the current model grouped by id, type  */
+  val total: WritableList[SortingEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]] = WritableList(payload.elementTemplates.values.
+    flatMap { template ⇒ template.properties.flatMap(_._2) }.map(property ⇒ SortingEditor.PropertyItem(property.id, property.ptype,
+      !actual.exists(definition ⇒ definition.property == property.id && definition.propertyType == property.ptype.id))).
+    toList.distinct.sortBy(_.ptype.typeSymbol.name).sortBy(_.id.name))
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0 // by an id
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
-  /** All defined properties of the current model grouped by id, type  */
-  protected[sorted] lazy val total: WritableList[SortingEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]] = WritableList(payload.elementTemplates.values.
-    flatMap { template ⇒ template.properties.flatMap(_._2) }.map(property ⇒ SortingEditor.PropertyItem(property.id, property.ptype,
-      !actual.exists(definition ⇒ definition.property == property.id && definition.propertyType == property.ptype.id))).
-    toList.distinct.sortBy(_.ptype.typeSymbol.name).sortBy(_.id.name))
 
   def getModifiedSorting(): Sorting = {
     val name = nameField.value.trim
@@ -156,9 +157,11 @@ class SortingEditor @Inject() (
     autoResizeLock.unlock()
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionAdd).fill(getCompositeBody1())
     new ActionContributionItem(ActionRemove).fill(getCompositeBody1())
     new ActionContributionItem(ActionUp).fill(getCompositeBody2())
@@ -206,10 +209,6 @@ class SortingEditor @Inject() (
     getShell().setText(Messages.viewSortingEditorDialog_text.format(sorting.name))
     result
   }
-  /** Allow external access for scala classes */
-  override protected def getTableViewerSortings() = super.getTableViewerSortings
-  /** Allow external access for scala classes */
-  override protected def getTableViewerProperties = super.getTableViewerProperties()
   /** Initialize  table viewer 'Properties' */
   protected def initTableViewerProperties() {
     val viewer = getTableViewerProperties()
@@ -389,7 +388,7 @@ class SortingEditor @Inject() (
       validator.withDecoration(validator.showDecorationRequired(_, Messages.nameIsNotDefined_text))
     else
       validator.withDecoration(_.hide)
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+  object ActionAutoResize extends Action(Messages.autoresize_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked()) {
       Future { autoresize } onFailure {

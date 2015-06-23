@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -87,49 +88,49 @@ class ViewEditor @Inject() (
   val view: View,
   /** Initial view list. */
   val viewList: List[View])
-  extends ViewEditorSkel(parentShell) with Dialog with XLoggable {
+    extends ViewEditorSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The actual fields */
-  protected val actualFields = WritableList(view.fields.toList)
+  val actualFields = WritableList(view.fields.toList)
   /** The actual filters UUID */
-  protected val actualFilters = WritableList(view.filters.toList)
+  val actualFilters = WritableList(view.filters.toList)
   /** The actual sortings UUID */
-  protected val actualSortings = WritableList(view.sortings.toList)
+  val actualSortings = WritableList(view.sortings.toList)
   /** All available filters */
-  protected val allFilters = WritableList((payload.getAvailableViewFilters - Filter.allowAllFilter).toList.sortBy(_.name))
+  val allFilters = WritableList((payload.getAvailableViewFilters - Filter.allowAllFilter).toList.sortBy(_.name))
   /** All defined properties of the current model grouped by id */
-  protected val allProperties: WritableList[Symbol] = WritableList(payload.elementTemplates.values.
+  val allProperties: WritableList[Symbol] = WritableList(payload.elementTemplates.values.
     flatMap { template ⇒ template.properties.flatMap(_._2) }.map(property ⇒ property.id).toList.distinct.sortBy(_.name))
   /** All available sortings */
-  protected val allSortings = WritableList((payload.getAvailableViewSortings - Sorting.simpleSorting).toList.sortBy(_.name))
+  val allSortings = WritableList((payload.getAvailableViewSortings - Sorting.simpleSorting).toList.sortBy(_.name))
   /** The auto resize lock */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** The property representing current enumeration availability */
-  protected val availabilityField = WritableValue[java.lang.Boolean]
+  val availabilityField = WritableValue[java.lang.Boolean]
   /** The property representing current view description */
-  protected val descriptionField = WritableValue[String]
+  val descriptionField = WritableValue[String]
   /** The property representing fields filter content */
-  protected val filterFields = WritableValue("")
+  val filterFields = WritableValue("")
   /** The property representing filters filter content */
-  protected val filterFilters = WritableValue("")
+  val filterFilters = WritableValue("")
   /** The property representing properties filter content */
-  protected val filterProperties = WritableValue("")
+  val filterProperties = WritableValue("")
   /** The property representing sortings filter content */
-  protected val filterSortings = WritableValue("")
+  val filterSortings = WritableValue("")
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing current view name */
-  protected val nameField = WritableValue[String]("")
+  val nameField = WritableValue[String]("")
   /** The property representing a selected field */
-  protected val selectedField = WritableValue[Symbol]
+  val selectedField = WritableValue[Symbol]
   /** The property representing a selected property */
-  protected val selectedProperty = WritableValue[Symbol]
+  val selectedProperty = WritableValue[Symbol]
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
   /** Actual sortBy column index */
@@ -157,9 +158,11 @@ class ViewEditor @Inject() (
     autoResizeLock.unlock()
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionAdd).fill(getCompositeBody1())
     new ActionContributionItem(ActionRemove).fill(getCompositeBody1())
     new ActionContributionItem(ActionUp).fill(getCompositeBody2())
@@ -213,10 +216,6 @@ class ViewEditor @Inject() (
     getShell().setText(Messages.viewEditorDialog_text.format(view.name))
     result
   }
-  /** Allow external access for scala classes */
-  override protected def getTableViewerFields() = super.getTableViewerFields
-  /** Allow external access for scala classes */
-  override protected def getTableViewerProperties = super.getTableViewerProperties
   /** Initialize table viewer 'Fields' */
   protected def initTableViewerFields() {
     val viewer = getTableViewerFields()

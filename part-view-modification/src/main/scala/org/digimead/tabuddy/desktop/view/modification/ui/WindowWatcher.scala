@@ -92,7 +92,14 @@ class WindowWatcher extends Actor with XLoggable {
       App.traceMessage(message) {
         // WindowSupervisor.PointerMap
         message.asInstanceOf[Map[UUID, WindowSupervisor.WindowPointer]].
-          foreach { case (uuid, pointer) ⇒ Option(pointer.appWindowRef.get).foreach(onCreated) }
+          foreach {
+            case (uuid, pointer) ⇒
+              for {
+                window ← Option(pointer.appWindowRef.get)
+                // Prevent onCreated invocation before AppWindow.createContents(...)
+                content ← window.getContent()
+              } onCreated(window)
+          }
       }
   }
 
@@ -115,8 +122,8 @@ class WindowWatcher extends Actor with XLoggable {
     SmartMenuManager.add(viewMenu, ContextInjectionFactory.make(classOf[action.ActionModifySortingList], window.windowContext))
     SmartMenuManager.add(viewMenu, ContextInjectionFactory.make(classOf[action.ActionModifyViewList], window.windowContext))
     // Splitter
-    SmartMenuManager.add(viewMenu, action.ActionToggleSystem)
-    SmartMenuManager.add(viewMenu, action.ActionToggleExpand)
+    SmartMenuManager.add(viewMenu, ContextInjectionFactory.make(classOf[action.ActionToggleSystem], window.windowContext))
+    SmartMenuManager.add(viewMenu, ContextInjectionFactory.make(classOf[action.ActionToggleExpand], window.windowContext))
     window.getMenuBarManager().update(true)
   }
   /** Adjust window toolbar. */

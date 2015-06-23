@@ -120,7 +120,7 @@ class OperationModifyFilterList extends logic.operation.view.OperationModifyFilt
   }
 
   class Implemetation(graph: Graph[_ <: Model.Like], filterList: Set[Filter])
-    extends logic.operation.view.OperationModifyFilterList.Abstract(graph, filterList) with XLoggable {
+      extends logic.operation.view.OperationModifyFilterList.Abstract(graph, filterList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute

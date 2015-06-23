@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,6 +48,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
@@ -89,24 +90,24 @@ class SortingList @Inject() (
   val payload: Payload,
   /** Initial sortirg list. */
   val initial: Set[Sorting])
-  extends SortingListSkel(parentShell) with Dialog with XLoggable {
+    extends SortingListSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The actual content */
-  protected[sortlist] val actual = WritableList(initial.toList)
+  val actual = WritableList(initial.toList)
   /** The auto resize lock */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** The property representing sorting filter content */
-  protected val filterSortings = WritableValue("")
+  val filterSortings = WritableValue("")
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing a selected view */
-  protected val selected = WritableValue[Sorting]
+  val selected = WritableValue[Sorting]
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
   /** Actual sortBy column index */
@@ -129,9 +130,11 @@ class SortingList @Inject() (
     autoResizeLock.unlock()
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionCreate).fill(getCompositeFooter())
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
     new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
@@ -272,7 +275,7 @@ class SortingList @Inject() (
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
     foreach(_.setEnabled(!{ initial.sameElements(actual) && (initial, actual).zipped.forall(Sorting.compareDeep(_, _)) }))
 
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+  object ActionAutoResize extends Action(Messages.autoresize_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked())
       Future { autoresize } onFailure {

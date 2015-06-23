@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2013 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
@@ -90,45 +91,45 @@ class FilterEditor @Inject() (
   val filter: Filter,
   /** Initial filter list. */
   val filterList: List[Filter])
-  extends FilterEditorSkel(parentShell) with Dialog with XLoggable {
+    extends FilterEditorSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The actual content */
-  protected[filtered] val actual = WritableList(filter.rules.toList)
+  val actual = WritableList(filter.rules.toList)
   /** The auto resize lock */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** The property representing current sorting availability */
-  protected val availabilityField = WritableValue[java.lang.Boolean]
+  val availabilityField = WritableValue[java.lang.Boolean]
   /** The property representing current view description */
-  protected val descriptionField = WritableValue[String]
+  val descriptionField = WritableValue[String]
   /** The property representing properties filter content */
-  protected val filterProperties = WritableValue("")
+  val filterProperties = WritableValue("")
   /** The property representing filters filter content */
-  protected val filterFilters = WritableValue("")
+  val filterFilters = WritableValue("")
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing current view name */
-  protected val nameField = WritableValue[String]("")
+  val nameField = WritableValue[String]("")
   /** The property representing a selected property */
-  protected val selectedProperty = WritableValue[FilterEditor.PropertyItem[_ <: AnySRef]]
+  val selectedProperty = WritableValue[FilterEditor.PropertyItem[_ <: AnySRef]]
   /** The property representing a selected sorting */
-  protected val selectedRule = WritableValue[XFilter.Rule]
+  val selectedRule = WritableValue[XFilter.Rule]
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
+  /** All defined properties of the current model grouped by id, type  */
+  val total: WritableList[FilterEditor.PropertyItem[_ <: AnySRef]] = WritableList(payload.elementTemplates.values.
+    flatMap { template ⇒ template.properties.flatMap(_._2) }.map(property ⇒ FilterEditor.PropertyItem(property.id, property.ptype,
+      !actual.exists(definition ⇒ definition.property == property.id && definition.propertyType == property.ptype.id))).
+    toList.distinct.sortBy(_.ptype.typeSymbol.name).sortBy(_.id.name))
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0 // by an id
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
-  /** All defined properties of the current model grouped by id, type  */
-  protected[filtered] lazy val total: WritableList[FilterEditor.PropertyItem[_ <: AnySRef]] = WritableList(payload.elementTemplates.values.
-    flatMap { template ⇒ template.properties.flatMap(_._2) }.map(property ⇒ FilterEditor.PropertyItem(property.id, property.ptype,
-      !actual.exists(definition ⇒ definition.property == property.id && definition.propertyType == property.ptype.id))).
-    toList.distinct.sortBy(_.ptype.typeSymbol.name).sortBy(_.id.name))
 
   def getModifiedFilter(): Filter = {
     val name = nameField.value.trim
@@ -162,15 +163,17 @@ class FilterEditor @Inject() (
       })
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionAdd).fill(getCompositeBody())
     new ActionContributionItem(ActionRemove).fill(getCompositeBody())
     ActionAdd.setEnabled(false)
     ActionRemove.setEnabled(false)
     initTableViewerProperties()
-    initTableViewerSortings()
+    initTableViewerFilters()
     // bind the sorting info: an availability
     App.bindingContext.bindValue(WidgetProperties.selection().observe(getBtnCheckAvailability()), availabilityField)
     val availabilityFieldListener = availabilityField.addChangeListener { (availability, event) ⇒ updateOK() }
@@ -208,11 +211,7 @@ class FilterEditor @Inject() (
     getShell().setText(Messages.viewFilterEditorDialog_text.format(filter.name))
     result
   }
-  /** Allow external access for scala classes */
-  override protected def getTableViewerFilters() = super.getTableViewerFilters()
-  /** Allow external access for scala classes */
-  override protected def getTableViewerProperties = super.getTableViewerProperties()
-  /** Initialize tableTableViewerSortings */
+  /** Initialize TableViewerProperties. */
   protected def initTableViewerProperties() {
     val viewer = getTableViewerProperties()
     viewer.setContentProvider(new ObservableListContentProvider())
@@ -262,8 +261,8 @@ class FilterEditor @Inject() (
     App.bindingContext.bindValue(ViewersObservables.observeSingleSelection(viewer), selectedProperty)
     viewer.getTable().pack
   }
-  /** Initialize tableTableViewerSortings */
-  protected def initTableViewerSortings() {
+  /** Initialize TableViewerFilters */
+  protected def initTableViewerFilters() {
     val viewer = getTableViewerFilters()
     viewer.setContentProvider(new ObservableListContentProvider())
     getTableViewerColumnProperty.setLabelProvider(new ColumnProperty.TLabelProvider)
@@ -377,7 +376,7 @@ class FilterEditor @Inject() (
     else
       validator.withDecoration(_.hide)
 
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+  object ActionAutoResize extends Action(Messages.autoresize_text, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked()) Future { autoresize }
   }

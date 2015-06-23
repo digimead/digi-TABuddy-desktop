@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -76,14 +76,6 @@ object Default {
   def toolTipDisplayDelayTime = DI.toolTipDisplayDelayTime
   /** The time in milliseconds the tool tip is shown for. */
   def toolTipTimeDisplayed = DI.toolTipTimeDisplayed
-  /*object ViewModification {
-    /** Default view definition id. */
-    lazy val view = DI.defaultViewId.flatMap(Data.viewDefinitions.get) getOrElse payload.view.View.displayName
-    /** Default view sorting id. */
-    lazy val sorting = DI.defaultViewId.flatMap(Data.viewSortings.get) getOrElse payload.view.Sorting.simpleSorting
-    /** Default view filter id. */
-    lazy val filter = DI.defaultViewId.flatMap(Data.viewFilters.get) getOrElse payload.view.Filter.allowAllFilter
-  }*/
   /**
    * Dependency injection routines.
    */

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -63,7 +63,7 @@ import org.eclipse.swt.widgets.Event
  * Modify view list.
  */
 class ActionModifyViewList @Inject() (windowContext: Context) extends JFaceAction(Messages.views_text) with XLoggable {
-  setId(bundleId + "#ModifySortingList")
+  setId(ActionModifyViewList.id)
   /** Flag indicating whether the action is enabled. */
   @volatile protected var vContext = Option.empty[Context]
 
@@ -71,7 +71,7 @@ class ActionModifyViewList @Inject() (windowContext: Context) extends JFaceActio
     throw new IllegalArgumentException(s"${windowContext} does not contain AppWindow.")
 
   override def isEnabled(): Boolean = super.isEnabled &&
-    vContext.map { context ⇒ context.get(classOf[GraphMarker]) != null }.getOrElse(false)
+    vContext.map { context ⇒ context.getActive(classOf[GraphMarker]) != null }.getOrElse(false)
 
   /** Runs this action, passing the triggering SWT event. */
   @log
@@ -99,15 +99,28 @@ class ActionModifyViewList @Inject() (windowContext: Context) extends JFaceActio
   }
 
   /** Update enabled action state. */
+  @log
   protected def updateEnabled() = if (isEnabled)
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
   else
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
   /** Invoked on view activation. */
   @Inject @Optional
-  protected def onViewChanged(@Active vComposite: VComposite, @Optional @Active marker: GraphMarker): Unit = {
-    vContext = vComposite.getContext
-    App.exec { updateEnabled() }
-  }
+  protected def onViewChanged(@Active @Optional vComposite: VComposite, @Active @Optional marker: GraphMarker) =
+    ActionModifySortingList.synchronized {
+      val newContext = {
+        for {
+          composite ← Option(vComposite)
+          marker ← Option(marker)
+        } yield vComposite.getContext
+      } getOrElse None
+      if (newContext != vContext) {
+        vContext = newContext
+        App.exec { updateEnabled() }
+      }
+    }
 }
 
+object ActionModifyViewList {
+  val id = bundleId + "#ModifyViewList"
+}
