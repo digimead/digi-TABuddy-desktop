@@ -107,7 +107,7 @@ class ActionModifyViewList @Inject() (windowContext: Context) extends JFaceActio
   /** Invoked on view activation. */
   @Inject @Optional
   protected def onViewChanged(@Active @Optional vComposite: VComposite, @Active @Optional marker: GraphMarker) =
-    ActionModifySortingList.synchronized {
+    ActionModifyViewList.synchronized {
       val newContext = {
         for {
           composite ← Option(vComposite)
