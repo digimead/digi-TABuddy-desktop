@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.core
 
 import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.definition.{ BaseResourceBundle, NLS }
+import org.digimead.tabuddy.desktop.core.definition.NLS
 
 /**
  * Resource bundle implementation.
@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.definition.{ BaseResourceBundle, NLS }
  * This code is directly evaluated in IDE (WindowBuilderPro).
  * Any runtime references that may prevent creation are prohibited.
  */
-class Messages extends ResourceBundle with BaseResourceBundle {
+class Messages extends ResourceBundle {
   def getKeys() = new java.util.Enumeration[String] {
     private val iterator = Messages.T.messages.keys.iterator
     def hasMoreElements(): Boolean = iterator.hasNext
@@ -72,8 +72,6 @@ object Messages extends NLS with XLoggable {
   val TABuddyDesktop = ""
   val acquire_text = ""
   val activate_text = ""
-  val activeElement_text = ""
-  val activeSchema_text = ""
   val active_text = ""
   val add_text = ""
   val additionalInformation_text = ""
@@ -114,26 +112,9 @@ object Messages extends NLS with XLoggable {
   val elementEditorDescription_text = ""
   val elementEditorDialog_text = ""
   val elementEditorTitle_text = ""
-  val elementTemplateEditorDescription_text = ""
-  val elementTemplateEditorDialog_text = ""
-  val elementTemplateEditorTitle_text = ""
-  val elementTemplateListDescription_text = ""
-  val elementTemplateListDialog_text = ""
-  val elementTemplateListTitle_text = ""
-  val elementTemplates_text = ""
   val elementsPredefined_text = ""
   val emptyRows_text = ""
   val empty_text = ""
-  val enumerationEditorDescription_text = ""
-  val enumerationEditorDialog_text = ""
-  val enumerationEditorTitle_text = ""
-  val enumerationListDescription_text = ""
-  val enumerationListDialog_text = ""
-  val enumerationListTitle_text = ""
-  val enumerationTooltip_text = ""
-  val enumerationUnableToCreateNoTypes_text = ""
-  val enumerationUnableToCreate_text = ""
-  val enumerations_text = ""
   val errorReportContactHint_text = ""
   val errorReportContactTip_text = ""
   val errorReportContact_text = ""
@@ -182,7 +163,6 @@ object Messages extends NLS with XLoggable {
   val localModel_text = ""
   val localModel_tooltip_text = ""
   val lock_text = ""
-  val lookupAliasInTranslations_text = ""
   val lookupFilter_text = ""
   val markAsRoot_text = ""
   val menuEdit_text = ""
@@ -191,9 +171,6 @@ object Messages extends NLS with XLoggable {
   val nameIsAlreadyInUse_text = ""
   val nameIsNotDefined_text = ""
   val name_text = ""
-  val newFilterName_text = ""
-  val newSortingName_text = ""
-  val newTypeSchema_text = ""
   val newValue_text = ""
   val new_text = ""
   val no_text = ""
@@ -212,7 +189,6 @@ object Messages extends NLS with XLoggable {
   val resetSorting_text = ""
   val reset_text = ""
   val right_text = ""
-  val rootElement_text = ""
   val saveFile_text = ""
   val select_text = ""
   val settings_text = ""
@@ -230,21 +206,9 @@ object Messages extends NLS with XLoggable {
   val thereIsNoData_text = ""
   val translationDialog_text = ""
   val tree_text = ""
-  val typeEditorDescription_text = ""
-  val typeEditorDialog_text = ""
-  val typeEditorTitle_text = ""
   val typeInternalRepresentaion_text = ""
   val typeIsUnknown_text = ""
-  val typeListDescription_text = ""
-  val typeListDialog_text = ""
-  val typeListTitle_text = ""
-  val typeSchemaDefaultDescription_text = ""
-  val typeSchemaPredefinedResetToDefault_text = ""
-  val typeSchemaResetUnknownTypes_text = ""
-  val typeSchemaTooltip_text = ""
-  val typeSchemas_text = ""
   val type_text = ""
-  val types_text = ""
   val undo_text = ""
   val unknown_view_text = ""
   val untitled_text = ""

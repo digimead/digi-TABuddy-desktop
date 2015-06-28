@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -98,6 +98,12 @@ class Core extends akka.actor.Actor with XLoggable {
   /** Console actor. */
   lazy val consoleRef = context.actorOf(console.Console.props, console.Console.id)
 
+  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 2) {
+    case e: Throwable ⇒
+      log.error(Option(e.getMessage).getOrElse("- No message -"), e)
+      Resume
+  }
+
   /*
    *
    * Core started if:
@@ -170,11 +176,6 @@ class Core extends akka.actor.Actor with XLoggable {
       log.error(s"Received unexpected message '${sender}' -> '${self}': '${message}'", message.source)
     case UnhandledMessage(message, sender, self) ⇒
       log.fatal(s"Received unexpected message '${sender}' -> '${self}': '${message}'")
-  }
-  override val supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 2) {
-    case e: Throwable ⇒
-      log.error(Option(e.getMessage).getOrElse("- No message -"), e)
-      Resume
   }
 
   /** Starts main service when OSGi environment will be stable. */

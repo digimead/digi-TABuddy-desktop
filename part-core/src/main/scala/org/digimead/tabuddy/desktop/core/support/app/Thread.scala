@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -122,7 +122,11 @@ trait Thread {
         def run = {
           val ts = System.currentTimeMillis()
           try exchanger.exchange(Right(f), 100, TimeUnit.MILLISECONDS)
-          catch { case e: Throwable ⇒ exchanger.exchange(Left(e), 100, TimeUnit.MILLISECONDS) }
+          catch {
+            case e: Throwable ⇒
+              log.error("Unable to complete execNGetAsync call: " + e, t)
+              exchanger.exchange(Left(e), 100, TimeUnit.MILLISECONDS)
+          }
           val duration = System.currentTimeMillis() - ts
           if (duration > 500)
             log.error(s"Too heavy operation: ${duration}ms.", t)
@@ -159,7 +163,11 @@ trait Thread {
             val duration = System.currentTimeMillis() - ts
             if (duration > 500)
               log.error(s"Too heavy operation: ${duration}ms.", t)
-          } catch { case e: Throwable ⇒ log.error("Event thread exception: " + e, e) }
+          } catch {
+            case e: Throwable ⇒
+              log.error("Unable to complete execWithTimer call: " + e, t)
+              log.error("Event thread exception: " + e, e)
+          }
         })
       })
     } else {

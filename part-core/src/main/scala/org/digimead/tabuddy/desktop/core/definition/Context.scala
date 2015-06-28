@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.core.definition
 
 import org.digimead.digi.lib.api.XDependencyInjection
+import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.Context.Event
 import org.digimead.tabuddy.desktop.core.support.App
 import org.eclipse.e4.core.internal.contexts.EclipseContext
@@ -67,7 +68,32 @@ class Context(parent: EclipseContext) extends EclipseContext(parent) {
   /** Dispose context. */
   override def dispose() = {
     Context.Event.publish(null.asInstanceOf[String], Context.this)
-    super.dispose()
+    try super.dispose()
+    //    Sporadic error from stress test
+    //    ...
+    //    Caused by: org.eclipse.e4.core.di.InjectionException: java.lang.IllegalArgumentException: java.lang.NullPointerException@7804a579
+    //        at org.eclipse.e4.core.internal.di.MethodRequestor.execute(MethodRequestor.java:58)
+    //        at org.eclipse.e4.core.internal.contexts.ContextObjectSupplier$ContextInjectionListener.update(ContextObjectSupplier.java:88)
+    //        at org.eclipse.e4.core.internal.contexts.TrackableComputationExt.update(TrackableComputationExt.java:107)
+    //        at org.eclipse.e4.core.internal.contexts.EclipseContext.processScheduled(EclipseContext.java:334)
+    //        at org.eclipse.e4.core.internal.contexts.EclipseContext.set(EclipseContext.java:348)
+    //        at org.digimead.tabuddy.desktop.core.definition.Context.set(Context.scala:93)
+    //        at org.eclipse.e4.core.internal.contexts.EclipseContext.dispose(EclipseContext.java:192)
+    //        at org.digimead.tabuddy.desktop.core.definition.Context.dispose(Context.scala:70)
+    //    Caused by: java.lang.IllegalArgumentException: java.lang.NullPointerException@7804a579
+    //        at sun.reflect.GeneratedMethodAccessor3.invoke(Unknown Source)
+    //        at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+    //        at java.lang.reflect.Method.invoke(Method.java:606)
+    //        at org.eclipse.e4.core.internal.di.MethodRequestor.execute(MethodRequestor.java:56)
+    //        ... 36 more
+    catch {
+      case e: org.eclipse.e4.core.di.InjectionException ⇒
+        Context.log.warn("Ignore Eclipse shit: " + e.getMessage, e)
+      case e: java.lang.IllegalArgumentException ⇒
+        Context.log.warn("Ignore Eclipse shit: " + e.getMessage, e)
+      case e: java.lang.NullPointerException ⇒
+        Context.log.warn("Ignore Eclipse shit: " + e.getMessage, e)
+    }
   }
   /** Get context parent. */
   override def getParent(): Context = super.getParent.asInstanceOf[Context]
@@ -101,7 +127,7 @@ class Context(parent: EclipseContext) extends EclipseContext(parent) {
   override def toString() = s"Context(${Context.getName(this) getOrElse "UNNAMED"})"
 }
 
-object Context {
+object Context extends XLoggable {
   implicit def appContext2rich(a: Context): Rich = new Rich(a)
   implicit def rich2appContext(r: Rich): Context = r.context
 
@@ -144,7 +170,7 @@ object Context {
     /** Publish context event. */
     def publish[T](clazz: Class[T], context: Context) { publish(clazz.getName, context) }
     /** Subscribe to name events. */
-    def subscribe[T](name: String, f: (String, Context) ⇒ T): Listener = synchronized {
+    def subscribe(name: String, f: (String, Context) ⇒ _): Listener = synchronized {
       val listener = new Listener(name, f)
       listeners.get(name) match {
         case Some(seq) ⇒
@@ -156,10 +182,10 @@ object Context {
       }
     }
     /** Subscribe to class events. */
-    def subscribe[T](clazz: Class[T], f: (String, Context) ⇒ T): Listener =
+    def subscribe(clazz: Class[_], f: (String, Context) ⇒ _): Listener =
       subscribe(clazz.getName(), f)
     /** Unsubscribe listener. */
-    def unsubscribe[T](listener: Listener) = synchronized {
+    def unsubscribe(listener: Listener) = synchronized {
       listeners.get(listener.name).foreach { seq ⇒
         seq.filterNot(_ == listener) match {
           case Nil ⇒

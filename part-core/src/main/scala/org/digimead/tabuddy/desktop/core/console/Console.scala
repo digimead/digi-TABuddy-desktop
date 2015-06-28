@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -124,6 +124,7 @@ class Console extends Actor with XLoggable {
 
   /** Run one command submitted by the user. */
   protected def command(line: String, from: Option[XConsole.Projection], sender: ActorRef) = try {
+    // NOTE: App.system in replay may be null if application is terminated
     Command.parse(line) match {
       case Command.Success(contextParserId, result) ⇒
         Command.getContextParserInfo(contextParserId) match {
@@ -135,37 +136,37 @@ class Console extends Actor with XLoggable {
                 implicit val ec = App.system.dispatcher
                 commandDescriptor.callback(activeContext, info.context, result) onComplete {
                   case result @ Success(r) ⇒
-                    if (sender != App.system.deadLetters)
+                    if (App.system != null && sender != App.system.deadLetters)
                       sender ! result
                     commandOnSuccess(commandDescriptor, r, from)
                   case result @ Failure(e) ⇒
-                    if (sender != App.system.deadLetters)
+                    if (App.system != null && sender != App.system.deadLetters)
                       sender ! result
                     Console.log.debug("Unable to execute command: " + line, e)
                     commandOnFailure(commandDescriptor, e, line, from)
                 }
               case None ⇒
-                if (sender != App.system.deadLetters)
+                if (App.system != null && sender != App.system.deadLetters)
                   sender ! Failure(new RuntimeException("Unable to find command description for " + info))
                 Console.log.fatal("Unable to find command description for " + info)
             }
           case None ⇒
-            if (sender != App.system.deadLetters)
+            if (App.system != null && sender != App.system.deadLetters)
               sender ! Failure(new RuntimeException("Unable to find command information for unique Id " + contextParserId))
             Console.log.fatal("Unable to find command information for unique Id " + contextParserId)
         }
       case Command.MissingCompletionOrFailure(completionList, message) ⇒
-        if (sender != App.system.deadLetters)
+        if (App.system != null && sender != App.system.deadLetters)
           sender ! Failure(new RuntimeException("Autocomplete: " + message))
         commandOnIncorrect(line, from)
         Console.log.debug("Autocomplete: " + message)
       case Command.Failure(message) ⇒
-        if (sender != App.system.deadLetters)
+        if (App.system != null && sender != App.system.deadLetters)
           sender ! Failure(new RuntimeException(message))
         commandOnIncorrect(line, from)
         Console.log.debug(message)
       case Command.Error(message) ⇒
-        if (sender != App.system.deadLetters)
+        if (App.system != null && sender != App.system.deadLetters)
           sender ! Failure(new RuntimeException(message))
         commandOnError(line, message, from)
         Console.log.debug(message)
