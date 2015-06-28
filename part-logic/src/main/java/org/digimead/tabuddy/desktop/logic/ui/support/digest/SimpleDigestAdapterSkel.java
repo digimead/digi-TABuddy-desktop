@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -76,11 +76,11 @@ public class SimpleDigestAdapterSkel extends Composite {
 		try {
 			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.logic.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
 		}
 	}
 

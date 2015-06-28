@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -64,7 +64,7 @@ class SimpleSignatureAdapter extends SignatureAdapter {
     val publicKey = ID.thisPublicSigningKey
     val privateKey = ID.thisSecretSigningKey.extractPrivateKey(new BcPBESecretKeyDecryptorBuilder(new BcPGPDigestCalculatorProvider()).
       build(KeyRing.defaultPassPhrase.toCharArray()))
-    val converter = new JcaPGPKeyConverter().setProvider(PGPUtil.getDefaultProvider())
+    val converter = new JcaPGPKeyConverter().setProvider("BC")
     val parameters = SimpleSignature(converter.getPublicKey(publicKey), converter.getPrivateKey(privateKey))
     SignatureParser.Argument(tag, Some(parameters))
   }

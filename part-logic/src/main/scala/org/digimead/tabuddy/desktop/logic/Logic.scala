@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -326,6 +326,10 @@ object Logic extends XLoggable {
     final val graph = "org.digimead.tabuddy.desktop.logic/graph"
     /** Flag indicating whether this view is using 'view definitions/filters/sortings' [java.lang.Boolean]. */
     final val viewDefinition = "org.digimead.tabuddy.desktop.logic/viewDefinition"
+    /** Flag indicating whether this view is using 'stateOfToggleExpand' [java.lang.Boolean]. */
+    final val viewToggleExpand = "org.digimead.tabuddy.desktop.logic/viewToggleExpand"
+    /** Flag indicating whether this view is using 'stateOfToggleSystem' [java.lang.Boolean]. */
+    final val viewToggleSystem = "org.digimead.tabuddy.desktop.logic/viewToggleSystem"
   }
   /**
    * List of predefined identifiers that are used as context keys.
@@ -339,6 +343,11 @@ object Logic extends XLoggable {
     final val selectedSorting = "org.digimead.tabuddy.desktop.logic/selectedSorting"
     /** Value of the selected filter ID [UUID]. */
     final val selectedFilter = "org.digimead.tabuddy.desktop.logic/selectedFilter"
+    /** Value of the ToggleExpand switch [java.lang.Boolean]. */
+    final val stateOfToggleExpand = "org.digimead.tabuddy.desktop.logic/stateOfToggleExpand"
+    /** Value of the ToggleSystem switch [java.lang.Boolean]. */
+    final val stateOfToggleSystem = "org.digimead.tabuddy.desktop.logic/stateOfToggleSystem"
+
   }
   /**
    * Dependency injection routines

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,7 +45,7 @@ package org.digimead.tabuddy.desktop.logic
 
 import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.definition.{ BaseResourceBundle, NLS }
+import org.digimead.tabuddy.desktop.core.definition.NLS
 
 /**
  * Resource bundle implementation.
@@ -53,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.definition.{ BaseResourceBundle, NLS }
  * This code is directly evaluated in IDE (WindowBuilderPro).
  * Any runtime references that may prevent creation are prohibited.
  */
-class Messages extends ResourceBundle with BaseResourceBundle {
+class Messages extends ResourceBundle {
   def getKeys() = new java.util.Enumeration[String] {
     private val iterator = Messages.T.messages.keys.iterator
     def hasMoreElements(): Boolean = iterator.hasNext
@@ -127,6 +127,8 @@ object Messages extends NLS with XLoggable {
   val NewGraphWizard_shellTitle_text = "New Graph - %s"
   val SimpleDigestAdapter_lblDigestAlgorithm_text = "Algorithm"
   val SimpleDigestAdapter_selectDigestAlgorithm_text = "select digest algorithm..."
+  val activeElement_text = ""
+  val activeSchema_text = ""
   val autoresize_key = ""
   val closeAllFiles_text = ""
   val closeFile_text = ""
@@ -134,7 +136,12 @@ object Messages extends NLS with XLoggable {
   val contentEncryption_text = "content encryption"
   val creationError_text = ""
   val digest_text = "digest"
+  val elementTemplates_text = ""
   val encryption_text = "encryption"
+  val enumerationTooltip_text = ""
+  val enumerationUnableToCreateNoTypes_text = ""
+  val enumerationUnableToCreate_text = ""
+  val enumerations_text = ""
   val exportFile_text = ""
   val graphContentTitle = ""
   val graphContentTitleEmpty = ""
@@ -215,6 +222,7 @@ object Messages extends NLS with XLoggable {
   val parametersRequired = "parameters required"
   val parametersRequired_text = "parameters required"
   val properties_text = ""
+  val rootElement_text = ""
   val saveAllFiles_text = ""
   val saveFile_text = ""
   val script_runDescriptionLong_text = ""
@@ -225,6 +233,10 @@ object Messages extends NLS with XLoggable {
   val shellTitle_text = ""
   val showHiddenText_text = "show hidden text"
   val signature_text = "sigest"
+  val typeSchemaDefaultDescription_text = ""
+  val typeSchemaTooltip_text = ""
+  val typeSchemas_text = ""
+  val types_text = ""
   val wizardGraphNewPageOneDescription_text = ""
   val wizardGraphNewPageOneTitle_text = ""
 

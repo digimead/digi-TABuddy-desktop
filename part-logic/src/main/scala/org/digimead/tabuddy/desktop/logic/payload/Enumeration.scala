@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -62,18 +62,18 @@ import scala.reflect.runtime.universe
  * The equality is based on the element reference.
  */
 class Enumeration[T <: AnySRef: Manifest](
-  /** The enumeration element */
-  val element: Element#RelativeType,
-  /** The enumeration type wrapper */
-  val ptype: PropertyType[T],
-  /** Fn thats do something before the instance initialization */
-  /* Fn's enumeration type must be [_], not [T] because of the construction like this:
-   * new Enumeration(element, ptype)(Manifest.classType(ptype.typeClass))
-   * where ptype is an unknown generic type
-   */
-  preinitialization: Enumeration[_] ⇒ Unit = (enum: Enumeration[_]) ⇒
-    // create the enumeration element if needed and set the type field
-    enum.element.eSet[String](enum.getFieldIDType, enum.ptype.id.name)) extends Enumeration.Interface[T] with XLoggable {
+    /** The enumeration element */
+    val element: Element#RelativeType,
+    /** The enumeration type wrapper */
+    val ptype: PropertyType[T],
+    /** Fn thats do something before the instance initialization */
+    /* Fn's enumeration type must be [_], not [T] because of the construction like this:
+     * new Enumeration(element, ptype)(Manifest.classType(ptype.typeClass))
+     * where ptype is an unknown generic type
+     */
+    preinitialization: Enumeration[_] ⇒ Unit = (enum: Enumeration[_]) ⇒
+      // create the enumeration element if needed and set the type field
+      enum.element.eSet[String](enum.getFieldIDType, enum.ptype.id.name)) extends Enumeration.Interface[T] with XLoggable {
   def this(element: Element#RelativeType, ptype: PropertyType[T], initialAvailability: Boolean,
     initialName: String, initialConstants: Set[Enumeration.Constant[T]]) = {
     this(element, ptype, (enumerationWithoutErasure) ⇒ {
@@ -186,7 +186,7 @@ class Enumeration[T <: AnySRef: Manifest](
     }
   }
 
-  override lazy val toString = "Enumeration[%s/%s]%s".format(ptype.id, scala.reflect.runtime.universe.typeOf[T], element.eId)
+  override lazy val toString = "Enumeration[%s/%s]".format(element.eId, ptype.id.name)
 }
 
 object Enumeration extends XLoggable {
@@ -272,7 +272,7 @@ object Enumeration extends XLoggable {
    * The equality is based on constant value
    */
   case class Constant[T <: AnySRef](val value: T,
-    val alias: String, val description: String)(val ptype: PropertyType[T], implicit val m: Manifest[T]) extends XEnumeration.Constant[T, PropertyType[T]] {
+      val alias: String, val description: String)(val ptype: PropertyType[T], implicit val m: Manifest[T]) extends XEnumeration.Constant[T, PropertyType[T]] {
     type ConstantPropertyType = PropertyType[T]
     /** The enumeration constant user's representation. */
     lazy val view: String = Enumeration.getConstantTranslation(this)

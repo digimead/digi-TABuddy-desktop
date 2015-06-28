@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -116,13 +116,14 @@ class XOR extends XEncryption {
     /** Encrypt/decrypt a single byte returning the result. */
     def returnByte(in: Byte): Byte = xorWithKey(Array(in), key).head
     /** Process a block of bytes from in putting the result into out. */
-    def processBytes(in: Array[Byte], inOff: Int, len: Int, out: Array[Byte], outOff: Int) = synchronized {
+    def processBytes(in: Array[Byte], inOff: Int, len: Int, out: Array[Byte], outOff: Int): Int = synchronized {
       if ((inOff + len) > in.length)
         throw new DataLengthException("Input buffer too short")
       if ((outOff + len) > out.length)
         throw new OutputLengthException("Output buffer too short")
       System.arraycopy(xorWithKey(in.drop(inOff).take(len), key, shift), 0, out, outOff, len)
       shift = (shift + len) % key.length
+      len
     }
     /** Reset the cipher. */
     def reset() {}

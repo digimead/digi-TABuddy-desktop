@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -47,16 +47,16 @@ import java.util.UUID
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.NLS
 import org.digimead.tabuddy.desktop.core.support.App
+import org.digimead.tabuddy.desktop.logic.Messages
 import org.digimead.tabuddy.desktop.logic.payload.api.XTypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.yaml.snakeyaml.{ DumperOptions, Yaml }
 import org.yaml.snakeyaml.constructor.{ AbstractConstruct, Constructor }
 import org.yaml.snakeyaml.error.YAMLException
 import org.yaml.snakeyaml.nodes.{ MappingNode, Node, NodeTuple, SequenceNode, Tag }
 import org.yaml.snakeyaml.representer.{ Represent, Representer }
+import org.yaml.snakeyaml.{ DumperOptions, Yaml }
 import scala.collection.JavaConversions.{ asScalaBuffer, seqAsJavaList }
 import scala.collection.immutable
 
@@ -73,7 +73,7 @@ class TypeSchema(
   val description: String,
   /** Type schema entities. */
   val entity: Map[Symbol, TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]])
-  extends XTypeSchema[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]] {
+    extends XTypeSchema[TypeSchema.Entity[_ <: AnyRef with java.io.Serializable]] {
   assert(entity.nonEmpty, "Type schema contain no entities")
 
   /** The copy constructor. */
@@ -183,14 +183,14 @@ object TypeSchema extends XLoggable {
    * The equality is based on ptypeId: Symbol
    */
   class Entity[T <: AnyRef with java.io.Serializable](
-    /** The property type id */
-    val ptypeId: Symbol,
-    /** typeSymbol alias */
-    val alias: String,
-    /** Availability flag for user (some types may exists, but not involved in new element template creation) */
-    val availability: Boolean,
-    /** The entity description */
-    val description: String) extends XTypeSchema.Entity[T] {
+      /** The property type id */
+      val ptypeId: Symbol,
+      /** typeSymbol alias */
+      val alias: String,
+      /** Availability flag for user (some types may exists, but not involved in new element template creation) */
+      val availability: Boolean,
+      /** The entity description */
+      val description: String) extends XTypeSchema.Entity[T] {
     /** The type schema entity user's representation */
     lazy val view: String = TypeSchema.getEntityTranslation(ptypeId, alias)
 

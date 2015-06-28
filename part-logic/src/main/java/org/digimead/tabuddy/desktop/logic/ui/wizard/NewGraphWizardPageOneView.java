@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,8 @@
 
 package org.digimead.tabuddy.desktop.logic.ui.wizard;
 
-import org.digimead.tabuddy.desktop.core.definition.BaseResourceBundle;
+import java.util.ResourceBundle;
+
 import org.eclipse.jface.viewers.ComboViewer;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CCombo;
@@ -68,7 +69,7 @@ import org.eclipse.ui.forms.widgets.TableWrapLayout;
  * @author ezh
  */
 public class NewGraphWizardPageOneView extends Composite {
-	private static final BaseResourceBundle BUNDLE = getResourceBundle();
+	private static final ResourceBundle BUNDLE = getResourceBundle();
 	private final FormToolkit toolkit = new FormToolkit(Display.getCurrent());
 	private Button btnLocation;
 	private CCombo comboSerialization;
@@ -111,15 +112,20 @@ public class NewGraphWizardPageOneView extends Composite {
 	 *
 	 * @return ResourceBundle interface of NLS singleton.
 	 */
-	private static BaseResourceBundle getResourceBundle() {
+	private static ResourceBundle getResourceBundle() {
 		try {
-			return (BaseResourceBundle) Class.forName("org.digimead.tabuddy.desktop.logic.Messages").newInstance();
+			return (ResourceBundle) Class.forName(
+					"org.digimead.tabuddy.desktop.logic.Messages")
+					.newInstance();
 		} catch (ClassNotFoundException e) {
-			return new BaseResourceBundle.Empty();
+			return ResourceBundle
+					.getBundle("org.digimead.tabuddy.desktop.logic.messages");
 		} catch (IllegalAccessException e) {
-			return new BaseResourceBundle.Empty();
+			return ResourceBundle
+					.getBundle("org.digimead.tabuddy.desktop.logic.messages");
 		} catch (InstantiationException e) {
-			return new BaseResourceBundle.Empty();
+			return ResourceBundle
+					.getBundle("org.digimead.tabuddy.desktop.logic.messages");
 		}
 	}
 
@@ -155,13 +161,16 @@ public class NewGraphWizardPageOneView extends Composite {
 			form.getBody().setLayout(tableWrapLayout);
 		}
 
-		sctnCommon = toolkit.createSection(form.getBody(), Section.EXPANDED | Section.TITLE_BAR);
-		TableWrapData twd_sctnCommon = new TableWrapData(TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
+		sctnCommon = toolkit.createSection(form.getBody(), Section.EXPANDED
+				| Section.TITLE_BAR);
+		TableWrapData twd_sctnCommon = new TableWrapData(TableWrapData.LEFT,
+				TableWrapData.TOP, 1, 1);
 		twd_sctnCommon.align = TableWrapData.FILL;
 		twd_sctnCommon.grabHorizontal = true;
 		sctnCommon.setLayoutData(twd_sctnCommon);
 		toolkit.paintBordersFor(sctnCommon);
-		sctnCommon.setText(BUNDLE.getString("NewGraphWizardPageOne_sctnCommon_text"));
+		sctnCommon.setText(BUNDLE
+				.getString("NewGraphWizardPageOne_sctnCommon_text"));
 		sctnCommon.setExpanded(true);
 		compositeCommon = toolkit.createComposite(sctnCommon, SWT.NONE);
 		sctnCommon.setClient(compositeCommon);
@@ -172,79 +181,119 @@ public class NewGraphWizardPageOneView extends Composite {
 			compositeCommon.setLayout(twl_compositeCommon);
 		}
 
-		Label lblIdentificator = toolkit.createLabel(compositeCommon, BUNDLE.getString("NewGraphWizardPageOne_lblIdentificator_text"), SWT.NONE);
-		lblIdentificator.setLayoutData(new TableWrapData(TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
+		Label lblIdentificator = toolkit
+				.createLabel(
+						compositeCommon,
+						BUNDLE.getString("NewGraphWizardPageOne_lblIdentificator_text"),
+						SWT.NONE);
+		lblIdentificator.setLayoutData(new TableWrapData(TableWrapData.RIGHT,
+				TableWrapData.MIDDLE, 1, 1));
 
 		txtIdentificator = toolkit.createText(compositeCommon, "", SWT.NONE);
-		txtIdentificator.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		txtIdentificator.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		new Label(compositeCommon, SWT.NONE);
 
-		Label lblLocation = toolkit.createLabel(compositeCommon, BUNDLE.getString("NewGraphWizardPageOne_lblLocation_text"), SWT.NONE);
-		lblLocation.setLayoutData(new TableWrapData(TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
+		Label lblLocation = toolkit.createLabel(compositeCommon,
+				BUNDLE.getString("NewGraphWizardPageOne_lblLocation_text"),
+				SWT.NONE);
+		lblLocation.setLayoutData(new TableWrapData(TableWrapData.RIGHT,
+				TableWrapData.MIDDLE, 1, 1));
 
 		txtLocation = toolkit.createText(compositeCommon, "", SWT.NONE);
-		txtLocation.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		txtLocation.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB,
+				TableWrapData.MIDDLE, 1, 1));
 
-		btnLocation = toolkit.createButton(compositeCommon, BUNDLE.getString("NewGraphWizardPageOne_btnLocation_text"), SWT.NONE);
-		btnLocation.setLayoutData(new TableWrapData(TableWrapData.LEFT, TableWrapData.MIDDLE, 1, 1));
+		btnLocation = toolkit.createButton(compositeCommon,
+				BUNDLE.getString("NewGraphWizardPageOne_btnLocation_text"),
+				SWT.NONE);
+		btnLocation.setLayoutData(new TableWrapData(TableWrapData.LEFT,
+				TableWrapData.MIDDLE, 1, 1));
 
-		Label lblSerialization = toolkit.createLabel(compositeCommon, BUNDLE.getString("NewGraphWizardPageOne_lblSerialization_text"), SWT.NONE);
-		lblSerialization.setLayoutData(new TableWrapData(TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
+		Label lblSerialization = toolkit
+				.createLabel(
+						compositeCommon,
+						BUNDLE.getString("NewGraphWizardPageOne_lblSerialization_text"),
+						SWT.NONE);
+		lblSerialization.setLayoutData(new TableWrapData(TableWrapData.RIGHT,
+				TableWrapData.MIDDLE, 1, 1));
 
 		comboSerialization = new CCombo(compositeCommon, SWT.READ_ONLY);
-		comboSerialization.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		comboSerialization.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		comboViewerSerialization = new ComboViewer(comboSerialization);
 		toolkit.adapt(comboSerialization);
 		toolkit.paintBordersFor(comboSerialization);
 		new Label(compositeCommon, SWT.NONE);
 
 		lblContainerEncryption = new Label(compositeCommon, SWT.NONE);
-		lblContainerEncryption.setLayoutData(new TableWrapData(TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
+		lblContainerEncryption.setLayoutData(new TableWrapData(
+				TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
 		toolkit.adapt(lblContainerEncryption, true, true);
-		lblContainerEncryption.setText(BUNDLE.getString("NewGraphWizardPageOne_lblContainerEncryption_text"));
+		lblContainerEncryption
+				.setText(BUNDLE
+						.getString("NewGraphWizardPageOne_lblContainerEncryption_text"));
 
 		comboContainerEncryption = new CCombo(compositeCommon, SWT.READ_ONLY);
-		comboContainerEncryption.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
-		comboViewerContainerEncryption = new ComboViewer(comboContainerEncryption);
+		comboContainerEncryption.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		comboViewerContainerEncryption = new ComboViewer(
+				comboContainerEncryption);
 		toolkit.adapt(comboContainerEncryption);
 		toolkit.paintBordersFor(comboContainerEncryption);
 		new Label(compositeCommon, SWT.NONE);
 
-		toolkit.createLabel(compositeCommon, BUNDLE.getString("NewGraphWizardPageOne_lblContainerEncryption_text"), SWT.NONE).setVisible(false);
-		textContainerEncryption = toolkit.createText(compositeCommon, "", SWT.NONE);
-		textContainerEncryption.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		toolkit.createLabel(
+				compositeCommon,
+				BUNDLE.getString("NewGraphWizardPageOne_lblContainerEncryption_text"),
+				SWT.NONE).setVisible(false);
+		textContainerEncryption = toolkit.createText(compositeCommon, "",
+				SWT.NONE);
+		textContainerEncryption.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		textContainerEncryption.setEnabled(false);
 		textContainerEncryption.setEditable(false);
 		toolkit.adapt(textContainerEncryption, true, true);
 		new Label(compositeCommon, SWT.NONE);
 
 		lblContentEncryption = new Label(compositeCommon, SWT.NONE);
-		lblContentEncryption.setLayoutData(new TableWrapData(TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
+		lblContentEncryption.setLayoutData(new TableWrapData(
+				TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
 		toolkit.adapt(lblContentEncryption, true, true);
-		lblContentEncryption.setText(BUNDLE.getString("NewGraphWizardPageOne_lblContentEncryption_text"));
+		lblContentEncryption.setText(BUNDLE
+				.getString("NewGraphWizardPageOne_lblContentEncryption_text"));
 
 		comboContentEncryption = new CCombo(compositeCommon, SWT.READ_ONLY);
-		comboContentEncryption.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		comboContentEncryption.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		comboViewerContentEncryption = new ComboViewer(comboContentEncryption);
 		toolkit.adapt(comboContentEncryption);
 		toolkit.paintBordersFor(comboContentEncryption);
 		new Label(compositeCommon, SWT.NONE);
 
-		toolkit.createLabel(compositeCommon, BUNDLE.getString("NewGraphWizardPageOne_lblContentEncryption_text"), SWT.NONE).setVisible(false);
-		textContentEncryption = toolkit.createText(compositeCommon, "", SWT.NONE);
-		textContentEncryption.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		toolkit.createLabel(
+				compositeCommon,
+				BUNDLE.getString("NewGraphWizardPageOne_lblContentEncryption_text"),
+				SWT.NONE).setVisible(false);
+		textContentEncryption = toolkit.createText(compositeCommon, "",
+				SWT.NONE);
+		textContentEncryption.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		textContentEncryption.setEnabled(false);
 		textContentEncryption.setEditable(false);
 		toolkit.adapt(textContentEncryption, true, true);
 		new Label(compositeCommon, SWT.NONE);
 
-		sctnFreeze = toolkit.createSection(form.getBody(), Section.EXPANDED | Section.TITLE_BAR);
-		TableWrapData twd_sctnFreeze = new TableWrapData(TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
+		sctnFreeze = toolkit.createSection(form.getBody(), Section.EXPANDED
+				| Section.TITLE_BAR);
+		TableWrapData twd_sctnFreeze = new TableWrapData(TableWrapData.LEFT,
+				TableWrapData.TOP, 1, 1);
 		twd_sctnFreeze.grabHorizontal = true;
 		twd_sctnFreeze.align = TableWrapData.FILL;
 		sctnFreeze.setLayoutData(twd_sctnFreeze);
 		toolkit.paintBordersFor(sctnFreeze);
-		sctnFreeze.setText(BUNDLE.getString("NewGraphWizardPageOne_sctnFreeze_text"));
+		sctnFreeze.setText(BUNDLE
+				.getString("NewGraphWizardPageOne_sctnFreeze_text"));
 
 		compositeFreeze = toolkit.createComposite(sctnFreeze, SWT.NONE);
 		toolkit.paintBordersFor(compositeFreeze);
@@ -255,45 +304,63 @@ public class NewGraphWizardPageOneView extends Composite {
 			compositeFreeze.setLayout(twl_compositeCommon);
 		}
 
-		lblDigestFreeze = toolkit.createLabel(compositeFreeze, BUNDLE.getString("NewGraphWizardPageOne_lblDigestFreeze_text"), SWT.NONE);
-		lblDigestFreeze.setLayoutData(new TableWrapData(TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
+		lblDigestFreeze = toolkit.createLabel(compositeFreeze,
+				BUNDLE.getString("NewGraphWizardPageOne_lblDigestFreeze_text"),
+				SWT.NONE);
+		lblDigestFreeze.setLayoutData(new TableWrapData(TableWrapData.RIGHT,
+				TableWrapData.MIDDLE, 1, 1));
 
 		comboDigestFreeze = new CCombo(compositeFreeze, SWT.READ_ONLY);
-		comboDigestFreeze.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		comboDigestFreeze.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		comboViewerDigestFreeze = new ComboViewer(comboDigestFreeze);
 		toolkit.adapt(comboDigestFreeze);
 		toolkit.paintBordersFor(comboDigestFreeze);
 
-		toolkit.createLabel(compositeFreeze, BUNDLE.getString("NewGraphWizardPageOne_lblDigestFreeze_text"), SWT.NONE).setVisible(false);
+		toolkit.createLabel(compositeFreeze,
+				BUNDLE.getString("NewGraphWizardPageOne_lblDigestFreeze_text"),
+				SWT.NONE).setVisible(false);
 		textDigestFreeze = toolkit.createText(compositeFreeze, "", SWT.NONE);
-		textDigestFreeze.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		textDigestFreeze.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		textDigestFreeze.setEnabled(false);
 		textDigestFreeze.setEditable(false);
 		toolkit.adapt(textDigestFreeze, true, true);
 
-		lblSignatureFreeze = toolkit.createLabel(compositeFreeze, BUNDLE.getString("NewGraphWizardPageOne_lblSignatureFreeze_text"), SWT.NONE);
-		lblSignatureFreeze.setLayoutData(new TableWrapData(TableWrapData.RIGHT, TableWrapData.MIDDLE, 1, 1));
+		lblSignatureFreeze = toolkit.createLabel(compositeFreeze, BUNDLE
+				.getString("NewGraphWizardPageOne_lblSignatureFreeze_text"),
+				SWT.NONE);
+		lblSignatureFreeze.setLayoutData(new TableWrapData(TableWrapData.RIGHT,
+				TableWrapData.MIDDLE, 1, 1));
 
 		comboSignatureFreeze = new CCombo(compositeFreeze, SWT.READ_ONLY);
-		comboSignatureFreeze.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		comboSignatureFreeze.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		comboViewerSignatureFreeze = new ComboViewer(comboSignatureFreeze);
 		toolkit.adapt(comboSignatureFreeze);
 		toolkit.paintBordersFor(comboSignatureFreeze);
 
-		toolkit.createLabel(compositeFreeze, BUNDLE.getString("NewGraphWizardPageOne_lblSignatureFreeze_text"), SWT.NONE).setVisible(false);
+		toolkit.createLabel(
+				compositeFreeze,
+				BUNDLE.getString("NewGraphWizardPageOne_lblSignatureFreeze_text"),
+				SWT.NONE).setVisible(false);
 		textSignatureFreeze = toolkit.createText(compositeFreeze, "", SWT.NONE);
-		textSignatureFreeze.setLayoutData(new TableWrapData(TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
+		textSignatureFreeze.setLayoutData(new TableWrapData(
+				TableWrapData.FILL_GRAB, TableWrapData.MIDDLE, 1, 1));
 		textSignatureFreeze.setEnabled(false);
 		textSignatureFreeze.setEditable(false);
 		toolkit.adapt(textSignatureFreeze, true, true);
 
-		sctnAcquire = toolkit.createSection(form.getBody(), Section.EXPANDED | Section.TITLE_BAR);
-		TableWrapData twd_sctnAcquire = new TableWrapData(TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
+		sctnAcquire = toolkit.createSection(form.getBody(), Section.EXPANDED
+				| Section.TITLE_BAR);
+		TableWrapData twd_sctnAcquire = new TableWrapData(TableWrapData.LEFT,
+				TableWrapData.TOP, 1, 1);
 		twd_sctnAcquire.grabHorizontal = true;
 		twd_sctnAcquire.align = TableWrapData.FILL;
 		sctnAcquire.setLayoutData(twd_sctnAcquire);
 		toolkit.paintBordersFor(sctnAcquire);
-		sctnAcquire.setText(BUNDLE.getString("NewGraphWizardPageOne_sctnAcquire_text"));
+		sctnAcquire.setText(BUNDLE
+				.getString("NewGraphWizardPageOne_sctnAcquire_text"));
 
 		compositeAcquire = toolkit.createComposite(sctnAcquire, SWT.NONE);
 		toolkit.paintBordersFor(compositeAcquire);
@@ -304,14 +371,20 @@ public class NewGraphWizardPageOneView extends Composite {
 			compositeAcquire.setLayout(twl_compositeAcquire);
 		}
 
-		lblDigestAcquire = toolkit.createLabel(compositeAcquire, BUNDLE.getString("NewGraphWizardPageOne_lblDigestAcquire_text"), SWT.NONE);
-		TableWrapData twd_lblDigestAcquire = new TableWrapData(TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
+		lblDigestAcquire = toolkit
+				.createLabel(
+						compositeAcquire,
+						BUNDLE.getString("NewGraphWizardPageOne_lblDigestAcquire_text"),
+						SWT.NONE);
+		TableWrapData twd_lblDigestAcquire = new TableWrapData(
+				TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
 		twd_lblDigestAcquire.align = TableWrapData.RIGHT;
 		lblDigestAcquire.setLayoutData(twd_lblDigestAcquire);
 
 		comboDigestAcquire = new CCombo(compositeAcquire, SWT.READ_ONLY);
 		comboViewerDigestAcquire = new ComboViewer(comboDigestAcquire);
-		TableWrapData twd_comboDigestAcquire = new TableWrapData(TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
+		TableWrapData twd_comboDigestAcquire = new TableWrapData(
+				TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
 		twd_comboDigestAcquire.align = TableWrapData.FILL;
 		twd_comboDigestAcquire.grabHorizontal = true;
 		comboDigestAcquire.setLayoutData(twd_comboDigestAcquire);
@@ -319,21 +392,27 @@ public class NewGraphWizardPageOneView extends Composite {
 		toolkit.paintBordersFor(comboDigestAcquire);
 		new Label(compositeAcquire, SWT.NONE);
 
-		lblSignatureAcquire = toolkit.createLabel(compositeAcquire, BUNDLE.getString("NewGraphWizardPageOne_lblSignatureAcquire_text"), SWT.NONE);
-		TableWrapData twd_lblSignatureAcquire = new TableWrapData(TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
+		lblSignatureAcquire = toolkit.createLabel(compositeAcquire, BUNDLE
+				.getString("NewGraphWizardPageOne_lblSignatureAcquire_text"),
+				SWT.NONE);
+		TableWrapData twd_lblSignatureAcquire = new TableWrapData(
+				TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
 		twd_lblSignatureAcquire.align = TableWrapData.RIGHT;
 		lblSignatureAcquire.setLayoutData(twd_lblSignatureAcquire);
 
 		comboSignatureAcquire = new CCombo(compositeAcquire, SWT.READ_ONLY);
 		comboViewerSignatureAcquire = new ComboViewer(comboSignatureAcquire);
-		TableWrapData twd_combo = new TableWrapData(TableWrapData.LEFT, TableWrapData.TOP, 1, 1);
+		TableWrapData twd_combo = new TableWrapData(TableWrapData.LEFT,
+				TableWrapData.TOP, 1, 1);
 		twd_combo.grabHorizontal = true;
 		twd_combo.align = TableWrapData.FILL;
 		comboSignatureAcquire.setLayoutData(twd_combo);
 		toolkit.adapt(comboSignatureAcquire);
 		toolkit.paintBordersFor(comboSignatureAcquire);
 
-		btnSignatureAcquire = toolkit.createButton(compositeAcquire, BUNDLE.getString("NewGraphWizardPageOne_btnSignatureAcquire_text"), SWT.NONE);
+		btnSignatureAcquire = toolkit.createButton(compositeAcquire, BUNDLE
+				.getString("NewGraphWizardPageOne_btnSignatureAcquire_text"),
+				SWT.NONE);
 
 	}
 
@@ -408,4 +487,5 @@ public class NewGraphWizardPageOneView extends Composite {
 	protected Label getLblSignatureAcquire() {
 		return lblSignatureAcquire;
 	}
+
 }
