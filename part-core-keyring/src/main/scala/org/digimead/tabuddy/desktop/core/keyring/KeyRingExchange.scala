@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.core.keyring
 
 import java.io.{ BufferedInputStream, InputStream, OutputStream }
 import org.bouncycastle.bcpg.{ ArmoredOutputStream, BCPGInputStream, CompressionAlgorithmTags }
+import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator
 import org.bouncycastle.openpgp.{ PGPCompressedData, PGPCompressedDataGenerator, PGPObjectFactory, PGPPublicKey, PGPPublicKeyRing, PGPSecretKeyRing, PGPUtil }
 import scala.language.reflectiveCalls
 
@@ -110,11 +111,11 @@ trait KeyRingExchange {
     streamWithMarkSupported.mark(4096)
     val PGPFactory = try {
       val compressed = new PGPCompressedData(new BCPGInputStream(PGPUtil.getDecoderStream(streamWithMarkSupported)))
-      new PGPObjectFactory(PGPUtil.getDecoderStream(compressed.getDataStream()))
+      new PGPObjectFactory(PGPUtil.getDecoderStream(compressed.getDataStream()), new BcKeyFingerprintCalculator())
     } catch {
       case e: Throwable ⇒
         streamWithMarkSupported.reset()
-        new PGPObjectFactory(PGPUtil.getDecoderStream(streamWithMarkSupported))
+        new PGPObjectFactory(PGPUtil.getDecoderStream(streamWithMarkSupported), new BcKeyFingerprintCalculator())
     }
     Option(PGPFactory.nextObject()) match {
       case Some(element) ⇒ Stream.cons(element, Option(PGPFactory.nextObject()).toStream)

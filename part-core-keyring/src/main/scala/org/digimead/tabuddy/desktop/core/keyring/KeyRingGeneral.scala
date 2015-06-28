@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -48,7 +48,7 @@ import java.util.{ ArrayList, Date }
 import org.bouncycastle.bcpg.{ HashAlgorithmTags, PublicKeyAlgorithmTags, SymmetricKeyAlgorithmTags }
 import org.bouncycastle.bcpg.sig.{ Features, KeyFlags }
 import org.bouncycastle.openpgp.{ PGPKeyRingGenerator, PGPPrivateKey, PGPPublicKeyRingCollection, PGPSecretKey, PGPSecretKeyRingCollection, PGPSignature, PGPSignatureSubpacketGenerator }
-import org.bouncycastle.openpgp.operator.bc.{ BcPBESecretKeyDecryptorBuilder, BcPBESecretKeyEncryptorBuilder, BcPGPContentSignerBuilder, BcPGPDigestCalculatorProvider, BcPGPKeyPair }
+import org.bouncycastle.openpgp.operator.bc.{ BcKeyFingerprintCalculator, BcPBESecretKeyDecryptorBuilder, BcPBESecretKeyEncryptorBuilder, BcPGPContentSignerBuilder, BcPGPDigestCalculatorProvider, BcPGPKeyPair }
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.keyring.generator.Generator
 import org.digimead.tabuddy.desktop.core.keyring.generator.api.XGenerator
@@ -174,7 +174,7 @@ trait KeyRingGeneral {
         throw new IllegalStateException("Workspace is not available.")
       val publicKeyRingResource = KeyRing.container.getFile(KeyRing.publicKeyRingName) // throws IllegalStateException: Workspace is closed.
       val result = if (publicKeyRingResource.exists()) {
-        new PGPPublicKeyRingCollection(publicKeyRingResource.getContents())
+        new PGPPublicKeyRingCollection(publicKeyRingResource.getContents(), new BcKeyFingerprintCalculator())
       } else {
         new PGPPublicKeyRingCollection(new ArrayList())
       }
@@ -189,7 +189,7 @@ trait KeyRingGeneral {
         throw new IllegalStateException("Workspace is not available.")
       val privateKeyRingResource = KeyRing.container.getFile(KeyRing.secretKeyRingName) // throws IllegalStateException: Workspace is closed.
       val result = if (privateKeyRingResource.exists()) {
-        new PGPSecretKeyRingCollection(privateKeyRingResource.getContents())
+        new PGPSecretKeyRingCollection(privateKeyRingResource.getContents(), new BcKeyFingerprintCalculator())
       } else {
         new PGPSecretKeyRingCollection(new ArrayList())
       }
