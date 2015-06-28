@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,7 @@
 
 package org.digimead.tabuddy.desktop.core.ui.block.builder
 
-import akka.actor.{ ActorContext, ActorRef }
+import akka.actor.{ ActorContext, ActorRef, PoisonPill }
 import akka.pattern.ask
 import java.util.UUID
 import org.digimead.digi.lib.aop.log
@@ -103,8 +103,17 @@ class ViewContentBuilder extends VComposite.ContextSetter with XLoggable {
     Await.result(view ? App.Message.Create(View.<>(configuration, pWidget, content), parentActorContext.self), timeout.duration) match {
       case App.Message.Create(viewWidget: VComposite, Some(origin), _) ⇒
         Some(viewWidget)
+      case App.Message.Error(Some("Content is disposed"), Some(origin)) ⇒
+        log.debug(s"Unable to create ${configuration}.")
+        view ! PoisonPill
+        pAppContext.removeChild(viewContext)
+        viewContext.dispose()
+        None
       case App.Message.Error(error, None) ⇒
         log.fatal(s"Unable to create ${configuration}: ${error.getOrElse("unknown")}.")
+        view ! PoisonPill
+        pAppContext.removeChild(viewContext)
+        viewContext.dispose()
         None
       case error ⇒
         App.exec {
@@ -113,7 +122,9 @@ class ViewContentBuilder extends VComposite.ContextSetter with XLoggable {
           else
             log.fatal(s"Unable to create ${configuration}: ${error}.")
         }
-        parentActorContext.stop(view)
+        view ! PoisonPill
+        pAppContext.removeChild(viewContext)
+        viewContext.dispose()
         None
     }
   }
@@ -169,23 +180,35 @@ class ViewContentBuilder extends VComposite.ContextSetter with XLoggable {
           assert(widget.contentRef == existsWidget.contentRef)
           assert(widget != existsWidget)
           log.debug(s"Move ${configuration} from the old ${existsWidget} to the new ${widget}.")
-          val successful = App.execNGet {
-            val successful = !existsWidget.isDisposed() && existsWidget.getChildren().forall(_.setParent(widget))
-            if (successful)
-              widget.setLayout(existsWidget.getLayout())
-            successful
-          }
-          if (successful) {
-            widget.contentRef ! App.Message.Set(widget)
-            Some(widget)
-          } else {
-            App.exec {
-              if (existsWidget.isDisposed())
-                log.debug(s"Unable to change parent widget for - in " + existsWidget)
-              else
-                log.fatal(s"Unable to change parent widget for ${existsWidget.getChildren().mkString(", ")}")
+          App.execNGet {
+            if (existsWidget.isDisposed()) {
+              // For example:
+              // 1. there are 2 views
+              // 2. close 2nd view
+              // 3. try to move 1st view from tab (TransformTabToView)
+              // 4. close 1st view
+              // 5. we are --> HERE <--
+              log.warn(existsWidget + " is disposed")
+              widget.dispose()
+              None
+            } else {
+              val state =
+                for (child <- existsWidget.getChildren()) yield {
+                  val successful = child.setParent(widget)
+                  if (!successful)
+                    log.error("Unable to change parent for " + widget)
+                  successful
+                }
+              if (state.forall(_ == true)) {
+                widget.setLayout(existsWidget.getLayout())
+                widget.contentRef ! App.Message.Set(widget)
+                Some(widget)
+              } else {
+                log.debug(s"Unable to move ${configuration} from the old ${existsWidget} to the new ${widget}.")
+                widget.dispose()
+                None
+              }
             }
-            None
           }
         case None ⇒
           // Create new content.

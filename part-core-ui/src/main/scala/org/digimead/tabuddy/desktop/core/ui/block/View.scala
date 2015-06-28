@@ -99,6 +99,14 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with X
       }
     }
   }
+  /**
+   * Is called on a crashed Actor right BEFORE it is restarted to allow clean
+   * up of resources before Actor is terminated.
+   */
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    log.debug(this + " is restarted.")
+    super.preRestart(reason, message)
+  }
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
   def receive = {
@@ -112,7 +120,12 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with X
             container ! App.Message.Create(viewWidget, self)
             App.Message.Create(viewWidget, self)
           case None ⇒
-            App.Message.Error(s"Unable to create ${viewConfiguration}.", self)
+            content match {
+              case Some(content) if App.execNGet { content.isDisposed() } =>
+                App.Message.Error(s"Content is disposed", self)
+              case _ =>
+                App.Message.Error(s"Unable to create ${viewConfiguration}", self)
+            }
         }
       }
     } foreach { sender ! _ }
@@ -201,9 +214,11 @@ class View(val viewId: UUID, val viewContext: Context.Rich) extends Actor with X
         finally View.viewMapRWL.writeLock().unlock()
         this.view
       case None ⇒
-        App.exec {
-          if (!parentWidget.isDisposed())
-            log.fatal(s"Unable to build view ${viewConfiguration}.")
+        content match {
+          case Some(alreadyCreatedContent) if App.execNGet { alreadyCreatedContent.isDisposed() } =>
+            log.debug(s"Unable to build view ${viewConfiguration}: ${alreadyCreatedContent} is disposed")
+          case _ =>
+            log.fatal(s"Unable to build view ${viewConfiguration}")
         }
         None
     }

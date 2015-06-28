@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -87,8 +87,17 @@ class Window(val windowId: UUID, val windowContext: Context.Rich) extends Actor 
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = log.debug(this + " is stopped.")
+  /**
+   * Is called on a crashed Actor right BEFORE it is restarted to allow clean
+   * up of resources before Actor is terminated.
+   */
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    log.debug(this + " is restarted.")
+    super.preRestart(reason, message)
+  }
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
+
   def receive = {
     case message @ App.Message.Close(_, _, None) ⇒ App.traceMessage(message) {
       close(sender) match {

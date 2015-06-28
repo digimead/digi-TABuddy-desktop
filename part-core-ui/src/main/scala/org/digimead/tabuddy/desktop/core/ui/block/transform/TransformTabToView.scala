@@ -94,21 +94,28 @@ class TransformTabToView extends XLoggable {
         ss.buildConfiguration().asMap.get(view.id) match {
           case Some((parentId, viewConfiguration: Configuration.CView)) ⇒
             log.debug(s"Attach ${viewConfiguration} as top level element.")
-            val result = ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, Some(view))
-            result.foreach { result ⇒
-              ss.context.stop(view.ref)
-              App.execNGet { tab.dispose() }
-              // Resize VComposite.
-              // VComposite -> WComposite . layout()
-              App.execWithTimer(100) {
-                if (!result.isDisposed()) {
-                  val parent = result.getParent()
-                  if (!parent.isDisposed() && parent.isVisible())
-                    parent.layout(true, true)
+            ViewContentBuilder.container(viewConfiguration, wComposite, ss.parentContext, ss.context, Some(view)) match {
+              case Some(content) =>
+                ss.context.stop(view.ref)
+                App.execNGet { tab.dispose() }
+                // Resize VComposite.
+                // VComposite -> WComposite . layout()
+                App.execWithTimer(100) {
+                  if (!content.isDisposed()) {
+                    val parent = content.getParent()
+                    if (!parent.isDisposed() && parent.isVisible())
+                      parent.layout(true, true)
+                  }
                 }
-              }
+                Right(content)
+              case None =>
+                App.execNGet {
+                  if (view.isDisposed())
+                    Left(None)
+                  else
+                    Left(Some(view))
+                }
             }
-            result.toRight(Some(view))
           case Some((parent, configuration)) ⇒
             throw new IllegalStateException(s"Unexpected configuration ${configuration}.")
           case None ⇒

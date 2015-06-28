@@ -97,8 +97,17 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = log.debug(this + " is stopped.")
+  /**
+   * Is called on a crashed Actor right BEFORE it is restarted to allow clean
+   * up of resources before Actor is terminated.
+   */
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    log.debug(this + " is restarted.")
+    super.preRestart(reason, message)
+  }
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
+
   def receive = {
     case message @ App.Message.Create(viewConfiguration: Configuration.CView, None, None) ⇒ App.traceMessage(message) {
       if (terminated) {
@@ -145,7 +154,7 @@ class StackSupervisor(val windowId: UUID, val parentContext: Context.Rich) exten
             onDestroyed(vComposite, origin)
         case Left(None) ⇒
           // view was disposed before message delivery
-          log.debug(s"Unable to transform ${tab} to VComposite: there are no children.")
+          log.debug(s"Unable to transform ${tab} to VComposite.")
       }
     }
 

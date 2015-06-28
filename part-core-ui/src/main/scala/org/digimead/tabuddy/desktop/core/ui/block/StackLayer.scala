@@ -57,7 +57,7 @@ import org.digimead.tabuddy.desktop.core.ui.block.api.XConfiguration.CPlaceHolde
 import org.digimead.tabuddy.desktop.core.ui.block.builder.StackBuilder
 import org.digimead.tabuddy.desktop.core.ui.block.transform.TransformAttachView
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ SComposite, SCompositeTab, VComposite }
-import org.eclipse.swt.SWT
+import org.eclipse.swt.{ SWT, SWTException }
 import org.eclipse.swt.custom.ScrolledComposite
 import org.eclipse.swt.widgets.{ Event, ToolBar, Widget }
 import scala.collection.mutable
@@ -81,8 +81,17 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
 
   /** Is called asynchronously after 'actor.stop()' is invoked. */
   override def postStop() = log.debug(this + " is stopped.")
+  /**
+   * Is called on a crashed Actor right BEFORE it is restarted to allow clean
+   * up of resources before Actor is terminated.
+   */
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    log.debug(this + " is restarted.")
+    super.preRestart(reason, message)
+  }
   /** Is called when an Actor is started. */
   override def preStart() = log.debug(this + " is started.")
+
   def receive = {
     // Create this stack layer JFace implementation.
     case message @ App.Message.Create(StackLayer.<>(stackConfiguration, parentWidget), Some(this.container), None) ⇒ App.traceMessage(message) {
@@ -296,7 +305,11 @@ class StackLayer(val stackId: UUID, val parentContext: Context.Rich) extends Act
           case Some(item) ⇒
             val selection = tabFolder.getSelection()
             if (selection != item)
-              tabFolder.setSelection(item)
+              try tabFolder.setSelection(item)
+              catch {
+                case e: SWTException if e.getMessage == "Widget is disposed" =>
+                  log.warn(s"Unable to select ${item}: " + e)
+              }
           case None ⇒
             log.fatal("Unable to start tab with unexists content with id " + nextWidgetId)
         }
