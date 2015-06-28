@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,10 +45,10 @@ package org.digimead.tabuddy.desktop.model.definition.operation
 
 import java.util.concurrent.{ CancellationException, Exchanger }
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.logic
+import org.digimead.tabuddy.desktop.logic.{ Messages ⇒ LogicMessages }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload }
 import org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumed.EnumerationEditor
@@ -63,7 +63,6 @@ import org.eclipse.swt.widgets.Shell
  * Modify an enumeration.
  */
 class OperationModifyEnumeration extends logic.operation.OperationModifyEnumeration with XLoggable {
-
   /**
    * Modify an enumeration.
    *
@@ -105,9 +104,9 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
             // actual lock inside event loop thread
             marker.safeRead { state ⇒
               if (state.payload.getAvailableTypes().isEmpty) {
-                ErrorDialog.openError(shell, null, Messages.enumerationUnableToCreate_text,
-                  new Status(IStatus.INFO, "unknown", IStatus.OK, Messages.enumerationUnableToCreateNoTypes_text, null))
-                exchanger.exchange(Operation.Result.Error(Messages.enumerationUnableToCreate_text, false))
+                ErrorDialog.openError(shell, null, LogicMessages.enumerationUnableToCreate_text,
+                  new Status(IStatus.INFO, "unknown", IStatus.OK, LogicMessages.enumerationUnableToCreateNoTypes_text, null))
+                exchanger.exchange(Operation.Result.Error(LogicMessages.enumerationUnableToCreate_text, false))
               } else {
                 val dialogContext = context.createChild("EnumerationEditorDialog")
                 dialogContext.set(classOf[Shell], shell)
@@ -148,7 +147,7 @@ class OperationModifyEnumeration extends logic.operation.OperationModifyEnumerat
     enumeration: Enumeration[_ <: AnySRef],
     /** The list of enumerations. */
     enumerationList: Set[Enumeration[_ <: AnySRef]])
-    extends logic.operation.OperationModifyEnumeration.Abstract(graph, enumeration, enumerationList) with XLoggable {
+      extends logic.operation.OperationModifyEnumeration.Abstract(graph, enumeration, enumerationList) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute

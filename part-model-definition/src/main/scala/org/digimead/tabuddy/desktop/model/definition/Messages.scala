@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -69,6 +69,30 @@ class Messages extends ResourceBundle {
 }
 
 object Messages extends NLS with XLoggable {
+  val elementTemplateEditorDescription_text = ""
+  val elementTemplateEditorDialog_text = ""
+  val elementTemplateEditorTitle_text = ""
+  val elementTemplateListDescription_text = ""
+  val elementTemplateListDialog_text = ""
+  val elementTemplateListTitle_text = ""
+  val enumerationEditorDescription_text = ""
+  val enumerationEditorDialog_text = ""
+  val enumerationEditorTitle_text = ""
+  val enumerationListDescription_text = ""
+  val enumerationListDialog_text = ""
+  val enumerationListTitle_text = ""
+  val lookupAliasInTranslations_text = ""
+  val newFilterName_text = ""
+  val newSortingName_text = ""
+  val newTypeSchema_text = ""
+  val typeEditorDescription_text = ""
+  val typeEditorDialog_text = ""
+  val typeEditorTitle_text = ""
+  val typeListDescription_text = ""
+  val typeListDialog_text = ""
+  val typeListTitle_text = ""
+  val typeSchemaPredefinedResetToDefault_text = ""
+  val typeSchemaResetUnknownTypes_text = ""
 
   T.ranslate("org.digimead.tabuddy.desktop.model.definition.messages")
 }

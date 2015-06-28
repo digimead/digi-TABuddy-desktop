@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -71,6 +71,8 @@ import swing2swt.layout.FlowLayout;
  */
 public class TypeListSkel extends TitleAreaDialog {
 	private static final ResourceBundle BUNDLE = getResourceBundle();
+	private static final ResourceBundle CORE_BUNDLE = getResourceCoreBundle();
+	private static final ResourceBundle LOGIC_BUNDLE = getResourceLogicBundle();
 	private TableViewer tableViewer;
 	private TableViewerColumn tblclmnViewerName;
 	private TableViewerColumn tblclmnViewerDescription;
@@ -86,13 +88,47 @@ public class TypeListSkel extends TitleAreaDialog {
 	 */
 	private static ResourceBundle getResourceBundle() {
 		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.definition.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		}
+	}
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceCoreBundle() {
+		try {
 			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.core.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
+		}
+	}
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceLogicBundle() {
+		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.logic.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
 		}
 	}
 
@@ -104,6 +140,34 @@ public class TypeListSkel extends TitleAreaDialog {
 	public TypeListSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
+	}
+
+	public TableViewer getTableViewer() {
+		return tableViewer;
+	}
+
+	public TableViewerColumn getTableViewerColumnName() {
+		return tblclmnViewerName;
+	}
+
+	public TableViewerColumn getTableViewerColumnDescription() {
+		return tblclmnViewerDescription;
+	}
+
+	public Composite getCompositeActivator() {
+		return compositeActivator;
+	}
+
+	public Composite getCompositeFooter() {
+		return compositeFooter;
+	}
+
+	public Text getTextActiveSchema() {
+		return textActiveSchema;
+	}
+
+	public Button getbtnResetSchema() {
+		return btnResetSchema;
 	}
 
 	/**
@@ -122,7 +186,7 @@ public class TypeListSkel extends TitleAreaDialog {
 
 		Label lblEnumerations = new Label(container, SWT.NONE);
 		lblEnumerations.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 2, 1));
-		lblEnumerations.setText(BUNDLE.getString("typeSchemas_text"));
+		lblEnumerations.setText(LOGIC_BUNDLE.getString("typeSchemas_text"));
 
 		Composite compositeHeader = new Composite(container, SWT.NONE);
 		compositeHeader.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1));
@@ -130,7 +194,7 @@ public class TypeListSkel extends TitleAreaDialog {
 
 		Label lblActiveScheme = new Label(compositeHeader, SWT.NONE);
 		lblActiveScheme.setLayoutData(BorderLayout.WEST);
-		lblActiveScheme.setText(BUNDLE.getString("activeSchema_text"));
+		lblActiveScheme.setText(LOGIC_BUNDLE.getString("activeSchema_text"));
 
 		textActiveSchema = new Text(compositeHeader, SWT.BORDER | SWT.READ_ONLY);
 		textActiveSchema.setLayoutData(BorderLayout.CENTER);
@@ -138,7 +202,7 @@ public class TypeListSkel extends TitleAreaDialog {
 		btnResetSchema = new Button(compositeHeader, SWT.NONE);
 		btnResetSchema.setEnabled(false);
 		btnResetSchema.setLayoutData(BorderLayout.EAST);
-		btnResetSchema.setText(BUNDLE.getString("reset_text"));
+		btnResetSchema.setText(CORE_BUNDLE.getString("reset_text"));
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.FULL_SELECTION);
 		Table table_enumerations = tableViewer.getTable();
@@ -149,12 +213,12 @@ public class TypeListSkel extends TitleAreaDialog {
 		tblclmnViewerName = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnName = tblclmnViewerName.getColumn();
 		tblclmnName.setWidth(100);
-		tblclmnName.setText(BUNDLE.getString("name_text"));
+		tblclmnName.setText(CORE_BUNDLE.getString("name_text"));
 
 		tblclmnViewerDescription = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnDescription = tblclmnViewerDescription.getColumn();
 		tblclmnDescription.setWidth(100);
-		tblclmnDescription.setText(BUNDLE.getString("description_text"));
+		tblclmnDescription.setText(CORE_BUNDLE.getString("description_text"));
 
 		compositeActivator = new Composite(container, SWT.NONE);
 		compositeActivator.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 5));
@@ -178,31 +242,4 @@ public class TypeListSkel extends TitleAreaDialog {
 		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
-	protected TableViewer getTableViewer() {
-		return tableViewer;
-	}
-
-	protected TableViewerColumn getTableViewerColumnName() {
-		return tblclmnViewerName;
-	}
-
-	protected TableViewerColumn getTableViewerColumnDescription() {
-		return tblclmnViewerDescription;
-	}
-
-	protected Composite getCompositeActivator() {
-		return compositeActivator;
-	}
-
-	protected Composite getCompositeFooter() {
-		return compositeFooter;
-	}
-
-	protected Text getTextActiveSchema() {
-		return textActiveSchema;
-	}
-
-	protected Button getbtnResetSchema() {
-		return btnResetSchema;
-	}
 }

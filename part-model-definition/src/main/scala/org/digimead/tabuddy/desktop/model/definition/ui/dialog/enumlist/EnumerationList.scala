@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,19 +46,20 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumlist
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyEnumeration
 import org.digimead.tabuddy.desktop.logic.payload.api.XEnumeration
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType }
-import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.model.definition.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
@@ -89,11 +90,11 @@ class EnumerationList @Inject() (
   val payload: Payload,
   /** Initial enumeration list. */
   val initial: Set[Enumeration[_ <: AnySRef]])
-  extends EnumerationListSkel(parentShell) with Dialog with XLoggable {
+    extends EnumerationListSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The actual enumeration list */
-  protected[enumlist] val actual = WritableList[Enumeration[_ <: AnySRef]](
+  val actual = WritableList[Enumeration[_ <: AnySRef]](
     // replace initial elements with copies that will be modified in the progress
     initial.toList.map { initialEnumeration ⇒
       initialEnumeration.element.eNode.parent.get.freezeWrite { target ⇒
@@ -102,22 +103,22 @@ class EnumerationList @Inject() (
       }
     }.sortBy(_.id.name))
   /** The auto resize lock */
-  protected lazy val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** The property representing enumeration in current UI field(s) that available for user */
-  protected lazy val enumerationField = WritableValue[Enumeration[_ <: AnySRef]]
+  val enumerationField = WritableValue[Enumeration[_ <: AnySRef]]
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
   /** Actual sortBy column index */
-  @volatile private var sortColumn = 1
+  @volatile protected var sortColumn = 1
   /** Actual sort direction */
-  @volatile private var sortDirection = Default.sortingDirection
+  @volatile protected var sortDirection = Default.sortingDirection
 
   /** Get actual enumerations */
   def getModifiedEnumerations(): Set[Enumeration[_ <: AnySRef]] = actual.toSet
@@ -136,9 +137,11 @@ class EnumerationList @Inject() (
     autoResizeLock.unlock()
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionCreate).fill(getCompositeFooter())
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
     new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
@@ -176,10 +179,10 @@ class EnumerationList @Inject() (
   protected def getNewEnumerationCopyID(id: Symbol, enumerations: List[Enumeration[_ <: AnySRef]]): Symbol = {
     val sameIds = immutable.HashSet(enumerations.filter(_.id.name.startsWith(id.name)).map(_.id.name).toSeq: _*)
     var n = 0
-    var newId = id.name + Messages.copy_item_text
+    var newId = id.name + CoreMessages.copy_item_text
     while (sameIds(newId)) {
       n += 1
-      newId = id.name + Messages.copy_item_text + n
+      newId = id.name + CoreMessages.copy_item_text + n
     }
     Symbol(newId)
   }
@@ -277,11 +280,11 @@ class EnumerationList @Inject() (
           (initial.constants, actual.constants).zipped.forall(Enumeration.compareDeep(_, _)))
       }))
 
-  object ActionAutoResize extends Action(Messages.autoresize_key) {
+  object ActionAutoResize extends Action(CoreMessages.autoresize_key) {
     setChecked(true)
     override def run = autoresize
   }
-  object ActionCreate extends Action(Messages.create_text) with XLoggable {
+  object ActionCreate extends Action(CoreMessages.create_text) with XLoggable {
     override def run = {
       val newEnumerationID = payload.generateNew("NewEnumeration", "", newId ⇒ actual.exists(_.id.name == newId))
       val newEnumerationElement = Enumeration.factory(graph, Symbol(newEnumerationID), false)
@@ -308,7 +311,7 @@ class EnumerationList @Inject() (
       }
     }
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
+  object ActionCreateFrom extends Action(CoreMessages.createFrom_text) with XLoggable {
     override def run = Option(enumerationField.value) foreach { (selected) ⇒
       val from = selected.element
       // create new ID
@@ -343,7 +346,7 @@ class EnumerationList @Inject() (
       }
     }
   }
-  object ActionEdit extends Action(Messages.edit_text) {
+  object ActionEdit extends Action(CoreMessages.edit_text) {
     override def run = Option(enumerationField.value) foreach { (before) ⇒
       OperationModifyEnumeration(graph, before, actual.toSet).foreach { operation ⇒
         val job = if (operation.canRedo())
@@ -367,7 +370,7 @@ class EnumerationList @Inject() (
       }
     }
   }
-  object ActionRemove extends Action(Messages.remove_text) {
+  object ActionRemove extends Action(CoreMessages.remove_text) {
     override def run = Option(enumerationField.value) foreach { (selected) ⇒
       App.exec { actual -= selected }
     }

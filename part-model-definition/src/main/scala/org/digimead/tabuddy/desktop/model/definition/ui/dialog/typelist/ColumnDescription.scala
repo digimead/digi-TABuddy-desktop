@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,7 +44,7 @@
 package org.digimead.tabuddy.desktop.model.definition.ui.dialog.typelist
 
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.logic.{ Messages ⇒ LogicMessages }
 import org.digimead.tabuddy.desktop.logic.payload.TypeSchema
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, EditingSupport, TableViewer, TextCellEditor, ViewerCell }
@@ -62,7 +62,7 @@ object ColumnDescription extends XLoggable {
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
       case item: TypeSchema ⇒
-        Messages.typeSchemaTooltip_text.format(item.name, item.id, item.entity.size)
+        LogicMessages.typeSchemaTooltip_text.format(item.name, item.id, item.entity.size)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null

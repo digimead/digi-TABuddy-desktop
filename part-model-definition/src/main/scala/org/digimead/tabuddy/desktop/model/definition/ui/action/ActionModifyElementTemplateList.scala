@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,10 +46,10 @@ package org.digimead.tabuddy.desktop.model.definition.ui.action
 import javax.inject.Inject
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.{ AppWindow, VComposite }
+import org.digimead.tabuddy.desktop.logic.{ Messages ⇒ LogicMessages }
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplateList
 import org.digimead.tabuddy.desktop.logic.payload.ElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
@@ -63,15 +63,16 @@ import org.eclipse.swt.widgets.Event
 /**
  * Modify element template list.
  */
-class ActionModifyElementTemplateList @Inject() (windowContext: Context) extends JFaceAction(Messages.elementTemplates_text) with XLoggable {
-  setId(bundleId + "#ModifyElementTemplateList")
+class ActionModifyElementTemplateList @Inject() (windowContext: Context) extends JFaceAction(LogicMessages.elementTemplates_text) with XLoggable {
+  setId(ActionModifyElementTemplateList.id)
+  /** Flag indicating whether the action is enabled. */
   @volatile protected var vContext = Option.empty[Context]
 
   if (windowContext.getLocal(classOf[AppWindow]) == null)
     throw new IllegalArgumentException(s"${windowContext} does not contain AppWindow.")
 
   override def isEnabled(): Boolean = super.isEnabled &&
-    vContext.map { context ⇒ context.get(classOf[GraphMarker]) != null }.getOrElse(false)
+    vContext.map { context ⇒ context.getActive(classOf[GraphMarker]) != null }.getOrElse(false)
 
   /** Runs this action, passing the triggering SWT event. */
   @log
@@ -86,30 +87,47 @@ class ActionModifyElementTemplateList @Inject() (windowContext: Context) extends
         Some(operation.executeJob())
       else
         None
-      job foreach { job ⇒
-        job.setPriority(Job.SHORT)
-        job.onComplete(_ match {
-          case Operation.Result.OK(result, message) ⇒
-            log.info(s"Operation completed successfully: ${result}")
-            result.foreach { case (templates) ⇒ ElementTemplate.save(marker, templates) }
-          case Operation.Result.Cancel(message) ⇒
-            log.warn(s"Operation canceled, reason: ${message}.")
-          case other ⇒
-            log.error(s"Unable to complete operation: ${other}.")
-        }).schedule()
+      job match {
+        case Some(job) ⇒
+          job.setPriority(Job.LONG)
+          job.onComplete(_ match {
+            case Operation.Result.OK(result, message) ⇒
+              log.info(s"Operation completed successfully: ${result}")
+              result.foreach { case (templates) ⇒ ElementTemplate.save(marker, templates) }
+            case Operation.Result.Cancel(message) ⇒
+              log.warn(s"Operation canceled, reason: ${message}.")
+            case other ⇒
+              log.error(s"Unable to complete operation: ${other}.")
+          }).schedule()
+        case None ⇒
+          throw new RuntimeException(s"Unable to create job for ${operation}.")
       }
     }
   }
 
   /** Update enabled action state. */
+  @log
   protected def updateEnabled() = if (isEnabled)
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.FALSE, java.lang.Boolean.TRUE)
   else
     firePropertyChange(IAction.ENABLED, java.lang.Boolean.TRUE, java.lang.Boolean.FALSE)
   /** Invoked on view activation. */
   @Inject @Optional
-  protected def onViewChanged(@Active vComposite: VComposite, @Optional @Active marker: GraphMarker): Unit = {
-    vContext = vComposite.getContext
-    App.exec { updateEnabled() }
-  }
+  protected def onViewChanged(@Active @Optional vComposite: VComposite, @Active @Optional marker: GraphMarker) =
+    ActionModifyElementTemplateList.synchronized {
+      val newContext = {
+        for {
+          composite ← Option(vComposite)
+          marker ← Option(marker)
+        } yield vComposite.getContext
+      } getOrElse None
+      if (newContext != vContext) {
+        vContext = newContext
+        App.exec { updateEnabled() }
+      }
+    }
+}
+
+object ActionModifyElementTemplateList {
+  val id = bundleId + "#ModifyElementTemplateList"
 }

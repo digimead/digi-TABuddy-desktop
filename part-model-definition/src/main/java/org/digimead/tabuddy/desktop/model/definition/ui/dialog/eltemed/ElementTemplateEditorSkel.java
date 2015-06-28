@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -71,6 +71,7 @@ import swing2swt.layout.FlowLayout;
  */
 public class ElementTemplateEditorSkel extends TitleAreaDialog {
 	private static final ResourceBundle BUNDLE = getResourceBundle();
+	private static final ResourceBundle CORE_BUNDLE = getResourceCoreBundle();
 	private Button btnCheckAvailability;
 	private Composite compositeFooter;
 	private Composite compositeHeader;
@@ -90,13 +91,30 @@ public class ElementTemplateEditorSkel extends TitleAreaDialog {
 	 */
 	private static ResourceBundle getResourceBundle() {
 		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.definition.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		}
+	}
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceCoreBundle() {
+		try {
 			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.core.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		}
 	}
 
@@ -108,6 +126,46 @@ public class ElementTemplateEditorSkel extends TitleAreaDialog {
 	public ElementTemplateEditorSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
+	}
+
+	public Composite getCompositeFooter() {
+		return compositeFooter;
+	}
+
+	public TableViewer getTableViewer() {
+		return tableViewer;
+	}
+
+	public Text getTextTemplateName() {
+		return textTemplateName;
+	}
+
+	public Text getTextTemplateId() {
+		return textTemplateId;
+	}
+
+	public Button getBtnCheckAvailability() {
+		return btnCheckAvailability;
+	}
+
+	public TableViewerColumn getTableViewerColumnId() {
+		return tableViewerColumnId;
+	}
+
+	public TableViewerColumn getTableViewerColumnRequired() {
+		return tableViewerColumnRequired;
+	}
+
+	public TableViewerColumn getTableViewerColumnType() {
+		return tableViewerColumnType;
+	}
+
+	public TableViewerColumn getTableViewerColumnDefault() {
+		return tableViewerColumnDefault;
+	}
+
+	public TableViewerColumn getTableViewerColumnGroup() {
+		return tableViewerColumnGroup;
 	}
 
 	/**
@@ -132,7 +190,7 @@ public class ElementTemplateEditorSkel extends TitleAreaDialog {
 		lblTemplateId.setAlignment(SWT.RIGHT);
 		lblTemplateId.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
 		lblTemplateId.setBounds(0, 0, 65, 15);
-		lblTemplateId.setText(BUNDLE.getString("identificator_text"));
+		lblTemplateId.setText(CORE_BUNDLE.getString("identificator_text"));
 
 		textTemplateId = new Text(compositeHeader, SWT.BORDER);
 		textTemplateId.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
@@ -141,7 +199,7 @@ public class ElementTemplateEditorSkel extends TitleAreaDialog {
 		Label lblTemplateName = new Label(compositeHeader, SWT.NONE);
 		lblTemplateName.setAlignment(SWT.RIGHT);
 		lblTemplateName.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
-		lblTemplateName.setText(BUNDLE.getString("name_text"));
+		lblTemplateName.setText(CORE_BUNDLE.getString("name_text"));
 
 		textTemplateName = new Text(compositeHeader, SWT.BORDER);
 		textTemplateName.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
@@ -149,7 +207,7 @@ public class ElementTemplateEditorSkel extends TitleAreaDialog {
 		new Label(compositeHeader, SWT.NONE);
 
 		btnCheckAvailability = new Button(compositeHeader, SWT.CHECK);
-		btnCheckAvailability.setText(BUNDLE.getString("availability_text"));
+		btnCheckAvailability.setText(CORE_BUNDLE.getString("availability_text"));
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.FULL_SELECTION);
 		Table table = tableViewer.getTable();
@@ -159,27 +217,27 @@ public class ElementTemplateEditorSkel extends TitleAreaDialog {
 		tableViewerColumnId = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnId = tableViewerColumnId.getColumn();
 		tblclmnId.setWidth(100);
-		tblclmnId.setText(BUNDLE.getString("property_text"));
+		tblclmnId.setText(CORE_BUNDLE.getString("property_text"));
 
 		tableViewerColumnRequired = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnRequired = tableViewerColumnRequired.getColumn();
 		tblclmnRequired.setWidth(100);
-		tblclmnRequired.setText(BUNDLE.getString("required_text"));
+		tblclmnRequired.setText(CORE_BUNDLE.getString("required_text"));
 
 		tableViewerColumnType = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnType = tableViewerColumnType.getColumn();
 		tblclmnType.setWidth(100);
-		tblclmnType.setText(BUNDLE.getString("type_text"));
+		tblclmnType.setText(CORE_BUNDLE.getString("type_text"));
 
 		tableViewerColumnDefault = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnDefault = tableViewerColumnDefault.getColumn();
 		tblclmnDefault.setWidth(100);
-		tblclmnDefault.setText(BUNDLE.getString("default_text"));
+		tblclmnDefault.setText(CORE_BUNDLE.getString("default_text"));
 
 		tableViewerColumnGroup = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnGroup = tableViewerColumnGroup.getColumn();
 		tblclmnGroup.setWidth(100);
-		tblclmnGroup.setText(BUNDLE.getString("group_text"));
+		tblclmnGroup.setText(CORE_BUNDLE.getString("group_text"));
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(BorderLayout.SOUTH);
@@ -200,43 +258,4 @@ public class ElementTemplateEditorSkel extends TitleAreaDialog {
 		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
-	protected Composite getCompositeFooter() {
-		return compositeFooter;
-	}
-
-	protected TableViewer getTableViewer() {
-		return tableViewer;
-	}
-
-	protected Text getTextTemplateName() {
-		return textTemplateName;
-	}
-
-	protected Text getTextTemplateId() {
-		return textTemplateId;
-	}
-
-	protected Button getBtnCheckAvailability() {
-		return btnCheckAvailability;
-	}
-
-	protected TableViewerColumn getTableViewerColumnId() {
-		return tableViewerColumnId;
-	}
-
-	protected TableViewerColumn getTableViewerColumnRequired() {
-		return tableViewerColumnRequired;
-	}
-
-	protected TableViewerColumn getTableViewerColumnType() {
-		return tableViewerColumnType;
-	}
-
-	protected TableViewerColumn getTableViewerColumnDefault() {
-		return tableViewerColumnDefault;
-	}
-
-	protected TableViewerColumn getTableViewerColumnGroup() {
-		return tableViewerColumnGroup;
-	}
 }

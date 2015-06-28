@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,7 +44,8 @@
 package org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumlist
 
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
+import org.digimead.tabuddy.desktop.logic.{ Messages ⇒ LogicMessages }
 import org.digimead.tabuddy.desktop.logic.payload.Enumeration
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.eclipse.jface.viewers.{ CellEditor, CellLabelProvider, CheckboxCellEditor, EditingSupport, TableViewer, ViewerCell }
@@ -59,9 +60,9 @@ object ColumnAvailable extends XLoggable {
       case item: Enumeration[_] ⇒
         // update label
         if (item.availability)
-          cell.setText(Messages.available_text)
+          cell.setText(CoreMessages.available_text)
         else
-          cell.setText(Messages.hidden_text)
+          cell.setText(CoreMessages.hidden_text)
         // update checkbox
         cell.getItem() match {
           case tableItem: TableItem if tableItem.getChecked() != item.availability ⇒
@@ -74,7 +75,7 @@ object ColumnAvailable extends XLoggable {
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
       case item: Enumeration[_] ⇒
-        Messages.enumerationTooltip_text.format(item.ptype.id.name, item.ptype.typeClass.getName, item.constants.size)
+        LogicMessages.enumerationTooltip_text.format(item.ptype.id.name, item.ptype.typeClass.getName, item.constants.size)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null

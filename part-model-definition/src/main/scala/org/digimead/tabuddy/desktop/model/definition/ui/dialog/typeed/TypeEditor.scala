@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,17 +45,18 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.typeed
 
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.operation.OperationCustomTranslations
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, TypeSchema }
-import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, TextValidator }
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType, TypeSchema }
+import org.digimead.tabuddy.desktop.model.definition.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
@@ -92,38 +93,38 @@ class TypeEditor @Inject() (
   val typeSchemas: Set[TypeSchema],
   /** Flag indicating whether the initial schema is active. */
   isSchemaActive: Boolean)
-  extends TypeEditorSkel(parentShell) with Dialog with XLoggable {
+    extends TypeEditorSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Actual schema entities */
-  protected[typeed] lazy val actualEntities = WritableList(initialEntities)
+  val actualEntities = WritableList(initialEntities)
   /** The property representing the current schema 'active' flag state */
-  protected val activeField = WritableValue(Boolean.box(isSchemaActive))
+  val activeField = WritableValue(Boolean.box(isSchemaActive))
   /** The auto resize lock */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** The property representing the current schema description */
-  protected val descriptionField = WritableValue("")
+  val descriptionField = WritableValue("")
   /** The property representing a selected entity */
-  protected val entityField = WritableValue[TypeSchema.Entity[_ <: AnySRef]]
+  val entityField = WritableValue[TypeSchema.Entity[_ <: AnySRef]]
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** Initial schema entities */
-  protected lazy val initialEntities = initial.entity.values.toList.sortBy(_.ptypeId.name)
+  lazy val initialEntities = initial.entity.values.toList.sortBy(_.ptypeId.name)
   /** The property representing the current schema name */
-  protected val nameField = WritableValue("")
+  val nameField = WritableValue("")
   /** The property contain nameField validation, it is modified only from UI thread */
-  protected var nameFieldValid = true
+  var nameFieldValid = true
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
   /** Actual sortBy column index */
-  @volatile private var sortColumn = 1
+  @volatile protected var sortColumn = 1
   /** Actual sort direction */
-  @volatile private var sortDirection = Default.sortingDirection
+  @volatile protected var sortDirection = Default.sortingDirection
 
   /** Get the modified type schema */
   def getModifiedSchema(): TypeSchema = initial.copy(
@@ -152,9 +153,11 @@ class TypeEditor @Inject() (
     autoResizeLock.unlock()
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionAliasLookup).fill(getCompositeFooter())
     ActionAliasLookup.setEnabled(false)
     // Bind the schema info: a name
@@ -168,7 +171,7 @@ class TypeEditor @Inject() (
           validator.withDecoration(validator.showDecorationRequired(_))
           nameFieldValid = false
         } else if (typeSchemas.exists(_.name == newName) && newName != initial.name) {
-          validator.withDecoration(validator.showDecorationError(_, Messages.nameIsAlreadyInUse_text.format(newName)))
+          validator.withDecoration(validator.showDecorationError(_, CoreMessages.nameIsAlreadyInUse_text.format(newName)))
           nameFieldValid = false
         } else {
           validator.withDecoration(_.hide)
@@ -297,7 +300,7 @@ class TypeEditor @Inject() (
       (initialEntities, actualEntities).zipped.forall(TypeSchema.compareDeep(_, _))
   } && actualEntities.filter(e ⇒ PropertyType.container.contains(e.ptypeId)).exists(_.availability)))
 
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+  object ActionAutoResize extends Action(CoreMessages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked())
       Future { autoresize } onFailure {

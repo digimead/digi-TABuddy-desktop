@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,16 +46,17 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.typelist
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyTypeSchema
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Payload, PropertyType, TypeSchema }
-import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.model.definition.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
@@ -86,24 +87,24 @@ class TypeList @Inject() (
   val initial: Set[TypeSchema],
   /** Initial active type schema. */
   val initialActiveSchema: TypeSchema)
-  extends TypeListSkel(parentShell) with Dialog with XLoggable {
+    extends TypeListSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The actual schemas value */
-  protected[typelist] val actual = WritableList(initial.toList)
+  val actual = WritableList(initial.toList)
   /** The property representing active schema */
-  protected val actualActiveSchema = WritableValue[UUID]
+  val actualActiveSchema = WritableValue[UUID]
   /** The auto resize lock */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing selected schema */
-  protected val schemaField = WritableValue[TypeSchema]
+  val schemaField = WritableValue[TypeSchema]
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
   /** Actual sortBy column index */
@@ -128,9 +129,11 @@ class TypeList @Inject() (
   /** Get modified type schemas */
   def getSchemaSet(): Set[TypeSchema] = actual.toSet
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionActivate).fill(getCompositeActivator())
     new ActionContributionItem(ActionCreate).fill(getCompositeFooter())
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
@@ -185,10 +188,10 @@ class TypeList @Inject() (
   def getNewTypeSchemaCopyName(name: String): String = {
     val sameNames = immutable.HashSet(actual.filter(_.name.startsWith(name)).map(_.name).toSeq: _*)
     var n = 0
-    var newName = name + " " + Messages.copy_item_text
+    var newName = name + " " + CoreMessages.copy_item_text
     while (sameNames(newName)) {
       n += 1
-      newName = name + " " + Messages.copy_item_text + n
+      newName = name + " " + CoreMessages.copy_item_text + n
     }
     newName
   }
@@ -272,7 +275,7 @@ class TypeList @Inject() (
           (initial.entity, actual.entity).zipped.forall((a, b) ⇒ TypeSchema.compareDeep(a._2, b._2)))
       }))
 
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+  object ActionAutoResize extends Action(CoreMessages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked())
       Future { autoresize } onFailure {
@@ -280,13 +283,13 @@ class TypeList @Inject() (
         case e ⇒ log.error(e.toString())
       }
   }
-  object ActionActivate extends Action(Messages.activate_text) with XLoggable {
+  object ActionActivate extends Action(CoreMessages.activate_text) with XLoggable {
     override def run = Option(schemaField.value) foreach { (selected) ⇒
       if (actualActiveSchema.value != selected.id)
         actualActiveSchema.value = selected.id
     }
   }
-  object ActionCreate extends Action(Messages.create_text) with XLoggable {
+  object ActionCreate extends Action(CoreMessages.create_text) with XLoggable {
     override def run = {
       val newSchemaName = payload.generateNew(Messages.newTypeSchema_text, " ", newName ⇒ actual.exists(_.name == newName))
       val newSchema = TypeSchema(UUID.randomUUID(), newSchemaName, "", immutable.HashMap(TypeSchema.entities.map(e ⇒ (e.ptypeId, e)).toSeq: _*))
@@ -318,7 +321,7 @@ class TypeList @Inject() (
       }
     }
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
+  object ActionCreateFrom extends Action(CoreMessages.createFrom_text) with XLoggable {
     override def run = Option(schemaField.value) foreach { (selected) ⇒
       val from = selected
       // create a new ID
@@ -354,7 +357,7 @@ class TypeList @Inject() (
       }
     }
   }
-  object ActionEdit extends Action(Messages.edit_text) {
+  object ActionEdit extends Action(CoreMessages.edit_text) {
     override def run = Option(schemaField.value) foreach { (before) ⇒
       OperationModifyTypeSchema(graph, before, actual.toSet, before.id == actualActiveSchema.value).foreach { operation ⇒
         val job = if (operation.canRedo())
@@ -387,13 +390,13 @@ class TypeList @Inject() (
       }
     }
   }
-  object ActionRemove extends Action(Messages.remove_text) {
+  object ActionRemove extends Action(CoreMessages.remove_text) {
     override def run = Option(schemaField.value) foreach { (selected) ⇒
       if (!TypeSchema.predefined.exists(_.id == selected.id))
         actual -= selected
     }
   }
-  object ActionReset extends Action(Messages.reset_text) {
+  object ActionReset extends Action(CoreMessages.reset_text) {
     override def run = Option(schemaField.value) foreach { (selected) ⇒
       TypeSchema.predefined.find(_.id == selected.id) match {
         case Some(predefined) ⇒

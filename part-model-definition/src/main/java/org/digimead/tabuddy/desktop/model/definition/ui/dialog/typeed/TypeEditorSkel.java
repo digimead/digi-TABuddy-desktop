@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -71,6 +71,7 @@ import swing2swt.layout.FlowLayout;
  */
 public class TypeEditorSkel extends TitleAreaDialog {
 	private static final ResourceBundle BUNDLE = getResourceBundle();
+	private static final ResourceBundle CORE_BUNDLE = getResourceCoreBundle();
 	private Text textSchemaDescription;
 	private Text textSchemaName;
 	private Composite compositeHeader;
@@ -90,13 +91,30 @@ public class TypeEditorSkel extends TitleAreaDialog {
 	 */
 	private static ResourceBundle getResourceBundle() {
 		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.definition.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		}
+	}
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceCoreBundle() {
+		try {
 			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.core.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		}
 	}
 
@@ -108,6 +126,50 @@ public class TypeEditorSkel extends TitleAreaDialog {
 	public TypeEditorSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
+	}
+
+	public Composite getCompositeHeader() {
+		return compositeHeader;
+	}
+
+	public Composite getCompositeFooter() {
+		return compositeFooter;
+	}
+
+	public TableViewer getTableViewer() {
+		return tableViewer;
+	}
+
+	public Text getTextSchemaDescription() {
+		return textSchemaDescription;
+	}
+
+	public Text getTextSchemaName() {
+		return textSchemaName;
+	}
+
+	public Button getBtnCheckActive() {
+		return btnCheckActive;
+	}
+
+	public TableViewerColumn getTableViewerColumnAvailability() {
+		return tableViewerColumnAvailability;
+	}
+
+	public TableViewerColumn getTableViewerColumnType() {
+		return tableViewerColumnType;
+	}
+
+	public TableViewerColumn getTableViewerColumnAlias() {
+		return tableViewerColumnAlias;
+	}
+
+	public TableViewerColumn getTableViewerColumnView() {
+		return tableViewerColumnView;
+	}
+
+	public TableViewerColumn getTableViewerColumnLabel() {
+		return tableViewerColumnLabel;
 	}
 
 	/**
@@ -132,7 +194,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		lblTemplateName.setAlignment(SWT.RIGHT);
 		lblTemplateName.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
 		lblTemplateName.setBounds(0, 0, 65, 15);
-		lblTemplateName.setText(BUNDLE.getString("name_text"));
+		lblTemplateName.setText(CORE_BUNDLE.getString("name_text"));
 
 		textSchemaName = new Text(compositeHeader, SWT.BORDER);
 		textSchemaName.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
@@ -141,7 +203,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		Label lblDescription = new Label(compositeHeader, SWT.NONE);
 		lblDescription.setAlignment(SWT.RIGHT);
 		lblDescription.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
-		lblDescription.setText(BUNDLE.getString("description_text"));
+		lblDescription.setText(CORE_BUNDLE.getString("description_text"));
 
 		textSchemaDescription = new Text(compositeHeader, SWT.BORDER);
 		textSchemaDescription.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
@@ -149,7 +211,7 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		new Label(compositeHeader, SWT.NONE);
 
 		btnCheckActive = new Button(compositeHeader, SWT.CHECK);
-		btnCheckActive.setText(BUNDLE.getString("active_text"));
+		btnCheckActive.setText(CORE_BUNDLE.getString("active_text"));
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK | SWT.FULL_SELECTION);
 		Table table = tableViewer.getTable();
@@ -159,27 +221,27 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		tableViewerColumnAvailability = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnAvailability = tableViewerColumnAvailability.getColumn();
 		tblclmnAvailability.setWidth(100);
-		tblclmnAvailability.setText(BUNDLE.getString("availability_text"));
+		tblclmnAvailability.setText(CORE_BUNDLE.getString("availability_text"));
 
 		tableViewerColumnType = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnType = tableViewerColumnType.getColumn();
 		tblclmnType.setWidth(100);
-		tblclmnType.setText(BUNDLE.getString("type_text"));
+		tblclmnType.setText(CORE_BUNDLE.getString("type_text"));
 
 		tableViewerColumnAlias = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnAlias = tableViewerColumnAlias.getColumn();
 		tblclmnAlias.setWidth(100);
-		tblclmnAlias.setText(BUNDLE.getString("alias_text"));
+		tblclmnAlias.setText(CORE_BUNDLE.getString("alias_text"));
 
 		tableViewerColumnView = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnView = tableViewerColumnView.getColumn();
 		tblclmnView.setWidth(100);
-		tblclmnView.setText(BUNDLE.getString("view_text"));
+		tblclmnView.setText(CORE_BUNDLE.getString("view_text"));
 
 		tableViewerColumnLabel = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnDescription = tableViewerColumnLabel.getColumn();
 		tblclmnDescription.setWidth(100);
-		tblclmnDescription.setText(BUNDLE.getString("description_text"));
+		tblclmnDescription.setText(CORE_BUNDLE.getString("description_text"));
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(BorderLayout.SOUTH);
@@ -200,47 +262,4 @@ public class TypeEditorSkel extends TitleAreaDialog {
 		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
-	protected Composite getCompositeHeader() {
-		return compositeHeader;
-	}
-
-	protected Composite getCompositeFooter() {
-		return compositeFooter;
-	}
-
-	protected TableViewer getTableViewer() {
-		return tableViewer;
-	}
-
-	protected Text getTextSchemaDescription() {
-		return textSchemaDescription;
-	}
-
-	protected Text getTextSchemaName() {
-		return textSchemaName;
-	}
-
-	protected Button getBtnCheckActive() {
-		return btnCheckActive;
-	}
-
-	protected TableViewerColumn getTableViewerColumnAvailability() {
-		return tableViewerColumnAvailability;
-	}
-
-	protected TableViewerColumn getTableViewerColumnType() {
-		return tableViewerColumnType;
-	}
-
-	protected TableViewerColumn getTableViewerColumnAlias() {
-		return tableViewerColumnAlias;
-	}
-
-	protected TableViewerColumn getTableViewerColumnView() {
-		return tableViewerColumnView;
-	}
-
-	protected TableViewerColumn getTableViewerColumnLabel() {
-		return tableViewerColumnLabel;
-	}
 }

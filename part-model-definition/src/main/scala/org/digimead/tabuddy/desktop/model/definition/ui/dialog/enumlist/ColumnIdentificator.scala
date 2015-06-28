@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,7 +44,8 @@
 package org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumlist
 
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
+import org.digimead.tabuddy.desktop.logic.{ Messages ⇒ LogicMessages }
 import org.digimead.tabuddy.desktop.logic.payload.Enumeration
 import org.digimead.tabuddy.desktop.model.definition.Default
 import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
@@ -68,7 +69,7 @@ object ColumnIdentificator extends XLoggable {
     /** Get the text displayed in the tool tip for object. */
     override def getToolTipText(element: Object): String = element match {
       case item: Enumeration[_] ⇒
-        Messages.enumerationTooltip_text.format(item.ptype.id.name, item.ptype.typeClass.getName, item.constants.size)
+        LogicMessages.enumerationTooltip_text.format(item.ptype.id.name, item.ptype.typeClass.getName, item.constants.size)
       case unknown ⇒
         log.fatal("Unknown item " + unknown.getClass())
         null
@@ -108,7 +109,7 @@ object ColumnIdentificator extends XLoggable {
           if (newID.isEmpty())
             validator.withDecoration(validator.showDecorationRequired(_))
           else if (container.actual.exists(_.id.name == newID) && newID != enumeration.id.name)
-            validator.withDecoration(validator.showDecorationError(_, Messages.identificatorIsAlreadyInUse_text.format(newID)))
+            validator.withDecoration(validator.showDecorationError(_, CoreMessages.identificatorIsAlreadyInUse_text.format(newID)))
           else
             validator.withDecoration(_.hide)
         }

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,16 +45,16 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.enumed
 
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.UI
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.{ SymbolValidator, Validator }
-import org.digimead.tabuddy.desktop.logic.payload.Enumeration
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ Enumeration, Payload, PropertyType }
-import org.digimead.tabuddy.desktop.model.definition.Default
+import org.digimead.tabuddy.desktop.model.definition.{ Default, Messages }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.dsl.DSLType
 import org.digimead.tabuddy.model.graph.Graph
@@ -85,42 +85,42 @@ class EnumerationEditor @Inject() (
   val initial: Enumeration[_ <: AnySRef],
   /** Exists enumerations. */
   val enumerations: Set[Enumeration[_ <: AnySRef]])
-  extends EnumerationEditorSkel(parentShell) with Dialog with XLoggable {
+    extends EnumerationEditorSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** Actual enumeration constants */
-  protected[enumed] lazy val actualConstants = WritableList(initialConstants)
+  lazy val actualConstants = WritableList(initialConstants)
   /** The auto resize lock */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** The property representing current enumeration availability */
-  protected val availabilityField = WritableValue[java.lang.Boolean]
+  val availabilityField = WritableValue[java.lang.Boolean]
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing current enumeration id */
-  protected val idField = WritableValue[String]
+  val idField = WritableValue[String]
   /** Actual enumeration constants */
-  protected val initialConstants = getInitialContent(initial)
+  val initialConstants = getInitialContent(initial)
   /** The property representing current enumeration name */
-  protected val nameField = WritableValue[String]
+  val nameField = WritableValue[String]
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
+  /** The property representing current enumeration type */
+  val typeField = WritableValue[java.lang.Integer]
+  /** List of available types */
+  val types: Array[PropertyType[_ <: AnySRef]] = {
+    val userTypes = payload.getAvailableTypes().filter(_.enumerationSupported)
+    // add an initial enumeration if absent
+    (if (userTypes.contains(initial.ptype)) userTypes else (userTypes :+ initial.ptype)).sortBy(_.id.name).toArray
   }
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0
   /** Actual sort direction */
   @volatile protected var sortDirection = Default.sortingDirection
-  /** The property representing current enumeration type */
-  protected val typeField = WritableValue[java.lang.Integer]
-  /** List of available types */
-  protected val types: Array[PropertyType[_ <: AnySRef]] = {
-    val userTypes = payload.getAvailableTypes().filter(_.enumerationSupported)
-    // add an initial enumeration if absent
-    (if (userTypes.contains(initial.ptype)) userTypes else (userTypes :+ initial.ptype)).sortBy(_.id.name).toArray
-  }
 
   /** Get an actual enumeration */
   def getModifiedEnumeration(): Enumeration[_ <: AnySRef] = {
@@ -160,10 +160,12 @@ class EnumerationEditor @Inject() (
       })
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     // create dialog elements
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionAdd).fill(getCompositeFooter())
     new ActionContributionItem(ActionDelete).fill(getCompositeFooter())
     ActionAdd.setEnabled(true)
@@ -226,8 +228,6 @@ class EnumerationEditor @Inject() (
   /** Get table content */
   protected def getInitialContent(enumeration: Enumeration[_ <: AnySRef]): List[EnumerationEditor.Item] =
     enumeration.constants.map(constant ⇒ EnumerationEditor.Item(constant.ptype.valueToString(constant.value), constant.alias, constant.description)).toList
-  /** Allow external access for scala classes */
-  override protected def getTableViewer() = super.getTableViewer
   /** Initialize table */
   protected def initTableEnumerations() {
     val viewer = getTableViewer()
@@ -322,16 +322,16 @@ class EnumerationEditor @Inject() (
   /** Validate dialog for consistency */
   def validate(): Option[String] = {
     if (idField.value.trim.isEmpty())
-      return Some(Messages.identificatorIsNotDefined_text)
+      return Some(CoreMessages.identificatorIsNotDefined_text)
     if (enumerations.exists(_.id.name == idField.value.trim) &&
       idField.value.trim != initial.id.name)
-      return Some(Messages.identificatorIsAlreadyInUse_text.format(idField.value.trim))
+      return Some(CoreMessages.identificatorIsAlreadyInUse_text.format(idField.value.trim))
     if (actualConstants.isEmpty)
-      return Some(Messages.thereIsNoData_text)
+      return Some(CoreMessages.thereIsNoData_text)
     if (actualConstants.size != actualConstants.map(_.value.trim).distinct.size)
-      return Some(Messages.thereAreDuplicatedValuesInField_text.format(Messages.value_text))
+      return Some(CoreMessages.thereAreDuplicatedValuesInField_text.format(CoreMessages.value_text))
     if (actualConstants.size != (actualConstants.map(_.alias.trim).filter(_.nonEmpty).distinct.size + actualConstants.filter(_.alias.trim.isEmpty).size))
-      return Some(Messages.thereAreDuplicatedValuesInField_text.format(Messages.alias_text))
+      return Some(CoreMessages.thereAreDuplicatedValuesInField_text.format(CoreMessages.alias_text))
     None
   }
   /** Validates a text in the the ID text field */
@@ -342,17 +342,17 @@ class EnumerationEditor @Inject() (
   else
     validator.withDecoration(_.hide)
 
-  object ActionAdd extends Action(Messages.add_text) {
+  object ActionAdd extends Action(CoreMessages.add_text) {
     override def run = actualConstants += newEnumeration
   }
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+  object ActionAutoResize extends Action(CoreMessages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked()) Future { autoresize } onFailure {
       case e: Exception ⇒ log.error(e.getMessage(), e)
       case e ⇒ log.error(e.toString())
     }
   }
-  object ActionDelete extends Action(Messages.delete_text) {
+  object ActionDelete extends Action(CoreMessages.delete_text) {
     override def run = getTableViewer.getSelection() match {
       case selection: IStructuredSelection if !selection.isEmpty() ⇒
         actualConstants -= selection.getFirstElement().asInstanceOf[EnumerationEditor.Item]

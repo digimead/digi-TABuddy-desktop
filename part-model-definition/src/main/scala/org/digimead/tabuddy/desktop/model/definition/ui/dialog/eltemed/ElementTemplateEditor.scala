@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,15 +45,17 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemed
 
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.ui.{ Resources, UI }
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PropertyType, TemplateProperty, TemplatePropertyGroup, api ⇒ papi }
 import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.core.ui.{ Resources, UI }
-import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.model.definition.Messages
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.e4.core.contexts.IEclipseContext
@@ -85,43 +87,43 @@ class ElementTemplateEditor @Inject() (
   val initial: ElementTemplate,
   /** The list of element template identifier */
   val templateList: Set[ElementTemplate])
-  extends ElementTemplateEditorSkel(parentShell) with Dialog with XLoggable {
+    extends ElementTemplateEditorSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The actual template properties */
-  protected[eltemed] val actualProperties = WritableList(initialProperties)
+  val actualProperties = WritableList(initialProperties)
   /** The auto resize lock */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** The property representing current template availability */
-  protected val availabilityField = WritableValue[java.lang.Boolean]
+  val availabilityField = WritableValue[java.lang.Boolean]
   /** List of available enumerations */
-  protected[eltemed] val enumerations: Array[Enumeration[_ <: AnyRef with java.io.Serializable]] =
+  val enumerations: Array[Enumeration[_ <: AnyRef with java.io.Serializable]] =
     payload.getAvailableEnumerations.sortBy(_.id.name).toArray
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing current template id */
-  protected val idField = WritableValue[String]
+  val idField = WritableValue[String]
   /** The initial template properties */
-  protected lazy val initialProperties = getTemplateProperties(initial).sortBy(_.id)
+  lazy val initialProperties = getTemplateProperties(initial).sortBy(_.id)
   /** The property representing current template label */
-  protected val nameField = WritableValue[String]
+  val nameField = WritableValue[String]
   /** Used to create new propery */
-  protected val newPropertySample = newProperty()
+  val newPropertySample = newProperty()
   /** The property that indicates whether the template is predefined */
-  protected val predefined = payload.originalElementTemplates.find(_.id == initial.id)
+  val predefined = payload.originalElementTemplates.find(_.id == initial.id)
   /** The property that contains predefined properties if any */
-  protected val predefinedProperties = predefined.map(getTemplateProperties(_).sortBy(_.id))
+  val predefinedProperties = predefined.map(getTemplateProperties(_).sortBy(_.id))
   /** The property representing a selected template property */
-  protected val selected = WritableValue[ElementTemplateEditor.Item]
+  val selected = WritableValue[ElementTemplateEditor.Item]
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
   /** List of available types */
-  protected[eltemed] val types: Array[PropertyType[_ <: AnyRef with java.io.Serializable]] =
+  val types: Array[PropertyType[_ <: AnyRef with java.io.Serializable]] =
     payload.getAvailableTypes().sortBy(_.id.name).toArray
   /** Actual sortBy column index */
   @volatile protected var sortColumn = 0 // by an id
@@ -155,10 +157,12 @@ class ElementTemplateEditor @Inject() (
     autoResizeLock.unlock()
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     // Create dialog elements
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     initTableTemplateProperties
     new ActionContributionItem(ActionAdd).fill(getCompositeFooter())
     new ActionContributionItem(ActionDelete).fill(getCompositeFooter())
@@ -373,18 +377,18 @@ class ElementTemplateEditor @Inject() (
     item.copy(idError = idError, requiredError = requiredError, typeError = typeError, defaultError = defaultError, groupError = groupError)
   }
 
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+  object ActionAutoResize extends Action(CoreMessages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked()) autoresize
   }
-  object ActionAdd extends Action(Messages.add_text) {
+  object ActionAdd extends Action(CoreMessages.add_text) {
     override def run = actualProperties += newProperty
   }
-  object ActionDelete extends Action(Messages.delete_text) {
+  object ActionDelete extends Action(CoreMessages.delete_text) {
     override def run = Option(selected.value) foreach { (selected) ⇒ actualProperties -= selected }
   }
-  object ActionReset extends Action(Messages.reset_text) {
-    setToolTipText(Messages.resetPredefinedTemplate_text)
+  object ActionReset extends Action(CoreMessages.reset_text) {
+    setToolTipText(CoreMessages.resetPredefinedTemplate_text)
     override def run = {
       for {
         predefined ← predefined

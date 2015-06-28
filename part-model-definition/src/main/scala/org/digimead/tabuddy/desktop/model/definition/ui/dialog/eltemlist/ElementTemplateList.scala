@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,16 +46,18 @@ package org.digimead.tabuddy.desktop.model.definition.ui.dialog.eltemlist
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Operation
 import org.digimead.tabuddy.desktop.core.support.{ App, WritableList, WritableValue }
+import org.digimead.tabuddy.desktop.core.ui.UI
+import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CoreMessages }
 import org.digimead.tabuddy.desktop.logic.operation.OperationModifyElementTemplate
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Payload }
 import org.digimead.tabuddy.desktop.model.definition.Default
-import org.digimead.tabuddy.desktop.core.ui.UI
-import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
+import org.digimead.tabuddy.desktop.model.definition.Messages
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
@@ -84,11 +86,11 @@ class ElementTemplateList @Inject() (
   val payload: Payload,
   /** Initial element template list. */
   val initial: Set[ElementTemplate])
-  extends ElementTemplateListSkel(parentShell) with Dialog with XLoggable {
+    extends ElementTemplateListSkel(parentShell) with Dialog with XLoggable {
   /** Akka execution context. */
   implicit lazy val ec = App.system.dispatcher
   /** The actual content */
-  protected[eltemlist] val actual = WritableList[ElementTemplate](
+  val actual = WritableList[ElementTemplate](
     // replace initial elements with copies that will be modified in the progress
     initial.toList.map { initialTemplate ⇒
       initialTemplate.element.eNode.parent.get.freezeWrite { target ⇒
@@ -97,16 +99,16 @@ class ElementTemplateList @Inject() (
       }
     }.sortBy(_.id.name))
   /** The auto resize lock. */
-  protected val autoResizeLock = new ReentrantLock()
+  val autoResizeLock = new ReentrantLock()
   /** Activate context on focus. */
-  protected val focusListener = new FocusListener() {
+  val focusListener = new FocusListener() {
     def focusGained(e: FocusEvent) = context.activateBranch()
     def focusLost(e: FocusEvent) {}
   }
   /** The property representing a selected element template */
-  protected[eltemlist] val selected = WritableValue[ElementTemplate]
+  val selected = WritableValue[ElementTemplate]
   /** Activate context on shell events. */
-  protected val shellListener = new ShellAdapter() {
+  val shellListener = new ShellAdapter() {
     override def shellActivated(e: ShellEvent) = context.activateBranch()
   }
   /** Actual sortBy column index */
@@ -131,9 +133,11 @@ class ElementTemplateList @Inject() (
     autoResizeLock.unlock()
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val result = super.createDialogArea(parent)
     context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     new ActionContributionItem(ActionCreateFrom).fill(getCompositeFooter())
     new ActionContributionItem(ActionEdit).fill(getCompositeFooter())
     new ActionContributionItem(ActionRemove).fill(getCompositeFooter())
@@ -166,10 +170,10 @@ class ElementTemplateList @Inject() (
   protected def getNewTemplateCopyID(id: Symbol): Symbol = {
     val sameIds = immutable.HashSet(actual.filter(_.id.name.startsWith(id.name)).map(_.id.name).toSeq: _*)
     var n = 0
-    var newId = id.name + Messages.copy_item_text
+    var newId = id.name + CoreMessages.copy_item_text
     while (sameIds(newId)) {
       n += 1
-      newId = id.name + Messages.copy_item_text + n
+      newId = id.name + CoreMessages.copy_item_text + n
     }
     Symbol(newId)
   }
@@ -256,11 +260,11 @@ class ElementTemplateList @Inject() (
   protected def updateOK() = Option(getButton(IDialogConstants.OK_ID)).
     foreach(_.setEnabled(initial.map(_.element.modified) != actual.map(_.element.modified).toSet))
 
-  object ActionAutoResize extends Action(Messages.autoresize_key, IAction.AS_CHECK_BOX) {
+  object ActionAutoResize extends Action(CoreMessages.autoresize_key, IAction.AS_CHECK_BOX) {
     setChecked(true)
     override def run = if (isChecked()) autoresize
   }
-  object ActionCreateFrom extends Action(Messages.createFrom_text) with XLoggable {
+  object ActionCreateFrom extends Action(CoreMessages.createFrom_text) with XLoggable {
     override def run = Option(selected.value) foreach { (before) ⇒
       val from = before.element
       // create new ID
@@ -268,7 +272,7 @@ class ElementTemplateList @Inject() (
       // create an element for a new template
       val to = from.eNode.copy(id = toId, unique = UUID.randomUUID).**
       // create a template for a 'to' element
-      val newTemplate = new ElementTemplate(to.rootBox.e.eRelative, before.factory).copy(name = before.name + " " + Messages.copy_item_text)
+      val newTemplate = new ElementTemplate(to.rootBox.e.eRelative, before.factory).copy(name = before.name + " " + CoreMessages.copy_item_text)
       // start job
       OperationModifyElementTemplate(graph, newTemplate, actual.toSet).foreach { operation ⇒
         val job = if (operation.canRedo())
@@ -297,7 +301,7 @@ class ElementTemplateList @Inject() (
       }
     }
   }
-  object ActionEdit extends Action(Messages.edit_text) {
+  object ActionEdit extends Action(CoreMessages.edit_text) {
     override def run = Option(selected.value) foreach { (before) ⇒
       OperationModifyElementTemplate(graph, before, actual.toSet).foreach { operation ⇒
         operation.getExecuteJob() match {
@@ -318,7 +322,7 @@ class ElementTemplateList @Inject() (
       }
     }
   }
-  object ActionRemove extends Action(Messages.remove_text) {
+  object ActionRemove extends Action(CoreMessages.remove_text) {
     override def run = Option(selected.value) foreach { (selected) ⇒
       if (!payload.originalElementTemplates.exists(_.id == selected.id))
         actual -= selected

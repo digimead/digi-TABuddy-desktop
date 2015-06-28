@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -69,6 +69,8 @@ import swing2swt.layout.FlowLayout;
  */
 public class ElementTemplateListSkel extends TitleAreaDialog {
 	private static final ResourceBundle BUNDLE = getResourceBundle();
+	private static final ResourceBundle CORE_BUNDLE = getResourceCoreBundle();
+	private static final ResourceBundle LOGIC_BUNDLE = getResourceLogicBundle();
 	private TableViewer tableViewer;
 	private Composite compositeFooter;
 	private TableViewerColumn tableViewerColumnId;
@@ -82,13 +84,47 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	 */
 	private static ResourceBundle getResourceBundle() {
 		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.definition.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.messages");
+		}
+	}
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceCoreBundle() {
+		try {
 			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.core.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.definition.ui.messages");
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
+		}
+	}
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceLogicBundle() {
+		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.logic.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
 		}
 	}
 
@@ -100,6 +136,26 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 	public ElementTemplateListSkel(Shell parentShell) {
 		super(parentShell);
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE | SWT.PRIMARY_MODAL);
+	}
+
+	public TableViewer getTableViewer() {
+		return tableViewer;
+	}
+
+	public Composite getCompositeFooter() {
+		return compositeFooter;
+	}
+
+	public TableViewerColumn getTableViewerColumnId() {
+		return tableViewerColumnId;
+	}
+
+	public TableViewerColumn getTableViewerColumnAvailability() {
+		return tableViewerColumnAvailability;
+	}
+
+	public TableViewerColumn getTableViewerColumnName() {
+		return tableViewerColumnName;
 	}
 
 	/**
@@ -118,7 +174,7 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 
 		Label lblElementTemplates = new Label(container, SWT.NONE);
 		lblElementTemplates.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1));
-		lblElementTemplates.setText(BUNDLE.getString("elementTemplates_text"));
+		lblElementTemplates.setText(LOGIC_BUNDLE.getString("elementTemplates_text"));
 
 		tableViewer = new TableViewer(container, SWT.BORDER | SWT.CHECK | SWT.FULL_SELECTION);
 		Table table_templates = tableViewer.getTable();
@@ -129,17 +185,17 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 		tableViewerColumnAvailability = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnAvailability = tableViewerColumnAvailability.getColumn();
 		tblclmnAvailability.setWidth(100);
-		tblclmnAvailability.setText(BUNDLE.getString("availability_text"));
+		tblclmnAvailability.setText(CORE_BUNDLE.getString("availability_text"));
 
 		tableViewerColumnId = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnId = tableViewerColumnId.getColumn();
 		tblclmnId.setWidth(100);
-		tblclmnId.setText(BUNDLE.getString("identificator_text"));
+		tblclmnId.setText(CORE_BUNDLE.getString("identificator_text"));
 
 		tableViewerColumnName = new TableViewerColumn(tableViewer, SWT.NONE);
 		TableColumn tblclmnName = tableViewerColumnName.getColumn();
 		tblclmnName.setWidth(100);
-		tblclmnName.setText(BUNDLE.getString("name_text"));
+		tblclmnName.setText(CORE_BUNDLE.getString("name_text"));
 
 		compositeFooter = new Composite(container, SWT.NONE);
 		compositeFooter.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, true, false, 1, 1));
@@ -160,23 +216,4 @@ public class ElementTemplateListSkel extends TitleAreaDialog {
 		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
-	protected TableViewer getTableViewer() {
-		return tableViewer;
-	}
-
-	public Composite getCompositeFooter() {
-		return compositeFooter;
-	}
-
-	protected TableViewerColumn getTableViewerColumnId() {
-		return tableViewerColumnId;
-	}
-
-	protected TableViewerColumn getTableViewerColumnAvailability() {
-		return tableViewerColumnAvailability;
-	}
-
-	protected TableViewerColumn getTableViewerColumnName() {
-		return tableViewerColumnName;
-	}
 }
