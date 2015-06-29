@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,7 +43,8 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui.view.editor;
 
-import org.digimead.tabuddy.desktop.core.definition.BaseResourceBundle;
+import java.util.ResourceBundle;
+
 import org.eclipse.jface.action.CoolBarManager;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
@@ -61,7 +62,8 @@ import org.eclipse.swt.widgets.Label;
  * @author ezh
  */
 public class ContentSkel extends Composite {
-	private static final BaseResourceBundle BUNDLE = getResourceBundle();
+	private static final ResourceBundle CORE_BUNDLE = getResourceCoreBundle();
+	private static final ResourceBundle LOGIC_BUNDLE = getResourceLogicBundle();
 	private Button btnResetActiveElement;
 	private CoolBarManager coolBarManager;
 	private SashForm sashForm;
@@ -73,16 +75,53 @@ public class ContentSkel extends Composite {
 	 *
 	 * @return ResourceBundle interface of NLS singleton.
 	 */
-	private static BaseResourceBundle getResourceBundle() {
+	private static ResourceBundle getResourceCoreBundle() {
 		try {
-			return (BaseResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.editor.Messages").newInstance();
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.core.Messages").newInstance();
 		} catch (ClassNotFoundException e) {
-			return new BaseResourceBundle.Empty();
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (IllegalAccessException e) {
-			return new BaseResourceBundle.Empty();
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		} catch (InstantiationException e) {
-			return new BaseResourceBundle.Empty();
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.core.messages");
 		}
+	}
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceLogicBundle() {
+		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.logic.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.logic.messages");
+		}
+	}
+
+	public CoolBarManager getCoolBarManager() {
+		return coolBarManager;
+	}
+
+	public SashForm getSashForm() {
+		return sashForm;
+	}
+
+	public StyledText getTextActiveElement() {
+		return textActiveElement;
+	}
+
+	public Button getBtnResetActiveElement() {
+		return btnResetActiveElement;
+	}
+
+	public StyledText getTextRootElement() {
+		return textRootElement;
 	}
 
 	/**
@@ -104,7 +143,7 @@ public class ContentSkel extends Composite {
 		sashForm.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));
 
 		Label lblRoot = new Label(this, SWT.NONE);
-		lblRoot.setText(BUNDLE.getString("rootElement_text"));
+		lblRoot.setText(LOGIC_BUNDLE.getString("rootElement_text"));
 
 		textRootElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY | SWT.WRAP | SWT.SINGLE);
 		GridData gd_styledTextRootElement = new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1);
@@ -113,7 +152,7 @@ public class ContentSkel extends Composite {
 
 		Label lblActiveElement = new Label(this, SWT.NONE);
 		lblActiveElement.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
-		lblActiveElement.setText(BUNDLE.getString("activeElement_text"));
+		lblActiveElement.setText(LOGIC_BUNDLE.getString("activeElement_text"));
 
 		textActiveElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY | SWT.WRAP | SWT.SINGLE);
 		textActiveElement.setAlignment(SWT.CENTER);
@@ -121,7 +160,7 @@ public class ContentSkel extends Composite {
 
 		btnResetActiveElement = new Button(this, SWT.NONE);
 		btnResetActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 1, 1));
-		btnResetActiveElement.setText(BUNDLE.getString("reset_text"));
+		btnResetActiveElement.setText(CORE_BUNDLE.getString("reset_text"));
 
 	}
 
@@ -130,23 +169,4 @@ public class ContentSkel extends Composite {
 		// Disable the check that prevents subclassing of SWT components
 	}
 
-	protected CoolBarManager getCoolBarManager() {
-		return coolBarManager;
-	}
-
-	protected SashForm getSashForm() {
-		return sashForm;
-	}
-
-	protected StyledText getTextActiveElement() {
-		return textActiveElement;
-	}
-
-	protected Button getBtnResetActiveElement() {
-		return btnResetActiveElement;
-	}
-
-	protected StyledText getTextRootElement() {
-		return textRootElement;
-	}
 }

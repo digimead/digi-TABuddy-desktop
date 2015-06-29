@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -49,9 +49,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.model.editor.{ Default, Messages }
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.jface.action.{ IMenuListener, IMenuManager, MenuManager, Separator }
@@ -59,7 +59,7 @@ import org.eclipse.jface.viewers.{ AbstractTreeViewer, CellLabelProvider, Column
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ PaintEvent, PaintListener }
 import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.widgets.{ Event, Listener, Sash, TreeItem }
+import org.eclipse.swt.widgets.{ Event, Item, Listener, Sash, TreeItem }
 import scala.language.reflectiveCalls
 import scala.ref.WeakReference
 
@@ -81,8 +81,6 @@ class Tree(protected[editor] val content: Content, style: Int)
     import scala.language.reflectiveCalls
     (treeViewer: { def update(a: Array[AnyRef], b: Array[String]): Unit }).update(_, _)
   }
-  /** Internal table elements */
-  protected lazy val tableElements = content.table.proxyContent.underlying
   /** The tree viewer */
   protected[editor] val treeViewer = create()
   /** Tree column width gap */
@@ -129,7 +127,32 @@ class Tree(protected[editor] val content: Content, style: Int)
   /** Create contents of the table. */
   protected def create(): TreeViewer = {
     log.debug("Create tree.")
-    val treeViewer = new TreeViewer(content.getSashForm, style)
+    val treeViewer = new TreeViewer(content.getSashForm, style) {
+      override def collapseAll() = Content.withRedrawDelayed(content) {
+        super.collapseAll()
+        content.proxy.onCollapseAll()
+      }
+      override def collapseToLevel(elementOrTreePath: AnyRef, level: Int) =
+        Content.withRedrawDelayed(content) { super.collapseToLevel(elementOrTreePath, level) }
+      override def expandToLevel(elementOrTreePath: AnyRef, level: Int) =
+        Content.withRedrawDelayed(content) { super.expandToLevel(elementOrTreePath, level) }
+      override protected def setExpanded(node: Item, expand: Boolean) = Content.withRedrawDelayed(content) {
+        super.setExpanded(node, expand)
+        val treeItem = node.asInstanceOf[TreeItem]
+        val item = treeItem.getData.asInstanceOf[TreeProxy.Item]
+        if (expand) {
+          content.proxy.onExpand(item)
+          treeItem.getItems.map(_.getData).map {
+            case item: TreeProxy.Item ⇒
+              if (content.proxy.getExpandedState(item))
+                expandToLevel(item, 1)
+            case _ ⇒ // there may be null
+          }
+        } else
+          content.proxy.onCollapse(item)
+        content.getSelectedElement.foreach(content.updateActiveElement)
+      }
+    }
     val tree = treeViewer.getTree()
     tree.setData(Tree.widgetDataKey_WeakReferenceView, WeakReference(content))
     treeViewer.setUseHashlookup(true)
@@ -162,12 +185,28 @@ class Tree(protected[editor] val content: Content, style: Int)
         case selection ⇒
       }
     })
-    // Add the expand/collapse listener
+    // Add the expand / collapse listener
     tree.addListener(SWT.Collapse, new Listener() {
-      override def handleEvent(e: Event) = Content.withRedrawDelayed(content) { onCollapse(e.item.asInstanceOf[TreeItem]) }
+      override def handleEvent(e: Event) = Content.withRedrawDelayed(content) {
+        val treeItem = e.item.asInstanceOf[TreeItem]
+        content.proxy.onCollapse(treeItem.getData.asInstanceOf[TreeProxy.Item])
+      }
     })
     tree.addListener(SWT.Expand, new Listener() {
-      override def handleEvent(e: Event) = Content.withRedrawDelayed(content) { onExpand(e.item.asInstanceOf[TreeItem]) }
+      override def handleEvent(e: Event) = Content.withRedrawDelayed(content) {
+        val treeItem = e.item.asInstanceOf[TreeItem]
+        content.proxy.onExpand(treeItem.getData.asInstanceOf[TreeProxy.Item])
+        // IMPORTANT execAsync is REQUIRED
+        App.execAsync {
+          Content.withRedrawDelayed(content) {
+            treeItem.getItems.map(_.getData).map {
+              case item: TreeProxy.Item ⇒
+                if (content.proxy.getExpandedState(item))
+                  treeViewer.expandToLevel(item, 1)
+            }
+          }
+        }
+      }
     })
     tree.addPaintListener(onActiveListener)
     treeViewer
@@ -187,8 +226,12 @@ class Tree(protected[editor] val content: Content, style: Int)
         manager.add(tableMenu)
         // main menu
         manager.add(new ActionAsRoot(item.element))
-        manager.add(new ActionExpand(item.element))
-        manager.add(new ActionCollapse(item.element))
+        val expand = new ActionExpand(item.element)
+        expand.setEnabled(item.element.eNode.safeRead(_.children.nonEmpty))
+        manager.add(expand)
+        val collapse = new ActionCollapse(item.element)
+        collapse.setEnabled(expandedItems(item))
+        manager.add(collapse)
         manager.add(new Separator)
       case None ⇒
     }
@@ -214,38 +257,19 @@ class Tree(protected[editor] val content: Content, style: Int)
     }
   }
   /** onCollapse callback */
-  @log
-  protected def onCollapse(treeItem: TreeItem) {
-    val item = treeItem.getData().asInstanceOf[TreeProxy.Item]
-    if (expandedItems(item))
-      content.proxy.onCollapse(item)
-    content.getSelectedElement.foreach(content.updateActiveElement)
-    content.ActionAutoResize(false)
-  }
+  //  @log
+  //  protected def onCollapse(treeItem: TreeItem) {
+  //    val item = treeItem.getData().asInstanceOf[TreeProxy.Item]
+  //    if (expandedItems(item))
+  //      content.proxy.onCollapse(item)
+  //    content.getSelectedElement.foreach(content.updateActiveElement)
+  //    content.ActionAutoResize(false)
+  //  }
   /** onExpand callback */
-  @log
-  protected def onExpand(treeItem: TreeItem) {
-    val item = treeItem.getData.asInstanceOf[TreeProxy.Item]
-    if (!expandedItems(item))
-      content.proxy.onExpand(item)
-    // re expand children if needed
-    val expand = treeItem.getItems().filter(child ⇒
-      child.getData() != null && expandedItems(child.getData().asInstanceOf[TreeProxy.Item]))
-    if (expand.nonEmpty) {
-      App.exec {
-        expand.foreach { item ⇒
-          if (item.getItemCount() == 1 && item.getItems.head.getData() == null) {
-            // expand invisible item after refresh
-            treeViewer.setExpandedState(item.getData(), true)
-          } else
-            item.setExpanded(true)
-          onExpand(item)
-        }
-      }
-    }
-    content.getSelectedElement.foreach(content.updateActiveElement)
-    content.ActionAutoResize(false)
-  }
+  //@log //  protected def onExpand(treeItem: TreeItem) {
+  //    Tree.expand(treeItem.getData.asInstanceOf[TreeProxy.Item].element, false, content)
+  //    content.ActionAutoResize(false)
+  //  }
   /** onInputChanged callback */
   @log
   protected def onInputChanged(item: TreeProxy.Item) {
@@ -258,10 +282,10 @@ class Tree(protected[editor] val content: Content, style: Int)
     }
     Tree.FilterSystemElement.updateSystemElement()
     Option(Tree.FilterSystemElement.systemElement).map(TreeProxy.Item(_)).foreach { systemItem ⇒
-      if (content.ActionToggleSystem.isChecked())
-        content.proxy.onUnfilter(systemItem)
-      else
-        content.proxy.onFilter(systemItem)
+      //      if (content.ActionToggleSystem.isChecked())
+      //        content.proxy.onUnfilter(systemItem)
+      //      else
+      //        content.proxy.onFilter(systemItem)
     }
     content.updateRootElement(item.element)
     content.getSelectedElement.foreach(content.updateActiveElement)
@@ -273,24 +297,16 @@ object Tree extends XLoggable {
   val widgetDataKey_WeakReferenceView = getClass.getName() + "#WeakReferenceView"
 
   /** Collapse the element. */
-  def collapse(element: Element, recursively: Boolean, content: Content): Unit = {
+  def collapse(element: Element, content: Content): Unit = {
     log.debug("collapse " + element)
     val item = TreeProxy.Item(element)
-    if (recursively) {
-      content.tree.treeViewer.collapseToLevel(item, AbstractTreeViewer.ALL_LEVELS)
-      content.proxy.onCollapseRecursively(item)
-    } else {
-      content.tree.treeViewer.collapseToLevel(item, 1)
-      content.proxy.onCollapse(item)
-    }
+    content.tree.treeViewer.collapseToLevel(item, AbstractTreeViewer.ALL_LEVELS)
     content.getSelectedElement.foreach(content.updateActiveElement)
   }
   /** Collapse all elements */
   def collapseAll(content: Content) = {
     log.debug("collapse all elements")
     content.tree.treeViewer.collapseAll()
-    content.proxy.onCollapseAll()
-    content.getSelectedElement.foreach(content.updateActiveElement)
   }
   /** Expand the element. */
   def expand(element: Element, recursively: Boolean, content: Content): Unit = {
@@ -300,19 +316,6 @@ object Tree extends XLoggable {
       content.tree.treeViewer.expandToLevel(item, AbstractTreeViewer.ALL_LEVELS)
     else
       content.tree.treeViewer.expandToLevel(item, 1)
-    def expandItem(item: TreeProxy.Item): Unit = {
-      if (!content.tree.expandedItems(item)) {
-        if (recursively)
-          content.proxy.onExpandRecursively(item)
-        else
-          content.proxy.onExpand(item)
-      } else {
-        if (recursively)
-          for (childNode ← item.element.eNode.safeRead(_.children))
-            expandItem(TreeProxy.Item(childNode.rootBox.e))
-      }
-    }
-    expandItem(item)
     content.getSelectedElement.foreach(content.updateActiveElement)
   }
   /** Expand all elements */
@@ -320,7 +323,6 @@ object Tree extends XLoggable {
     log.debug("expand all elements")
     val tableSelection = content.table.tableViewer.getSelection()
     content.tree.treeViewer.expandAll()
-    content.proxy.onExpandAll()
     content.table.tableViewer.setSelection(tableSelection)
     content.getSelectedElement.foreach(content.updateActiveElement)
   }
@@ -332,14 +334,14 @@ object Tree extends XLoggable {
       if (!filters.contains(FilterSystemElement)) {
         content.tree.treeViewer.setFilters(filters :+ FilterSystemElement)
         Option(FilterSystemElement.systemElement).map(TreeProxy.Item(_)).foreach { systemItem ⇒
-          content.proxy.onFilter(systemItem)
+          content.proxy.onHide(systemItem)
         }
       }
     } else {
       if (filters.contains(FilterSystemElement)) {
         content.tree.treeViewer.setFilters(filters.filterNot(_ == FilterSystemElement))
         Option(FilterSystemElement.systemElement).map(TreeProxy.Item(_)).foreach { systemItem ⇒
-          content.proxy.onUnfilter(systemItem)
+          content.proxy.onUnhide(systemItem)
         }
       }
     }

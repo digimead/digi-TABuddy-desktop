@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -46,7 +46,6 @@ package org.digimead.tabuddy.desktop.model.editor
 import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.NLS
-import org.digimead.tabuddy.desktop.core.definition.BaseResourceBundle
 
 /**
  * Resource bundle implementation.
@@ -54,7 +53,7 @@ import org.digimead.tabuddy.desktop.core.definition.BaseResourceBundle
  * This code is directly evaluated in IDE (WindowBuilderPro).
  * Any runtime references that may prevent creation are prohibited.
  */
-class Messages extends ResourceBundle with BaseResourceBundle {
+class Messages extends ResourceBundle {
   def getKeys() = new java.util.Enumeration[String] {
     private val iterator = Messages.T.messages.keys.iterator
     def hasMoreElements(): Boolean = iterator.hasNext

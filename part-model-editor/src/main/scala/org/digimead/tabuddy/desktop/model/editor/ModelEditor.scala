@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -186,13 +186,9 @@ object ModelEditor {
 
   object Id {
     /** Value of the ToggleEmpty switch [java.lang.Boolean]. */
-    final val stateOfToggleEmpty = "org.digimead.tabuddy.desktop.model.editor.ModelEditor/stateOfToggleEmpty"
-    /** Value of the ToggleExpand switch [java.lang.Boolean]. */
-    final val stateOfToggleExpand = "org.digimead.tabuddy.desktop.model.editor.ModelEditor/stateOfToggleExpand"
+    final val stateOfToggleEmpty = "org.digimead.tabuddy.desktop.model.editor/stateOfToggleEmpty"
     /** Value of the ToggleIdentificator switch [java.lang.Boolean]. */
-    final val stateOfToggleIdentificator = "org.digimead.tabuddy.desktop.model.editor.ModelEditor/stateOfToggleIdentificator"
-    /** Value of the ToggleSystem switch [java.lang.Boolean]. */
-    final val stateOfToggleSystem = "org.digimead.tabuddy.desktop.model.editor.ModelEditor/stateOfToggleSystem"
+    final val stateOfToggleIdentificator = "org.digimead.tabuddy.desktop.model.editor/stateOfToggleIdentificator"
   }
   /**
    * Dependency injection routines

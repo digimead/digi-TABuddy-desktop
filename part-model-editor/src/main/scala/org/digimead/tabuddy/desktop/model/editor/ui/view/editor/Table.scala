@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,40 +43,62 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
+import com.google.common.collect.Lists
 import com.ibm.icu.text.DateFormat
+import java.util.{ Date, UUID }
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.support.WritableList
+import org.digimead.tabuddy.desktop.core.support.WritableValue
 import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
-import org.digimead.tabuddy.desktop.logic.payload.{ PropertyType, TemplateProperty }
-import org.digimead.tabuddy.desktop.model.editor.{ Default, Messages }
+import org.digimead.tabuddy.desktop.logic.comparator.AvailableComparators
+import org.digimead.tabuddy.desktop.logic.comparator.api.XComparator
+import org.digimead.tabuddy.desktop.logic.filter.AvailableFilters
+import org.digimead.tabuddy.desktop.logic.filter.api.XFilter
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, PropertyType, TemplateProperty }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.view.{ Filter, Sorting, View ⇒ ModelView }
+import org.digimead.tabuddy.desktop.logic.payload.view.api.{ XFilter ⇒ XViewFilter, XSorting }
+import org.digimead.tabuddy.desktop.model.editor.{ AnySRef, Default, Messages }
 import org.digimead.tabuddy.model.element.Element
+import org.eclipse.core.databinding.observable.Observables
+import org.eclipse.core.databinding.observable.value.{ IValueChangeListener, ValueChangeEvent }
 import org.eclipse.jface.action.{ IMenuListener, IMenuManager, MenuManager, Separator }
 import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.viewers.{ CellLabelProvider, ColumnViewerToolTipSupport, ILabelProvider, ISelectionChangedListener, IStructuredSelection, SelectionChangedEvent, TableViewer, TableViewerColumn, Viewer, ViewerCell, ViewerComparator, ViewerFilter }
 import org.eclipse.swt.SWT
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, PaintEvent, PaintListener, SelectionAdapter, SelectionEvent }
 import org.eclipse.swt.graphics.{ Color, Font, Image, Point }
+import scala.annotation.migration
 import scala.collection.{ immutable, mutable, parallel }
+import scala.collection.JavaConverters.{ asJavaIteratorConverter, seqAsJavaListConverter }
+import scala.concurrent.Future
 import scala.language.reflectiveCalls
 import scala.ref.WeakReference
-import java.util.Date
 
 class Table(protected[editor] val content: Content, style: Int)
-  extends TableActions with TableFields with XLoggable {
+    extends TableActions with TableFields with XLoggable {
   /** The auto resize lock */
   protected val autoResizeLock = new ReentrantLock()
   /** The actual table content. */
   protected[editor] lazy val proxyContent = WritableList[TreeProxy.Item]
-  /** The instance of filter that drops empty table rows */
-  protected lazy val filterEmptyElements = new Table.FilterEmptyElements(content)
+  /** The sorted table content. */
+  protected[editor] lazy val proxyContentSorted = WritableList[TreeProxy.Item]
+  /** The table content sorter. */
+  protected[editor] lazy val proxyContentSorter = new Table.ContentSorter(proxyContent, proxyContentSorted, 100)
+  /** The instance of a filter that drops empty table rows. */
+  protected lazy val filterEmptyElements = new Table.FilterEmptyElements(WeakReference(content))
+  /** The instance of a filter that apply user rules to data. */
+  protected lazy val filter = new Table.FilterWithUserDefinedRules(WeakReference(content))
   /** On active listener flag */
   protected val onActiveCalled = new AtomicBoolean(false)
   /** On active listener */
   protected val onActiveListener = new Table.OnActiveListener(new WeakReference(this))
+  /** The instance of a comparator that apply user defined sortings. */
+  protected lazy val sorting = new Table.TableComparator(-1, Default.sortingDirection, new WeakReference(this))
   /** The table viewer */
   val tableViewer = create()
   /** The table viewer update, scala bug SI-2991 */
@@ -85,13 +107,108 @@ class Table(protected[editor] val content: Content, style: Int)
     import scala.language.reflectiveCalls
     (tableViewer: { def update(a: Array[AnyRef], b: Array[String]): Unit }).update(_, _)
   }
+  /** Current model complete column/label provider map */
+  protected var columnLabelProvider = immutable.HashMap[String, Table.TableLabelProvider]()
+  /** Current model complete column/template map (id -> [ElementTemplate.id -> TemplateProperty]) */
+  protected var columnTemplate = immutable.HashMap[String, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]]()
+
+  /** Dispose table viewer columns. */
+  def disposeColumns(): Map[String, Int] = {
+    val table = tableViewer.getTable
+    val existsColumnsWidth = immutable.HashMap(table.getColumns.map { column ⇒ (column.getText(), column.getWidth()) }: _*)
+    while (table.getColumnCount > 0)
+      table.getColumns.head.dispose()
+    existsColumnsWidth
+  }
+  /** Create enumeration of column templates and column label providers. */
+  def enumerateColumns(marker: GraphMarker) {
+    log.debug("Enumerate table columns for " + marker)
+    val (properties, propertyCache) = marker.safeRead { state ⇒
+      val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
+      val properties = state.payload.elementTemplates.values.flatMap { template ⇒
+        template.properties.foreach {
+          case (group, properties) ⇒ properties.foreach(property ⇒
+            propertyCache(property) = propertyCache.get(property).getOrElse(Seq()) :+ template)
+        }
+        template.properties.flatMap(_._2)
+      }.toList.groupBy(_.id.name.toLowerCase())
+      (properties, propertyCache)
+    }
+    val columnIds = List(Content.COLUMN_ID, Content.COLUMN_NAME) ++ properties.keys.filterNot(_ == Content.COLUMN_NAME).toSeq.sorted
+    val columnTemplate = immutable.HashMap((for (columnId ← columnIds) yield columnId match {
+      case id if id == Content.COLUMN_ID ⇒
+        (Content.COLUMN_ID, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]())
+      case id if id == Content.COLUMN_NAME ⇒
+        (Content.COLUMN_NAME, immutable.HashMap(properties.get(Content.COLUMN_NAME).getOrElse(List()).map { property ⇒
+          propertyCache(property).map(template ⇒ (template.id, property))
+        }.flatten: _*))
+      case _ ⇒
+        (columnId, immutable.HashMap(properties(columnId).map { property ⇒
+          propertyCache(property).map(template ⇒ (template.id, property))
+        }.flatten: _*))
+    }): _*)
+    val columnLabelProvider = columnTemplate.map {
+      case (columnId, columnProperties) ⇒
+        if (columnId == Content.COLUMN_ID)
+          columnId -> new Table.TableLabelProviderID()
+        else
+          columnId -> new Table.TableLabelProvider(columnId, columnProperties)
+    }
+    App.execNGet {
+      this.columnTemplate = columnTemplate
+      this.columnLabelProvider = columnLabelProvider
+    }
+  }
+  /** Get column label provider map. */
+  def getColumnLabelProvider() = columnLabelProvider
+  /** Get column template map. */
+  def getColumnTemplate() = columnTemplate
+  /** Set user defined filter. */
+  def setFilter(userDefinedFilter: Filter) {
+    filter.set(userDefinedFilter)
+    tableViewer.refresh()
+  }
+  /** Set user defined sorting. */
+  def setSorting(userDefinedSorting: Sorting) {
+    proxyContentSorter.set(userDefinedSorting)
+    tableViewer.refresh()
+  }
+  /** Set user defined view. */
+  def setViewDefinition(userDefinedView: ModelView) = App.execAsync { updateColumns(Some(userDefinedView)) }
+  /** Remove user defined filter. */
+  def removeFilter() {
+    filter.clear()
+    tableViewer.refresh()
+  }
+  /** Remove user defined sorting. */
+  def removeSorting() {
+    proxyContentSorter.clear()
+    tableViewer.refresh()
+  }
+  /** Remove user defined view. */
+  def removeViewDefinition() = App.execAsync { updateColumns(None) }
+  /** Recreate table columns */
+  def updateColumns(marker: GraphMarker): Unit =
+    updateColumns(marker.safeRead { state ⇒
+      content.getParent.getContext.flatMap(state.payload.getSelectedViewDefinition(_))
+    })
+  /** Recreate table columns */
+  def updateColumns(view: Option[ModelView]) {
+    val disposedColumnsWidth = disposeColumns()
+    val columnList = view.map(selected ⇒ mutable.LinkedHashSet(Content.COLUMN_ID) ++
+      (selected.fields.map(_.name) - Content.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(Content.COLUMN_ID, Content.COLUMN_NAME))
+    if (columnLabelProvider.nonEmpty)
+      createColumns(columnList, disposedColumnsWidth)
+    filterEmptyElements.set(tableViewerColumns)
+    tableViewer.refresh()
+  }
 
   /** Adjust column width */
   protected def adjustColumnWidth(viewerColumn: TableViewerColumn, padding: Int) {
     val bounds = viewerColumn.getViewer.getControl.getBounds()
     val column = viewerColumn.getColumn()
     column.pack()
-    column.setWidth(math.min(column.getWidth() + padding, bounds.width / 3))
+    column.setWidth(math.max(math.min(column.getWidth() + padding, bounds.width / 3), Default.columnMinimumWidth + padding))
   }
   /** Auto resize table viewer columns */
   protected def autoresize(immediately: Boolean) = if (onActiveCalled.get)
@@ -145,25 +262,22 @@ class Table(protected[editor] val content: Content, style: Int)
       }
     })
     table.addPaintListener(onActiveListener)
-    // update id column width
-    if (saveWidthColumnID == 0) {
-      saveWidthColumnID = table.getColumn(0).getWidth()
-      table.getColumn(0).setWidth(0)
-      table.getColumn(0).setResizable(false)
-    }
-    tableViewer.setComparator(new Table.TableComparator(-1, Default.sortingDirection, new WeakReference(this)))
-    tableViewer.setFilters(Array(new Table.TableFilter(content)))
-    proxyContent.addChangeListener { _ ⇒
-      // reset sorting results on content change
+    tableViewer.setComparator(sorting)
+    tableViewer.setFilters(Array(filter))
+    proxyContentSorted.addChangeListener { _ ⇒
+      // reset cached sorting results on sorted content change
       tableViewer.getComparator.asInstanceOf[Table.TableComparator].sorted = None
     }
-    tableViewer.setInput(proxyContent.underlying)
     // Add the dispose listener
     table.addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) {
+        proxyContentSorter.dispose()
+        proxyContentSorted.dispose()
+        proxyContent.dispose()
         table.setData(null)
       }
     })
+    proxyContentSorter.init()
     tableViewer
   }
   /** Create table viewer column */
@@ -184,22 +298,27 @@ class Table(protected[editor] val content: Content, style: Int)
     log.debug("Create columns " + columns.mkString(","))
     var pos = 0
     tableViewerColumns = columns.map { columnId ⇒
-      Table.columnLabelProvider.get(columnId) match {
+      columnLabelProvider.get(columnId) match {
         case Some(labelProvider: Table.TableLabelProviderID) ⇒
           val column = createColumn(CMessages.identificator_text, Content.COLUMN_ID, columnsWidth.get(columnId), labelProvider)
-          column.getColumn.addSelectionListener(new Table.TableSelectionAdapter(pos))
+          column.getColumn.addSelectionListener(new Table.TableSelectionAdapter(WeakReference(this), pos))
           pos += 1
+          // update id column width
+          saveWidthColumnID.foreach { width ⇒
+            column.getColumn.setWidth(0)
+            column.getColumn.setResizable(false)
+          }
           Some(column)
         case Some(labelProvider) ⇒
           val column = if (columnId == Content.COLUMN_NAME)
             createColumn(Messages.name_text, columnId, columnsWidth.get(columnId), labelProvider)
           else
             createColumn(columnId, columnId, columnsWidth.get(columnId), labelProvider)
-          column.getColumn.addSelectionListener(new Table.TableSelectionAdapter(pos))
+          column.getColumn.addSelectionListener(new Table.TableSelectionAdapter(WeakReference(this), pos))
           pos += 1
           Some(column)
         case None ⇒
-          log.fatal("unknown column " + columnId)
+          log.warn("Unable to create an unknown column " + columnId)
           None
       }
     }.flatten
@@ -232,14 +351,6 @@ class Table(protected[editor] val content: Content, style: Int)
     manager.add(new Separator)
     manager.add(ActionAutoResize)
   }
-  /** Dispose table viewer columns */
-  def disposeColumns(): Map[String, Int] = {
-    val table = tableViewer.getTable
-    val existsColumnsWidth = immutable.HashMap(table.getColumns.map { column ⇒ (column.getText(), column.getWidth()) }: _*)
-    while (table.getColumnCount > 0)
-      table.getColumns.head.dispose()
-    existsColumnsWidth
-  }
   /** onActive callback */
   protected def onActive() {}
   protected[editor] def onSortingChanged() {
@@ -249,27 +360,28 @@ class Table(protected[editor] val content: Content, style: Int)
 }
 
 object Table extends XLoggable {
-  /** Current model complete column/template map (id -> [ElementTemplate.id -> TemplateProperty]) */
-  protected[editor] var columnTemplate = immutable.HashMap[String, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]]()
-  /** Current model complete column/label provider map */
-  protected[editor] var columnLabelProvider = immutable.HashMap[String, Table.TableLabelProvider]()
-
   /** Toggle the visibility of Id column */
   def toggleColumnId(show: Boolean, content: Content) = {
-    if (show)
+    if (show) {
       content.table.tableViewerColumns.headOption.foreach { column ⇒
-        if (content.table.saveWidthColumnID <= 0)
+        val width = content.table.saveWidthColumnID.getOrElse(-1)
+        if (width <= 0)
           content.table.adjustColumnWidth(column, Default.columnPadding)
         else
-          column.getColumn.setWidth(content.table.saveWidthColumnID)
+          column.getColumn.setWidth(width)
         column.getColumn.setResizable(true)
       }
-    else
-      content.table.tableViewerColumns.headOption.foreach { column ⇒
-        content.table.saveWidthColumnID = column.getColumn.getWidth()
-        column.getColumn.setWidth(0)
-        column.getColumn.setResizable(false)
+      content.table.saveWidthColumnID = None
+    } else {
+      content.table.tableViewerColumns.headOption match {
+        case Some(column) ⇒
+          content.table.saveWidthColumnID = Option(column.getColumn.getWidth())
+          column.getColumn.setWidth(0)
+          column.getColumn.setResizable(false)
+        case None ⇒
+          content.table.saveWidthColumnID = Option(-1)
       }
+    }
   }
   /** Toggle the visibility of empty rows */
   def toggleEmptyRows(hideEmpty: Boolean, content: Content) = {
@@ -283,20 +395,194 @@ object Table extends XLoggable {
     }
   }
 
-  /** Filter empty rows from table (id row is not takes into consideration) */
-  class FilterEmptyElements(content: Content) extends ViewerFilter {
-    override def select(viewer: Viewer, parentElement: Object, element: Object): Boolean =
-      !isEmpty(element.asInstanceOf[TreeProxy.Item].element)
-    protected def isEmpty(element: Element) = {
-      content.table.tableViewerColumns.tail.forall { column ⇒
-        column.getColumn.getText() match {
-          case id if id == Messages.name_text ⇒
-            Table.columnLabelProvider(Content.COLUMN_NAME).isEmpty(element)
-          case columnId ⇒
-            Table.columnLabelProvider(columnId).isEmpty(element)
-        }
+  /** Sorter that transform source list to ordered target. */
+  class ContentSorter(source: WritableList[TreeProxy.Item], target: WritableList[TreeProxy.Item], updateDelay: Int) {
+    /** Akka execution context. */
+    implicit lazy val ec = App.system.dispatcher
+    /** Source events aggregator. */
+    protected lazy val eventsAggregator = WritableValue(Long.box(0L))
+    /** Aggregator change listener. */
+    protected lazy val eventsAggregatorListener = source.addChangeListener { event ⇒ eventsAggregator.value = System.currentTimeMillis() }
+    /** Delayed observable. */
+    protected lazy val delayedObservable = Observables.observeDelayedValue(100, eventsAggregator)
+    /** Delayed observable listener. */
+    protected lazy val delayedObservableListener = new IValueChangeListener {
+      def handleValueChange(event: ValueChangeEvent) = updateRequest()
+    }
+    /** Comparator lock. */
+    protected val lock = new Object
+    /** Boolean state whether the current request in progress. */
+    protected var requestInProgress = false
+    /** Boolean state whether the next request is required. */
+    protected var requestInQueue = false
+    /** Source listener. */
+    protected lazy val sourceListener = source.addChangeListener { _ ⇒ eventsAggregator.value = System.currentTimeMillis() }
+    /** User defined sorting. */
+    @volatile protected var userDefinedSorting = Seq.empty[(XSorting.Definition, PropertyType[AnyRef with java.io.Serializable], XComparator[XComparator.Argument], Option[XComparator.Argument])]
+    /** User defined sorting id. */
+    @volatile protected var userDefinedSortingId = Option.empty[UUID]
+
+    /** Remove user defined sorting. */
+    def clear() = lock.synchronized {
+      if (userDefinedSortingId.nonEmpty) {
+        this.userDefinedSorting = Seq.empty
+        userDefinedSortingId = None
+        App.exec { eventsAggregator.value = System.currentTimeMillis() }
       }
     }
+    /** Dispose sorter. */
+    def dispose() {
+      App.assertEventThread()
+      delayedObservable.removeValueChangeListener(delayedObservableListener)
+      delayedObservable.dispose()
+      source.removeChangeListener(eventsAggregatorListener)
+    }
+    /** Init sorter. */
+    def init() {
+      App.assertEventThread()
+      delayedObservable.addValueChangeListener(delayedObservableListener)
+      // Initialize lazy value.
+      eventsAggregatorListener
+    }
+    /** Set user defined sorting. */
+    def set(userDefinedSorting: Sorting) = lock.synchronized {
+      if (userDefinedSortingId != Some(userDefinedSorting.id)) {
+        log.debug("Set user defined sorting to " + userDefinedSorting)
+        this.userDefinedSorting = userDefinedSorting.definitions.toSeq.flatMap { definition ⇒
+          val comparator = AvailableComparators.map.get(definition.comparator)
+          if (comparator.isEmpty)
+            log.error(s"Comparator for id ${definition.comparator} is not found")
+          val propertyType = PropertyType.container.get(definition.propertyType)
+          if (propertyType.isEmpty)
+            log.error(s"PropertyType for id ${definition.propertyType} is not found")
+          val argument = comparator.flatMap(c ⇒ c.stringToArgument(definition.argument))
+          comparator.flatMap(c ⇒ propertyType.map(ptype ⇒ (definition,
+            ptype.asInstanceOf[PropertyType[AnyRef with java.io.Serializable]],
+            c.asInstanceOf[XComparator[XComparator.Argument]], argument)))
+        }.reverse
+        userDefinedSortingId = Some(userDefinedSorting.id)
+        App.exec {
+          val ts = System.currentTimeMillis()
+          if (eventsAggregator.value < ts)
+            eventsAggregator.value = ts
+        }
+      } else
+        log.debug(s"Skip user defined sorting ${userDefinedSorting}. Already exists.")
+    }
+
+    /** Start update job if needed. */
+    protected def processRequest() = lock.synchronized {
+      (requestInProgress, requestInQueue) match {
+        case (true, _) ⇒
+        case (false, true) ⇒
+          requestInProgress = true
+          requestInQueue = false
+          Future { sort() } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+        case (false, false) ⇒
+      }
+    }
+    /** Fill target with sorted content. */
+    protected def sort() {
+      lock.synchronized { (userDefinedSortingId, userDefinedSorting) } match {
+        case (Some(uuid), sortBy) ⇒
+          var iteration = App.execNGet { source.toIndexedSeq }
+          sortBy.foreach {
+            case ((definition, propertyType, comparator, argument)) ⇒
+              // iterate over sorting definitions
+              if (definition.direction)
+                iteration = iteration.sortWith { (a, b) ⇒
+                  comparator.compare[AnyRef with java.io.Serializable](
+                    definition.property,
+                    propertyType.asInstanceOf[comparator.ComparatorPropertyType[AnyRef with java.io.Serializable]],
+                    a.element, b.element,
+                    argument) < 0
+                }
+              else
+                iteration = iteration.sortWith { (a, b) ⇒
+                  comparator.compare[AnyRef with java.io.Serializable](
+                    definition.property,
+                    propertyType.asInstanceOf[comparator.ComparatorPropertyType[AnyRef with java.io.Serializable]],
+                    a.element, b.element,
+                    argument) >= 0
+                }
+          }
+          App.execNGet {
+            target.clear()
+            target.addAll(iteration.asJava)
+          }
+          log.debug("Fill target with sorted (%s) content".format(uuid))
+        case (None, _) ⇒
+          App.execNGet {
+            target.clear()
+            target.addAll(Lists.newArrayList[TreeProxy.Item](source.iterator.asJava: java.util.Iterator[TreeProxy.Item]))
+          }
+          log.debug("Fill target with unsorted content")
+      }
+      updateComplete()
+    }
+    /** Mark update as completed. */
+    protected def updateComplete() = lock.synchronized {
+      requestInProgress = false
+      processRequest()
+    }
+    /** Make update request. */
+    protected def updateRequest() = lock.synchronized {
+      requestInQueue = true
+      processRequest()
+    }
+  }
+  /** Filter that apply user rules */
+  class FilterWithUserDefinedRules(content: WeakReference[Content]) extends ViewerFilter {
+    /** User defined rules. */
+    var rules = Seq.empty[(XViewFilter.Rule, PropertyType[_ <: AnySRef], XFilter[_ <: XFilter.Argument], Option[_ <: XFilter.Argument])]
+
+    /** Clear user defined filter. */
+    def clear() = rules = Nil
+    override def select(viewer: Viewer, parentElement: Object, element: Object): Boolean = element match {
+      case item: TreeProxy.Item ⇒
+        val view = viewer.asInstanceOf[TableViewer].getTable.getData.asInstanceOf[Content]
+        rules.isEmpty || rules.forall {
+          case ((rule, propertyType, filter, argument)) ⇒
+            val generic = filter.**
+            generic.filter(rule.property, propertyType.asInstanceOf[generic.FilterPropertyType[AnySRef]], item.element, argument)
+        }
+      case unknown ⇒
+        log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
+        true
+    }
+    /** Set user defined filter. */
+    def set(userDefinedFilter: Filter) {
+      rules = userDefinedFilter.rules.toSeq.flatMap { rule ⇒
+        val filterInstance = AvailableFilters.map.get(rule.filter): Option[XFilter[_ <: XFilter.Argument]]
+        val propertyType = PropertyType.container.get(rule.propertyType): Option[PropertyType[_ <: AnyRef with java.io.Serializable]]
+        val argument = filterInstance.flatMap(f ⇒ f.stringToArgument(rule.argument))
+        filterInstance.flatMap(f ⇒ propertyType.map(ptype ⇒ (rule, ptype, f, argument)))
+      }
+    }
+  }
+  /** Filter empty rows from table (id row is not takes into consideration) */
+  class FilterEmptyElements(content: WeakReference[Content]) extends ViewerFilter {
+    /** Actual columns. */
+    protected var tableViewerColumnsTail = Seq.empty[TableViewerColumn]
+
+    /** Returns whether the given element makes it through this filter. */
+    override def select(viewer: Viewer, parentElement: Object, element: Object): Boolean =
+      !isEmpty(element.asInstanceOf[TreeProxy.Item].element)
+    /** Set list of columns. */
+    def set(tableViewerColumns: mutable.LinkedHashSet[TableViewerColumn]) =
+      tableViewerColumnsTail = if (tableViewerColumns.isEmpty) Nil else tableViewerColumns.toSeq.tail
+
+    /** Check if column is empty. */
+    protected def isEmpty(element: Element) = content.get.map { content ⇒
+      tableViewerColumnsTail.forall { column ⇒
+        column.getColumn.getText() match {
+          case id if id == Messages.name_text ⇒
+            content.table.columnLabelProvider(Content.COLUMN_NAME).isEmpty(element)
+          case columnId ⇒
+            content.table.columnLabelProvider(columnId).isEmpty(element)
+        }
+      }
+    } getOrElse true
   }
   class OnActiveListener(table: WeakReference[Table]) extends PaintListener {
     /** Sent when a paint event occurs for the control. */
@@ -308,23 +594,23 @@ object Table extends XLoggable {
     }
   }
   class TableComparator(initialColumn: Int, initialDirection: Boolean, table: WeakReference[Table]) extends ViewerComparator {
-    /** The sort column */
-    var columnVar = initialColumn
-    /** The sort direction */
-    var directionVar = initialDirection
-    /** Sorted content by user defined sorter */
+    /** The sort column. */
+    protected var columnVar = initialColumn
+    /** The sort direction. */
+    protected var directionVar = initialDirection
+    /** Sorted content by user defined sorter. */
     protected[editor] var sorted: Option[parallel.immutable.ParVector[TreeProxy.Item]] = None
     updateActionResetSorting
 
-    /** Active column getter */
+    /** Active column getter. */
     def column = columnVar
-    /** Active column setter */
+    /** Active column setter. */
     def column_=(arg: Int) {
       columnVar = arg
       directionVar = initialDirection
       updateActionResetSorting
     }
-    /** Sorting direction */
+    /** Sorting direction. */
     def direction = directionVar
     /**
      * Returns a negative, zero, or positive number depending on whether
@@ -336,53 +622,13 @@ object Table extends XLoggable {
       val item2 = e2.asInstanceOf[TreeProxy.Item]
       val view = viewer.asInstanceOf[TableViewer].getTable().getData().asInstanceOf[Content]
       val columnCount = viewer.asInstanceOf[TableViewer].getTable.getColumnCount()
+
       val rc: Int = if (column < 0) {
-        /*sorted orElse {
-          // sorted is empty, update sorted
-          view.context.toolbarView.sorting.value match {
-            case Some(sorting) =>
-              val sortBy = sorting.definitions.toSeq.flatMap { definition =>
-                val comparator = Comparator.map.get(definition.comparator): Option[Comparator.Interface[_ <: Comparator.Argument]]
-                val propertyType = PropertyType.container.get(definition.propertyType): Option[PropertyType[_ <: AnyRef with java.io.Serializable]]
-                val argument = comparator.flatMap(c => c.stringToArgument(definition.argument))
-                comparator.flatMap(c => propertyType.map(ptype => (definition, ptype, c, argument)))
-              }
-              if (sortBy.nonEmpty) {
-                var iteration = view.proxy.getContent.seq
-                sortBy.foreach {
-                  case ((definition, propertyType, comparator, argument)) =>
-                    // iterate over sorting definitions
-                    if (definition.direction)
-                      iteration = iteration.sortWith { (a, b) =>
-                        comparator.compare[AnyRef with java.io.Serializable](
-                          definition.property,
-                          propertyType.asInstanceOf[org.digimead.tabuddy.desktop.payload.PropertyType[AnyRef with java.io.Serializable]],
-                          a.element, b.element,
-                          argument.asInstanceOf[Option[Comparator.Argument]]) < 0
-                      }
-                    else
-                      iteration = iteration.sortWith { (a, b) =>
-                        comparator.compare[AnyRef with java.io.Serializable](
-                          definition.property,
-                          propertyType.asInstanceOf[org.digimead.tabuddy.desktop.payload.PropertyType[AnyRef with java.io.Serializable]],
-                          a.element, b.element,
-                          argument.asInstanceOf[Option[Comparator.Argument]]) >= 0
-                      }
-                }
-                sorted = Some(iteration.par)
-              } else {
-                // if there are no sortBy elements (default sorting) return empty vector
-                // so comparation will always -1 vs -1
-                sorted = Some(parallel.immutable.ParVector[TreeProxy.Item]())
-              }
-              sorted
-            case None =>
-              None
-          }
-        } map { sorted =>
-          sorted.indexOf(item1).compareTo(sorted.indexOf(item2))
-        } getOrElse 0*/
-        0
+        val items = sorted getOrElse {
+          sorted = table.get.map(_.proxyContentSorted.toVector.par)
+          sorted getOrElse parallel.immutable.ParVector.empty
+        }
+        items.indexOf(item1).compareTo(items.indexOf(item2))
       } else if (column < columnCount) {
         val columnId = viewer.asInstanceOf[TableViewer].getTable.getColumn(column).getData().asInstanceOf[String]
         if (columnId == Content.COLUMN_ID) {
@@ -396,49 +642,22 @@ object Table extends XLoggable {
       }
       if (directionVar) -rc else rc
     }
-    /** get element label */
-    protected def getLabel(viewer: Viewer, e1: AnyRef, lprovider: ILabelProvider): String =
-      Option(lprovider.getText(e1)).getOrElse("")
+    /** Reset cached sorted data. */
+    def reset() = sorted = None
     /** Switch comparator direction */
     def switchDirection() {
       directionVar = !directionVar
     }
+
+    /** get element label */
+    protected def getLabel(viewer: Viewer, e1: AnyRef, lprovider: ILabelProvider): String =
+      Option(lprovider.getText(e1)).getOrElse("")
     /** Update ActionResetSorting state */
-    def updateActionResetSorting() = {} /*table.get.foreach(table =>
-      table.context.ActionResetSorting.setEnabled(columnVar != -1 || directionVar != initialDirection))*/
-  }
-  /** Filter that apply user rules */
-  class TableFilter(content: Content) extends ViewerFilter {
-    override def select(viewer: Viewer, parentElement: Object, element: Object): Boolean = content.graphMarker.map { marker ⇒
-      element match {
-        case item: TreeProxy.Item ⇒
-          val view = viewer.asInstanceOf[TableViewer].getTable.getData.asInstanceOf[Content]
-          val selectedFilter = marker.safeRead(state ⇒
-            view.getParent.getContext.flatMap(state.payload.getSelectedViewFilter(_)))
-          selectedFilter match {
-            case Some(filter) ⇒
-              //              val filterBy = filter.rules.toSeq.flatMap { rule ⇒
-              //                val filterInstance = Filter.map.get(rule.filter): Option[Filter.Interface[_ <: Filter.Argument]]
-              //                val propertyType = PropertyType.container.get(rule.propertyType): Option[PropertyType[_ <: AnyRef with java.io.Serializable]]
-              //                val argument = filterInstance.flatMap(f ⇒ f.stringToArgument(rule.argument))
-              //                filterInstance.flatMap(f ⇒ propertyType.map(ptype ⇒ (rule, ptype, f, argument)))
-              //              }
-              //              filterBy.isEmpty || filterBy.forall {
-              //                case ((rule, propertyType, filter, argument)) ⇒
-              //                  filter.generic.filter(rule.property, propertyType, item.element, argument)
-              //              }
-              true
-            case None ⇒
-              true
-          }
-        case unknown ⇒
-          log.fatal("Unknown item '%s' with type '%s'".format(unknown, unknown.getClass()))
-          true
-      }
-    } getOrElse true
+    protected def updateActionResetSorting() = table.get.foreach(table ⇒
+      table.ActionResetSorting.setEnabled(columnVar != -1 || directionVar != initialDirection))
   }
   class TableLabelProvider(val propertyId: String, val propertyMap: immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]])
-    extends CellLabelProvider with ILabelProvider {
+      extends CellLabelProvider with ILabelProvider {
     override def update(cell: ViewerCell) = cell.getElement() match {
       case item: TreeProxy.Item ⇒
         propertyMap.get(item.element.eScope.modificator).foreach { property ⇒
@@ -507,14 +726,12 @@ object Table extends XLoggable {
       withElement(element)((adapter, element) ⇒ adapter.getToolTipStyle(element)).getOrElse(super.getToolTipStyle(element))
 
     /** Returns whether property text is empty */
-    def isEmpty(element: Element) = {
+    def isEmpty(element: Element) =
       propertyMap.get(element.eScope.modificator).map { property ⇒
         val value = element.eGet(property.id, property.ptype.typeSymbol).map(_.get)
         // as common unknown type
         property.ptype.adapter.asAdapter[PropertyType.genericAdapter].labelProvider.getText(value).isEmpty()
       } getOrElse (true)
-      true
-    }
 
     /** Call the specific CellLabelProviderAdapter Fn with element argument */
     protected def withElement[T](element: AnyRef)(f: (PropertyType.CellLabelProviderAdapter[_], AnyRef) ⇒ T): Option[T] = element match {
@@ -589,16 +806,16 @@ object Table extends XLoggable {
     /** Returns whether property text is empty */
     override def isEmpty(element: Element) = false
   }
-  class TableSelectionAdapter(column: Int) extends SelectionAdapter {
-    override def widgetSelected(e: SelectionEvent) = {} /* UI.findShell(e.widget).foreach(withContext(_) { (context, view) ⇒
-      val comparator = view.table.tableViewer.getComparator().asInstanceOf[TableComparator]
+  class TableSelectionAdapter(table: WeakReference[Table], column: Int) extends SelectionAdapter {
+    override def widgetSelected(e: SelectionEvent) = table.get.foreach { table ⇒
+      val comparator = table.tableViewer.getComparator().asInstanceOf[TableComparator]
       if (comparator.column == column) {
         comparator.switchDirection()
-        view.table.tableViewer.refresh()
+        table.tableViewer.refresh()
       } else {
         comparator.column = column
-        view.table.tableViewer.refresh()
+        table.tableViewer.refresh()
       }
-    })*/
+    }
   }
 }

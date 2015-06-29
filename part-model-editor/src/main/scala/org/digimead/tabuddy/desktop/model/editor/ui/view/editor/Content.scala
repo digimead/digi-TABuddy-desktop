@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,35 +43,37 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
+import java.util.UUID
 import javax.inject.{ Inject, Named }
 import org.digimead.digi.lib.log.api.XLoggable
+import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.core.definition.Context
 import org.digimead.tabuddy.desktop.core.support.App
 import org.digimead.tabuddy.desktop.core.ui.ResourceManager
 import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.core.ui.support.TreeProxy
-import org.digimead.tabuddy.desktop.core.{ Messages ⇒ CMessages }
 import org.digimead.tabuddy.desktop.logic.Logic
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, TemplateProperty }
+import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
 import org.digimead.tabuddy.desktop.model.editor.Messages
-import org.digimead.tabuddy.desktop.model.editor.ModelEditor
 import org.digimead.tabuddy.model.element.Element
 import org.eclipse.e4.core.contexts.Active
 import org.eclipse.e4.core.di.annotations.Optional
 import org.eclipse.jface.action.CoolBarManager
-import org.eclipse.jface.action.MenuManager
 import org.eclipse.swt.SWT
 import org.eclipse.swt.custom.StyleRange
 import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
 import org.eclipse.swt.graphics.Point
-import org.eclipse.swt.layout.GridData
-import org.eclipse.swt.widgets.{ Event, Listener, Widget }
+import org.eclipse.swt.widgets.{ Event, Listener }
 import scala.collection.{ immutable, mutable }
+import scala.concurrent.Future
 
 class Content @Inject() (val context: Context, parent: VComposite, @Named("style") style: Integer)
-  extends ContentSkel(parent, style) with ContentActions with XLoggable {
-  lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.proxyContent), tree.expandedItems)
+  extends ContentSkel(parent, style) with ContentActions with GraphSubscriber with XLoggable {
+  /** Akka execution context. */
+  implicit lazy val ec = App.system.dispatcher
+  /** Tree proxy structure. */
+  lazy val proxy = new TreeProxy(tree.treeViewer, Seq(table.proxyContent), tree.expandedItems, _.sortBy(_.id.name))
   /** Table subview. */
   lazy val table = new Table(this, SWT.BORDER | SWT.FULL_SELECTION | SWT.V_SCROLL)
   /** Tree subview. */
@@ -85,40 +87,14 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
   /** Root navigation ranges */
   var rootElementRanges = Seq[Content.RootPathLinkRange[_ <: Element]]()
   /** The table view menu */
-  //  val tableViewMenu = {
-  //    val menu = new MenuManager(Messages.tableView_text)
-  //    menu.add(ActionModifyViewList)
-  //    menu.add(ActionModifySortingList)
-  //    menu.add(ActionModifyFilterList)
-  //    menu.add(new Separator)
-  //    menu.add(context.ActionToggleSystem)
-  //    menu.add(context.ActionToggleExpand)
-  //    menu
-  //  }
   // Initialize editor view
+  initializeSubscriber()
   initializeUI()
-  //initializeBindings()
-  //initializeDefaults()
-  this.addDisposeListener(new DisposeListener {
-    def widgetDisposed(e: DisposeEvent) = onDispose
-  })
 
   /** Returns the view's parent, which must be a VComposite. */
   override def getParent(): VComposite = parent
   /** Get selected element for current context. */
   def getSelectedElement() = parent.getContext.flatMap(ctx ⇒ Option(ctx.get(Logic.Id.selectedElement).asInstanceOf[Element]))
-  /** Invoked after App.Message.Set(_, marker: GraphMarker). */
-  @Inject @Optional
-  def onGraphMarkerAssigned(marker: GraphMarker) = App.exec {
-    if (graphMarker != Some(marker)) {
-      graphMarker = Some(marker)
-      reload()
-    }
-  }
-  /** Invoked at every modification of Payload.Id.selectedElement. */
-  @Inject @Optional // @log
-  def onSelectedElementChanged(@Named(Logic.Id.selectedElement) element: Element) =
-    App.exec { updateActiveElement(element) }
   /**
    * Invoked at every modification of Payload.Id.selectedElement on active context.
    * This is allow to capture active element from neighbors.
@@ -126,10 +102,68 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
   @Inject @Optional // @log
   def onActiveSelectedElementChanged(@Active @Named(Logic.Id.selectedElement) element: Element) =
     if (false) App.exec { updateActiveElement(element) }
-  /** onStart callback */
-  def onStart(widget: Widget) = {}
-  /** onStop callback */
-  def onStop(widget: Widget) = {}
+  /** Invoked after App.Message.Set(_, marker: GraphMarker). */
+  @Inject @Optional
+  def onGraphMarkerAssigned(marker: GraphMarker) = App.exec {
+    if (graphMarker != Some(marker)) {
+      graphMarker.foreach { _.safeRead(_.graph.**).removeSubscription(Subscriber) }
+      marker.safeRead(_.graph.**).subscribe(Subscriber)
+      graphMarker = Some(marker)
+      reload()
+    }
+  }
+  /** Invoked at every modification of Logic.Id.selectedFilter. */
+  @Inject @Optional // @log
+  def onSelectedFilterChanged(@Optional @Named(Logic.Id.selectedFilter) id: UUID): Unit = Future {
+    val success = for {
+      id ← Option(id)
+      marker ← graphMarker
+    } yield App.execNGet { marker.safeRead(_.payload.viewFilters.get(id)).map(table.setFilter) }
+    success.flatten match {
+      case Some(_) ⇒
+      case None if id != null ⇒
+        log.warn(s"Filter with id ${id} not found")
+        App.exec { table.removeFilter() }
+      case None ⇒
+        App.exec { table.removeFilter() }
+    }
+  } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+  /** Invoked at every modification of Payload.Id.selectedElement. */
+  @Inject @Optional // @log
+  def onSelectedElementChanged(@Named(Logic.Id.selectedElement) element: Element) =
+    App.exec { updateActiveElement(element) }
+  /** Invoked at every modification of Logic.Id.selectedSorting. */
+  @Inject @Optional // @log
+  def onSelectedSortingChanged(@Optional @Named(Logic.Id.selectedSorting) id: UUID): Unit = Future {
+    val success = for {
+      id ← Option(id)
+      marker ← graphMarker
+    } yield App.execNGet { marker.safeRead(_.payload.viewSortings.get(id)).map(table.setSorting) }
+    success.flatten match {
+      case Some(_) ⇒
+      case None if id != null ⇒
+        log.warn(s"Sorting with id ${id} not found")
+        App.exec { table.removeSorting() }
+      case None ⇒
+        App.exec { table.removeSorting() }
+    }
+  } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
+  /** Invoked at every modification of Logic.Id.selectedView. */
+  @Inject @Optional // @log
+  def onSelectedViewDefinitionChanged(@Optional @Named(Logic.Id.selectedView) id: UUID): Unit = Future {
+    val success = for {
+      id ← Option(id)
+      marker ← graphMarker
+    } yield App.execNGet { marker.safeRead(_.payload.viewDefinitions.get(id)).map(table.setViewDefinition) }
+    success.flatten match {
+      case Some(_) ⇒
+      case None if id != null ⇒
+        log.warn(s"View definition with id ${id} not found")
+        App.exec { table.removeViewDefinition() }
+      case None ⇒
+        App.exec { table.removeViewDefinition() }
+    }
+  } onFailure { case e: Throwable ⇒ log.error(e.getMessage(), e) }
   /**
    * Refreshes this viewer starting with the given element. Labels are updated
    * as described in <code>refresh(boolean updateLabels)</code>.
@@ -252,47 +286,12 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
         table.tableViewer.getTable.clearAll()
       case Some(marker) ⇒
         log.debug(s"Update for '${marker.graphModelId.name}' graph.")
-        marker.safeRead { state ⇒
-          /*
-           * reload:
-           *  Table.columnTemplate
-           *  Table.columnLabelProvider
-           */
-          val propertyCache = mutable.HashMap[TemplateProperty[_ <: AnyRef with java.io.Serializable], Seq[ElementTemplate]]()
-          val properties = state.payload.elementTemplates.values.flatMap { template ⇒
-            template.properties.foreach {
-              case (group, properties) ⇒ properties.foreach(property ⇒
-                propertyCache(property) = propertyCache.get(property).getOrElse(Seq()) :+ template)
-            }
-            template.properties.flatMap(_._2)
-          }.toList.groupBy(_.id.name.toLowerCase())
-          val columnIds = List(Content.COLUMN_ID, Content.COLUMN_NAME) ++ properties.keys.filterNot(_ == Content.COLUMN_NAME).toSeq.sorted
-          Table.columnTemplate = immutable.HashMap((for (columnId ← columnIds) yield columnId match {
-            case id if id == Content.COLUMN_ID ⇒
-              (Content.COLUMN_ID, immutable.HashMap[Symbol, TemplateProperty[_ <: AnyRef with java.io.Serializable]]())
-            case id if id == Content.COLUMN_NAME ⇒
-              (Content.COLUMN_NAME, immutable.HashMap(properties.get(Content.COLUMN_NAME).getOrElse(List()).map { property ⇒
-                propertyCache(property).map(template ⇒ (template.id, property))
-              }.flatten: _*))
-            case _ ⇒
-              (columnId, immutable.HashMap(properties(columnId).map { property ⇒
-                propertyCache(property).map(template ⇒ (template.id, property))
-              }.flatten: _*))
-          }): _*)
-          Table.columnLabelProvider = Table.columnTemplate.map {
-            case (columnId, columnProperties) ⇒
-              if (columnId == Content.COLUMN_ID)
-                columnId -> new Table.TableLabelProviderID()
-              else
-                columnId -> new Table.TableLabelProvider(columnId, columnProperties)
-          }
-          updateColumns()
-          // update content
-          table.tableViewer.setInput(table.proxyContent.underlying)
-          tree.treeViewer.setInput(TreeProxy.Item(state.graph.model))
-          tree.treeViewer.setExpandedElements(tree.expandedItems.toArray)
-          table.tableViewer.refresh()
-        }
+        table.enumerateColumns(marker)
+        table.updateColumns(marker)
+        table.tableViewer.setInput(table.proxyContentSorted.underlying)
+        marker.safeRead { state ⇒ tree.treeViewer.setInput(TreeProxy.Item(state.graph.model)) }
+        tree.treeViewer.setExpandedElements(tree.expandedItems.toArray)
+        table.tableViewer.refresh()
     }
   }
   /** Set selected element for current context. */
@@ -331,6 +330,9 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
   override protected[editor] def getSashForm() = super.getSashForm
   /** Initialize editor view */
   protected def initializeUI() {
+    this.addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) = onDispose
+    })
     // Initialize coolbar
     val coolBar = getCoolBarManager()
     bar.ElementBar.create(coolBar, context)
@@ -371,34 +373,26 @@ class Content @Inject() (val context: Context, parent: VComposite, @Named("style
     Content.withRedrawDelayed(this) {
       reload()
       ActionAutoResize(false)
-      if (ActionToggleExpand.isChecked())
-        Tree.expandAll(this)
-      ActionToggleEmpty()
-      ActionToggleSystem()
-      ActionToggleIdentificators()
+      //if (ActionToggleExpand.isChecked())
+      //  Tree.expandAll(this)
+      ActionToggleEmpty(true)
+      //ActionToggleSystem()
+      ActionToggleIdentificators(false)
       ActionAutoResize(true)
     }
   }
   /** On dispose callback. */
   protected def onDispose {
+    graphMarker.foreach { _.safeRead(_.graph.**).removeSubscription(Subscriber) }
   }
   /** Recreate table columns with preserve table selected elements */
   protected def recreateSmart() {
-    if (Table.columnLabelProvider.isEmpty)
+    if (table.getColumnLabelProvider().isEmpty)
       return // there are not column definitions yet
     val selection = table.tableViewer.getSelection()
-    updateColumns
+    graphMarker.map(table.updateColumns).getOrElse(table.disposeColumns())
     table.tableViewer.refresh()
     table.tableViewer.setSelection(selection)
-  }
-  /** Recreate table columns */
-  protected def updateColumns() = graphMarker.foreach { marker ⇒
-    val disposedColumnsWidth = table.disposeColumns()
-    val columnList = marker.safeRead { state ⇒
-      getParent.getContext.flatMap(state.payload.getSelectedViewDefinition(_))
-    }.map(selected ⇒ mutable.LinkedHashSet(Content.COLUMN_ID) ++
-      (selected.fields.map(_.name) - Content.COLUMN_ID)).getOrElse(mutable.LinkedHashSet(Content.COLUMN_ID, Content.COLUMN_NAME))
-    table.createColumns(columnList, disposedColumnsWidth)
   }
   /** Update active element status */
   protected[editor] def updateActiveElement(element: Element) {
@@ -485,8 +479,10 @@ object Content extends XLoggable {
   protected var withRedrawCounter = 0
 
   /** Disable the redraw while updating */
-  def withRedrawDelayed[T](view: Content)(f: ⇒ T): T = {
+  def withRedrawDelayed[T](view: Content)(f: ⇒ T): Option[T] = {
     App.assertEventThread()
+    if (view.table.tableViewer.getTable.isDisposed() || view.tree.treeViewer.getTree.isDisposed())
+      return None
     withRedrawCounter += 1
     if (withRedrawCounter == 1) {
       view.getSashForm.setRedraw(false)
@@ -494,7 +490,7 @@ object Content extends XLoggable {
       view.tree.treeViewer.getTree.setRedraw(false)
     }
     try {
-      f
+      Some(f)
     } finally {
       if (withRedrawCounter == 1) {
         view.tree.treeViewer.getTree.setRedraw(true)

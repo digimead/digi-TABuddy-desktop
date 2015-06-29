@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -80,7 +80,7 @@ trait TreeActions {
   }
   class ActionCollapse(val element: Element) extends Action(Messages.collapseRecursively_text) {
     def apply() = Content.withRedrawDelayed(content) {
-      Tree.collapse(element, true, content)
+      Tree.collapse(element, content)
       content.ActionAutoResize(false)
     }
     override def run() = apply()

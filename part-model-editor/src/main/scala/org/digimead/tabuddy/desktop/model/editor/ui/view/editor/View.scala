@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,30 +43,26 @@
 
 package org.digimead.tabuddy.desktop.model.editor.ui.view.editor
 
+import akka.actor.{ Actor, ActorRef, Props }
 import java.util.UUID
 import org.digimead.digi.lib.api.XDependencyInjection
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.core.support.App.app2implementation
-import org.digimead.tabuddy.desktop.core.support.WritableValue
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.swt.SWT
-import org.eclipse.swt.graphics.Image
-import org.eclipse.swt.widgets.Composite
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
+import org.digimead.tabuddy.desktop.core.support.{ App, WritableValue }
 import org.digimead.tabuddy.desktop.core.ui.block
-import org.digimead.tabuddy.desktop.model.editor.Messages
+import org.digimead.tabuddy.desktop.core.ui.definition.IView
+import org.digimead.tabuddy.desktop.core.ui.definition.widget.VComposite
 import org.digimead.tabuddy.desktop.logic.Logic
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.desktop.core.ui.definition.IView
-import org.eclipse.swt.events.DisposeEvent
-import org.eclipse.swt.events.DisposeListener
+import org.digimead.tabuddy.desktop.model.editor.Messages
+import org.digimead.tabuddy.model.Model
+import org.digimead.tabuddy.model.element.Element
 import org.digimead.tabuddy.model.graph.Event
+import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.e4.core.contexts.ContextInjectionFactory
+import org.eclipse.swt.SWT
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener }
+import org.eclipse.swt.graphics.Image
+import org.eclipse.swt.widgets.Composite
 
 class View(val contentId: UUID, val factory: block.View.Factory) extends Actor with IView with XLoggable {
   /** Aggregation listener delay */
@@ -83,60 +79,6 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
   @volatile var content: Option[Content] = None
   log.debug("Start actor " + self.path)
 
-  /** Is called asynchronously after 'actor.stop()' is invoked. */
-  override def postStop() = {
-    App.system.eventStream.unsubscribe(self, classOf[Event.ValueUpdate[_ <: Element]])
-    App.system.eventStream.unsubscribe(self, classOf[Event.ValueRemove[_ <: Element]])
-    App.system.eventStream.unsubscribe(self, classOf[Event.ValueInclude[_ <: Element]])
-    //    App.system.eventStream.unsubscribe(self, classOf[Event.StashReplace[_ <: Element]])
-    //    App.system.eventStream.unsubscribe(self, classOf[Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-    //    App.system.eventStream.unsubscribe(self, classOf[Event.ChildrenReset[_ <: Element]])
-    //    App.system.eventStream.unsubscribe(self, classOf[Event.ChildReplace[_ <: Element]])
-    //    App.system.eventStream.unsubscribe(self, classOf[Event.ChildRemove[_ <: Element]])
-    //    App.system.eventStream.unsubscribe(self, classOf[Event.ChildInclude[_ <: Element]])
-    super.postStop()
-  }
-  /** Is called when an Actor is started. */
-  override def preStart() {
-    //    App.system.eventStream.subscribe(self, classOf[Event.ChildInclude[_ <: Element]])
-    //    App.system.eventStream.subscribe(self, classOf[Event.ChildRemove[_ <: Element]])
-    //    App.system.eventStream.subscribe(self, classOf[Event.ChildReplace[_ <: Element]])
-    //    App.system.eventStream.subscribe(self, classOf[Event.ChildrenReset[_ <: Element]])
-    //    App.system.eventStream.subscribe(self, classOf[Event.ModelReplace[_ <: Model.Interface[_ <: Model.Stash], _ <: Model.Interface[_ <: Model.Stash]]])
-    //    App.system.eventStream.subscribe(self, classOf[Event.StashReplace[_ <: Element]])
-    App.system.eventStream.subscribe(self, classOf[Event.ValueInclude[_ <: Element]])
-    App.system.eventStream.subscribe(self, classOf[Event.ValueRemove[_ <: Element]])
-    App.system.eventStream.subscribe(self, classOf[Event.ValueUpdate[_ <: Element]])
-    App.exec {
-      // handle presentation changes
-      //      Observables.observeDelayedValue(aggregatorDelay, updateEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      //        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
-      //          val set = updateEventsAggregator.value
-      //          updateEventsAggregator.value = Set()
-      //          if (set.nonEmpty)
-      //            view.update(set.toArray)
-      //        })
-      //      })
-      // handle data modification changes
-      //      Data.modelName.addChangeListener { (_, _) ⇒ reloadEventsAggregator.value = System.currentTimeMillis() }
-      //      Data.elementTemplates.addChangeListener { event ⇒ reloadEventsAggregator.value = System.currentTimeMillis() }
-      //      Observables.observeDelayedValue(aggregatorDelay, reloadEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      //        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
-      //          view.reload()
-      //        })
-      //      })
-      // handle structural changes
-      //      Observables.observeDelayedValue(aggregatorDelay, refreshEventsAggregator).addValueChangeListener(new IValueChangeListener {
-      //        def handleValueChange(event: ValueChangeEvent) = View.views.keys.foreach(view ⇒ View.withRedrawDelayed(view) {
-      //          val set = refreshEventsAggregator.value
-      //          refreshEventsAggregator.value = Set()
-      //          if (set.nonEmpty)
-      //            view.refresh(set.toArray)
-      //        })
-      //      })
-    }
-    super.preStart()
-  }
   override def receive: Actor.Receive = super.receive orElse {
     case message @ App.Message.Set(_, marker: GraphMarker) ⇒ App.traceMessage(message) {
       if (terminated)
@@ -144,59 +86,6 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
       else
         App.exec { assignGraphMarker(marker) }
     }
-
-    //    case message @ Event.ChildInclude(element, newElement, _) => App.traceMessage(message) {
-    //      if (element.eStash.model.forall(_ eq Model.inner))
-    //        App.exec {
-    //          View.views.keys.foreach { view =>
-    //            if (view.ActionToggleExpand.isChecked())
-    //              if (element.eChildren.size == 1) // if 1st child
-    //                view.tree.expandedItems += TreeProxy.Item(element) // expand parent
-    //              else
-    //                view.tree.expandedItems ++= newElement.eChildren.iteratorRecursive().map(TreeProxy.Item(_)) // expand children
-    //          }
-    //          refreshEventsAggregator.value = refreshEventsAggregator.value + element
-    //        }
-    //    }
-    //
-    //    case message @ Event.ChildRemove(element, _, _) => App.traceMessage(message) {
-    //      if (element.eStash.model.forall(_ eq Model.inner))
-    //        App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
-    //    }
-    //
-    //    case message @ Event.ChildrenReset(element, _) => App.traceMessage(message) {
-    //      if (element.eStash.model.forall(_ eq Model.inner))
-    //        App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
-    //    }
-    //
-    //    case message @ Event.ChildReplace(element, _, _, _) => App.traceMessage(message) {
-    //      if (element.eStash.model.forall(_ eq Model.inner))
-    //        App.exec { refreshEventsAggregator.value = refreshEventsAggregator.value + element }
-    //    }
-    //
-    //    case message @ Event.StashReplace(element, _, _, _) => App.traceMessage(message) {
-    //      if (element.eStash.model.forall(_ eq Model.inner))
-    //        App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
-    //    }
-    //
-    //    case message @ Event.ValueInclude(element, _, _) => App.traceMessage(message) {
-    //      if (element.eStash.model.forall(_ eq Model.inner))
-    //        App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
-    //    }
-    //
-    //    case message @ Event.ValueRemove(element, _, _) => App.traceMessage(message) {
-    //      if (element.eStash.model.forall(_ eq Model.inner))
-    //        App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
-    //    }
-    //
-    //    case message @ Event.ValueUpdate(element, _, _, _) => App.traceMessage(message) {
-    //      if (element.eStash.model.forall(_ eq Model.inner))
-    //        App.exec { updateEventsAggregator.value = updateEventsAggregator.value + element }
-    //    }
-    //
-    //    case message @ Event.ModelReplace(_, _, _) => App.traceMessage(message) {
-    //      App.exec { Tree.FilterSystemElement.updateSystemElement }
-    //    }
   }
 
   /** Assign graph marker to view. */
@@ -216,7 +105,8 @@ class View(val contentId: UUID, val factory: block.View.Factory) extends Actor w
   protected def createContents(parent: VComposite): Composite = {
     viewContext.set(Logic.Feature.viewDefinition, java.lang.Boolean.TRUE)
     viewContext.set("style", SWT.NONE: Integer)
-    val content = ContextInjectionFactory.make(classOf[Content], viewContext)
+    /* View.DI.contentClass.asInstanceOf[Class[Content]] instead of classOf[Content] is suitable for debugging. */
+    val content = ContextInjectionFactory.make(View.DI.contentClass.asInstanceOf[Class[Content]], viewContext)
     this.content = Some(content)
     content.addDisposeListener(new DisposeListener {
       def widgetDisposed(e: DisposeEvent) = {
@@ -253,6 +143,8 @@ object View extends XLoggable {
    * Dependency injection routines.
    */
   private object DI extends XDependencyInjection.PersistentInjectable {
+    /** View content class. Value may be overwritten while debugging. */
+    lazy val contentClass = injectOptional[Class[_]]("Editor.View.Content") getOrElse classOf[Content]
     /** View factory. */
     lazy val factory = injectOptional[Factory] getOrElse new Factory
     /** View name. */

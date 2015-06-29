@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -76,13 +76,18 @@ public class MainPartActiveView extends Composite {
 	 */
 	private static ResourceBundle getResourceBundle() {
 		try {
-			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.model.editor.ui.Messages").newInstance();
+			return (ResourceBundle) Class.forName(
+					"org.digimead.tabuddy.desktop.model.editor.ui.Messages")
+					.newInstance();
 		} catch (ClassNotFoundException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.ui.messages");
+			return ResourceBundle
+					.getBundle("org.digimead.tabuddy.desktop.model.editor.messages");
 		} catch (IllegalAccessException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.ui.messages");
+			return ResourceBundle
+					.getBundle("org.digimead.tabuddy.desktop.model.editor.messages");
 		} catch (InstantiationException e) {
-			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.model.editor.ui.messages");
+			return ResourceBundle
+					.getBundle("org.digimead.tabuddy.desktop.model.editor.messages");
 		}
 	}
 
@@ -98,29 +103,37 @@ public class MainPartActiveView extends Composite {
 
 		coolBarManager = new CoolBarManager(SWT.FLAT);
 		CoolBar coolBar = coolBarManager.createControl(this);
-		coolBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1));
+		coolBar.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false,
+				3, 1));
 
 		sashForm = new SashForm(this, SWT.SMOOTH);
-		sashForm.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3, 1));
+		sashForm.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 3,
+				1));
 
 		Label lblRoot = new Label(this, SWT.NONE);
 		lblRoot.setText("Root element");
 
-		textRootElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY | SWT.WRAP | SWT.SINGLE);
-		GridData gd_styledTextRootElement = new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1);
+		textRootElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY
+				| SWT.WRAP | SWT.SINGLE);
+		GridData gd_styledTextRootElement = new GridData(SWT.FILL, SWT.CENTER,
+				false, false, 2, 1);
 		gd_styledTextRootElement.widthHint = 10;
 		textRootElement.setLayoutData(gd_styledTextRootElement);
 
 		Label lblActiveElement = new Label(this, SWT.NONE);
-		lblActiveElement.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		lblActiveElement.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER,
+				false, false, 1, 1));
 		lblActiveElement.setText("Active element");
 
-		textActiveElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY | SWT.WRAP | SWT.SINGLE);
+		textActiveElement = new StyledText(this, SWT.BORDER | SWT.READ_ONLY
+				| SWT.WRAP | SWT.SINGLE);
 		textActiveElement.setAlignment(SWT.CENTER);
-		textActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
+		textActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
+				true, false, 1, 1));
 
 		btnResetActiveElement = new Button(this, SWT.NONE);
-		btnResetActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 1, 1));
+		btnResetActiveElement.setLayoutData(new GridData(SWT.FILL, SWT.CENTER,
+				false, false, 1, 1));
 		btnResetActiveElement.setText(BUNDLE.getString("reset_text"));
 
 	}
