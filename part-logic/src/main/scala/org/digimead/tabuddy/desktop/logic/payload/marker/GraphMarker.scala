@@ -85,10 +85,10 @@ import scala.collection.{ immutable, mutable }
  *     ... and so on + user data
  */
 class GraphMarker(
-  /** Container IResource unique id. */
-  val uuid: UUID,
-  /** Autoload property file if suitable information needed. */
-  val autoload: Boolean = true) extends GraphMarker.Generic with MarkerSpecific with GraphSpecific with SerializationSpecific with XLoggable {
+    /** Container IResource unique id. */
+    val uuid: UUID,
+    /** Autoload property file if suitable information needed. */
+    val autoload: Boolean = true) extends GraphMarker.Generic with MarkerSpecific with GraphSpecific with SerializationSpecific with XLoggable {
   /** Type schemas folder name. */
   val folderTypeSchemas = "typeSchemas"
   /** Resources index file name. */
@@ -546,6 +546,7 @@ object GraphMarker extends XLoggable {
     shell(GraphMarker(graph))
   /** Get a shell which is suitable for the graph marker. */
   def shell(marker: GraphMarker): Option[(Context, Shell)] = {
+    App.assertEventThread()
     log.debug(s"Search shell for $marker.")
     lazy val contexts = Core.context.getChildren().filter(_.containsKey(classOf[Composite], true))
     val markerContexts = GraphMarker.markerToContext(marker)
@@ -553,31 +554,63 @@ object GraphMarker extends XLoggable {
     // active branch from leaf to root
     val activeBranch = (activeLeaf.getParents() :+ activeLeaf).reverse
     // find shell within active branch for this marker
-    val activeShellForMarker = activeBranch.find(markerContexts.contains).flatMap { mostCommonContext ⇒
-      activeBranch.find(_.containsKey(classOf[Composite], true)).map { contextWithComposite ⇒
-        log.debug(s"Found shell for ${marker} in active branch ${contextWithComposite}.")
-        (contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell())
-      }
-    }
+    val activeShellForMarker =
+      activeBranch.view.filter(markerContexts.contains).flatMap { context ⇒
+        Option(context.get(classOf[Composite])).flatMap {
+          case composite if composite.isDisposed ⇒ None
+          case composite ⇒
+            log.debug(s"Found shell for ${marker} in active branch ${context}.")
+            Some(context, composite.getShell)
+        }.orElse {
+          Option(context.get(classOf[Shell])).flatMap {
+            case shell if shell.isDisposed ⇒ None
+            case shell ⇒
+              log.debug(s"Found shell for ${marker} in active branch ${context}.")
+              Some(context, shell)
+          }
+        }
+      }.headOption
     // find shell for this marker
     val passiveShellForMarker = activeShellForMarker orElse {
-      contexts.find(markerContexts.contains).map { contextWithComposite ⇒
-        log.debug(s"Found shell for ${marker} in passive ${contextWithComposite}.")
-        (contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell())
-      }
+      contexts.view.filter(markerContexts.contains).flatMap { context ⇒
+        Option(context.get(classOf[Composite])).flatMap {
+          case composite if composite.isDisposed ⇒ None
+          case composite ⇒
+            log.debug(s"Found shell for ${marker} in passive ${context}.")
+            Some(context, composite.getShell)
+        }.orElse {
+          Option(context.get(classOf[Shell])).flatMap {
+            case shell if shell.isDisposed ⇒ None
+            case shell ⇒
+              log.debug(s"Found shell for ${marker} in passive ${context}.")
+              Some(context, shell)
+          }
+        }
+      }.headOption
     }
     // find shell within active branch
     val activeShell = passiveShellForMarker orElse {
-      activeBranch.find(_.containsKey(classOf[Composite], true)).map { contextWithComposite ⇒
-        log.debug(s"Found shell in active branch ${contextWithComposite}.")
-        (contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell())
-      }
+      activeBranch.view.flatMap { context ⇒
+        Option(context.get(classOf[Composite])).flatMap {
+          case composite if composite.isDisposed ⇒ None
+          case composite ⇒
+            log.debug(s"Found shell in active branch ${context}.")
+            Some(context, composite.getShell)
+        }.orElse {
+          Option(context.get(classOf[Shell])).flatMap {
+            case shell if shell.isDisposed ⇒ None
+            case shell ⇒
+              log.debug(s"Found shell in active branch ${context}.")
+              Some(context, shell)
+          }
+        }
+      }.headOption
     }
     // find shell ...
     activeShell orElse {
       // search for any context with composites
       contexts.find(ctx ⇒ ctx.getParent().getActiveChild() == ctx) match {
-        case Some(contextWithComposite) ⇒
+        case Some(contextWithComposite) if Option(contextWithComposite.get(classOf[Composite])).map(!_.isDisposed()).getOrElse(false) ⇒
           log.debug(s"Found shell that is actived at least once in ${contextWithComposite}.")
           Some((contextWithComposite, contextWithComposite.get(classOf[Composite]).getShell()))
         case None ⇒
@@ -681,7 +714,7 @@ object GraphMarker extends XLoggable {
     val graphOrigin: Symbol, val graphPath: File, val graphStored: Element.Timestamp, val markerLastAccessed: Long,
     val defaultSerialization: Serialization.Identifier, val digest: XGraphMarker.Digest, val containerEncryption: XGraphMarker.Encryption,
     val contentEncryption: XGraphMarker.Encryption, val signature: XGraphMarker.Signature)
-    extends GraphMarker.Generic {
+      extends GraphMarker.Generic {
     /** Autoload property file if suitable information needed. */
     val autoload = false
 
@@ -841,7 +874,7 @@ object GraphMarker extends XLoggable {
      * Immutable state container for TemporaryGraphMarker
      */
     class ImmutableState(singleton: Option[TemporaryGraphMarker])
-      extends GraphMarker.ThreadUnsafeState(singleton) {
+        extends GraphMarker.ThreadUnsafeState(singleton) {
       /** Graph getter. */
       override def graphObject = singleton.map(_.graphAcquire()): Option[Graph[_ <: Model.Like]]
       /** Graph setter. */

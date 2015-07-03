@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -75,16 +75,16 @@ class OperationGraphClose extends XOperationGraphClose[GraphMarker.Generic] with
       GraphMarker.globalRWL.writeLock().lock()
       val shell = try {
         marker.safeUpdate { state ⇒
-          log.info(s"Close $graph, force is $force.")
+          log.info(s"Close $graph, force is $force")
           if (!marker.graphIsOpen())
-            throw new IllegalStateException(s"$graph is already closed.")
+            throw new IllegalStateException(s"$graph is already closed")
           val shell = if (marker.graphIsDirty() && !closeApproved && App.isUIAvailable) {
             UI.getActiveShell match {
               case Some(shell) ⇒
                 Some(shell)
               case None ⇒
-                log.error("Unable to find active shell.")
-                log.info(s"Close modified $graph without saving.")
+                log.warn("There is no active shell")
+                log.info(s"Close modified $graph without saving")
                 None
             }
           } else {
@@ -97,12 +97,12 @@ class OperationGraphClose extends XOperationGraphClose[GraphMarker.Generic] with
               // Newly created graph is unsaved
               // Remove current marker.
               marker.graphClose()
-              log.info(s"$graph is closed. Delete unused marker.")
+              log.info(s"$graph is closed. Delete unused marker")
               return GraphMarker.deleteFromWorkspace(marker)
             } else {
               // Returns the same marker
               marker.graphClose()
-              log.info(s"$graph is closed.")
+              log.info(s"$graph is closed")
               return marker
             }
           }
@@ -120,13 +120,13 @@ class OperationGraphClose extends XOperationGraphClose[GraphMarker.Generic] with
             OperationGraphSave.operation(graph, false)
             false // marker.graphIsDirty() should be false
           } else {
-            log.info(s"Close modified $graph without saving.")
+            log.info(s"Close modified $graph without saving")
             true
           }
         }(App.LongRunnable)
       }
     }
-    throw new IllegalStateException("This code is un")
+    throw new IllegalStateException("This code is unreachable")
   }
   /**
    * Create 'Close graph' operation.
@@ -163,7 +163,7 @@ class OperationGraphClose extends XOperationGraphClose[GraphMarker.Generic] with
     override def canUndo() = false
 
     protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[GraphMarker.Generic] = {
-      require(canExecute, "Execution is disabled.")
+      require(canExecute, "Execution is disabled")
       try {
         val result = Option(OperationGraphClose.this(graph, force))
         allowExecute = false
@@ -197,7 +197,7 @@ object OperationGraphClose extends XLoggable {
 
   /** Bridge between abstract XOperation[Unit] and concrete Operation[Unit] */
   abstract class Abstract(val graph: Graph[_ <: Model.Like], val force: Boolean)
-    extends Operation[GraphMarker.Generic](s"Close $graph.") {
+    extends Operation[GraphMarker.Generic](s"Close $graph") {
     this: XLoggable ⇒
   }
   /**
