@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -57,6 +57,9 @@ import org.digimead.tabuddy.desktop.core.definition.api.XOperationApprover
  *   modify element dialog
  */
 package object editor {
+  /** Bundle id. */
+  lazy val bundleId = getClass.getPackage.getName
+  /** Default view modification DI. */
   lazy val default = new NewBindingModule(module ⇒ {
     // implementation of logic.operation.OperationCreateElement
     module.bind[XOperationCreateElement] toSingle {
@@ -79,6 +82,8 @@ package object editor {
       new approver.OperationDeleteElement()
     }
   })
+  /** Default bundle DI. */
+  lazy val defaultBundle = default
 
   DependencyInjection.setPersistentInjectable("org.digimead.tabuddy.desktop.element.editor.Default$DI$")
 }

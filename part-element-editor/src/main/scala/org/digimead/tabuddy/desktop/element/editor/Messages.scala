@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -41,60 +41,37 @@
  * address: ezh@ezh.msk.ru
  */
 
-package org.digimead.tabuddy.desktop.element.editor.operation
+package org.digimead.tabuddy.desktop.element.editor
 
-import java.util.concurrent.{ CancellationException, Exchanger }
+import java.util.ResourceBundle
 import org.digimead.digi.lib.log.api.XLoggable
-import org.digimead.tabuddy.desktop.core.definition.Operation
-import org.digimead.tabuddy.desktop.core.support.App
-import org.digimead.tabuddy.desktop.logic
-import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
-import org.digimead.tabuddy.model.element.Element
-import org.eclipse.core.runtime.{ IAdaptable, IProgressMonitor }
+import org.digimead.tabuddy.desktop.core.definition.NLS
 
 /**
- * 'Delete the element' operation.
+ * Resource bundle implementation.
+ *
+ * This code is directly evaluated in IDE (WindowBuilderPro).
+ * Any runtime references that may prevent creation are prohibited.
  */
-class OperationDeleteElement extends logic.operation.OperationDeleteElement with XLoggable {
-  /**
-   * Delete the element.
-   *
-   * @param element element for delete
-   * @return true on success
-   */
-  def apply(element: Element, interactive: Boolean): Unit = {
-    log.info(s"Delete element ${element}")
-    element.eNode.detach()
-    Operation.Result.OK()
+class Messages extends ResourceBundle {
+  def getKeys() = new java.util.Enumeration[String] {
+    private val iterator = Messages.T.messages.keys.iterator
+    def hasMoreElements(): Boolean = iterator.hasNext
+    def nextElement(): String = iterator.next()
   }
-  /**
-   * Create 'Delete the element' operation.
-   *
-   * @param element element for delete
-   * @return 'Delete the element' operation
-   */
-  def operation(element: Element, interactive: Boolean) =
-    new Implemetation(element, interactive)
-
-  class Implemetation(element: Element, interactive: Boolean)
-      extends logic.operation.OperationDeleteElement.Abstract(element, interactive) with XLoggable {
-    @volatile protected var allowExecute = true
-
-    override def canExecute() = allowExecute
-    override def canRedo() = false
-    override def canUndo() = false
-
-    protected def execute(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] = {
-      try {
-        Operation.Result.OK(Option(OperationDeleteElement.this(element, interactive)))
-      } catch {
-        case e: CancellationException ⇒
-          Operation.Result.Cancel()
-      }
-    }
-    protected def redo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      throw new UnsupportedOperationException
-    protected def undo(monitor: IProgressMonitor, info: IAdaptable): Operation.Result[Unit] =
-      throw new UnsupportedOperationException
+  protected def handleGetObject(key: String): Object = try {
+    Messages.T.messages.get(key).
+      getOrElse { Messages.log.error(s"'${key}' not found in ${this.getClass()}"); key }
+  } catch {
+    case e: Throwable ⇒
+      key
   }
+}
+
+object Messages extends NLS with XLoggable {
+  val elementEditorDescription_text = ""
+  val elementEditorTitle_text = ""
+  val identificator_text = ""
+
+  T.ranslate("org.digimead.tabuddy.desktop.view.element.editor")
 }

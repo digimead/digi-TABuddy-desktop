@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -72,6 +72,14 @@ public class ElementCreateSkel extends Dialog {
 		setShellStyle(SWT.APPLICATION_MODAL);
 	}
 
+	public Composite getContainer() {
+		return container;
+	}
+
+	public Label getLblStatusBar() {
+		return lblStatusBar;
+	}
+
 	/**
 	 * Create contents of the dialog.
 	 *
@@ -98,11 +106,4 @@ public class ElementCreateSkel extends Dialog {
 	protected void createButtonsForButtonBar(Composite parent) {
 	}
 
-	protected Composite getContainer() {
-		return container;
-	}
-
-	protected Label getLblStatusBar() {
-		return lblStatusBar;
-	}
 }

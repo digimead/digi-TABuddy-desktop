@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2014-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -90,7 +90,14 @@ class WindowWatcher extends Actor with XLoggable {
       App.traceMessage(message) {
         // WindowSupervisor.PointerMap
         message.asInstanceOf[Map[UUID, WindowSupervisor.WindowPointer]].
-          foreach { case (uuid, pointer) ⇒ Option(pointer.appWindowRef.get).foreach(onCreated) }
+          foreach {
+            case (uuid, pointer) ⇒
+              for {
+                window ← Option(pointer.appWindowRef.get)
+                // Prevent onCreated invocation before AppWindow.createContents(...)
+                content ← window.getContent()
+              } onCreated(window)
+          }
       }
   }
 
@@ -116,6 +123,7 @@ class WindowWatcher extends Actor with XLoggable {
     SmartToolbarManager.add(elementToolbar, ContextInjectionFactory.make(classOf[action.ActionCreateElement], window.windowContext))
     SmartToolbarManager.add(elementToolbar, ContextInjectionFactory.make(classOf[action.ActionModifyElement], window.windowContext))
     SmartToolbarManager.add(elementToolbar, ContextInjectionFactory.make(classOf[action.ActionDeleteElement], window.windowContext))
+    window.getCoolBarManager2().update(true)
   }
 
   override def toString = "element.editor.ui.WindowWatcher"

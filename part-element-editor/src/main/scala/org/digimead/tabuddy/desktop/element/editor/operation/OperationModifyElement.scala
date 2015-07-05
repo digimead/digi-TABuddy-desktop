@@ -111,7 +111,7 @@ class OperationModifyElement extends logic.operation.OperationModifyElement with
                     context.removeChild(dialogContext)
                     dialogContext.dispose()
                     if (result == org.eclipse.jface.window.Window.OK)
-                      exchanger.exchange(Operation.Result.OK(Some(element)))
+                      exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedElement())))
                     else
                       exchanger.exchange(Operation.Result.Cancel())
                   }

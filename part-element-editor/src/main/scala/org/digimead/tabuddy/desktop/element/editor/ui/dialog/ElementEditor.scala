@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -44,6 +44,7 @@
 package org.digimead.tabuddy.desktop.element.editor.ui.dialog
 
 import javax.inject.{ Inject, Named }
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.Messages
 import org.digimead.tabuddy.desktop.core.definition.Context
@@ -52,10 +53,11 @@ import org.digimead.tabuddy.desktop.core.ui.ResourceManager
 import org.digimead.tabuddy.desktop.core.ui.definition.Dialog
 import org.digimead.tabuddy.desktop.core.ui.support.SymbolValidator
 import org.digimead.tabuddy.desktop.logic.payload
-import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PropertyType, TemplateProperty, TemplatePropertyGroup }
 import org.digimead.tabuddy.desktop.logic.payload.marker.GraphMarker
+import org.digimead.tabuddy.desktop.logic.payload.{ ElementTemplate, Enumeration, Payload, PropertyType, TemplateProperty, TemplatePropertyGroup }
 import org.digimead.tabuddy.model.Model
 import org.digimead.tabuddy.model.element.Element
+import org.digimead.tabuddy.model.element.Value
 import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.databinding.observable.{ ChangeEvent, IChangeListener }
 import org.eclipse.jface.databinding.swt.WidgetProperties
@@ -63,7 +65,7 @@ import org.eclipse.jface.databinding.viewers.ObservableListContentProvider
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.jface.viewers.StructuredSelection
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, PaintEvent, PaintListener }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, PaintEvent, PaintListener, ShellAdapter, ShellEvent }
 import org.eclipse.swt.graphics.{ GC, Point }
 import org.eclipse.swt.layout.GridData
 import org.eclipse.swt.widgets.{ Composite, Control, Label, Shell }
@@ -87,16 +89,76 @@ class ElementEditor @Inject() (
   val template: ElementTemplate,
   /** New element flag. */
   @Named(ElementEditor.newElementFlagId) val newElement: Boolean)
-  extends ElementEditorSkel(parentShell) with Dialog with XLoggable {
-  /** The property representing the current element id */
-  protected lazy val idField = WritableValue[String]
-  /** Element properties (property, control, editor). Available only from the UI thread */
-  var properties = Seq[ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]]()
-  /** Element properties listener */
+    extends ElementEditorSkel(parentShell) with Dialog with XLoggable {
+  /** Activate context on focus. */
+  val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
+  /** The property representing the current element id. */
+  val idField = WritableValue[String]
+  /** Activate context on shell events. */
+  val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
+  /** Element properties (property, control, editor). Available only from the UI thread. */
+  // Sort by group priority
+  lazy val properties: Seq[ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable]] =
+    template.properties.toSeq.sortBy(_._1.priority).map {
+      case (group, properties) ⇒
+        // Add group title to this form.
+        val section = addGroupTitle(group)
+        // Add group marker to this form.
+        val marker = addGroupMarker(group, properties.size)
+        // Transform api.TemplateProperty -> ElementEditor.PropertyItem.
+        val propertySeq = properties.map { property ⇒
+          // Add label for property to this form.
+          val label = addLabel(property)
+          // Add editor for property to this form.
+          val propertyItem = addCellEditor(property)(Manifest.classType(property.ptype.typeClass))
+          (label, propertyItem)
+        }
+        // Add Expand/Collapse logic
+        section.addExpansionListener(new ExpansionAdapter() {
+          val expanded = true
+          override def expansionStateChanged(e: ExpansionEvent) = {
+            if (e.getState() == expanded) {
+              marker.setVisible(true)
+              marker.getLayoutData().asInstanceOf[GridData].exclude = false
+              propertySeq.foreach {
+                case (label, ElementEditor.PropertyItem(initial, property, control, editor)) ⇒
+                  label.setVisible(true)
+                  label.getLayoutData().asInstanceOf[GridData].exclude = false
+                  control.setVisible(true)
+                  control.getLayoutData().asInstanceOf[GridData].exclude = false
+              }
+            } else {
+              marker.setVisible(false)
+              marker.getLayoutData().asInstanceOf[GridData].exclude = true
+              propertySeq.foreach {
+                case ((label, ElementEditor.PropertyItem(initial, property, control, editor))) ⇒
+                  label.setVisible(false)
+                  label.getLayoutData().asInstanceOf[GridData].exclude = true
+                  control.setVisible(false)
+                  control.getLayoutData().asInstanceOf[GridData].exclude = true
+              }
+            }
+            getForm.reflow(true)
+            adjustFormHeight()
+          }
+        })
+        propertySeq.map(_._2)
+    }.flatten
+  /** Element properties listener. */
   val propertiesListener = new IChangeListener() { override def handleChange(event: ChangeEvent) = updateOK() }
+  /** The final element. */
+  protected var modifiedElement: Element = element
+
+  /** Get modified element. */
+  def getModifiedElement() = modifiedElement
 
   /** Add the group title to creation form */
-  def addGroupTitle(group: TemplatePropertyGroup): Section = {
+  protected def addGroupTitle(group: TemplatePropertyGroup): Section = {
     val title = getToolkit.createSection(getForm.getBody(), ExpandableComposite.TWISTIE | ExpandableComposite.TITLE_BAR)
     val layoutData = new GridData(SWT.FILL, SWT.CENTER, true, false)
     layoutData.horizontalSpan = 3
@@ -108,7 +170,7 @@ class ElementEditor @Inject() (
     title
   }
   /** Add the property group marker */
-  def addGroupMarker(group: TemplatePropertyGroup, size: Int): Composite = {
+  protected def addGroupMarker(group: TemplatePropertyGroup, size: Int): Composite = {
     val marker = getToolkit.createComposite(getForm.getBody(), SWT.NONE)
     val gc = new GC(marker)
     val fm = gc.getFontMetrics()
@@ -128,7 +190,7 @@ class ElementEditor @Inject() (
     marker
   }
   /** Add the property id label*/
-  def addLabel(property: TemplateProperty[_]): Label = {
+  protected def addLabel(property: TemplateProperty[_]): Label = {
     val label = getToolkit.createLabel(getForm.getBody(), property.id.name, SWT.NONE)
     val tooltip = if (property.required)
       Messages.acquire_text.format(property.ptype.typeSymbol)
@@ -139,7 +201,7 @@ class ElementEditor @Inject() (
     label
   }
   /** Add the property value field */
-  def addCellEditor[T <: AnyRef with java.io.Serializable: Manifest](property: TemplateProperty[T]): ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable] = {
+  protected def addCellEditor[T <: AnyRef with java.io.Serializable: Manifest](property: TemplateProperty[T]): ElementEditor.PropertyItem[_ <: AnyRef with java.io.Serializable] = {
     Model.assertNonGeneric[T]
     val initial = element.eGet[T](property.id).map(_.get) orElse property.defaultValue
     val editor = property.ptype.createEditor(initial, property.id, element)
@@ -182,9 +244,21 @@ class ElementEditor @Inject() (
     }
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val container = super.createDialogArea(parent).asInstanceOf[Composite]
+    context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     val shell = getShell
+    shell.addShellListener(shellListener)
+    shell.addFocusListener(focusListener)
+    // Add the dispose listener
+    shell.addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
+      }
+    })
     val form = getForm
     // Handle the element name
     val ancestors = element.eAncestors.map(_.id.name).reverse
@@ -208,52 +282,6 @@ class ElementEditor @Inject() (
       updateOK()
     }
     idField.value = element.eId.name
-    // Sort by group priority
-    properties = template.properties.toSeq.sortBy(_._1.priority).map {
-      case (group, properties) ⇒
-        // Add group title to this form.
-        val section = addGroupTitle(group)
-        // Add group marker to this form.
-        val marker = addGroupMarker(group, properties.size)
-        // Transform api.TemplateProperty -> ElementEditor.PropertyItem.
-        val propertySeq = properties.map { property ⇒
-          // Add label for property to this form.
-          val label = addLabel(property)
-          // Add editor for property to this form.
-          val propertyItem = addCellEditor(property)(Manifest.classType(property.ptype.typeClass))
-          (label, propertyItem)
-        }
-        // Add Expand/Collapse logic
-        section.addExpansionListener(new ExpansionAdapter() {
-          val expanded = true
-          override def expansionStateChanged(e: ExpansionEvent) = {
-            if (e.getState() == expanded) {
-              marker.setVisible(true)
-              marker.getLayoutData().asInstanceOf[GridData].exclude = false
-              propertySeq.foreach {
-                case (label, ElementEditor.PropertyItem(initial, property, control, editor)) ⇒
-                  label.setVisible(true)
-                  label.getLayoutData().asInstanceOf[GridData].exclude = false
-                  control.setVisible(true)
-                  control.getLayoutData().asInstanceOf[GridData].exclude = false
-              }
-            } else {
-              marker.setVisible(false)
-              marker.getLayoutData().asInstanceOf[GridData].exclude = true
-              propertySeq.foreach {
-                case ((label, ElementEditor.PropertyItem(initial, property, control, editor))) ⇒
-                  label.setVisible(false)
-                  label.getLayoutData().asInstanceOf[GridData].exclude = true
-                  control.setVisible(false)
-                  control.getLayoutData().asInstanceOf[GridData].exclude = true
-              }
-            }
-            form.reflow(true)
-            adjustFormHeight()
-          }
-        })
-        propertySeq.map(_._2)
-    }.flatten
     // Invoke updateOk on every 'editor.data' modification of any property.
     properties.foreach {
       case ElementEditor.PropertyItem(initial, property, control, editor) ⇒
@@ -283,24 +311,24 @@ class ElementEditor @Inject() (
   }
   /** Notifies that the OK button of this dialog has been pressed.	 */
   override protected def okPressed() {
-        val newId = idField.value.trim
-        if (newId != this.element.eId.name) {
-          //val stash = this.element.eStash.copy(id = Symbol(newId))
-          //this.element.asInstanceOf[Element[Stash]].eStash = stash
+    val newId = idField.value.trim
+    if (newId != this.element.eId.name) {
+      val newNode = this.element.eNode.copy(id = Symbol(newId))
+      modifiedElement = newNode.projection(this.element.eCoordinate).e
+    }
+    properties.foreach {
+      case ElementEditor.PropertyItem(initialValue, property, control, editor) ⇒
+        if (editor.isEmpty) {
+          if (modifiedElement.eGet(property.id, property.ptype.typeSymbol).nonEmpty)
+            modifiedElement = modifiedElement.eRemove(property.id, property.ptype.typeSymbol)
+        } else {
+          val previousValue = modifiedElement.eGet(property.id, property.ptype.typeSymbol)
+          if (previousValue.map(_.get) != Option(editor.data.value)) {
+            val value = Value.static(editor.data.value)(Manifest.classType(property.ptype.typeClass))
+            modifiedElement = modifiedElement.eSet(property.id, property.ptype.typeSymbol, Some(value))
+          }
         }
-    //    properties.foreach {
-    //      case ElementEditor.PropertyItem(initialValue, property, control, editor) =>
-    //        if (editor.isEmpty) {
-    //          if (element.eGet(property.id, property.ptype.typeSymbol).nonEmpty)
-    //            element.eRemove(property.id, property.ptype.typeSymbol)
-    //        } else {
-    //          val newValue = element.eGet(property.id, property.ptype.typeSymbol)
-    //          if (newValue.map(_.get) != Option(editor.data.value)) {
-    //            val value = Value.static(editor.data.value)(element, Manifest.classType(property.ptype.typeClass))
-    //            element.eSet(property.id, property.ptype.typeSymbol, Some(value))
-    //          }
-    //        }
-    //    }
+    }
     super.okPressed()
   }
   /** On dialog active */

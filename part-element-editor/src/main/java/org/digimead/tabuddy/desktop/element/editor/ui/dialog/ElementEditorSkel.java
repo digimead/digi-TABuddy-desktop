@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -43,6 +43,8 @@
 
 package org.digimead.tabuddy.desktop.element.editor.ui.dialog;
 
+import java.util.ResourceBundle;
+
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.swt.SWT;
@@ -65,11 +67,29 @@ import org.eclipse.ui.forms.widgets.ScrolledForm;
  * @author ezh
  */
 public class ElementEditorSkel extends TitleAreaDialog {
+	private static final ResourceBundle BUNDLE = getResourceBundle();
 	private ScrolledComposite scrolledComposite;
 	private final FormToolkit toolkit = new FormToolkit(Display.getCurrent());
 	private Text txtElementIdentificator;
 	private ScrolledForm form;
 	private Label lblElementIdentificator;
+
+	/**
+	 * Get ResourceBundle from Scala environment.
+	 *
+	 * @return ResourceBundle interface of NLS singleton.
+	 */
+	private static ResourceBundle getResourceBundle() {
+		try {
+			return (ResourceBundle) Class.forName("org.digimead.tabuddy.desktop.element.editor.Messages").newInstance();
+		} catch (ClassNotFoundException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.element.editor.messages");
+		} catch (IllegalAccessException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.element.editor.messages");
+		} catch (InstantiationException e) {
+			return ResourceBundle.getBundle("org.digimead.tabuddy.desktop.element.editor.messages");
+		}
+	}
 
 	/**
 	 * Create the dialog.
@@ -81,6 +101,26 @@ public class ElementEditorSkel extends TitleAreaDialog {
 		setShellStyle(SWT.DIALOG_TRIM | SWT.RESIZE);
 	}
 
+	public ScrolledComposite getScrolledComposite() {
+		return scrolledComposite;
+	}
+
+	public ScrolledForm getForm() {
+		return form;
+	}
+
+	public FormToolkit getToolkit() {
+		return toolkit;
+	}
+
+	public Text getTxtElementId() {
+		return txtElementIdentificator;
+	}
+
+	public Label getLblElementId() {
+		return lblElementIdentificator;
+	}
+
 	/**
 	 * Create contents of the dialog.
 	 *
@@ -88,27 +128,23 @@ public class ElementEditorSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected Control createDialogArea(Composite parent) {
-		setMessage("a"); //org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorDescription_text()); // $hide$
-		setTitle("b"); //org.digimead.tabuddy.desktop.Messages$.MODULE$.elementEditorTitle_text()); // $hide$
+		setMessage(BUNDLE.getString("elementEditorDescription_text"));
+		setTitle(BUNDLE.getString("elementEditorTitle_text"));
 		Composite area = (Composite) super.createDialogArea(parent);
 
 		form = toolkit.createScrolledForm(area);
 		form.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
 		form.getBody().setLayout(new GridLayout(3, false));
 
-		lblElementIdentificator = toolkit.createLabel(form.getBody(), "c", SWT.NONE);
-				//org.digimead.tabuddy.desktop.Messages$.MODULE$.identificator_text(), SWT.NONE); // $hide$
+		lblElementIdentificator = toolkit.createLabel(form.getBody(), BUNDLE.getString("identificator_text"), SWT.NONE);
 		lblElementIdentificator.setAlignment(SWT.RIGHT);
-		lblElementIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false,
-				false, 2, 1));
+		lblElementIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 2, 1));
 
 		txtElementIdentificator = toolkit.createText(form.getBody(), "", SWT.BORDER);
-		txtElementIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true,
-				false, 1, 1));
+		txtElementIdentificator.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
 
 		Composite composite = toolkit.createCompositeSeparator(form.getBody());
-		GridData gd_composite = new GridData(SWT.FILL, SWT.CENTER, true, false,
-				3, 1);
+		GridData gd_composite = new GridData(SWT.FILL, SWT.CENTER, true, false, 3, 1);
 		gd_composite.heightHint = 1;
 		composite.setLayoutData(gd_composite);
 		toolkit.decorateFormHeading(form.getForm());
@@ -124,30 +160,9 @@ public class ElementEditorSkel extends TitleAreaDialog {
 	 */
 	@Override
 	protected void createButtonsForButtonBar(Composite parent) {
-		Button button = createButton(parent, IDialogConstants.OK_ID,
-				IDialogConstants.OK_LABEL, true);
+		Button button = createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL, true);
 		button.setEnabled(false);
-		createButton(parent, IDialogConstants.CANCEL_ID,
-				IDialogConstants.CANCEL_LABEL, false);
+		createButton(parent, IDialogConstants.CANCEL_ID, IDialogConstants.CANCEL_LABEL, false);
 	}
 
-	protected ScrolledComposite getScrolledComposite() {
-		return scrolledComposite;
-	}
-
-	protected ScrolledForm getForm() {
-		return form;
-	}
-
-	protected FormToolkit getToolkit() {
-		return toolkit;
-	}
-
-	protected Text getTxtElementId() {
-		return txtElementIdentificator;
-	}
-
-	protected Label getLblElementId() {
-		return lblElementIdentificator;
-	}
 }

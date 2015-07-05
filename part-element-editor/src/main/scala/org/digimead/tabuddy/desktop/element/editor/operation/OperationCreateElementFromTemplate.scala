@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2013-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2013-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -100,12 +100,12 @@ class OperationCreateElementFromTemplate extends logic.operation.OperationCreate
             marker.safeRead { state ⇒
               val newElementID = state.payload.generateNew("New" + template.element.eScope, "_", newId ⇒ container.eNode.safeRead(_.exists(_.id.name == newId)))
               val element = template.factory(container, Symbol(newElementID), template.id)
-              val dialogContext = context.createChild("ElementCreateDialog")
+              val dialogContext = context.createChild("ElementEditorDialog")
               dialogContext.set(classOf[Shell], shell)
-              dialogContext.set(classOf[Graph[_ <: Model.Like]], container.eGraph)
+              dialogContext.set(classOf[Graph[_ <: Model.Like]], element.eGraph)
               dialogContext.set(classOf[GraphMarker], marker)
               dialogContext.set(classOf[Payload], state.payload)
-              dialogContext.set(classOf[Element], container)
+              dialogContext.set(classOf[Element], element)
               dialogContext.set(classOf[ElementTemplate], template)
               dialogContext.set(ElementEditor.newElementFlagId, true: java.lang.Boolean)
               val dialog = ContextInjectionFactory.make(classOf[ElementEditor], dialogContext)
@@ -113,9 +113,9 @@ class OperationCreateElementFromTemplate extends logic.operation.OperationCreate
                 context.removeChild(dialogContext)
                 dialogContext.dispose()
                 if (result == org.eclipse.jface.window.Window.OK)
-                  exchanger.exchange(Operation.Result.OK(Some(element)))
+                  exchanger.exchange(Operation.Result.OK(Some(dialog.getModifiedElement())))
                 else {
-                  element.eParent.foreach(_.safeRead(_ -= element.eNode))
+                  element.eNode.detach()
                   exchanger.exchange(Operation.Result.Cancel())
                 }
               }
@@ -129,7 +129,7 @@ class OperationCreateElementFromTemplate extends logic.operation.OperationCreate
   }
 
   class Implemetation(template: ElementTemplate, container: Element)
-    extends logic.operation.OperationCreateElementFromTemplate.Abstract(template, container) with XLoggable {
+      extends logic.operation.OperationCreateElementFromTemplate.Abstract(template, container) with XLoggable {
     @volatile protected var allowExecute = true
 
     override def canExecute() = allowExecute

@@ -1,6 +1,6 @@
 /**
  * This file is part of the TA Buddy project.
- * Copyright (c) 2012-2014 Alexey Aksenov ezh@ezh.msk.ru
+ * Copyright (c) 2012-2015 Alexey Aksenov ezh@ezh.msk.ru
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Global License version 3
@@ -45,6 +45,7 @@ package org.digimead.tabuddy.desktop.element.editor.ui.dialog
 
 import java.awt.MouseInfo
 import javax.inject.Inject
+import org.digimead.digi.lib.aop.log
 import org.digimead.digi.lib.log.api.XLoggable
 import org.digimead.tabuddy.desktop.core.definition.{ Context, Operation }
 import org.digimead.tabuddy.desktop.core.support.App
@@ -59,7 +60,7 @@ import org.digimead.tabuddy.model.graph.Graph
 import org.eclipse.core.runtime.jobs.Job
 import org.eclipse.jface.dialogs.IDialogConstants
 import org.eclipse.swt.SWT
-import org.eclipse.swt.events.{ PaintEvent, PaintListener }
+import org.eclipse.swt.events.{ DisposeEvent, DisposeListener, FocusEvent, FocusListener, PaintEvent, PaintListener, ShellAdapter, ShellEvent }
 import org.eclipse.swt.graphics.{ Point, Rectangle }
 import org.eclipse.swt.layout.{ GridData, GridLayout }
 import org.eclipse.swt.widgets.{ Button, Composite, Control, Event, Listener, Shell }
@@ -81,10 +82,13 @@ class ElementCreate @Inject() (
   val payload: Payload,
   /** New element container. */
   val container: Element)
-  extends ElementCreateSkel(parentShell) with Dialog with XLoggable {
-  /** Newly created element */
-  protected var element: Option[Element] = None
-  /** Close dialog on mouse over */
+    extends ElementCreateSkel(parentShell) with Dialog with XLoggable {
+  /** Activate context on focus. */
+  val focusListener = new FocusListener() {
+    def focusGained(e: FocusEvent) = context.activateBranch()
+    def focusLost(e: FocusEvent) {}
+  }
+  /** Close dialog on mouse over. */
   val guargThread = new Thread(new Runnable {
     def run = {
       var run = !getShell.isDisposed()
@@ -113,8 +117,14 @@ class ElementCreate @Inject() (
       }
     }
   })
-  /** Available templates */
+  /** Activate context on shell events. */
+  val shellListener = new ShellAdapter() {
+    override def shellActivated(e: ShellEvent) = context.activateBranch()
+  }
+  /** Available templates. */
   val templateList = payload.elementTemplates.values.filter(_.availability).toList.sortBy(_.id.name)
+  /** Newly created element. */
+  protected var element: Option[Element] = None
 
   def getCreatedElement(): Option[Element] = element
 
@@ -131,9 +141,21 @@ class ElementCreate @Inject() (
     button
   }
   /** Create contents of the dialog. */
+  @log(result = false)
   override protected def createDialogArea(parent: Composite): Control = {
     val container = super.createDialogArea(parent).asInstanceOf[Composite]
+    context.set(classOf[Composite], parent)
+    context.set(classOf[org.eclipse.jface.dialogs.Dialog], this)
     val shell = getShell
+    shell.addShellListener(shellListener)
+    shell.addFocusListener(focusListener)
+    // Add the dispose listener
+    shell.addDisposeListener(new DisposeListener {
+      def widgetDisposed(e: DisposeEvent) {
+        getShell().removeFocusListener(focusListener)
+        getShell().removeShellListener(shellListener)
+      }
+    })
     val total = templateList.size
     val cols = math.ceil(math.sqrt(total)).toInt
     val rows = math.ceil(total.toDouble / cols).toInt
